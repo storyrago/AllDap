@@ -141,7 +141,13 @@ def list_documents(bot_id: UUID) -> list[DocumentOut]:
     ]
 
 
-@app.delete("/internal/documents/{doc_id}", status_code=204)
+# response_model=None 이 왜 필요한가:
+#   FastAPI 0.89부터 함수의 반환 타입 애너테이션(-> None)을 보고 응답 모델을 자동으로 추론한다.
+#   그런데 204 No Content 는 정의상 본문을 가질 수 없어서, 추론된 모델이 있으면
+#   "Status code 204 must not have a response body" 로 앱이 뜨지도 못하고 죽는다.
+#   (요청이 올 때가 아니라 라우트를 등록하는 import 시점에 터진다)
+#   response_model=None 은 "애너테이션에서 추론하지 말라"는 명시적 지시다.
+@app.delete("/internal/documents/{doc_id}", status_code=204, response_model=None)
 def delete_document(doc_id: UUID) -> None:
     with cursor(commit=True) as cur:
         cur.execute("DELETE FROM documents WHERE id=%s", (doc_id,))  # 청크는 CASCADE
