@@ -435,7 +435,7 @@ TODO(W2): 파일을 어떻게 가져올지(직접 복사 / Gradle 복사 태스�
 | 파일 | 내용 |
 |---|---|
 | `AGENTS.md` | 아키텍처 원칙, 테이블 소유권, 작업 규칙 (`CLAUDE.md` 는 이 파일을 가리키는 포인터) |
-| `docs/PRD_v0.3.md` | §7 사이트맵 · §10 API 설계 · 부록A 미정 항목 |
+| `docs/PRD_v0.4.md` | §7 사이트맵 · §10 API 설계 · 부록A 미정 항목 |
 | `docs/decisions.md` | 설계 결정 로그 (Boot 4.0.7, Flyway 도입 등의 근거 전문) |
 | `api/src/main/resources/db/migration/V1__init.sql` | **스키마의 단일 진실 공급원** |
 | `ai-service/app/main.py`, `schemas.py` | Python 내부 API 의 실제 컨트랙트 |

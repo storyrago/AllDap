@@ -101,7 +101,7 @@ AllDap/  ← 저장소 루트
 ├── ai-service/  Python FastAPI (:8001)                ⚠️ 코드 있음 · 미검증
 ├── widget/      임베드 위젯 스크립트                    🚧 초안 (alldap-widget.js)
 ├── .github/     CI · PR 템플릿
-└── docs/{PRD_v0.3.md, decisions.md}
+└── docs/{PRD_v0.4.md, decisions.md}
 ```
 
 **루트 `db/` 디렉터리는 없어졌다.** 2026-07-31에 Flyway로 이관하면서
