@@ -3,7 +3,7 @@
 문서를 올리면 **출처가 표시되는 한국어 RAG 챗봇**을 만들어주고,
 그 챗봇이 얼마나 정확한지 **자동 평가 리포트로 증명**하는 서비스.
 
-> 상세 기획은 [`docs/PRD_v0.3.md`](docs/PRD_v0.3.md), 설계 결정 이력은 [`docs/decisions.md`](docs/decisions.md).
+> 상세 기획은 [`docs/PRD_v0.4.md`](docs/PRD_v0.4.md), 설계 결정 이력은 [`docs/decisions.md`](docs/decisions.md).
 
 ---
 
@@ -57,7 +57,7 @@
 
 스키마의 단일 진실 공급원은 `api/src/main/resources/db/migration/V1__init.sql`.
 Spring의 `ddl-auto`는 반드시 `validate` 또는 `none`.
-(마이그레이션 도구(Flyway)를 아직 쓰지 않는 이유는 `docs/decisions.md` 참조 — 스키마의 주인이 둘이 되면 안 되기 때문)
+마이그레이션은 Flyway가 관리하며 **Spring이 기동할 때** 적용됩니다. `V1__init.sql`은 수정 금지 — 변경은 `V2__*.sql`로만. (근거: `docs/decisions.md`)
 
 **왜 나눴나:** AI 파이프라인(문서 파싱·임베딩·평가)은 Python 생태계가 사실상 필수고,
 인증·트랜잭션·권한은 Spring이 강하다. 국내에서도 카카오페이(모델은 Python,
@@ -89,7 +89,7 @@ AllDap/
 │   └── alldap-widget.js
 ├── .github/       CI 워크플로 · PR 템플릿
 ├── docs/
-│   ├── PRD_v0.3.md    제품 요구사항 정의서
+│   ├── PRD_v0.4.md    제품 요구사항 정의서
 │   └── decisions.md   설계 결정 로그 (날짜 | 무엇을 | 왜 | 검토한 대안)
 ├── docker-compose.yml  PostgreSQL + pgvector
 ├── AGENTS.md           AI 협업 컨텍스트 (원본)
