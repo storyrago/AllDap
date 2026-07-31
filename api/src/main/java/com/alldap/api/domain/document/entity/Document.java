@@ -1,0 +1,101 @@
+package com.alldap.api.domain.document.entity;
+
+import com.alldap.api.domain.bot.entity.Bot;
+import com.alldap.api.global.common.BaseEntity;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
+import lombok.AccessLevel;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+
+import java.util.UUID;
+
+/**
+ * 업로드된 원본 문서. {@code documents} 테이블.
+ *
+ * <p><b>⚠️ 이 엔티티는 읽기 전용이다. 상태 변경 메서드를 만들지 마라.</b>
+ *
+ * <p><b>왜 그런가.</b> documents 의 쓰기 소유자는 <b>Python AI 서비스</b>다(CLAUDE.md 테이블 소유권).
+ * 문서의 생명주기 {@code pending → processing → ready|failed} 는 Python 의 백그라운드 처리
+ * ({@code ai-service/app/main.py} 의 {@code _process_document})가 파싱·청킹·임베딩 결과에 따라 갱신한다.
+ * Spring 이 같은 컬럼을 건드리기 시작하면 두 서비스가 서로의 상태를 덮어써서
+ * "무엇이 진짜 상태인지" 아무도 말할 수 없게 된다.
+ * 그래서 Spring 은 <b>조회만</b> 하고, 업로드·삭제는 {@code AiServiceClient} 로 Python 에 위임한다.
+ * 여기에 {@code markReady()} 같은 메서드를 추가하고 싶어진다면, 그건 소유권 규칙을 깨는 신호다.
+ *
+ * <p><b>chunks 엔티티가 없는 이유 (여기 남겨둔다).</b> 두 가지다.
+ * <ol>
+ *   <li><b>매핑이 불가능하다.</b> {@code chunks.embedding} 은 pgvector 의 {@code VECTOR(1536)} 타입이라
+ *       JPA/Hibernate 의 표준 타입 매핑에 대응물이 없다.
+ *       {@code ddl-auto=validate} 상태에서 엔티티를 만들면 그 컬럼 때문에 기동이 실패한다.</li>
+ *   <li><b>소유권상 Spring 이 건드릴 일이 없다.</b> chunks 는 쓰기·읽기 모두 Python 담당이다.
+ *       Spring 이 아는 것은 {@code messages.sources}(JSONB)에 기록해 둔 chunk_id 뿐이고,
+ *       그마저도 "어느 청크를 근거로 삼았는지" 추적용이지 청크 본문을 읽기 위한 게 아니다.</li>
+ * </ol>
+ *
+ * <p>스키마 대조 (db/migration):
+ * <pre>
+ * id            UUID PRIMARY KEY
+ * bot_id        UUID NOT NULL REFERENCES bots(id) ON DELETE CASCADE
+ * filename      VARCHAR(255) NOT NULL
+ * file_type     VARCHAR(10)  NOT NULL   -- pdf/docx/hwpx/hwp/txt/md
+ * status        VARCHAR(20)  NOT NULL   -- pending/processing/ready/failed
+ * error_message TEXT                    -- nullable, 실패 사유(한국어)
+ * char_count    INT                     -- nullable, 처리 완료 전에는 비어 있다
+ * chunk_count   INT                     -- nullable
+ * created_at    TIMESTAMPTZ NOT NULL    ← BaseEntity
+ * </pre>
+ */
+@Getter
+@Entity
+@Table(name = "documents")
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+public class Document extends BaseEntity {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
+    @Column(name = "id", nullable = false, updatable = false)
+    private UUID id;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "bot_id", nullable = false)
+    private Bot bot;
+
+    @Column(name = "filename", length = 255, nullable = false)
+    private String filename;
+
+    /** pdf | docx | hwpx | txt | md (구버전 .hwp 는 Python 파서가 거절한다) */
+    @Column(name = "file_type", length = 10, nullable = false)
+    private String fileType;
+
+    /**
+     * pending | processing | ready | failed.
+     *
+     * <p>enum 이 아니라 String 으로 둔 이유: 이 값을 정하는 쪽이 Python 이라,
+     * Java enum 에 없는 값이 들어오면 조회 자체가 예외로 터진다.
+     * (예: Python 이 나중에 상태를 하나 추가하면 Spring 이 문서 목록을 못 읽게 된다)
+     * 문자열로 받고 필요한 곳에서만 비교하는 편이 두 서비스의 배포 순서에 강하다.
+     */
+    @Column(name = "status", length = 20, nullable = false)
+    private String status;
+
+    /** 실패 사유. 사용자에게 그대로 보여줄 수 있는 한국어 문장이 Python 쪽에서 들어온다. */
+    @Column(name = "error_message")
+    private String errorMessage;
+
+    @Column(name = "char_count")
+    private Integer charCount;
+
+    @Column(name = "chunk_count")
+    private Integer chunkCount;
+
+    // 정적 팩토리도 두지 않는다. Spring 은 이 테이블에 INSERT 하지 않기 때문이다.
+    // 문서 생성은 AiServiceClient.uploadDocument() → Python 이 담당한다.
+}

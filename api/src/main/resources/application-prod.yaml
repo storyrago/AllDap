@@ -1,0 +1,59 @@
+# AllDap Spring API — 운영 프로파일 (SPRING_PROFILES_ACTIVE=prod)
+#
+# 설계 원칙: fail-closed.
+#   여기에는 기본값을 두지 않는다. 환경변수가 없으면 기동 자체가 실패해야 한다.
+#   기본값을 남겨두면 "운영에 로컬 비밀번호로 붙는" 사고가 조용히 일어난다.
+#   차라리 시끄럽게 죽는 편이 안전하다.
+
+spring:
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      # 로컬과 동일하게 validate. Python 과 DB 를 공유하므로 예외 없다.
+      ddl-auto: validate
+    open-in-view: false
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: false
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+  servlet:
+    multipart:
+      max-file-size: 20MB
+      max-request-size: 20MB
+
+server:
+  port: ${SERVER_PORT:8080}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+
+app:
+  ai-service:
+    # Python 서비스 주소. 반드시 내부망 주소여야 한다.
+    # 이 주소가 외부에 열려 있으면 인증 없이 누구나 남의 봇 문서를 조회할 수 있다.
+    base-url: ${AI_SERVICE_BASE_URL}
+    connect-timeout: ${AI_SERVICE_CONNECT_TIMEOUT:3s}
+    read-timeout: ${AI_SERVICE_READ_TIMEOUT:120s}
+  jwt:
+    secret: ${JWT_SECRET}
+    access-token-ttl: ${JWT_ACCESS_TOKEN_TTL:24h}
+
+logging:
+  level:
+    com.alldap.api: INFO

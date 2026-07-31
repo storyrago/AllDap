@@ -1,0 +1,80 @@
+package com.alldap.api.domain.chat.entity;
+
+import com.alldap.api.domain.bot.entity.Bot;
+import com.alldap.api.global.common.BaseEntity;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
+import lombok.AccessLevel;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+
+import java.util.UUID;
+
+/**
+ * 대화 세션. {@code conversations} 테이블. 쓰기 소유자는 Spring 이다.
+ *
+ * <p>스키마 대조 (db/migration):
+ * <pre>
+ * id         UUID PRIMARY KEY
+ * bot_id     UUID NOT NULL REFERENCES bots(id) ON DELETE CASCADE
+ * session_id VARCHAR(64) NOT NULL                 -- 브라우저가 만들어 보내는 세션 키
+ * channel    VARCHAR(10) NOT NULL DEFAULT 'widget' -- widget/test
+ * created_at TIMESTAMPTZ NOT NULL                 ← BaseEntity
+ * </pre>
+ */
+@Getter
+@Entity
+@Table(name = "conversations")
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+public class Conversation extends BaseEntity {
+
+    /** 실제 엔드유저의 위젯 대화 */
+    public static final String CHANNEL_WIDGET = "widget";
+    /** 관리자가 대시보드에서 돌려보는 테스트 대화 */
+    public static final String CHANNEL_TEST = "test";
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
+    @Column(name = "id", nullable = false, updatable = false)
+    private UUID id;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "bot_id", nullable = false)
+    private Bot bot;
+
+    /**
+     * 같은 대화를 묶는 키. 브라우저가 생성해 보낸다(로그인하지 않은 엔드유저도 있으므로 userId 를 못 쓴다).
+     *
+     * <p>신뢰할 수 없는 입력이다. 길이 제한(64자)은 Python 의 {@code ChatRequest} 와 동일하며
+     * 컬럼 제약도 VARCHAR(64) 이므로 서비스 계층에서 반드시 검증할 것.
+     */
+    @Column(name = "session_id", length = 64, nullable = false)
+    private String sessionId;
+
+    /**
+     * widget | test. 품질 지표를 낼 때 관리자 테스트 대화를 제외해야 수치가 왜곡되지 않는다.
+     * Document.status 와 같은 이유로 enum 대신 String 으로 둔다.
+     */
+    @Column(name = "channel", length = 10, nullable = false)
+    private String channel;
+
+    public static Conversation create(Bot bot, String sessionId, String channel) {
+        Conversation conversation = new Conversation();
+        conversation.bot = bot;
+        conversation.sessionId = sessionId;
+        conversation.channel = channel;
+        return conversation;
+    }
+
+    // messages 를 @OneToMany 로 들고 있지 않은 이유:
+    // 대화 로그는 페이지네이션·필터가 붙는 조회 위주라 컬렉션으로 통째로 로딩할 일이 없다.
+    // 양방향 연관을 걸면 N+1 과 무한 재귀 직렬화 위험만 늘어난다.
+    // 필요한 조회는 MessageRepository 에서 conversationId 로 한다.
+}
