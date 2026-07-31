@@ -19,6 +19,7 @@ import org.hibernate.type.SqlTypes;
 
 import java.security.SecureRandom;
 import java.util.Base64;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -148,10 +149,36 @@ public class Bot extends BaseEntity {
         return PUBLIC_KEY_PREFIX + Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
     }
 
-    // TODO(W2): 봇 설정 수정 도메인 메서드를 추가할 것.
-    //   PATCH /api/bots/{botId} 는 부분 수정이므로 "보낸 필드만 바꾸기"를 어떻게 표현할지가 핵심이다.
-    //   updateSettings(...) 하나로 묶을지, rename()/changeWelcomeMessage() 처럼 쪼갤지 결정한다.
-    //   어느 쪽이든 @Setter 는 쓰지 않는다 — 변경 의도가 메서드 이름에 드러나야 한다.
+    /**
+     * 봇 설정 부분 수정. <b>null 인 인자는 "안 보냄"이므로 기존 값을 유지한다.</b>
+     *
+     * <p>메서드를 하나로 묶은 이유: 호출 지점이 {@code PATCH /api/bots/{botId}} 하나뿐이라
+     * rename()/changeWelcomeMessage() 로 쪼개도 서비스에서 다시 5번 if 로 조립하게 된다.
+     * 필드마다 다른 규칙(검증·이벤트 발행)이 생기면 그때 쪼갠다.
+     *
+     * <p>{@code @Setter} 를 쓰지 않는 이유는 여전히 유효하다 — setter 는 아무 데서나
+     * 아무 필드나 바꿀 수 있게 열어주지만, 이 메서드는 "설정 화면에서 고칠 수 있는 것"만 받는다.
+     * publicKey·user 는 인자에 없으므로 <b>바꾸는 코드를 쓸 수가 없다.</b>
+     */
+    public void updateSettings(String name, String systemPrompt, String welcomeMessage,
+                               String fallbackMessage, List<String> allowedOrigins) {
+        if (name != null) {
+            this.name = name;
+        }
+        if (systemPrompt != null) {
+            this.systemPrompt = systemPrompt;
+        }
+        if (welcomeMessage != null) {
+            this.welcomeMessage = welcomeMessage;
+        }
+        if (fallbackMessage != null) {
+            this.fallbackMessage = fallbackMessage;
+        }
+        if (allowedOrigins != null) {
+            // List<String> → String[]. 변환을 여기 한 곳에 두면 서비스가 배열 타입을 몰라도 된다.
+            this.allowedOrigins = allowedOrigins.toArray(String[]::new);
+        }
+    }
 
     // TODO(W2): allowed_origins 검증(위젯 Origin 체크)은 도메인 메서드
     //   isOriginAllowed(String origin) 으로 두는 게 맞다. 규칙(와일드카드 허용 여부, 빈 배열의 의미)을
