@@ -1,12 +1,18 @@
 package com.alldap.api.global.exception;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -49,6 +55,66 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * 요청 본문(JSON)을 읽지 못한 경우. 예: {@code {"email":} 처럼 잘린 JSON, 본문 자체가 없는 POST.
+     *
+     * <p>이 예외를 따로 잡지 않으면 마지막 {@link #handleException} 으로 떨어져 <b>500</b> 이 나간다.
+     * 그런데 "JSON 을 잘못 보냈다"는 명백한 <b>클라이언트 잘못</b>이라 400 이 맞다.
+     *
+     * <p>{@code e.getMessage()} 를 사용자에게 그대로 내려보내지 않는 이유:
+     * Jackson 의 원본 메시지에는 파서 클래스명·DTO 클래스명·본문 조각이 섞여 나온다.
+     * 내부 구조를 노출하는 데다 한국어도 아니라 사용자에게 도움이 되지 않는다.
+     * 대신 로그에는 남겨 개발자가 원인을 볼 수 있게 한다(스택트레이스는 불필요하므로 메시지만).
+     */
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ErrorResponse> handleNotReadable(HttpMessageNotReadableException e) {
+        log.warn("[MalformedRequestBody] {}", e.getMessage());
+        return ResponseEntity
+                .status(ErrorCode.INVALID_INPUT.getStatus())
+                .body(ErrorResponse.of(ErrorCode.INVALID_INPUT,
+                        "요청 본문(JSON)을 읽을 수 없습니다. 따옴표·괄호가 빠지지 않았는지 확인한 뒤 올바른 JSON 형식으로 다시 보내주세요."));
+    }
+
+    /**
+     * Content-Type 이 없거나 우리가 처리할 수 없는 형식인 경우 → 415.
+     *
+     * <p>{@code curl -d 'email=a'} 처럼 Content-Type 을 지정하지 않으면
+     * {@code application/x-www-form-urlencoded} 로 전송되는데, 우리 API 는 JSON 만 받는다.
+     *
+     * <p>응답에 {@code Accept} 헤더로 지원 형식을 알려주는 방법도 있지만(스프링 기본 핸들러가 그렇게 한다)
+     * 이 API 는 <b>모든 엔드포인트가 JSON 하나뿐</b>이라 헤더로 협상할 여지가 없다.
+     * 그래서 헤더 대신 에러 메시지에 "application/json 으로 보내라"를 직접 적는 쪽을 택했다.
+     */
+    @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
+    public ResponseEntity<ErrorResponse> handleMediaTypeNotSupported(HttpMediaTypeNotSupportedException e) {
+        log.warn("[UnsupportedMediaType] contentType={}", e.getContentType());
+        return ResponseEntity
+                .status(ErrorCode.UNSUPPORTED_MEDIA_TYPE.getStatus())
+                .body(ErrorResponse.of(ErrorCode.UNSUPPORTED_MEDIA_TYPE));
+    }
+
+    /**
+     * 주소는 맞는데 HTTP 메서드가 틀린 경우 → 405. 예: {@code GET /api/auth/login} (POST 전용).
+     *
+     * <p>{@code Allow} 헤더를 함께 내려준다. RFC 9110 이 405 응답에 이 헤더를 요구하고,
+     * 무엇보다 프론트 개발자가 "그럼 뭘로 불러야 하지"를 응답만 보고 알 수 있다.
+     */
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ErrorResponse> handleMethodNotSupported(HttpRequestMethodNotSupportedException e) {
+        log.warn("[MethodNotAllowed] method={} supported={}", e.getMethod(), e.getSupportedHttpMethods());
+
+        HttpHeaders headers = new HttpHeaders();
+        Set<HttpMethod> supported = e.getSupportedHttpMethods();
+        if (supported != null && !supported.isEmpty()) {
+            headers.setAllow(supported);
+        }
+
+        return ResponseEntity
+                .status(ErrorCode.METHOD_NOT_ALLOWED.getStatus())
+                .headers(headers)
+                .body(ErrorResponse.of(ErrorCode.METHOD_NOT_ALLOWED));
+    }
+
+    /**
      * multipart 최대 크기 초과.
      *
      * <p>Spring 의 multipart 제한(application.yaml)에 걸리면 요청이 Python 까지 가지도 못한다.
@@ -67,7 +133,39 @@ public class GlobalExceptionHandler {
      *
      * <p>내부 예외 메시지를 그대로 내려보내지 않는 이유: 테이블명·SQL·라이브러리 이름 같은
      * 내부 구조가 새어나가면 공격에 힌트가 되고, 사용자에게도 아무 도움이 안 된다.
+     *
+     * <p><b>로그 수준을 나누는 기준.</b> 여기만 {@code log.error} + 스택트레이스다.
+     * 위의 핸들러들(검증 실패·잘못된 JSON·잘못된 메서드)은 전부 <b>클라이언트 잘못</b>이라
+     * {@code log.warn} + 메시지 한 줄로 끝낸다. 클라이언트 실수까지 ERROR 로 남기면
+     * 알림이 울려야 할 진짜 서버 장애가 소음에 묻힌다.
      */
+    /**
+     * 아직 구현하지 않은 엔드포인트 → 501 Not Implemented.
+     *
+     * <p><b>왜 필요한가.</b> 지금 이 저장소의 컨트롤러 상당수는 뼈대라
+     * {@code throw new UnsupportedOperationException("... 미구현 (W2)")} 만 들어 있다.
+     * 그대로 두면 마지막 {@code handleException} 으로 떨어져 <b>500 INTERNAL_ERROR</b> 가 나가는데,
+     * 이건 두 가지로 해롭다.
+     * <ol>
+     *   <li><b>거짓말이다.</b> 서버가 고장난 게 아니라 아직 안 만든 것이다.
+     *       500 은 "우리 잘못이니 잠시 후 재시도"라는 뜻이라 클라이언트가 재시도 로직을 잘못 짠다.</li>
+     *   <li><b>검증을 방해한다.</b> 실제로 인증 슬라이스를 검증할 때
+     *       "유효한 토큰으로 보호 경로 접근"이 성공했는지를 응답만으로 구분할 수 없어
+     *       서버 로그를 봐야 했다. 501 이면 "인증은 통과했고 기능이 없을 뿐"이 응답에 드러난다.</li>
+     * </ol>
+     *
+     * <p>TODO: 각 엔드포인트를 구현하면서 해당 {@code UnsupportedOperationException} 을 지운다.
+     * 마지막 하나가 사라지면 이 핸들러도 함께 지울 것 — 남겨두면 진짜 버그를 501 로 감추게 된다.
+     */
+    @ExceptionHandler(UnsupportedOperationException.class)
+    public ResponseEntity<ErrorResponse> handleNotImplemented(UnsupportedOperationException e) {
+        // 서버 잘못이 아니라 '아직 없음'이므로 warn. 스택트레이스는 남기지 않는다.
+        log.warn("[NotImplemented] {}", e.getMessage());
+        return ResponseEntity
+                .status(ErrorCode.NOT_IMPLEMENTED.getStatus())
+                .body(ErrorResponse.of(ErrorCode.NOT_IMPLEMENTED));
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleException(Exception e) {
         log.error("[UnhandledException]", e);
@@ -76,9 +174,8 @@ public class GlobalExceptionHandler {
                 .body(ErrorResponse.of(ErrorCode.INTERNAL_ERROR));
     }
 
-    // TODO(W2): 아래 예외들도 개별 핸들러로 분리할 것.
+    // TODO(W2): 아래 예외들도 개별 핸들러로 분리할 것. 지금은 마지막 handleException 으로 떨어져
+    //   500 이 나가지만 실제로는 400 이 맞다. (해당 파라미터를 쓰는 엔드포인트를 구현할 때 함께 추가한다)
     //   - ConstraintViolationException (@RequestParam/@PathVariable 검증)
-    //   - HttpMessageNotReadableException (JSON 파싱 실패 → "요청 형식이 올바르지 않습니다")
     //   - MethodArgumentTypeMismatchException (UUID 자리에 문자열이 온 경우)
-    //   지금은 전부 마지막 handleException 으로 떨어져 500 이 나간다. 실제로는 400 이 맞다.
 }

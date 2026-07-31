@@ -65,6 +65,19 @@ public class AuthService {
 
     /**
      * 가입. 성공하면 토큰까지 함께 돌려준다(가입 직후 재로그인을 시키지 않는다).
+     *
+     * <h2>가입은 사용자 열거(enumeration)를 막지 않는다 — 알고 택한 것이다</h2>
+     * 로그인은 더미 해시까지 써서 "이 이메일이 가입돼 있는지"를 감추는데,
+     * 가입은 409 {@link ErrorCode#EMAIL_ALREADY_EXISTS} 로 그 사실을 그대로 알려준다.
+     * <b>이 비대칭은 빠뜨린 게 아니라 저울질한 결과다.</b>
+     *
+     * <p>중복을 알려주지 않으려면 "가입 요청을 받았습니다"라고만 답하고 실제 안내는 메일로 보내야 한다
+     * (이메일 인증 방식). 그런데 지금은 메일 발송 수단이 없고, 그렇다고 무작정 성공처럼 답하면
+     * 사용자는 <b>왜 로그인이 안 되는지 영영 알 수 없다.</b> 그 UX 손해가
+     * "가입 폼으로 이메일 가입 여부를 알아낼 수 있다"는 보안 이득보다 크다고 판단했다.
+     *
+     * <p>다만 로그인과 달리 가입은 <b>계정을 만드는</b> 행위라 스팸·자동 가입 자체를 막을 필요가 있다.
+     * TODO(W2 이후): 가입에도 IP 단위 rate limit 을 걸 것(로그인과 같은 장치를 공유). 아래 login() 의 TODO 참고.
      */
     @Transactional
     public AuthResponse signup(SignupRequest request) {
@@ -75,6 +88,9 @@ public class AuthService {
             throw new ApiException(ErrorCode.EMAIL_ALREADY_EXISTS);
         }
 
+        // encode() 는 비밀번호가 UTF-8 72바이트를 넘으면 IllegalArgumentException 을 던진다(BCrypt 자체의 한계).
+        // 그 검사는 여기가 아니라 SignupRequest 의 @ByteLength(max = 72) 가 이미 통과시킨 뒤다 —
+        // 입력 검증은 컨트롤러 진입 시점에 한 곳에서 끝내고, 서비스는 "규격을 통과한 값"만 다룬다.
         User user = User.create(email, passwordEncoder.encode(request.password()), normalizeName(request.name()));
 
         try {
@@ -123,6 +139,13 @@ public class AuthService {
         //   JWT 라 서버에 상태가 없으므로 실패 카운터를 어디에 둘지부터 정해야 한다
         //   (DB 컬럼 추가 = 마이그레이션 필요 / Redis 도입 = 운영 대상 증가).
         //   지금 결정하지 않고 남겨둔다.
+        //
+        //   함께 고려할 것: 계정별 실패 카운터보다 IP 단위 요청 수 제한이 먼저다.
+        //   위의 더미 해시 설계 때문에 <가입되지 않은 이메일>로 요청해도 BCrypt 대조 비용(수십~수백 ms)이
+        //   그대로 발생한다. 즉 존재하지 않는 계정만 골라 때려도 CPU 가 소진되므로
+        //   "계정을 못 찾으면 빨리 실패"에 기대는 방어가 통하지 않는다.
+        //   (열거 방지를 위해 일부러 그렇게 만든 것이니 이 비용 자체는 되돌리지 않는다)
+        //   응답 코드는 이미 정의돼 있다 — ErrorCode.RATE_LIMIT_EXCEEDED(429).
     }
 
     private AuthResponse toAuthResponse(User user) {

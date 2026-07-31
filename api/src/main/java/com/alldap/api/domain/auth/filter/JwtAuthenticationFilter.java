@@ -46,6 +46,23 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
+    /*
+     * ⚠️ 이 필터는 토큰의 '서명이 유효한가'만 본다. sub 에 담긴 사용자가 DB 에 실재하는지는 확인하지 않는다.
+     *
+     * 그래서 탈퇴했거나 삭제된 사용자의 토큰도 만료(기본 24h)까지는 인증을 통과한다.
+     * 이건 버그가 아니라 무상태(stateless) JWT 를 택한 대가다 — 매 요청마다 사용자를 조회하면
+     * "토큰만으로 검증된다"는 JWT 의 이점이 사라지고 DB 왕복이 요청 수만큼 늘어난다.
+     *
+     * 실질적 안전장치는 뒤쪽에 있다. 봇·문서 조회는 어차피 userId 로 소유권을 확인하므로,
+     * 없는 사용자의 토큰으로는 어떤 데이터에도 닿지 못한다(빈 결과 또는 403).
+     *
+     * TODO(배포 준비 단계): 즉시 무효화가 필요해지면 — 예를 들어 탈퇴·비밀번호 변경 시 —
+     *   ① 토큰 TTL 을 짧게 줄이고 리프레시 토큰을 도입하거나
+     *   ② 무효화된 토큰 목록(deny list)을 Redis 에 두는 방식을 검토할 것.
+     *   지금 단계에서 하지 않는 이유는 운영할 것(Redis)이 하나 더 늘기 때문이다.
+     */
+
+
     private static final String AUTHORIZATION_HEADER = "Authorization";
     private static final String BEARER_PREFIX = "Bearer ";
 

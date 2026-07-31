@@ -6,7 +6,6 @@ import com.alldap.api.global.exception.ApiAccessDeniedHandler;
 import com.alldap.api.global.exception.ApiAuthenticationEntryPoint;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -14,6 +13,12 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import java.time.Duration;
+import java.util.List;
 
 /**
  * 보안 설정.
@@ -38,13 +43,19 @@ public class SecurityConfig {
      *                                   필터를 빈으로 만들지 않는 이유는 {@link JwtAuthenticationFilter} 주석 참고.
      * @param authenticationEntryPoint   인증 실패(401) 응답을 공통 포맷으로 쓰는 컴포넌트
      * @param accessDeniedHandler        인가 실패(403) 응답을 공통 포맷으로 쓰는 컴포넌트
+     * @param corsConfigurationSource    어느 오리진의 요청을 허용할지 정하는 규칙 (아래 빈)
      */
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http,
                                                    JwtService jwtService,
                                                    ApiAuthenticationEntryPoint authenticationEntryPoint,
-                                                   ApiAccessDeniedHandler accessDeniedHandler) throws Exception {
+                                                   ApiAccessDeniedHandler accessDeniedHandler,
+                                                   CorsConfigurationSource corsConfigurationSource) throws Exception {
         http
+                // CORS 를 Security 필터 체인 안에서 처리한다.
+                // 여기 배선하면 스프링 시큐리티가 CorsFilter 를 체인 <b>맨 앞쪽</b>(인가 판단보다 먼저)에 넣어준다.
+                // 프리플라이트(OPTIONS)는 이 필터가 직접 응답하고 체인을 더 진행시키지 않는다.
+                .cors(cors -> cors.configurationSource(corsConfigurationSource))
                 .csrf(csrf -> csrf.disable())
                 .httpBasic(basic -> basic.disable())
                 .formLogin(form -> form.disable())
@@ -58,8 +69,10 @@ public class SecurityConfig {
                         .requestMatchers("/api/w/**").permitAll()
                         // 헬스체크만 공개. 나머지 actuator 엔드포인트는 노출하지 않는다.
                         .requestMatchers("/actuator/health").permitAll()
-                        // 브라우저가 본 요청 전에 보내는 프리플라이트는 인증 대상이 아니다.
-                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                        // (예전에 있던 `OPTIONS /** permitAll` 은 지웠다.
+                        //  위 .cors(...) 배선으로 프리플라이트는 CorsFilter 가 인가 판단 <b>전에</b> 끝내므로
+                        //  더 이상 필요 없고, 남겨두면 모든 경로에 대해 OPTIONS 를 인증 없이 열어두는 셈이라
+                        //  "어떤 경로가 존재하는지"를 떠보는 통로만 남는다)
                         // ── 그 외 전부 인증 필요 ────────────────────────────────────
                         .anyRequest().authenticated()
                 )
@@ -78,11 +91,54 @@ public class SecurityConfig {
                 // 체인에서의 '위치 기준점'으로는 그대로 유효하다.
                 .addFilterBefore(new JwtAuthenticationFilter(jwtService), UsernamePasswordAuthenticationFilter.class);
 
-        // TODO(W2): CORS 설정. 관리자 화면(Next.js :3000)과 위젯을 심은 고객 도메인(bots.allowed_origins)은
-        //   서로 다른 출처다. /api/w/** 는 봇별 allowed_origins 를 동적으로 검사해야 하므로
-        //   정적 CorsConfigurationSource 만으로는 부족하다.
-
         return http.build();
+    }
+
+    /**
+     * CORS 규칙.
+     *
+     * <p><b>왜 필요한가.</b> 관리자 화면은 Next.js(:3000), API 는 Spring(:8080)이다.
+     * 포트가 다르면 브라우저는 <b>다른 출처</b>로 본다. 서버가 "이 출처는 괜찮다"고 응답 헤더로
+     * 말해주지 않으면 브라우저가 응답을 자바스크립트에 넘기지 않는다.
+     * (요청 자체는 서버에 도착한다 — 막는 주체는 서버가 아니라 브라우저다)
+     *
+     * <p><b>설정 하나하나의 근거</b>
+     * <ul>
+     *   <li>{@code allowedOrigins} — 설정값에서 읽는다. {@code allowedOriginPatterns} 로
+     *       와일드카드를 쓰지 않는다. 오리진 허용은 "정확히 이 주소만"이어야 한다.</li>
+     *   <li>{@code allowedHeaders} — {@code Authorization}(JWT)과 {@code Content-Type}(JSON) 둘뿐이다.
+     *       {@code *} 로 열지 않는 이유는, 나중에 어떤 헤더가 오가는지 이 목록만 보면 알 수 있게 하기 위해서다.
+     *       ⚠️ {@code Authorization} 은 브라우저가 '단순 요청'으로 안 봐서 <b>프리플라이트를 유발</b>한다.
+     *       이 목록에 없으면 로그인 후 모든 API 호출이 막힌다.</li>
+     *   <li>{@code allowCredentials(false)} — 우리는 쿠키·세션을 쓰지 않고 토큰을 헤더에 실어 보낸다
+     *       (SecurityConfig 설계 결정 ①). credentials 는 <b>쿠키</b>를 위한 스위치라 켤 이유가 없다.
+     *       켜면 오리진에 {@code *} 를 못 쓰는 등 제약만 늘고, 실수로 쿠키 인증이 섞여 들어올 여지가 생긴다.</li>
+     *   <li>{@code maxAge} — 프리플라이트 응답을 브라우저가 1시간 캐시한다. 이게 없으면
+     *       API 호출마다 OPTIONS 가 한 번씩 더 붙는다(요청 수가 두 배).</li>
+     * </ul>
+     *
+     * <p>TODO(W2 위젯 슬라이스): {@code /api/w/**} 는 여기서 다루지 않는다.
+     *   위젯은 <b>봇마다</b> 허용 도메인이 다르므로({@code bots.allowed_origins}) 정적 목록으로는 표현할 수 없고,
+     *   요청 경로의 {@code publicKey} 로 봇을 조회해 그 봇의 허용 도메인을 돌려주는
+     *   {@code CorsConfigurationSource} 구현이 따로 필요하다.
+     *   그때 {@code "/api/w/**"} 규칙을 아래 {@code "/api/**"} 보다 <b>먼저</b> 등록해야 한다 —
+     *   {@code UrlBasedCorsConfigurationSource} 는 등록된 순서대로 훑다가 처음 일치하는 규칙을 쓴다.
+     *   그 전까지 위젯을 고객 사이트에서 부르면 브라우저에서 막힌다(= 안전한 쪽으로 닫혀 있다).
+     */
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource(CorsProperties corsProperties) {
+        CorsConfiguration adminApi = new CorsConfiguration();
+        adminApi.setAllowedOrigins(corsProperties.allowedOrigins());
+        // OPTIONS 는 넣지 않아도 된다. 프리플라이트에서 검사하는 대상은 OPTIONS 자체가 아니라
+        // Access-Control-Request-Method 에 적힌 "진짜 보낼 메서드"이기 때문이다.
+        adminApi.setAllowedMethods(List.of("GET", "POST", "PATCH", "PUT", "DELETE"));
+        adminApi.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+        adminApi.setAllowCredentials(false);
+        adminApi.setMaxAge(Duration.ofHours(1));
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/api/**", adminApi);
+        return source;
     }
 
     /**
