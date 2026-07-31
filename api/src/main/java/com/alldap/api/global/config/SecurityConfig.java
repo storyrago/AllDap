@@ -1,5 +1,9 @@
 package com.alldap.api.global.config;
 
+import com.alldap.api.domain.auth.filter.JwtAuthenticationFilter;
+import com.alldap.api.domain.auth.service.JwtService;
+import com.alldap.api.global.exception.ApiAccessDeniedHandler;
+import com.alldap.api.global.exception.ApiAuthenticationEntryPoint;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -9,6 +13,7 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 /**
  * 보안 설정.
@@ -28,8 +33,17 @@ import org.springframework.security.web.SecurityFilterChain;
 @EnableWebSecurity
 public class SecurityConfig {
 
+    /**
+     * @param jwtService                 JWT 필터를 여기서 직접 조립하기 위해 주입받는다.
+     *                                   필터를 빈으로 만들지 않는 이유는 {@link JwtAuthenticationFilter} 주석 참고.
+     * @param authenticationEntryPoint   인증 실패(401) 응답을 공통 포맷으로 쓰는 컴포넌트
+     * @param accessDeniedHandler        인가 실패(403) 응답을 공통 포맷으로 쓰는 컴포넌트
+     */
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http,
+                                                   JwtService jwtService,
+                                                   ApiAuthenticationEntryPoint authenticationEntryPoint,
+                                                   ApiAccessDeniedHandler accessDeniedHandler) throws Exception {
         http
                 .csrf(csrf -> csrf.disable())
                 .httpBasic(basic -> basic.disable())
@@ -48,17 +62,21 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         // ── 그 외 전부 인증 필요 ────────────────────────────────────
                         .anyRequest().authenticated()
-                );
-
-        // TODO(W2): JWT 인증 필터를 UsernamePasswordAuthenticationFilter 앞에 끼워 넣을 것.
-        //   http.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
-        //   필터가 없는 지금은 보호 경로가 전부 401 로 떨어진다. 이는 의도된 상태다
-        //   (인증을 통과시키는 가짜 구현을 두는 것보다 안전하다).
-
-        // TODO(W2): 인증/인가 실패 시에도 PRD §10.3 공통 에러 포맷
-        //   {"error":{"code":"...","message":"..."}} 이 나가도록
-        //   AuthenticationEntryPoint / AccessDeniedHandler 를 붙일 것.
-        //   지금은 Spring Security 기본 응답이라 포맷이 다르다.
+                )
+                // 인증·인가 실패도 PRD §10.3 공통 포맷 {"error":{"code":...,"message":...}} 으로 내보낸다.
+                // 이 두 줄이 없으면 Spring Security 기본 응답(빈 본문 401 / HTML 403)이 나가
+                // 프론트의 ApiErrorBody 파싱이 깨진다. 컨트롤러까지 도달하지 못한 요청이라
+                // GlobalExceptionHandler 로는 잡을 수 없는 구간이다.
+                .exceptionHandling(handling -> handling
+                        .authenticationEntryPoint(authenticationEntryPoint)   // 401
+                        .accessDeniedHandler(accessDeniedHandler)             // 403
+                )
+                // JWT 필터를 UsernamePasswordAuthenticationFilter '앞'에 끼운다.
+                // 앞에 두는 이유: 그 지점이 "요청에서 인증 정보를 꺼내 SecurityContext 를 채우는" 자리이고,
+                // 뒤쪽의 인가 필터(AuthorizationFilter)가 판단을 내리기 전에 컨텍스트가 채워져 있어야 한다.
+                // 우리는 폼 로그인을 쓰지 않으므로 UsernamePasswordAuthenticationFilter 자체는 동작하지 않지만,
+                // 체인에서의 '위치 기준점'으로는 그대로 유효하다.
+                .addFilterBefore(new JwtAuthenticationFilter(jwtService), UsernamePasswordAuthenticationFilter.class);
 
         // TODO(W2): CORS 설정. 관리자 화면(Next.js :3000)과 위젯을 심은 고객 도메인(bots.allowed_origins)은
         //   서로 다른 출처다. /api/w/** 는 봇별 allowed_origins 를 동적으로 검사해야 하므로
