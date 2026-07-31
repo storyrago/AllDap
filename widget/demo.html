@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>한국대학교 컴퓨터공학과 학과사무실 (위젯 검수용 가짜 사이트)</title>
+
+<!--
+  ===========================================================================
+  이 페이지는 무엇인가
+  ===========================================================================
+  PRD F-04 의 완료 조건(AC)이 "외부 정적 사이트에 설치해 정상 대화 성공" 이다.
+  즉 우리 서비스 안에서 잘 되는 것으로는 통과가 안 되고,
+  "남의 사이트"에 붙여봐야 한다. 그 "남의 사이트" 역할을 하는 검수용 페이지다.
+
+  페르소나 P1(김하늘, 27세 학과 조교)이 실제로 위젯을 붙일 만한 곳을 흉내 냈다.
+  프레임워크 없이 손으로 짠, 오래되고 CSS가 지저분한 학과 홈페이지다.
+
+  ===========================================================================
+  아래 CSS 는 일부러 "고약하게" 짰다
+  ===========================================================================
+  * 선택자, 태그 선택자, !important, 이상한 폰트, 높은 z-index —
+  격리가 안 된 위젯이라면 여기서 반드시 깨진다.
+  위젯이 Shadow DOM 안에 있으므로 이 규칙들은 위젯 안으로 들어가지 못한다.
+  (그래서 이건 장식이 아니라 "격리가 실제로 되는지"를 검증하는 장치다)
+-->
+<style>
+  /* 남의 사이트에서 흔히 보는 전역 초기화 — 위젯 레이아웃을 망가뜨리는 대표 주자 */
+  * { box-sizing: content-box; }
+
+  body {
+    margin: 0;
+    font-family: "Comic Sans MS", "Chalkboard SE", cursive;  /* 위젯 폰트가 이걸 물려받으면 실패 */
+    color: #c026d3;
+    line-height: 3;                                          /* 물려받으면 말풍선이 뚱뚱해진다 */
+    background: #fffbe6;
+    text-align: center;                                      /* 물려받으면 위젯 글씨가 가운데 정렬된다 */
+  }
+
+  /* 태그 선택자 + !important — 클래스 접두사 방식으로는 절대 못 막는 공격 */
+  button {
+    background: #ff0000 !important;
+    color: #00ff00 !important;
+    font-size: 30px !important;
+    border: 4px dashed lime !important;
+    border-radius: 0 !important;
+  }
+
+  div { border: 1px dashed rgba(192, 38, 211, .35); }
+  svg { transform: rotate(25deg); }
+  iframe { filter: invert(1); }
+
+  /* 위젯보다 위에 뜨려고 시도하는 요소 */
+  .sticky-notice {
+    position: fixed; left: 0; right: 0; bottom: 0;
+    z-index: 999999;
+    background: #1f2937; color: #fff; padding: 6px; font-size: 13px; line-height: 1.5;
+  }
+
+  /* 아래는 그냥 페이지 꼴을 갖추기 위한 것 */
+  .page { max-width: 760px; margin: 0 auto; padding: 24px 16px 80px; text-align: left; }
+  h1 { font-size: 24px; margin: 0 0 4px; }
+  h2 { font-size: 18px; margin: 28px 0 8px; }
+  .sub { font-size: 13px; opacity: .8; margin-bottom: 20px; }
+  .notice { background: #fff; padding: 12px 14px; margin: 8px 0; }
+  code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; line-height: 1.6; }
+  pre {
+    background: #111827; color: #e5e7eb; padding: 14px; overflow-x: auto;
+    font-size: 13px; white-space: pre; text-align: left;
+  }
+  ul { line-height: 1.9; }
+  .check { background: #fff; padding: 14px 16px; }
+</style>
+</head>
+<body>
+
+<div class="page">
+
+  <h1>한국대학교 컴퓨터공학과 학과사무실</h1>
+  <p class="sub">공지사항 · 학사일정 · 각종 서식 내려받기</p>
+
+  <div class="notice"><strong>[공지]</strong> 2학기 휴학·복학 신청 기간은 8월 12일(월) ~ 8월 23일(금) 입니다.</div>
+  <div class="notice"><strong>[공지]</strong> 졸업논문 제출 마감은 11월 15일입니다. 지도교수 확인란을 반드시 채워주세요.</div>
+  <div class="notice"><strong>[서식]</strong> 휴학원서.hwpx / 복학신청서.hwpx / 성적정정요청서.hwpx</div>
+
+  <p>문의: 학과사무실 (평일 09:00~17:00, 점심시간 12:00~13:00) · 공대 3호관 201호</p>
+
+  <button type="button">이 버튼은 위 CSS 때문에 새빨갛다 (호스트 페이지 버튼)</button>
+
+  <h2>설치 코드 (관리자가 복사해 붙여넣는 한 줄)</h2>
+  <p>봇 설정 화면(<code>/bot/[botId]/settings</code>)에서 복사하게 될 코드는 이것이다.</p>
+<pre>&lt;script src="http://localhost:8080/widget/alldap-widget.js"
+        data-public-key="pk_local_dev"&gt;&lt;/script&gt;</pre>
+
+  <h2>검수 체크리스트 (PRD F-04)</h2>
+  <div class="check">
+    <p><strong>지금 확인할 수 있는 것</strong> — 위젯 껍데기(로더)</p>
+    <ul>
+      <li>오른쪽 아래에 파란 원형 버튼이 뜬다 (호스트 CSS의 <code>빨강·초록·점선 테두리</code>에 물들지 않았는가)</li>
+      <li>버튼을 누르면 채팅창이 열리고, 다시 누르거나 ESC를 누르면 닫힌다</li>
+      <li>글꼴이 Comic Sans 가 아니다 / 줄간격이 3배로 벌어지지 않았다 (상속 속성 차단 확인)</li>
+      <li>브라우저 창을 480px 이하로 줄이면 채팅창이 화면 전체를 덮는다</li>
+      <li>맨 아래 검은 띠(z-index 999999)보다 위젯이 위에 있다</li>
+    </ul>
+
+    <p><strong>아직 확인할 수 없는 것</strong> — 서버가 없어서 실패하는 게 정상이다</p>
+    <ul>
+      <li>봇 이름·색상 불러오기 → Spring <code>GET /api/w/{publicKey}/config</code> 미구현 (W2)</li>
+      <li>실제 대화·출처 카드·👍/👎 → Next.js <code>/w/[publicKey]</code> 페이지 미구현 (W2)<br>
+          지금은 채팅창 안에 "채팅 화면을 불러오지 못했습니다" 안내가 뜨는 게 정상 동작이다</li>
+    </ul>
+
+    <p><strong>W2에서 이 페이지로 최종 검수</strong>: 문서를 올린 봇에게 질문 → 답변과 출처가 뜨고,
+       문서에 없는 질문에는 지어내지 않고 거절 문구가 뜨면 F-04 통과.</p>
+  </div>
+
+  <h2>이 페이지를 여는 법</h2>
+  <p><code>file://</code> 로 바로 열면 origin 이 없어 통신 검사가 정확하지 않다.
+     간단한 정적 서버로 여는 걸 권장한다.</p>
+<pre>cd widget
+python3 -m http.server 5500
+# → http://localhost:5500/demo.html</pre>
+
+</div>
+
+<div class="sticky-notice">이 검은 띠는 z-index 999999 다. 위젯이 이보다 위에 떠야 한다.</div>
+
+<!--
+  ===========================================================================
+  위젯 설치 — 실제로는 위의 "한 줄"이지만, 검수용으로 3가지를 다르게 뒀다
+  ===========================================================================
+  ① src 를 상대 경로(./alldap-widget.js)로 둔 이유
+     Spring(:8080)이 아직 없어서 http://localhost:8080/widget/... 는 404 가 난다.
+     그러면 이 검수 페이지에서 아무것도 못 보게 되므로, 파일에서 직접 읽게 했다.
+     ★ 실제 고객에게 주는 코드는 위의 절대 URL 한 줄이다.
+
+  ② data-api-base / data-app-base
+     위젯 JS 를 상대 경로로 읽으면 API 주소를 스스로 유추할 수 없어 직접 알려준다.
+     운영에서는 두 서비스를 한 도메인에 묶을 예정이라 이 속성이 필요 없다.
+     (alldap-widget.js 의 resolveAppBase 주석 참고)
+
+  ③ data-primary-color
+     bots 테이블에 색상 컬럼이 아직 없어서(db/V1__init.sql) 임시로 여기서 지정한다.
+     TODO(W2): bots.primary_color 를 추가하고 config 응답에 실으면 이 속성은 불필요해진다.
+-->
+<script src="./alldap-widget.js"
+        data-public-key="pk_local_dev"
+        data-api-base="http://localhost:8080"
+        data-app-base="http://localhost:3000"
+        data-primary-color="#2563eb"></script>
+
+</body>
+</html>

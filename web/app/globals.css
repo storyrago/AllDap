@@ -1,0 +1,58 @@
+@import "tailwindcss";
+
+/*
+  AllDap 프론트엔드 전역 스타일.
+
+  [폰트에 대한 메모]
+  create-next-app 기본 템플릿은 next/font/google 로 Geist 를 불러왔지만 제거했다.
+  이유 두 가지:
+   1) Geist 에는 한글 글리프가 없다. 이 서비스의 UI 는 전부 한국어다.
+   2) next/font/google 은 빌드 시점에 구글 폰트 서버로 네트워크 요청을 보낸다.
+      오프라인/사내망에서 `npm run build` 가 실패하는 원인이 된다.
+  그래서 OS 기본 한글 폰트 스택(Apple SD 산돌고딕 / 맑은 고딕 / 노토)을 쓴다.
+*/
+
+:root {
+  --background: #f8fafc; /* 대시보드 바탕 (아주 옅은 회색) */
+  --foreground: #0f172a; /* 본문 글자 */
+  --surface: #ffffff; /* 카드 배경 */
+  --border-subtle: rgba(15, 23, 42, 0.12);
+  --muted: rgba(15, 23, 42, 0.55);
+  --accent: #2563eb; /* 브랜드 포인트 색 */
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0b1120;
+    --foreground: #e2e8f0;
+    --surface: #111827;
+    --border-subtle: rgba(226, 232, 240, 0.16);
+    --muted: rgba(226, 232, 240, 0.6);
+    --accent: #60a5fa;
+  }
+}
+
+/* Tailwind v4 는 @theme 에 선언한 값을 그대로 유틸리티 클래스로 만들어준다.
+   예: --color-surface → `bg-surface` / `text-surface` / `border-surface` */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-subtle: var(--border-subtle);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family:
+    -apple-system,
+    BlinkMacSystemFont,
+    "Apple SD Gothic Neo",
+    "Malgun Gothic",
+    "Noto Sans KR",
+    system-ui,
+    sans-serif;
+  word-break: keep-all; /* 한국어는 단어 중간에서 줄바꿈되면 읽기 나쁘다 */
+}

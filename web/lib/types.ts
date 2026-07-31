@@ -1,0 +1,354 @@
+/**
+ * Spring API(:8080) 응답 타입 정의.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * ★ 이 파일에서 가장 중요한 전제 (읽고 넘어갈 것)
+ * ─────────────────────────────────────────────────────────────────────────────
+ * 브라우저는 Python AI 서비스(:8001)를 직접 부르지 않는다. 항상 Spring 을 거친다.
+ * (Python 은 인증이 없어서 외부에 노출하면 안 되기 때문 — CLAUDE.md 아키텍처 참고)
+ *
+ * 그런데 두 계층의 JSON 표기법이 다르다.
+ *   - Python(FastAPI/Pydantic) 은 snake_case  → `is_fallback`, `latency_ms`, `chunk_id`
+ *   - Spring(Jackson 기본값)   은 camelCase   → `isFallback`, `latencyMs`, `chunkId`
+ *
+ * 이 파일은 **Spring 이 camelCase 로 변환해서 내려준다는 전제**로 작성했다.
+ * 즉 프론트는 camelCase 만 본다. snake_case ↔ camelCase 변환 책임은 Spring 에 있다.
+ *
+ * ⚠️ W2 에서 Spring 을 구현할 때 이 전제를 반드시 맞춰야 한다.
+ *    Spring 이 Python 응답을 그대로 파이프처럼 흘려보내면 프론트에 snake_case 가
+ *    도착해서 여기 타입이 전부 거짓말이 된다. Spring 쪽에 DTO 를 두고
+ *    (@JsonProperty("is_fallback") 같은 매핑으로) 반드시 변환할 것.
+ *
+ * 참고 — Python 실제 컨트랙트 (ai-service/app/schemas.py):
+ *   DocumentOut  = {id, filename, file_type, status, error_message, char_count, chunk_count}
+ *   ChatResponse = {answer, sources[], is_fallback, latency_ms}
+ *   Source       = {chunk_id, document_id, filename, score, preview}
+ *
+ * TODO(W2): Spring API 가 실제로 완성되면 응답을 찍어보고 이 파일과 대조할 것.
+ *           다르면 "코드가 맞다" — 이 파일을 고칠 것.
+ */
+
+/* ───────────────────────── 공통 ───────────────────────── */
+
+/**
+ * PRD §10.3 공통 에러 포맷. 전 계층(Spring·Python)이 이 모양으로 내려준다.
+ *   { "error": { "code": "...", "message": "무엇을 어떻게 하면 되는지까지 담은 한국어 설명" } }
+ */
+export interface ApiErrorBody {
+  error: {
+    code: string;
+    /** 사용자에게 그대로 보여줄 수 있는 한국어 문장 */
+    message: string;
+  };
+}
+
+/** UUID 는 문자열로 온다. 그냥 string 보다 의도가 드러나게 별칭을 둔다. */
+export type Uuid = string;
+
+/** TIMESTAMPTZ → ISO-8601 문자열 (예: "2026-07-31T02:11:00Z") */
+export type IsoDateTime = string;
+
+/* ───────────────────────── 인증 (F-08) ───────────────────────── */
+
+export interface User {
+  id: Uuid;
+  email: string;
+  name: string | null;
+  createdAt: IsoDateTime;
+}
+
+/** POST /api/auth/signup, POST /api/auth/login 응답 */
+export interface AuthResponse {
+  /** JWT. Authorization: Bearer {token} 으로 실어 보낸다. */
+  token: string;
+  user: User;
+}
+
+/* ───────────────────────── 봇 (F-06) ───────────────────────── */
+
+/** bots 테이블(db/V1__init.sql) 과 1:1 대응 */
+export interface Bot {
+  id: Uuid;
+  name: string;
+  /** 위젯 공개 주소 /w/[publicKey] 에 쓰이는 키. 예: "pk_local_dev" */
+  publicKey: string;
+  /**
+   * ⚠️ 알려진 갭: 이 값은 지금 실제 답변에 반영되지 않는다.
+   * Python 의 POST /internal/chat 이 systemPrompt 를 파라미터로 받지 않기 때문.
+   * (ai-service/app/schemas.py 의 ChatRequest = {bot_id, message, session_id})
+   * → Python 을 고치기 전까지 설정 화면에서 저장은 되지만 동작에는 영향이 없다.
+   * TODO(W3 이후): Python ChatRequest 에 system_prompt 를 추가하고 Spring 이 전달하도록 할 것.
+   */
+  systemPrompt: string | null;
+  /** 대화 시작 시 위젯이 먼저 띄우는 인사말 */
+  welcomeMessage: string;
+  /**
+   * 근거를 못 찾았을 때 보여줄 문구.
+   * Python 은 is_fallback=true 만 돌려주고 이 문구를 모른다.
+   * → Spring 이 is_fallback=true 를 받으면 answer 를 이 문구로 치환한다. (현재 가능한 유일한 방법)
+   */
+  fallbackMessage: string;
+  /** 위젯 임베드를 허용할 도메인 목록 (CORS/Origin 검증용) */
+  allowedOrigins: string[];
+  createdAt: IsoDateTime;
+}
+
+/**
+ * GET /api/bots — 봇 목록 카드에 필요한 집계까지 얹은 형태.
+ * PRD §8 "봇 카드(문서 수·주간 대화 수·최근 평가 점수)" 요구사항에서 나온 타입.
+ * TODO(W2): 이 집계를 Spring 이 한 번에 내려줄지, 별도 API 로 뺄지 결정할 것.
+ */
+export interface BotSummary extends Bot {
+  documentCount: number;
+  /** 최근 7일 대화 수 */
+  weeklyConversationCount: number;
+  /** 가장 최근 평가 실행의 충실성 평균. 평가를 한 번도 안 돌렸으면 null */
+  latestFaithfulness: number | null;
+}
+
+/** POST /api/bots 요청 본문 */
+export interface CreateBotRequest {
+  name: string;
+}
+
+/** PATCH /api/bots/{botId} 요청 본문 — 보낸 필드만 수정된다 */
+export interface UpdateBotRequest {
+  name?: string;
+  systemPrompt?: string | null;
+  welcomeMessage?: string;
+  fallbackMessage?: string;
+  allowedOrigins?: string[];
+}
+
+/* ───────────────────────── 문서 (F-01, F-02) ───────────────────────── */
+
+/**
+ * documents.status 는 pending → processing → ready(또는 failed) 로 흐른다.
+ * Python 이 백그라운드로 갱신하므로 화면은 폴링해서 따라간다.
+ */
+export type DocumentStatus = "pending" | "processing" | "ready" | "failed";
+
+/** Python DocumentOut 을 Spring 이 camelCase 로 바꿔 내려준 형태 */
+export interface DocumentItem {
+  id: Uuid;
+  filename: string;
+  /** pdf | docx | hwpx | txt | md (구버전 .hwp 는 미지원) */
+  fileType: string;
+  status: DocumentStatus;
+  /** status === "failed" 일 때 사용자에게 보여줄 한국어 사유 */
+  errorMessage: string | null;
+  charCount: number | null;
+  chunkCount: number | null;
+  /**
+   * Python DocumentOut 에는 없는 필드다. documents 테이블에는 created_at 이 있으므로
+   * Spring 이 DB 에서 읽어 채워줄 수 있다.
+   * TODO(W2): Spring 이 실제로 내려주는지 확인하고, 안 내려주면 이 필드를 지울 것.
+   */
+  createdAt?: IsoDateTime;
+}
+
+/* ───────────────────────── 채팅 (F-03) ───────────────────────── */
+
+/** 답변의 근거가 된 청크 하나 */
+export interface Source {
+  chunkId: Uuid;
+  documentId: Uuid;
+  filename: string;
+  /** 0~1. 1에 가까울수록 관련성 높음 (1 - 코사인거리) */
+  score: number;
+  /** 청크 본문 앞 200자. 출처 카드 클릭 시 미리보기로 쓴다. */
+  preview: string;
+}
+
+/** POST /api/bots/{botId}/chat, POST /api/w/{publicKey}/chat 응답 */
+export interface ChatResponse {
+  /**
+   * Python 이 만든 answer.
+   * is_fallback 이 true 면 Spring 이 봇의 fallbackMessage 로 치환해서 내려준다.
+   */
+  answer: string;
+  sources: Source[];
+  /** true = 문서에서 근거를 못 찾아 거절한 것. 환각 대신 모른다고 답한 상태. */
+  isFallback: boolean;
+  latencyMs: number;
+  /**
+   * 피드백(POST /api/messages/{msgId}/feedback)을 보내려면 메시지 id 가 필요하다.
+   * Python 은 이 값을 모르고, messages 행을 만드는 건 Spring 이므로 Spring 이 붙여줘야 한다.
+   * TODO(W2): Spring ChatResponse DTO 에 messageId 를 포함시킬 것. 없으면 피드백 UI 를 붙일 수 없다.
+   */
+  messageId?: Uuid;
+}
+
+/** POST /api/bots/{botId}/chat 요청 본문 */
+export interface ChatRequest {
+  /** 1~2000자 (Python ChatRequest 제약을 그대로 따른다) */
+  message: string;
+  /** 최대 64자. 같은 세션의 대화를 묶는 키. */
+  sessionId: string;
+}
+
+/* ───────────────────────── 대화 로그 · 피드백 (F-07) ───────────────────────── */
+
+/** messages.role */
+export type MessageRole = "user" | "assistant";
+
+/** messages.feedback — 1(👍) / -1(👎) / null(무응답) */
+export type Feedback = 1 | -1 | null;
+
+export interface ChatMessage {
+  id: Uuid;
+  role: MessageRole;
+  content: string;
+  /** role === "assistant" 일 때만 값이 있다 */
+  sources: Source[] | null;
+  isFallback: boolean;
+  feedback: Feedback;
+  latencyMs: number | null;
+  createdAt: IsoDateTime;
+}
+
+/** conversations 한 건. 로그 목록에서 한 줄로 보여줄 요약. */
+export interface ConversationSummary {
+  id: Uuid;
+  sessionId: string;
+  /** widget = 실제 엔드유저 / test = 관리자 테스트 채팅 */
+  channel: "widget" | "test";
+  createdAt: IsoDateTime;
+  messageCount: number;
+  /** 이 세션에 fallback(미답변)이 하나라도 있었는가 — 목록 필터의 근거 */
+  hasFallback: boolean;
+  /** 목록에서 미리 보여줄 첫 질문 */
+  firstUserMessage: string | null;
+}
+
+/** GET /api/bots/{botId}/logs 쿼리 파라미터 */
+export interface LogsQuery {
+  /** true 면 fallback 이 포함된 세션만 */
+  onlyFallback?: boolean;
+  /** true 면 👎 가 달린 세션만 */
+  onlyThumbsDown?: boolean;
+  /** YYYY-MM-DD */
+  from?: string;
+  to?: string;
+  page?: number;
+  size?: number;
+}
+
+/** 페이지네이션 공통 껍데기.
+ *  TODO(W2): Spring 이 Spring Data Page 를 그대로 내리면 필드명이 다르다
+ *            (content/totalElements/number ...). 실제 응답에 맞춰 고칠 것. */
+export interface Paged<T> {
+  items: T[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+}
+
+/* ───────────────────────── 품질 평가 (F-05, W3) ───────────────────────── */
+
+/**
+ * ⚠️ 아래 평가 타입들은 아직 "설계상의 약속"이다.
+ *    Python 의 /internal/eval/* 은 아직 존재하지 않는다 (W3에서 구현 예정).
+ *    DB 스키마(db/V1__init.sql 의 eval_questions / eval_runs / eval_results)에
+ *    맞춰 미리 그려둔 것이므로, W3에서 실제 구현과 반드시 대조할 것.
+ */
+
+/** 테스트 질문 1건 (eval_questions) */
+export interface EvalQuestion {
+  id: Uuid;
+  question: string;
+  /** 문서 청크에서 뽑아낸 기대 답변 */
+  groundTruth: string;
+  /** 이 질문이 어느 청크에서 생성됐는지 */
+  sourceChunkId: Uuid | null;
+  /** false 면 평가 실행에서 제외된다 (관리자가 끌 수 있음) */
+  isActive: boolean;
+  createdAt: IsoDateTime;
+}
+
+/**
+ * eval_runs.config (JSONB) — 실행 시점의 검색 설정.
+ * PRD §9.3: "이게 있어야 before/after 비교가 성립한다."
+ * W4에서 하이브리드 검색·리랭커를 켜고 끄며 비교할 때 이 값이 축이 된다.
+ */
+export interface EvalConfig {
+  topK?: number;
+  /** 검색 단계에서 잘라내는 최대 코사인 거리 (환각 억제 1차 방어선) */
+  maxDistance?: number;
+  /** W4: 키워드+벡터 하이브리드 사용 여부 */
+  hybrid?: boolean;
+  /** W4: 리랭커 사용 여부 */
+  reranker?: boolean;
+  /** 답변 생성에 쓴 모델 이름 */
+  model?: string;
+}
+
+export type EvalRunStatus = "running" | "completed" | "failed";
+
+/** 평가 실행 1회 (eval_runs) */
+export interface EvalRun {
+  id: Uuid;
+  config: EvalConfig | null;
+  /** 충실성: 답이 근거 문서와 일치하는가 (0~1) */
+  avgFaithfulness: number | null;
+  /** 관련성: 질문에 맞는 답인가 (0~1) */
+  avgRelevancy: number | null;
+  /** 응답률: fallback 하지 않고 답한 비율 (0~1) */
+  answeredRate: number | null;
+  status: EvalRunStatus;
+  createdAt: IsoDateTime;
+}
+
+/** 질문 하나에 대한 채점 결과 (eval_results) */
+export interface EvalResult {
+  id: Uuid;
+  runId: Uuid;
+  questionId: Uuid;
+  /** 화면에서 질문 원문을 같이 보여줘야 하므로 Spring 이 조인해서 내려주길 기대한다.
+   *  TODO(W2/W3): 조인 없이 questionId 만 오면 프론트가 별도 조회해야 한다. 확인할 것. */
+  question?: string;
+  generatedAnswer: string | null;
+  /** 이 답변이 실제로 참고한 청크들 */
+  retrievedChunks: Source[] | null;
+  faithfulness: number | null;
+  relevancy: number | null;
+}
+
+/**
+ * 미답변(fallback) 집계 1건 — 품질 대시보드의 "미답변 목록 + 보강 제안" 영역.
+ *
+ * ⚠️ PRD 와의 갭: eval_* 테이블에는 이 데이터가 없다.
+ *    실사용 중 fallback 된 질문은 messages(is_fallback = true) 에 쌓인다.
+ *    즉 이 목록은 Spring 이 messages 를 집계해서 만들어야 한다 (Python 이 아니라).
+ *    "보강 제안" 문장을 누가 생성하는지는 아직 미정.
+ * TODO(W3): 집계 API 경로를 확정할 것. 후보: GET /api/bots/{botId}/eval/unanswered
+ */
+export interface UnansweredQuestion {
+  /** 비슷한 질문을 묶은 대표 문장 */
+  question: string;
+  /** 같은 취지의 질문이 몇 번 들어왔는지 */
+  count: number;
+  lastAskedAt: IsoDateTime;
+  /** "이 내용을 문서에 추가하세요" 류의 한국어 제안. 미구현이면 null. */
+  suggestion: string | null;
+}
+
+/* ───────────────────────── 위젯 (F-04, 공개) ───────────────────────── */
+
+/**
+ * GET /api/w/{publicKey}/config — 인증 없이 호출되는 공개 API.
+ * 엔드유저에게 노출되므로 systemPrompt 같은 내부 설정은 절대 포함하면 안 된다.
+ */
+export interface WidgetConfig {
+  botName: string;
+  welcomeMessage: string;
+  /**
+   * ⚠️ PRD 와 DB 의 불일치:
+   *    PRD F-04 / §8 은 "브랜드 색상 1종 커스텀"을 요구하는데
+   *    db/V1__init.sql 의 bots 테이블에는 색상 컬럼이 없다.
+   * TODO(W2): bots 에 theme_color 컬럼을 추가하거나, 색상 커스텀을 MVP 에서 뺄 것.
+   *           지금은 없을 수도 있다는 뜻으로 optional 로 둔다.
+   */
+  themeColor?: string;
+}
