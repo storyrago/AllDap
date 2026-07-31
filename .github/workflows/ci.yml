@@ -1,0 +1,180 @@
+name: CI
+
+# 이 저장소는 서비스가 3개(api / web / ai-service)라 잡을 서비스별로 나눈다.
+# 잡을 나누면 ① 어느 서비스가 깨졌는지 체크 이름만 보고 알 수 있고
+#             ② 서로 병렬로 돌아 전체 시간이 가장 느린 잡 하나로 수렴한다.
+on:
+  # PR: 머지 전 검증. 이게 주된 목적이다.
+  pull_request:
+  # main push: 머지 후에도 한 번 더 돌려 "머지하고 나니 깨졌다"를 잡는다.
+  push:
+    branches: [main]
+
+# 워크플로 기본 권한을 읽기 전용으로 못박는다.
+# 액션이 탈취되거나 서드파티 액션에 악성 코드가 섞여도 GITHUB_TOKEN 으로
+# 저장소를 건드리지 못하게 하는 게 목적이다.
+# 앞으로 쓰기가 필요한 잡(PR 코멘트 작성, 릴리스 등)이 생기면
+# 워크플로 전체가 아니라 그 잡 안에 permissions 를 개별로 적어준다.
+permissions:
+  contents: read
+
+# 같은 PR 에 커밋을 연달아 밀면 이전 실행은 취소한다. (러너 시간 절약)
+# main push 는 취소하지 않는다 — 각 커밋의 결과가 기록으로 남아야 한다.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+# 커버리지 게이트(JaCoCo 등)는 일부러 넣지 않았다.
+#  - 지금 테스트가 사실상 없어서 게이트를 걸면 첫 PR 부터 무조건 빨간불이다.
+#  - "숫자 채우려고 쓰는 테스트"를 유도하지 않기 위해서이기도 하다.
+# 나중에 테스트가 쌓이면 그때 도입한다. 단 JaCoCo 설정 자체는 api/build.gradle 소관이다.
+
+jobs:
+  # ── Spring Boot API (Java 21 / Gradle) ─────────────────────────────
+  api:
+    name: api (Spring Boot / Java 21)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    # `./gradlew build` 는 test 태스크까지 돌린다. 현재 테스트는
+    # ApiApplicationTests.contextLoads() 하나뿐인데 이게 @SpringBootTest 라
+    # 스프링 컨텍스트를 통째로 띄운다. 클래스패스에 data-jpa + flyway +
+    # postgresql 드라이버가 있으므로 DataSource 가 없으면 컨텍스트가 못 뜬다.
+    # => CI 안에서 진짜 Postgres 를 하나 띄워준다.
+    # 이미지는 docker-compose.yml 과 동일한 pgvector 계열이어야 한다.
+    # V1__init.sql 이 `CREATE EXTENSION vector` 와 VECTOR(1536) 컬럼을 쓰기 때문에
+    # 순정 postgres 이미지로는 Flyway 마이그레이션이 실패한다.
+    services:
+      db:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: alldap
+          POSTGRES_PASSWORD: alldap
+          POSTGRES_DB: alldap
+        ports:
+          - 5432:5432
+        # 헬스체크가 통과해야 steps 가 시작된다. 없으면 DB 가 뜨기 전에
+        # 테스트가 붙으려다 간헐적으로 실패한다(플래키 CI 의 흔한 원인).
+        options: >-
+          --health-cmd "pg_isready -U alldap -d alldap"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+    # 로컬 개발용 값과 동일한 더미 계정. CI 안에서만 쓰고 버려지므로 시크릿이 아니다.
+    # (진짜 비밀값은 절대 여기 적지 말고 GitHub Secrets 로 주입할 것)
+    # Gradle 의 테스트 워커는 러너의 환경변수를 그대로 물려받고,
+    # 스프링의 relaxed binding 이 SPRING_DATASOURCE_URL -> spring.datasource.url 로
+    # 매핑해주므로 api/ 쪽 설정 파일을 CI 전용으로 따로 만들 필요가 없다.
+    env:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/alldap
+      SPRING_DATASOURCE_USERNAME: alldap
+      SPRING_DATASOURCE_PASSWORD: alldap
+
+    steps:
+      - name: 소스 체크아웃
+        uses: actions/checkout@v4
+
+      - name: JDK 21 (Temurin) 설치
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      # 서드파티 액션이므로 태그가 아니라 커밋 SHA 로 핀 고정한다.
+      # 태그는 나중에 다른 커밋으로 바꿔치기할 수 있어서(태그 이동) 공급망 공격에 취약하다.
+      # 뒤의 주석은 사람이 읽으려고 남긴 버전 표기이고, 실제 기준은 앞의 SHA 다.
+      # setup-gradle 은 기본값으로 gradle-wrapper.jar 의 체크섬까지 검증해준다
+      # (변조된 wrapper jar 로 임의 코드가 실행되는 걸 막는 장치).
+      - name: Gradle 세팅 (빌드·의존성 캐시 + wrapper 검증)
+        uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4.4.3
+
+      - name: 빌드 + 테스트
+        working-directory: api
+        run: ./gradlew build
+
+      # 빨간불일 때 로그만 보고 원인을 찾기 어려워서 HTML 리포트를 남긴다.
+      # 성공했을 땐 굳이 올리지 않는다(용량·시간 낭비).
+      - name: 테스트 리포트 업로드
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-test-reports
+          path: api/build/reports/tests/
+          retention-days: 7
+
+  # ── Next.js 프론트 ────────────────────────────────────────────────
+  web:
+    name: web (Next.js)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    defaults:
+      run:
+        working-directory: web
+
+    env:
+      # Next.js 익명 통계 수집을 끈다. CI 에선 불필요한 네트워크 호출일 뿐이다.
+      NEXT_TELEMETRY_DISABLED: "1"
+
+    steps:
+      - name: 소스 체크아웃
+        uses: actions/checkout@v4
+
+      - name: Node.js 설치
+        uses: actions/setup-node@v4
+        with:
+          # Next.js 16 은 Node 20 이상을 요구한다. LTS 인 22 를 쓴다.
+          node-version: "22"
+          cache: npm
+          # cache-dependency-path 는 defaults.working-directory 의 영향을 받지 않고
+          # 항상 저장소 루트 기준이다. 그래서 web/ 을 붙여 적어야 한다.
+          cache-dependency-path: web/package-lock.json
+
+      # npm install 이 아니라 npm ci: 락파일과 정확히 일치하게 설치하고,
+      # 락파일이 어긋나 있으면 조용히 고치지 않고 실패시킨다.
+      - name: 의존성 설치
+        run: npm ci
+
+      # web/package.json 의 scripts.lint 는 "eslint" 이고
+      # web/eslint.config.mjs (flat config) 가 있는 걸 확인했다.
+      - name: 린트
+        run: npm run lint
+
+      # NEXT_PUBLIC_API_BASE_URL 은 web/lib/api.ts 에 기본값(http://localhost:8080)이
+      # 있어서 CI 에서 따로 주입하지 않아도 빌드가 통과한다.
+      - name: 빌드
+        run: npm run build
+
+  # ── Python AI 서비스 ──────────────────────────────────────────────
+  ai-service:
+    name: ai-service (Python)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    defaults:
+      run:
+        working-directory: ai-service
+
+    steps:
+      - name: 소스 체크아웃
+        uses: actions/checkout@v4
+
+      # setup-python 은 v4 가 낡은 Node 런타임(node16) 기반이라 v5 를 쓴다.
+      - name: Python 설치
+        uses: actions/setup-python@v5
+        with:
+          # README 기준 "Python 3.11+". 하한선으로 검사해야
+          # 3.11 에서 못 도는 문법이 섞이는 걸 잡을 수 있다.
+          python-version: "3.11"
+
+      # 지금 ai-service 에는 테스트도, 린터 설정(ruff/flake8)도 없다.
+      # 없는 걸 있는 척 돌리면 CI 가 거짓말을 하게 되므로
+      # 확실히 의미 있는 최소 검사(=문법 오류로 import 조차 안 되는 상태)만 건다.
+      # 의존성 설치(pip install -r requirements.txt)는 일부러 뺐다.
+      # pymupdf 등 무거운 패키지 때문에 느리고, 지금 잡히는 건 문법 오류뿐이라
+      # 비용 대비 이득이 없다.
+      # TODO(W3): ruff 를 requirements-dev.txt 에 추가하고 `ruff check app` 단계 추가
+      # TODO(W3): pytest 기반 테스트가 생기면 `pytest` 단계 추가
+      - name: 문법 검사 (컴파일 가능 여부만)
+        run: python -m compileall -q app
