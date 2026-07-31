@@ -7,13 +7,14 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from anthropic import Anthropic
+from google import genai
+from google.genai import types
 
 from .config import get_settings
 from .retriever import fetch_contents
 from .schemas import Source
 
-_client: Anthropic | None = None
+_client: genai.Client | None = None
 
 SYSTEM_PROMPT = """당신은 조직의 내부 문서를 근거로 질문에 답하는 도우미입니다.
 
@@ -27,13 +28,13 @@ SYSTEM_PROMPT = """당신은 조직의 내부 문서를 근거로 질문에 답�
 FALLBACK_TOKEN = "NO_ANSWER"
 
 
-def _anthropic() -> Anthropic:
+def _gemini() -> genai.Client:
     global _client
     if _client is None:
         s = get_settings()
-        if not s.anthropic_api_key:
-            raise RuntimeError("ANTHROPIC_API_KEY가 설정되지 않았습니다 (.env 확인)")
-        _client = Anthropic(api_key=s.anthropic_api_key)
+        if not s.google_api_key:
+            raise RuntimeError("GOOGLE_API_KEY가 설정되지 않았습니다 (.env 확인)")
+        _client = genai.Client(api_key=s.google_api_key)
     return _client
 
 
@@ -63,15 +64,17 @@ def generate(
         f"질문: {question}"
     )
 
-    resp = _anthropic().messages.create(
+    resp = _gemini().models.generate_content(
         model=s.chat_model,
-        max_tokens=s.max_tokens,
-        system=SYSTEM_PROMPT,
-        messages=[{"role": "user", "content": user_content}],
+        contents=user_content,
+        config=types.GenerateContentConfig(
+            # Anthropic 의 system= 에 해당한다. 이 프롬프트가 NO_ANSWER 를 강제한다.
+            system_instruction=SYSTEM_PROMPT,
+            max_output_tokens=s.max_tokens,
+        ),
     )
-    answer = "".join(
-        block.text for block in resp.content if getattr(block, "type", None) == "text"
-    ).strip()
+    # resp.text 는 None 일 수 있다(안전 필터 차단 등). 그대로 쓰면 아래 in 검사에서 터진다.
+    answer = (resp.text or "").strip()
 
     if FALLBACK_TOKEN in answer or not answer:
         return fallback_message, True
