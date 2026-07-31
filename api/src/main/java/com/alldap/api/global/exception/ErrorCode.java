@@ -47,6 +47,15 @@ public enum ErrorCode {
     MESSAGE_LENGTH_EXCEEDED(HttpStatus.BAD_REQUEST, "MESSAGE_LENGTH_EXCEEDED",
             "질문은 2000자까지 보낼 수 있습니다. 질문을 나눠서 보내주세요."),
 
+    // ── 요청 자체가 잘못된 경우 (본문·헤더·메서드) ─────────────────────────
+    // 아래 둘은 "클라이언트가 API 를 잘못 호출했다"는 뜻이다. 서버 잘못이 아니므로 5xx 로 답하면 안 된다.
+    // 500 으로 답하면 프론트가 "서버 장애니까 재시도하자"는 잘못된 로직을 짜게 되고,
+    // 서버 로그에도 가짜 ERROR 가 쌓여 진짜 장애가 묻힌다.
+    METHOD_NOT_ALLOWED(HttpStatus.METHOD_NOT_ALLOWED, "METHOD_NOT_ALLOWED",
+            "이 주소에서는 지원하지 않는 요청 방식입니다. 응답의 Allow 헤더에 적힌 방식(GET·POST 등)으로 다시 요청해주세요."),
+    UNSUPPORTED_MEDIA_TYPE(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "UNSUPPORTED_MEDIA_TYPE",
+            "요청 본문 형식을 처리할 수 없습니다. Content-Type 헤더를 application/json 으로 지정하고 JSON 본문을 보내주세요."),
+
     // ── 파일 ────────────────────────────────────────────────────────────
     UNSUPPORTED_FILE_TYPE(HttpStatus.BAD_REQUEST, "UNSUPPORTED_FILE_TYPE",
             "지원하지 않는 파일 형식입니다. pdf, docx, hwpx, txt, md 파일을 올려주세요."),

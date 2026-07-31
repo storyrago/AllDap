@@ -6,6 +6,7 @@ import com.alldap.api.domain.auth.dto.SignupRequest;
 import com.alldap.api.domain.auth.service.AuthService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -22,18 +23,29 @@ public class AuthController {
 
     private final AuthService authService;
 
-    /** POST /api/auth/signup — 가입. 성공하면 바로 토큰까지 준다(가입 후 재로그인을 시키지 않는다). */
+    /**
+     * POST /api/auth/signup — 가입. 성공하면 바로 토큰까지 준다(가입 후 재로그인을 시키지 않는다).
+     *
+     * <p>201 Created 를 쓰되 {@code Location} 헤더는 붙이지 않는다.
+     * Location 은 "만들어진 리소스를 여기서 조회하라"는 뜻인데,
+     * 우리 API 에는 사용자 단건 조회 경로가 없다(PRD §10.1). 없는 주소를 가리킬 수는 없다.
+     */
     @PostMapping("/signup")
     public ResponseEntity<AuthResponse> signup(@Valid @RequestBody SignupRequest request) {
-        // TODO(W2): authService.signup(request) 호출 후 201 Created 반환
-        throw new UnsupportedOperationException("AuthController.signup 미구현 (W2)");
+        AuthResponse response = authService.signup(request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
-    /** POST /api/auth/login — 로그인 */
+    /**
+     * POST /api/auth/login — 로그인.
+     *
+     * <p>200 OK 다. 로그인은 서버에 새 리소스를 만드는 행위가 아니라
+     * 이미 있는 계정을 확인하고 토큰을 발급받는 행위이기 때문이다.
+     */
     @PostMapping("/login")
     public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
-        // TODO(W2): authService.login(request) 호출 후 200 OK 반환
-        throw new UnsupportedOperationException("AuthController.login 미구현 (W2)");
+        AuthResponse response = authService.login(request);
+        return ResponseEntity.ok(response);
     }
 
     // TODO(W2): GET /api/auth/me 가 필요한지 결정할 것.

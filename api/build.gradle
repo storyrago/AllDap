@@ -47,6 +47,25 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-flyway'
 	implementation 'org.flywaydb:flyway-database-postgresql'
 	testImplementation 'org.springframework.boot:spring-boot-starter-flyway-test'
+
+	// ── 통합 테스트: Testcontainers ────────────────────────────────────────
+	// 테스트가 진짜 PostgreSQL(+pgvector) 컨테이너를 띄워 돌아간다.
+	// H2 같은 인메모리 DB 를 쓰지 않는 이유: 스키마의 단일 진실 공급원이 Flyway 마이그레이션인데
+	// V1__init.sql 이 CREATE EXTENSION vector, TEXT[], JSONB, gen_random_uuid() 등
+	// PostgreSQL 전용 문법을 쓴다. H2 로는 마이그레이션 자체가 돌지 않는다.
+	// (즉 "테스트는 통과하는데 운영에서 깨지는" 상황을 구조적으로 막는 선택이다.)
+	//
+	// ⚠️ Boot 4 는 Testcontainers 2.x 를 쓴다. 모듈 이름이 전부 'testcontainers-' 접두사로 바뀌었다.
+	//    1.x: org.testcontainers:postgresql      / org.testcontainers:junit-jupiter
+	//    2.x: org.testcontainers:testcontainers-postgresql / :testcontainers-junit-jupiter
+	//    1.x 이름을 그대로 쓰면 "Could not find org.testcontainers:postgresql" 로 의존성 해석이 실패한다.
+	//
+	// junit-jupiter 모듈(@Testcontainers/@Container)은 넣지 않았다.
+	// 컨테이너 생명주기를 Boot 의 @ServiceConnection(spring-boot-testcontainers)이 대신 관리하기 때문이다.
+	// 두 방식을 섞으면 누가 컨테이너를 띄우고 내리는지가 불분명해진다. 자세한 근거는
+	// src/test/java/com/alldap/api/support/TestcontainersConfiguration.java 주석 참고.
+	testImplementation 'org.springframework.boot:spring-boot-testcontainers'
+	testImplementation 'org.testcontainers:testcontainers-postgresql'
 }
 
 tasks.named('test') {

@@ -53,6 +53,11 @@ app:
   jwt:
     secret: ${JWT_SECRET}
     access-token-ttl: ${JWT_ACCESS_TOKEN_TTL:24h}
+  cors:
+    # 관리자 화면의 실제 배포 주소. 기본값을 두지 않는다(fail-closed) —
+    # 로컬 주소가 운영에 남아 있는 것보다 기동이 실패하는 편이 안전하다.
+    # 스킴·호스트·포트가 정확히 일치해야 한다. 여러 개면 쉼표로 구분한다.
+    allowed-origins: ${CORS_ALLOWED_ORIGINS}
 
 logging:
   level:
