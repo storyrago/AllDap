@@ -185,11 +185,24 @@ class AuthIntegrationTest {
         String token = post("/api/auth/signup", new SignupRequest(EMAIL, PASSWORD, "테스터"))
                 .json().path("token").asString();
 
-        // JWT 는 header.payload.signature 구조다. 마지막 서명 부분을 한 글자 바꾸면
+        // JWT 는 header.payload.signature 구조다. 서명 부분을 한 글자 바꾸면
         // "내용은 그럴듯한데 우리 키로 서명되지 않은" 위조 토큰이 된다.
-        String tampered = token.substring(0, token.length() - 1)
-                + (token.endsWith("A") ? "B" : "A");
-        assertThat(tampered).isNotEqualTo(token);
+        //
+        // ⚠️ 바꿀 글자로 <마지막> 이 아니라 <서명의 첫> 글자를 고른 이유 (이것 때문에 CI 가 깨졌었다)
+        //
+        // HS256 서명은 32바이트 = 256비트인데, base64url 43자는 43 × 6 = 258비트를 담는다.
+        // 남는 2비트는 디코딩할 때 그냥 버려진다. 즉 <마지막 글자는 4비트만 유효>하고,
+        // 상위 4비트가 같은 글자끼리는 디코딩 결과가 완전히 같다.
+        // 옛 코드는 마지막 글자를 'A'↔'B' 로 바꿨는데 'A'=0, 'B'=1 은 상위 4비트가 똑같아서,
+        // 서명이 'A' 로 끝나면 <문자열만 달라지고 서명 바이트는 그대로>였다.
+        // → 토큰이 정상 검증돼 401 이 나지 않는다. 16번에 1번(6.25%) 꼴로 실패하는 플래키 테스트였다.
+        //
+        // 서명의 첫 글자는 6비트가 전부 유효하므로, 바꾸면 반드시 서명 바이트가 달라진다.
+        int signatureStart = token.lastIndexOf('.') + 1;
+        String tampered = token.substring(0, signatureStart)
+                + (token.charAt(signatureStart) == 'A' ? 'B' : 'A')
+                + token.substring(signatureStart + 1);
+        assertThat(tampered).isNotEqualTo(token).hasSameSizeAs(token);
 
         Response response = get("/api/bots", tampered);
 
