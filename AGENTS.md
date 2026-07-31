@@ -96,9 +96,9 @@ Java/Spring은 상대적으로 익숙하므로 설명 밀도를 낮춰도 되지
 ```
 AllDap/  ← 저장소 루트
 ├── web/         Next.js 16 (App Router) + TypeScript  🚧 라우트·타입만 (디자인 미착수)
-├── api/         Spring Boot (:8080)                   ✅ 뼈대 완료 · 기동 검증됨
+├── api/         Spring Boot (:8080)                   🚧 인증·봇 CRUD 완료 · 나머지 TODO
 │   └── src/main/resources/db/migration/V1__init.sql   ← 스키마 원본 (Flyway)
-├── ai-service/  Python FastAPI (:8001)                ⚠️ 코드 있음 · 미검증
+├── ai-service/  Python FastAPI (:8001)                ✅ W1 완료 조건 실측 통과
 ├── widget/      임베드 위젯 스크립트                    🚧 초안 (alldap-widget.js)
 ├── .github/     CI · PR 템플릿
 └── docs/{PRD_v0.4.md, decisions.md}
@@ -269,6 +269,10 @@ Spring:   대화 로그 저장(assistant 메시지 + sources + is_fallback)
 - **임베딩 차원 동기화.** 모델을 바꾸면 `EMBEDDING_DIM`과
   `api/src/main/resources/db/migration/`의 `VECTOR(1536)`를 **반드시 함께** 바꿔야 함.
   (V1은 수정 금지이므로 새 마이그레이션으로 `ALTER`할 것)
+  > ⚠️ **`V1__init.sql` 첫 줄 주석이 "1536 = OpenAI text-embedding-3-small 기준"이라고 말하지만 거짓이다.**
+  > 실제 제공자는 **Google Gemini**(`gemini-embedding-001`, 출력 차원 1536으로 지정)다.
+  > 주석을 못 고치는 이유는 하나 — **Flyway 체크섬이 깨져 기동이 막히기 때문**이다(주석 한 글자도 포함).
+  > 이 문단이 그 정정본이다. SQL 주석 대신 여기를 믿을 것.
 - **bot_id 스코프 격리.** 모든 조회는 bot_id로 격리. 봇 간 데이터가 새면 안 됨.
 - **JPA `ddl-auto`는 `validate` 또는 `none`.** Python 서비스와 DB를 공유하므로
   Hibernate가 스키마를 건드리면 안 됨.
@@ -277,9 +281,9 @@ Spring:   대화 로그 저장(assistant 메시지 + sources + is_fallback)
 
 | 단계 | 내용 | 상태 |
 |---|---|---|
-| **0** | **W1 코드 이해 + 첫 실행 검증** (아래 참조) | ⬜ **진행 중 — 여기 먼저** |
-| W1 | Python AI 서비스 (파싱→청킹→임베딩→검색→생성) | ⚠️ **코드 작성됨 · 미검증** |
-| W2 | Spring Boot API 계층, Next.js 화면, 임베드 위젯 | 🚧 뼈대 준비 중 (아래) |
+| **0** | **W1 코드 이해 + 첫 실행 검증** | ✅ **완료** (이해 게이트 4문항 → `docs/W1-이해노트.md`) |
+| W1 | Python AI 서비스 (파싱→청킹→임베딩→검색→생성) | ✅ **완료 조건 3개 실측 통과** (아래 참조) |
+| W2 | Spring Boot API 계층, Next.js 화면, 임베드 위젯 | 🚧 **진행 중 — 여기** (아래) |
 | W3 | **품질 대시보드** (테스트 질문 자동 생성 → LLM-as-judge 채점) | ⬜ |
 | W4 | 키워드 검색 + 하이브리드 + 리랭커 → 평가 before/after 비교 | ⬜ |
 
@@ -287,15 +291,32 @@ Spring:   대화 로그 저장(assistant 메시지 + sources + is_fallback)
 
 | 항목 | 상태 |
 |---|---|
-| `api/` Spring 뼈대 | ✅ **골격 완료 · 기동 검증됨.** Gradle-Groovy / Java 21(Temurin) / **Boot 4.0.7** / Gradle 9.5.1 / `com.alldap.api`. 자바 63파일. `ddl-auto: validate`로 기동 성공 = 엔티티가 스키마와 일치함을 실측 확인. **비즈니스 로직은 전부 TODO** |
+| `api/` Spring 뼈대 | ✅ **골격 완료 · 기동 검증됨.** Gradle-Groovy / Java 21(Temurin) / **Boot 4.0.7** / Gradle 9.5.1 / `com.alldap.api`. `ddl-auto: validate`로 기동 성공 = 엔티티가 스키마와 일치함을 실측 확인 |
+| 인증 (가입·로그인·JWT) | ✅ **구현 완료 · 통합 테스트 7건 통과** (PR #3) |
+| 봇 CRUD | ✅ **구현 완료 · 통합 테스트 8건 통과** (PR #5). **`bot_id` 소유권 격리가 여기서 처음 걸렸다** — 아래 참조 |
+| 문서 업로드·채팅·로그·평가·위젯 API | ⬜ **전부 TODO.** 컨트롤러·서비스 시그니처만 있고 본문은 `UnsupportedOperationException` |
 | 프론트 스택 결정 | ✅ **Next.js(App Router) + TypeScript로 확정** (`docs/decisions.md`) |
-| `web/` 뼈대 | 🚧 라우트·타입·API 래퍼만 자리 잡음. **화면은 자리표시자(placeholder)** — 붙일 API가 없음. 디자인은 레퍼런스 받은 뒤 착수 |
+| `web/` 뼈대 | 🚧 라우트·타입·API 래퍼만 자리 잡음. **화면은 자리표시자(placeholder)** — 봇 API가 생겼으니 이제 붙일 수 있다. 디자인은 레퍼런스 받은 뒤 착수 |
 | `widget/` 스크립트 | 🚧 `alldap-widget.js` 초안. 실제 로드 검증 안 됨 |
 | Flyway · CI · PR 템플릿 | ✅ 도입 완료 (위 Flyway 규칙 참고) |
 
-**`api/` 뼈대에서 검증된 것 / 안 된 것 (2026-07-31)**
-검증됨: 컴파일, Flyway V1 적용, Hibernate `validate` 통과, `/actuator/health` 200.
-검증 안 됨: 실제 엔드포인트 동작(전부 TODO), 인증 흐름, Python 연동, CI 실제 실행.
+**`api/` 에서 검증된 것 / 안 된 것 (2026-07-31)**
+검증됨: 컴파일, Flyway V1 적용, Hibernate `validate` 통과, `/actuator/health` 200,
+**인증 흐름과 봇 CRUD(진짜 톰캣 + 진짜 PostgreSQL/Testcontainers 위 실제 HTTP, 통합 테스트 16건)**.
+검증 안 됨: 나머지 엔드포인트(전부 TODO), **Spring→Python 연동은 아직 한 줄도 호출된 적 없음**, CI 실제 실행.
+
+### 봇 소유권 검사 — 이후 슬라이스가 전부 이 위에 얹힌다
+
+문서·채팅·로그·평가가 전부 `botId`를 받는다. 그때마다 소유권을 새로 짜지 말고
+**`BotService.findOwnedBot(userId, botId)` 와 같은 방식**을 따를 것.
+
+- 소유권을 "검사"하지 않고 **조회 쿼리에 못박는다** (`findByIdAndUserId`).
+  `findById` 후 `if (남의 것) throw` 는 검사를 빠뜨려도 컴파일이 통과한다.
+- **남의 봇은 403이 아니라 404.** 403은 "그 봇은 존재한다"를 알려주는 셈이라
+  무작위 UUID를 던져 403만 골라내면 남의 봇 존재 여부를 훑을 수 있다.
+  `ErrorCode.ACCESS_DENIED` 가 정의돼 있지만 **봇 접근에는 쓰지 말 것.**
+- **`userId`는 `@AuthenticationPrincipal` 로만 받는다.** 쿼리 파라미터·본문으로 받으면
+  남의 id를 적어 보내는 것만으로 격리가 무너진다.
 
 > **Boot 4는 스타터 이름이 Boot 3과 다르다.** `spring-boot-starter-web`이 아니라
 > `spring-boot-starter-webmvc`이고, 통합 `starter-test`가 없어 `-webmvc-test`,
@@ -305,29 +326,31 @@ Spring:   대화 로그 저장(assistant 메시지 + sources + is_fallback)
 > **동작하는 완제품이 아니다.** 아직 구현하지 않은 곳은 TODO 주석에
 > "무엇을 / 어느 단계(W2·W3·W4)에서" 할지 한국어로 남길 것.
 > **거짓 완성 금지 — 안 만든 걸 만들었다고 쓰지 말 것.**
-> 현재 실행 가능한 코드는 `ai-service/`뿐이고, 그마저도 아래처럼 미검증이다.
+> `api/`에서 실제로 동작하는 것은 **인증과 봇 CRUD 둘뿐**이고 나머지는 전부 TODO다.
 
-### ⚠️ W1은 아직 한 번도 실행된 적이 없습니다
+### ✅ W1 검증 완료 (2026-07-31) — 다만 1차 방어선이 놀고 있다
 
-검증된 것: 청킹 로직, HWPX 파서(가짜 파일 기준), 전체 문법 검사.
-**검증 안 된 것: DB 연결, 임베딩 생성, 벡터 검색, 답변 생성, 전체 흐름,
-PDF·DOCX 파서(실제 파일).**
-
-첫 실행에서 에러가 날 가능성이 높습니다. 특히 pgvector에 임베딩을 저장하는
-부분(`executemany`로 벡터를 넘기는 방식)과 psycopg 버전별 타입 처리를 의심할 것.
-
-**W1 완료 조건 (README와 동일):**
-1. 문서 업로드 → 상태가 `ready`로 바뀜
-2. 질문 → 출처(`sources`) 포함 답변이 나옴
-3. **문서에 없는 질문 10개 중 8개 이상 → `is_fallback: true`**
+**완료 조건 3개 실측 통과:**
+1. ✅ 문서 업로드 → 상태가 `ready`로 바뀜
+2. ✅ 질문 → 출처(`sources`) 포함 답변이 나옴
+3. ✅ **문서에 없는 질문 10개 중 10개 → `is_fallback: true`** (기준 8개)
 
 3번이 가장 중요합니다. 환각을 못 막으면 이 제품은 의미가 없습니다.
 
-### ⚠️ 이해 게이트 (0단계)
+> ⚠️ **다만 fallback 10/10은 2차 방어선(`NO_ANSWER`)이 혼자 막아낸 결과다.**
+> 1차 방어선인 검색 단계 컷오프(`max_distance=0.55`)는 **한 번도 작동하지 않았다** —
+> 문서에 없는 질문 10개가 전부 근거 1건을 달고 통과했다.
+> 즉 "근거가 없으면 LLM을 호출하지 않는다"는 비용 절감 경로가 열리지 않았다.
+> **알고 남긴 것이며 W4에서 평가 점수로 조정한다.** 지금 손대지 말 것
+> (표본이 청크 1개·질문 7개뿐이라 조정하면 문서 하나에 과적합된다 — `docs/decisions.md` 참고).
+
+여전히 검증 안 된 것: **PDF·DOCX 파서(실제 파일)**, 여러 문서·대용량 문서에서의 동작.
+
+### ✅ 이해 게이트 (0단계) — 통과
 
 W1 코드는 개발자가 직접 작성한 것이 아니라 **받은 코드**입니다.
 포트폴리오 프로젝트이므로, 설명하지 못하는 코드는 없느니만 못합니다.
-아래 네 가지를 **말로 설명할 수 있게 되기 전까지 W2로 넘어가지 마세요.**
+아래 네 가지를 정리해 통과했습니다.
 
 1. `generator.py`의 프롬프트가 왜 "근거에 없으면 NO_ANSWER"를 강제하는가
 2. `retriever.py`의 `max_distance`가 왜 필요한가 (LLM 호출 전에 거르는 이유)
@@ -372,6 +395,13 @@ W3은 지킬 것. 평가 대시보드가 없으면 그냥 흔한 챗봇 빌더�
 - 구버전 `.hwp` 미지원 (바이너리 포맷). Java `hwplib`으로 W2에서 붙이는 것 검토.
 - pgvector는 수백만 벡터 규모에서 전용 벡터DB보다 불리. 현재 규모에선 문제없음.
 - 임베딩·생성 모두 외부 API 사용 중. 모델 셀프호스팅·경량화는 이 프로젝트 범위 밖.
+- **1차 방어선(`max_distance=0.55`)이 작동하지 않는다.** W1 실측에서 근거 없는 질문이
+  전부 검색 컷오프를 통과했다. 환각은 2차 방어선(`NO_ANSWER`)이 전부 막고 있다.
+  알고 남긴 것이며 W4에서 조정한다 — 지금 손대지 말 것(위 W1 검증 문단 참고).
+- **Gemini 무료 등급은 약관상 입력 데이터를 학습에 쓰고 사람이 검토한다.**
+  한국은 EEA·영국·스위스 예외 대상이 아니다. **실제 고객 문서를 받는 시점(파일럿) 전에
+  반드시 결제 계정을 연결하거나 제공자를 바꿔야 한다.** 지금은 테스트 문서뿐이라 문제없다.
+- **측정된 fallback 수치는 전부 Gemini 기준이다.** 모델을 되돌리면 다시 재야 한다.
 
 ## 결정 로그
 

@@ -79,11 +79,11 @@ AllDap/
 │   ├── app/(dashboard)/     봇 목록 · 봇별 화면
 │   ├── components/          공통 UI 조각
 │   └── lib/{api,types}.ts   Spring API 호출 래퍼 · 응답 타입
-├── api/           Spring Boot API (:8080)                             ✅ 뼈대 완료 · 기동 검증됨
+├── api/           Spring Boot API (:8080)                             🚧 인증·봇 CRUD 완료 · 나머지 TODO
 │   ├── src/main/java/com/alldap/api/{global,domain}/...
 │   └── src/main/resources/db/migration/
 │       └── V1__init.sql   스키마 단일 진실 공급원 (Flyway가 api 기동 시 적용)
-├── ai-service/    Python FastAPI AI 서비스 (:8001)                     ⚠️ 코드 있음 · 미검증
+├── ai-service/    Python FastAPI AI 서비스 (:8001)                     ✅ W1 완료 조건 실측 통과
 │   └── app/{parsers,chunker,retriever,generator,db,config,schemas,main}.py
 ├── widget/        임베드용 위젯 스크립트 (한 줄 설치)                     🚧 초안
 │   └── alldap-widget.js
@@ -248,19 +248,25 @@ Next.js는 API 게이트웨이가 아니며, 인증·권한·`bot_id` 격리는 
 
 ---
 
-## W1 완료 기준
+## W1 완료 기준 — ✅ 3개 전부 실측 통과 (2026-07-31)
 
-> ⚠️ **W1 코드는 아직 한 번도 실행된 적이 없습니다.**
-> 검증된 것은 청킹 로직과 HWPX 파서(가짜 파일 기준), 문법 검사뿐입니다.
-> DB 연결·임베딩·벡터 검색·답변 생성·전체 흐름·실제 PDF/DOCX 파싱은 **전부 미검증**이며,
-> 첫 실행에서 에러가 날 가능성이 높습니다.
-
-- [ ] 문서 업로드 → 상태가 `ready`로 바뀜
-- [ ] 질문 → 출처(`sources`)가 포함된 답변이 나옴
-- [ ] **문서에 없는 질문 → 지어내지 않고 `is_fallback: true`**
+- [x] 문서 업로드 → 상태가 `ready`로 바뀜
+- [x] 질문 → 출처(`sources`)가 포함된 답변이 나옴
+- [x] **문서에 없는 질문 10개 → 10개 모두 `is_fallback: true`** (기준: 8개 이상)
 
 세 번째가 가장 중요하다. 환각을 막지 못하면 이 제품은 의미가 없다.
-문서에 없는 질문 10개를 던져서 8개 이상 fallback 되는지 꼭 확인할 것.
+
+> ⚠️ **10/10은 2차 방어선이 혼자 막아낸 결과다.**
+> 환각 억제는 두 겹이다 — 검색 단계 컷오프(`max_distance`)와 생성 단계(`NO_ANSWER`).
+> 그런데 **1차인 `max_distance=0.55`는 한 번도 작동하지 않았다.**
+> 근거 없는 질문 10개가 전부 청크 1건을 달고 통과했고, `NO_ANSWER`가 10개를 다 막았다.
+> 즉 "근거가 없으면 LLM을 아예 호출하지 않는다"는 비용 절감 경로가 열리지 않았다.
+>
+> 실측 거리는 근거 있는 질문 0.27~0.28, 없는 질문 0.38~0.48로 깔끔히 갈려서 0.33 근처면 작동한다.
+> **그럼에도 지금 바꾸지 않는다** — 표본이 청크 1개·질문 7개뿐이라 조정하면 이 문서 하나에 과적합된다.
+> 이 값은 W4에서 평가 점수를 근거로 정한다. (`docs/decisions.md`)
+
+아직 검증 안 된 것: **실제 PDF·DOCX 파일 파싱**, 여러 문서·대용량 문서에서의 동작.
 
 ---
 
@@ -302,9 +308,9 @@ Source       = { chunk_id, document_id, filename, score, preview }
 
 | 주차 | 할 일 | 상태 |
 |---|---|---|
-| 0 | W1 첫 실행 검증 + 코드 이해 게이트 4문항 | ⬜ **현재 여기** |
-| W1 | Python AI 서비스 (파싱→청킹→임베딩→검색→생성) | ⚠️ 코드 작성됨 · 미검증 |
-| W2 | Spring Boot API 계층 + Next.js 화면 + 임베드 위젯 | ⬜ |
+| 0 | W1 첫 실행 검증 + 코드 이해 게이트 4문항 | ✅ 완료 (`docs/W1-이해노트.md`) |
+| W1 | Python AI 서비스 (파싱→청킹→임베딩→검색→생성) | ✅ 완료 조건 3개 실측 통과 |
+| W2 | Spring Boot API 계층 + Next.js 화면 + 임베드 위젯 | 🚧 **현재 여기** — 인증·봇 CRUD 완료, 나머지 TODO |
 | W3 | **품질 대시보드** — 테스트 질문 자동 생성 → LLM-as-judge 채점 → 리포트 | ⬜ |
 | W4 | 키워드 검색(형태소+tsvector) + 하이브리드 + 리랭커 → **평가로 before/after 비교** | ⬜ |
 
@@ -316,6 +322,10 @@ W4의 before/after 비교표가 면접에서 쓸 핵심 자산이다.
 ## 알아둘 것
 
 - 임베딩 모델을 바꾸면 `EMBEDDING_DIM`과 `api/src/main/resources/db/migration/V1__init.sql`의 `VECTOR(1536)`를 **함께** 바꿔야 한다.
+  (V1은 수정 금지 — Flyway 체크섬이 깨진다. 새 마이그레이션으로 `ALTER` 할 것)
+- **`V1__init.sql`의 "1536 = OpenAI text-embedding-3-small 기준" 주석은 이제 사실이 아니다.**
+  실제 제공자는 Google Gemini(`gemini-embedding-001`, 출력 차원 1536 지정)다.
+  주석 한 글자만 고쳐도 Flyway 체크섬이 깨져 기동이 막히므로 **일부러 두었다.**
 - 구버전 `.hwp`는 바이너리 포맷이라 미지원. 사용자에게 `.hwpx` 저장을 안내한다.
   (Java 쪽 `hwplib`으로 W2에서 붙이는 것도 방법)
 - 백그라운드 처리는 FastAPI `BackgroundTasks`라 프로세스가 죽으면 작업이 유실된다.
