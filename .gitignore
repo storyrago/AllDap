@@ -1,0 +1,95 @@
+# AllDap — 저장소 공통 무시 목록
+#
+# 원칙 두 가지만 기억하면 됩니다.
+#   1) 빌드하면 다시 만들어지는 것은 커밋하지 않는다. (build/, node_modules/, __pycache__ …)
+#   2) 비밀(키·비밀번호)은 절대 커밋하지 않는다. 대신 .env.example 로 "무엇을 채워야 하는지"만 남긴다.
+#
+# 이 저장소는 서비스가 3개(api=Java, web=Node, ai-service=Python)라
+# 언어별로 구역을 나눠 적어둡니다.
+
+# ────────────────────────────────
+# Java / Gradle  (api/)
+# ────────────────────────────────
+build/
+.gradle/
+out/
+bin/
+*.class
+
+# Gradle Wrapper 는 반드시 커밋한다.
+# 이게 없으면 새로 clone 한 사람이 ./gradlew 로 빌드를 못 한다.
+!gradle/wrapper/gradle-wrapper.jar
+!gradle/wrapper/gradle-wrapper.properties
+
+# ────────────────────────────────
+# Node / Next.js  (web/, widget/)
+# ────────────────────────────────
+node_modules/
+.next/
+.turbo/
+.vercel/
+*.tsbuildinfo
+
+# Next.js 가 매 빌드마다 자동 생성하는 타입 선언 파일 (create-next-app 기본값도 무시)
+next-env.d.ts
+
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ────────────────────────────────
+# Python  (ai-service/)
+# ────────────────────────────────
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ────────────────────────────────
+# 환경 변수 — 여기가 제일 중요하다
+# ────────────────────────────────
+# API 키가 들어가는 파일이므로 통째로 무시하고,
+# "무엇을 채워야 하는지" 알려주는 예시 파일만 예외로 커밋한다.
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# ────────────────────────────────
+# IDE
+# ────────────────────────────────
+# .idea/ 를 통째로 무시하지는 않는다.
+# modules.xml·misc.xml·*.iml 은 프로젝트를 다시 열 때 쓸모가 있어 커밋 대상으로 둔다.
+# 대신 개인 작업 상태·DB 접속정보처럼 사람마다 달라지는 파일만 골라서 제외한다.
+# (IntelliJ 가 만들어 둔 .idea/.gitignore 와 중복되지만, 그 파일이 지워져도 안전하도록 여기에도 적어둔다.)
+.idea/workspace.xml
+.idea/shelf/
+.idea/httpRequests/
+.idea/dataSources/
+.idea/dataSources.local.xml
+.idea/tasks.xml
+.idea/usage.statistics.xml
+.idea/**/dbnavigator.xml
+
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json.example
+
+# ────────────────────────────────
+# OS
+# ────────────────────────────────
+.DS_Store
+._*
+Thumbs.db
+
+# ────────────────────────────────
+# 기타
+# ────────────────────────────────
+*.log
+# 업로드 원본 파일을 로컬에 떨어뜨리게 되면 여기에 쌓인다 (W2에서 보관 방침 확정 예정)
+uploads/
