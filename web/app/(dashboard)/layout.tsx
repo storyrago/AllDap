@@ -68,6 +68,11 @@ export default function DashboardLayout({
 
   useEffect(() => {
     // 여기서는 setState 를 하지 않는다. 화면 이동이라는 <바깥 세계의 일>만 한다.
+    //
+    // ⚠️ `=== null` 이지 `!token` 이 아니다. undefined 는 "아직 못 읽었다"(하이드레이션 전)이고
+    //    null 이 "확실히 없다"(비로그인)다. 여기서 undefined 까지 튕기면
+    //    <로그인한 채 새로고침해도 /auth 로 쫓겨난다> — 실제로 났던 버그다.
+    //    (getAccessTokenServerSnapshot 주석 참고)
     if (token === null) router.replace("/auth");
   }, [token, router]);
   /*
@@ -100,8 +105,9 @@ export default function DashboardLayout({
       </header>
 
       <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-8">
-        {/* 토큰이 없으면 내용을 그리지 않는다 — 위로 이동하는 중이다 (위 "깜빡임" 주석 참고) */}
-        {token === null ? <p className="text-sm text-muted">불러오는 중…</p> : children}
+        {/* 토큰을 확인하기 전(undefined)과 없을 때(null) 모두 내용을 그리지 않는다.
+            전자는 읽는 중이고 후자는 위로 이동하는 중이다 (위 "깜빡임" 주석 참고) */}
+        {token ? children : <p className="text-sm text-muted">불러오는 중…</p>}
       </main>
     </div>
   );

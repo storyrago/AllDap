@@ -20,7 +20,7 @@
  *      <이 신호가 이 화면의 가장 중요한 계약이다.>
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { ApiError, api } from "@/lib/api";
 import type { Source, WidgetConfig } from "@/lib/types";
@@ -40,7 +40,6 @@ export default function WidgetChatPage() {
   const { publicKey } = useParams<{ publicKey: string }>();
 
   const [config, setConfig] = useState<WidgetConfig | null>(null);
-  const [configError, setConfigError] = useState<string | null>(null);
   const [bubbles, setBubbles] = useState<Bubble[]>([]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
@@ -79,8 +78,10 @@ export default function WidgetChatPage() {
       const data = event.data;
       if (!data || data.source !== HOST_SOURCE) return;
 
-      if (data.type === "host-info" && typeof data.sessionId === "string") {
-        setSessionId(data.sessionId);
+      if (data.type === "host-info") {
+        if (typeof data.sessionId === "string") setSessionId(data.sessionId);
+        // 봇 설정도 로더가 실어 보낸다. 우리가 직접 부르지 않는 이유는 아래 주석 참고.
+        if (data.config) setConfig(data.config as WidgetConfig);
       }
     }
 
@@ -105,39 +106,23 @@ export default function WidgetChatPage() {
    * 다시 실행되면 ready 신호를 여러 번 보내게 된다.
    */
 
-  /* ── 봇 설정 ────────────────────────────────────────────────────────── */
-
-  const loadConfig = useCallback(async () => {
-    try {
-      setConfig(await api.widget.config(publicKey));
-    } catch (e) {
-      // 설정을 못 받아도 화면은 유지한다. 다만 이유는 보여준다 —
-      // 대부분 "허용 도메인에 이 주소가 없다" 이고, 그건 관리자가 고칠 수 있는 문제다.
-      setConfigError(
-        e instanceof ApiError ? e.message : "봇 설정을 불러오지 못했습니다.",
-      );
-    }
-  }, [publicKey]);
-
-  useEffect(() => {
-    /*
-     * effect 안에서 async 함수를 <즉시 실행>하고 취소 플래그를 둔다.
-     *
-     * 왜 `void loadConfig()` 이 아닌가 — 두 가지 이유가 겹친다.
-     * ① 화면을 떠난 뒤 응답이 도착하면 사라진 컴포넌트의 상태를 갱신하려 든다.
-     *    cancelled 플래그로 그때는 아무것도 하지 않는다.
-     * ② eslint 의 react-hooks/set-state-in-effect 규칙이 "effect 에서 setState 를 하는 함수를
-     *    그냥 호출하는" 모양을 막는다. 응답이 온 <뒤>에 갱신한다는 게 코드 모양에 드러나야 한다.
-     */
-    let cancelled = false;
-    void (async () => {
-      await loadConfig();
-      if (cancelled) return;
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [loadConfig]);
+  /*
+   * ── 봇 설정을 <왜 여기서 부르지 않는가> ─────────────────────────────────
+   *
+   * 예전에는 이 화면이 스스로 GET /api/w/{publicKey}/config 를 불렀다.
+   * 실제 고객 사이트에 설치해보니 <항상 403> 이었다 (2026-08-02 실측).
+   *
+   * 이유: Spring 은 그 요청의 Origin 이 봇의 허용 도메인 목록에 있는지 본다.
+   * 그런데 이 페이지는 iframe 안이라, 여기서 나가는 요청의 Origin 은
+   * 고객 사이트(예: https://고객.com)가 아니라 <우리 앱 주소(:3000)>다.
+   * 고객이 허용 목록에 우리 주소를 넣어줄 리 없고, 넣게 하면 검증이 무의미해진다.
+   *
+   * 즉 "허용된 사이트에 설치됐는가"를 판별할 수 있는 요청은
+   * <고객 페이지에서 직접 도는 로더>가 보내는 것뿐이다.
+   * 그래서 로더가 한 번 부르고, 결과를 host-info 로 우리에게 넘겨준다 (위 handshake).
+   *
+   * 대가: 로더 없이 이 URL 을 직접 열면(개발 중) 인사말이 안 나온다. 채팅은 된다.
+   */
 
   /* ── 대화 ───────────────────────────────────────────────────────────── */
 
@@ -188,12 +173,6 @@ export default function WidgetChatPage() {
         {/* 인사말은 봇 설정에서 온다. 로더가 아니라 여기서 그린다 — 같은 UI 를 두 곳에서 만들지 않으려고. */}
         {config && bubbles.length === 0 && (
           <Assistant>{config.welcomeMessage}</Assistant>
-        )}
-
-        {configError && (
-          <p className="rounded-md border border-dashed border-subtle px-3 py-2 text-xs text-muted">
-            {configError}
-          </p>
         )}
 
         {bubbles.map((bubble, index) => (
