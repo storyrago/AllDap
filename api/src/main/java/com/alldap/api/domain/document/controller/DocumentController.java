@@ -4,6 +4,7 @@ import com.alldap.api.domain.document.dto.DocumentResponse;
 import com.alldap.api.domain.document.service.DocumentService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -37,23 +38,27 @@ public class DocumentController {
      * <p>응답은 {@code 202 Accepted} 가 의미상 맞다 — 요청을 접수했을 뿐 처리는 아직 끝나지 않았다.
      */
     @PostMapping("/api/bots/{botId}/documents")
-    public ResponseEntity<DocumentResponse> uploadDocument(@PathVariable UUID botId,
+    public ResponseEntity<DocumentResponse> uploadDocument(@AuthenticationPrincipal UUID userId,
+                                                           @PathVariable UUID botId,
                                                            @RequestPart("file") MultipartFile file) {
-        // TODO(W2): documentService.upload(userId, botId, file) 호출 후 202 Accepted 반환
-        throw new UnsupportedOperationException("DocumentController.uploadDocument 미구현 (W2)");
+        DocumentResponse document = documentService.upload(userId, botId, file);
+        // 201 Created 가 아니라 202 Accepted 인 이유: 문서 행은 생겼지만 <처리는 아직 안 끝났다>.
+        // 201 로 답하면 프론트가 "다 됐다"고 읽고 상태 폴링을 하지 않는다.
+        return ResponseEntity.accepted().body(document);
     }
 
     /** GET /api/bots/{botId}/documents — 문서 목록 (프론트가 상태 폴링에 사용) */
     @GetMapping("/api/bots/{botId}/documents")
-    public ResponseEntity<List<DocumentResponse>> getDocuments(@PathVariable UUID botId) {
-        // TODO(W2): documentService.findDocuments(userId, botId) 호출
-        throw new UnsupportedOperationException("DocumentController.getDocuments 미구현 (W2)");
+    public ResponseEntity<List<DocumentResponse>> getDocuments(@AuthenticationPrincipal UUID userId,
+                                                               @PathVariable UUID botId) {
+        return ResponseEntity.ok(documentService.findDocuments(userId, botId));
     }
 
     /** DELETE /api/documents/{docId} — 문서 삭제 (청크도 CASCADE 로 함께 삭제된다) */
     @DeleteMapping("/api/documents/{docId}")
-    public ResponseEntity<Void> deleteDocument(@PathVariable UUID docId) {
-        // TODO(W2): documentService.delete(userId, docId) 호출 후 204 No Content
-        throw new UnsupportedOperationException("DocumentController.deleteDocument 미구현 (W2)");
+    public ResponseEntity<Void> deleteDocument(@AuthenticationPrincipal UUID userId,
+                                               @PathVariable UUID docId) {
+        documentService.delete(userId, docId);
+        return ResponseEntity.noContent().build();
     }
 }

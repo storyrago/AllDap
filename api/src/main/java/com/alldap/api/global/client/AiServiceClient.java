@@ -3,14 +3,33 @@ package com.alldap.api.global.client;
 import com.alldap.api.global.client.dto.AiChatRequest;
 import com.alldap.api.global.client.dto.AiChatResponse;
 import com.alldap.api.global.client.dto.AiDocumentResponse;
+import com.alldap.api.global.config.AiServiceProperties;
+import com.alldap.api.global.exception.ApiException;
+import com.alldap.api.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.multipart.MultipartFile;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
+import java.io.IOException;
+import java.net.ConnectException;
+import java.net.http.HttpConnectTimeoutException;
+import java.net.http.HttpTimeoutException;
 import java.util.List;
 import java.util.UUID;
+import java.util.function.Supplier;
 
 /**
  * Python AI 서비스(:8001) 호출 담당.
@@ -39,6 +58,12 @@ public class AiServiceClient {
     /** RestClientConfig 의 {@code aiServiceRestClient} 빈. baseUrl 과 타임아웃이 이미 박혀 있다. */
     private final RestClient aiServiceRestClient;
 
+    /** FastAPI 의 에러 본문 {@code {"detail":"..."}} 을 읽는 데만 쓴다. Boot 4 가 자동 구성하는 Jackson 3 매퍼다. */
+    private final ObjectMapper objectMapper;
+
+    /** 실패 로그에 "어디로 못 붙었는지"를 남기기 위해 주입한다. 주소를 모르면 로그만 보고 원인을 못 좁힌다. */
+    private final AiServiceProperties aiServiceProperties;
+
     /**
      * 문서 업로드. Python 은 documents 행만 만들고 202 로 즉시 응답한 뒤
      * 파싱·청킹·임베딩은 백그라운드로 처리한다. 따라서 반환되는 status 는 보통 {@code pending} 이다.
@@ -49,28 +74,68 @@ public class AiServiceClient {
      *              (Python 에는 인증이 없어 여기서 막지 않으면 남의 봇에 문서를 넣을 수 있다).
      */
     public AiDocumentResponse uploadDocument(UUID botId, MultipartFile file) {
-        // TODO(W2): 구현.
-        //   1) MultipartFile 을 ByteArrayResource 로 감싸고 getFilename() 을 오버라이드해
-        //      원본 파일명을 유지한다. 파일명이 없으면 Python 의 detect_type() 이 확장자를 못 읽는다.
-        //   2) MultiValueMap<String, Object> 에 "file" 키로 담아 MULTIPART_FORM_DATA 로 POST.
-        //   3) 4xx/5xx 를 ApiException(AI_SERVICE_*) 으로 변환한다.
-        //      특히 Python 의 400(형식)·413(크기)은 사용자 입력 문제이므로
-        //      502 가 아니라 UNSUPPORTED_FILE_TYPE / FILE_TOO_LARGE 로 바꿔 내려야 한다.
-        throw new UnsupportedOperationException("AiServiceClient.uploadDocument 미구현 (W2)");
+        MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+        body.add("file", toFilePart(file));
+
+        return call("문서 업로드", () -> aiServiceRestClient.post()
+                .uri("/internal/bots/{botId}/documents", botId)
+                .contentType(MediaType.MULTIPART_FORM_DATA)
+                .body(body)
+                .retrieve()
+                .body(AiDocumentResponse.class));
     }
 
     /**
-     * 봇의 문서 목록 조회.
+     * {@link MultipartFile} → multipart 파트로 변환.
      *
-     * <p>documents 테이블은 Python 이 쓰기 소유자다. Spring 이 DB 를 직접 읽어도 되지만,
-     * 상태 판단 기준을 한 곳에 두려고 Python 을 거친다.
-     * TODO(W2): 목록 화면에 created_at 이 필요하면 Python 응답에는 없으므로
-     *   Spring 이 documents 테이블에서 읽어 합쳐야 한다. 그 경우 이 메서드 대신
-     *   DocumentRepository 조회로 갈지 결정할 것.
+     * <p><b>{@code getFilename()} 을 오버라이드하는 게 이 메서드의 존재 이유다.</b>
+     * Spring 은 {@code Resource} 의 파일명을 보고 {@code Content-Disposition} 의 {@code filename=} 을 채우는데,
+     * 평범한 {@code ByteArrayResource} 는 파일명을 모른다(null). 그러면 Python 에 파일명이 안 넘어가고,
+     * {@code detect_type()} 이 확장자를 못 읽어 <b>멀쩡한 PDF 도 "지원하지 않는 형식"으로 거절된다.</b>
+     * 여기서 익명 클래스로 한 줄 덮어쓰는 이유가 그것이다.
+     *
+     * <p>파일 전체를 메모리에 올리는 것은 의도적이다. multipart 상한이 20MB
+     * ({@code application.yaml})라 상한이 있는 데다, 스트리밍으로 넘기려면
+     * {@code InputStreamResource} 를 써야 하는데 그건 길이를 모르는 스트림이라
+     * 재시도·리다이렉트에서 한 번 읽고 나면 다시 읽을 수 없다.
+     */
+    private ByteArrayResource toFilePart(MultipartFile file) {
+        byte[] bytes;
+        try {
+            bytes = file.getBytes();
+        } catch (IOException e) {
+            // 업로드 도중 연결이 끊기는 등 파일을 읽지 못한 경우. 우리 잘못도 Python 잘못도 아니라
+            // 재시도를 안내한다.
+            log.warn("[AI 호출] 업로드 파일을 읽지 못했다. filename={}", file.getOriginalFilename(), e);
+            throw new ApiException(ErrorCode.INTERNAL_ERROR,
+                    "파일을 읽는 중 문제가 발생했습니다. 다시 올려주세요.");
+        }
+
+        String filename = file.getOriginalFilename();
+        return new ByteArrayResource(bytes) {
+            @Override
+            public String getFilename() {
+                return filename;
+            }
+        };
+    }
+
+    /**
+     * 봇의 문서 목록 조회. <b>현재 호출자가 없다 — 미구현으로 남겨둔 것이 의도다.</b>
+     *
+     * <p>문서 목록은 이 메서드가 아니라 {@code DocumentService.findDocuments} 가
+     * <b>DB 를 직접 읽어</b> 처리한다. 그 이유(업로드 시각을 채울 수 있다 / Python 이 죽어도
+     * 목록은 보인다)는 그쪽 주석에 적어두었다.
+     *
+     * <p>그럼 왜 지우지 않는가: Python 에 이 엔드포인트가 실제로 있고
+     * ({@code GET /internal/bots/{bot_id}/documents}), 나중에 "Spring 이 모르는 상태 값을
+     * Python 이 판단해줘야 하는" 상황이 오면 이쪽으로 갈아탈 수 있다.
+     * 다만 <b>지금은 죽은 코드이므로 구현하지 않는다</b> — 호출자 없는 코드를 미리 만들면
+     * 검증되지 않은 채 "동작한다"는 인상만 남는다.
      */
     public List<AiDocumentResponse> listDocuments(UUID botId) {
-        // TODO(W2): 구현. GET /internal/bots/{botId}/documents
-        throw new UnsupportedOperationException("AiServiceClient.listDocuments 미구현 (W2)");
+        throw new UnsupportedOperationException(
+                "AiServiceClient.listDocuments 는 의도적으로 미구현이다 — 문서 목록은 DocumentService 가 DB 에서 읽는다");
     }
 
     /**
@@ -80,8 +145,150 @@ public class AiServiceClient {
      * 양쪽이 같은 테이블에 쓰기 시작하면 누가 무엇을 바꿨는지 추적이 불가능해진다.
      */
     public void deleteDocument(UUID documentId) {
-        // TODO(W2): 구현. DELETE /internal/documents/{documentId} -> 204
-        throw new UnsupportedOperationException("AiServiceClient.deleteDocument 미구현 (W2)");
+        call("문서 삭제", () -> aiServiceRestClient.delete()
+                .uri("/internal/documents/{documentId}", documentId)
+                .retrieve()
+                .toBodilessEntity());
+
+        // Python 의 DELETE 는 없는 id 를 지워도 204 다(SQL DELETE 가 0행을 지운 것뿐).
+        // 그래서 "없는 문서" 판단은 Spring 이 이 호출 <전에> DB 조회로 끝낸다(DocumentService).
+        // 여기서 다시 확인하려 들면 Python 컨트랙트에 없는 의미를 우리가 지어내는 셈이다.
+    }
+
+    // ── 실패 변환 ────────────────────────────────────────────────────────
+
+    /**
+     * Python 호출을 감싸 <b>모든 실패를 {@link ApiException} 으로 바꾼다.</b>
+     *
+     * <p><b>왜 한 곳에 모으는가.</b> 이 변환을 호출 지점마다 적으면 반드시 한 군데가 빠지고,
+     * 빠진 곳에서는 {@code RestClientException} 이 그대로 올라가
+     * {@code GlobalExceptionHandler} 의 마지막 그물에 걸려 <b>500 INTERNAL_ERROR</b> 가 나간다.
+     * 그러면 "Python 이 죽었다"가 "우리 서버가 고장났다"로 둔갑한다 —
+     * 프론트는 재시도 로직을 잘못 짜고, 로그에는 가짜 ERROR 가 쌓여 진짜 장애가 묻힌다.
+     *
+     * <p><b>상태 코드를 나누는 기준은 "누구 잘못인가"다.</b>
+     * <ul>
+     *   <li>연결 자체가 안 됨 → 503 {@code AI_SERVICE_UNAVAILABLE} ("잠시 후 재시도")</li>
+     *   <li>연결은 됐는데 응답이 늦음 → 504 {@code AI_SERVICE_TIMEOUT} ("질문을 줄여서 재시도")</li>
+     *   <li>Python 이 5xx → 503. Python 이 스스로 고장났다고 말한 것이다</li>
+     *   <li>Python 이 4xx → 사용자 입력 문제. {@link #translateClientError} 가 구체적인 코드로 바꾼다</li>
+     * </ul>
+     */
+    private <T> T call(String what, Supplier<T> action) {
+        try {
+            return action.get();
+
+        } catch (RestClientResponseException e) {
+            // Python 이 HTTP 응답은 돌려준 경우 (4xx / 5xx)
+            HttpStatusCode status = e.getStatusCode();
+            if (status.is4xxClientError()) {
+                throw translateClientError(what, e);
+            }
+            log.error("[AI 호출] {} 실패 — Python 이 {} 응답. body={}", what, status, e.getResponseBodyAsString());
+            throw new ApiException(ErrorCode.AI_SERVICE_UNAVAILABLE);
+
+        } catch (ResourceAccessException e) {
+            // 아예 응답을 받지 못한 경우 (연결 거부·타임아웃·중간 끊김)
+            throw translateIoFailure(what, e);
+
+        } catch (RestClientException e) {
+            // ⚠️ 여기 두 가지가 섞여 들어온다. 구분하지 않으면 "Python 이 죽었다"가
+            // "우리가 응답을 못 읽었다"로 둔갑해, 운영자를 엉뚱한 조사(DTO·컨트랙트 대조)로 보낸다.
+            //
+            // 응답 <헤더가 온 뒤> 연결이 끊기거나 본문이 늦으면 ResourceAccessException 이 아니라
+            // RestClientException(cause = IOException) 으로 온다.
+            // DefaultRestClient 가 본문을 읽다 만난 IOException 을 여기로 감싸 던지기 때문이다.
+            // 즉 위의 catch(ResourceAccessException) 는 "헤더도 못 받은" 실패만 잡는다.
+            if (e.getCause() instanceof IOException io) {
+                log.error("[AI 호출] {} 실패 — 응답을 받는 도중 Python 과의 통신이 끊겼다.", what, io);
+                throw new ApiException(ErrorCode.AI_SERVICE_UNAVAILABLE);
+            }
+
+            // 진짜로 응답은 멀쩡히 받았는데 해석에 실패한 경우 — JSON 구조가 DTO 와 안 맞는다.
+            // Python 컨트랙트가 바뀌었는데 우리 DTO 를 안 고친 상황이라
+            // 502(게이트웨이가 받은 응답이 이상함)가 맞다.
+            log.error("[AI 호출] {} 실패 — 응답을 해석하지 못했다. DTO 와 Python 스키마가 어긋났을 수 있다.", what, e);
+            throw new ApiException(ErrorCode.AI_SERVICE_ERROR);
+        }
+    }
+
+    /**
+     * Python 의 4xx → 사용자에게 보여줄 에러로 변환.
+     *
+     * <p><b>Python 의 메시지를 그대로 사용자에게 내려보낸다.</b> 보통은 내부 서비스의 에러 문구를
+     * 밖으로 흘리면 안 되지만, 여기 오는 문구는 {@code parsers.py} 의 {@code ParseError} 가
+     * <b>애초에 사용자에게 보여주려고 쓴 한국어</b>다.
+     * 예: "구버전 .hwp는 아직 지원하지 않습니다. 한글에서 .hwpx로 저장 후 올려주세요."
+     * Spring 이 이걸 버리고 "지원하지 않는 파일 형식입니다"로 뭉개면
+     * <b>사용자가 다음에 뭘 해야 하는지를 잃는다</b>(AGENTS.md 작업 규칙 4).
+     *
+     * <p>그래서 지원 확장자 목록을 Spring 에 복제하지 않는다.
+     * 목록을 양쪽에 두면 반드시 어긋나고, 그때 "Spring 은 통과시켰는데 Python 이 거절"이 된다.
+     * <b>형식 판단의 단일 기준은 Python 의 {@code detect_type()} 하나다.</b>
+     */
+    private ApiException translateClientError(String what, RestClientResponseException e) {
+        String detail = extractDetail(e);
+        log.warn("[AI 호출] {} — Python 이 {} 로 거절. detail={}", what, e.getStatusCode(), detail);
+
+        // 413: Spring 의 multipart 상한(20MB)과 Python 의 upload_max_bytes(20MB)가 같아서
+        // 보통은 Spring 에서 먼저 걸린다. 두 값이 어긋나면 여기로 오므로 대비해 둔다.
+        // (Spring 7 에서 PAYLOAD_TOO_LARGE 는 CONTENT_TOO_LARGE 로 이름이 바뀌었다. 숫자는 413 그대로다)
+        if (e.getStatusCode().isSameCodeAs(HttpStatus.CONTENT_TOO_LARGE)) {
+            return new ApiException(ErrorCode.FILE_TOO_LARGE, detail);
+        }
+        if (e.getStatusCode().isSameCodeAs(HttpStatus.BAD_REQUEST)) {
+            return new ApiException(ErrorCode.UNSUPPORTED_FILE_TYPE, detail);
+        }
+
+        // 그 밖의 4xx(404·422 등)는 사용자가 고칠 수 있는 게 아니라
+        // 우리가 Python 을 잘못 호출한 것이다. 사용자에게는 내부 사정을 설명하지 않는다.
+        return new ApiException(ErrorCode.AI_SERVICE_ERROR);
+    }
+
+    /**
+     * FastAPI 의 에러 본문 {@code {"detail":"..."}} 에서 메시지만 꺼낸다.
+     *
+     * <p>꺼내지 못하면 null 을 돌려주고, 그러면 {@link ApiException} 이
+     * {@link ErrorCode} 의 기본 문구를 쓴다 — 즉 실패해도 사용자 응답은 여전히 온전하다.
+     * 파싱 실패로 예외를 던지면 "에러를 만들다가 에러가 나는" 최악의 모양이 된다.
+     */
+    private String extractDetail(RestClientResponseException e) {
+        try {
+            JsonNode detail = objectMapper.readTree(e.getResponseBodyAsString()).path("detail");
+            // Jackson 3 에서 isTextual() 이 isString() 으로 바뀌었다 (2.x 예제를 그대로 쓰면 deprecated 경고).
+            return detail.isString() ? detail.asString() : null;
+        } catch (RuntimeException ignored) {
+            return null;
+        }
+    }
+
+    /**
+     * 응답을 아예 못 받은 실패 → "연결 안 됨(503)" 과 "너무 느림(504)" 을 구분한다.
+     *
+     * <p>구분하는 이유는 <b>사용자가 할 수 있는 행동이 다르기 때문</b>이다.
+     * 연결이 안 되는 건 서비스가 내려간 것이라 기다리는 수밖에 없지만,
+     * 느린 건 질문을 줄이면 성공할 수도 있다. 둘을 하나로 뭉개면 그 안내를 못 한다.
+     *
+     * <p>{@code HttpConnectTimeoutException} 을 먼저 보는 게 중요하다 —
+     * 이 클래스가 {@code HttpTimeoutException} 을 상속하므로 순서를 바꾸면
+     * <b>연결 실패가 읽기 타임아웃으로 잘못 분류된다.</b>
+     */
+    private ApiException translateIoFailure(String what, ResourceAccessException e) {
+        Throwable cause = e.getCause();
+
+        if (cause instanceof HttpConnectTimeoutException || cause instanceof ConnectException) {
+            log.error("[AI 호출] {} 실패 — Python({}) 에 연결할 수 없다. 서비스가 떠 있는지 확인할 것.",
+                    what, aiServiceProperties.baseUrl());
+            return new ApiException(ErrorCode.AI_SERVICE_UNAVAILABLE);
+        }
+        if (cause instanceof HttpTimeoutException) {
+            log.error("[AI 호출] {} 실패 — 읽기 타임아웃({}) 초과.", what, aiServiceProperties.readTimeout());
+            return new ApiException(ErrorCode.AI_SERVICE_TIMEOUT);
+        }
+
+        // 그 외 I/O 실패(응답 도중 연결 끊김 등). Python 이 처리 중 죽은 경우가 여기 온다.
+        log.error("[AI 호출] {} 실패 — Python 과의 통신이 끊겼다.", what, e);
+        return new ApiException(ErrorCode.AI_SERVICE_UNAVAILABLE);
     }
 
     /**
