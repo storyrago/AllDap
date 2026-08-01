@@ -209,7 +209,18 @@ export const api = {
 
   /** 봇 (F-06) */
   bots: {
-    list: () => request<BotSummary[]>("/api/bots"),
+    /**
+     * ⚠️ 반환 타입이 {@link BotSummary} 가 아니라 {@link Bot} 이다.
+     *
+     * 뼈대에서는 `BotSummary[]`(문서 수·주간 대화 수·최근 평가 점수 포함)로 적어뒀지만,
+     * <b>서버는 그 집계를 아직 내려주지 않는다.</b> 집계를 붙이려면 봇마다 count 를 돌리게 되어
+     * N+1 이 되므로 group by 한 번으로 가져오는 쿼리가 필요한데, 그건 별도 작업이다.
+     *
+     * 타입을 `BotSummary[]` 로 두면 <b>화면 코드가 없는 필드를 있다고 믿게 된다</b> —
+     * 컴파일은 통과하고 런타임에 `undefined` 가 화면에 찍힌다.
+     * 실제로 내려오는 것만 타입에 적는 편이 안전하다.
+     */
+    list: () => request<Bot[]>("/api/bots"),
     create: (payload: CreateBotRequest) =>
       request<Bot>("/api/bots", { method: "POST", body: payload }),
     get: (botId: Uuid) => request<Bot>(`/api/bots/${botId}`),
@@ -248,11 +259,17 @@ export const api = {
         method: "POST",
         body: payload,
       }),
-    /** 👍(1) / 👎(-1) */
-    feedback: (messageId: Uuid, value: 1 | -1) =>
+    /**
+     * 👍(1) / 👎(-1)
+     *
+     * ⚠️ 본문 키가 `feedback` 이다. 뼈대에서는 `{ value }` 로 적혀 있었는데
+     * Spring 의 `FeedbackRequest` 는 `{ feedback }` 을 받으므로 그대로 두면 400 이 났다.
+     * 서버가 실제로 생긴 뒤 대조해서 고친 것 — 뼈대의 추정값은 이렇게 어긋날 수 있다.
+     */
+    feedback: (messageId: Uuid, feedback: 1 | -1) =>
       request<void>(`/api/messages/${messageId}/feedback`, {
         method: "POST",
-        body: { value },
+        body: { feedback },
       }),
   },
 

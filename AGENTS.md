@@ -300,7 +300,7 @@ Spring:   대화 로그 저장(assistant 메시지 + sources + is_fallback)
 | 대화 로그 (목록·상세) | ✅ **구현 완료 · 통합 테스트 11건 통과** (PR #10). 목록 집계는 **쿼리 2번 고정**(N+1 없음) |
 | 평가 API | ⬜ **TODO.** Python 에 `/internal/eval/*` 이 아직 없다 — W3 에서 Python 을 먼저 만든다 |
 | 프론트 스택 결정 | ✅ **Next.js(App Router) + TypeScript로 확정** (`docs/decisions.md`) |
-| `web/` 뼈대 | 🚧 라우트·타입·API 래퍼만 자리 잡음. **화면은 자리표시자(placeholder)** — 봇 API가 생겼으니 이제 붙일 수 있다. 디자인은 레퍼런스 받은 뒤 착수 |
+| `web/` 화면 | 🚧 **로그인·가입·봇 목록/생성 동작** (PR #13, 브라우저 실측). 나머지 화면(문서·채팅·로그·설정)은 자리표시자. 디자인은 기능 우선으로 두고 나중에 입힌다 |
 | `widget/` 스크립트 | 🚧 `alldap-widget.js` 초안. 실제 로드 검증 안 됨 |
 | Flyway · CI · PR 템플릿 | ✅ 도입 완료 (위 Flyway 규칙 참고) |
 
