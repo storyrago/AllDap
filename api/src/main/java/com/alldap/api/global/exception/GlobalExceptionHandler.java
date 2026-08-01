@@ -10,7 +10,9 @@ import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
 
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -115,6 +117,49 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * multipart 요청에 {@code file} 파트가 없는 경우 → 400.
+     *
+     * <p><b>이 핸들러가 없으면 500 이 나간다.</b> {@code @RequestPart("file")} 바인딩이 실패하면
+     * {@link MissingServletRequestPartException} 이 던져지는데, 스프링 기본 처리기가 400 으로 바꿔주기 <b>전에</b>
+     * 이 클래스의 마지막 그물 {@link #handleException} 이 먼저 잡아버린다.
+     *
+     * <p>그러면 이 저장소가 스스로 금지한 상태가 된다 — {@link ErrorCode} 의 METHOD_NOT_ALLOWED 주석에
+     * "클라이언트 잘못을 5xx 로 답하면 프론트가 재시도 로직을 잘못 짜고, 로그에 가짜 ERROR 가 쌓여
+     * 진짜 장애가 묻힌다"고 적어놓고 업로드 엔드포인트가 정확히 그 상태였다.
+     *
+     * <p>메시지에 필드명을 박아준다. "파일이 없다"만으로는 필드명을 오타냈다는 걸 알 수 없다.
+     */
+    @ExceptionHandler(MissingServletRequestPartException.class)
+    public ResponseEntity<ErrorResponse> handleMissingPart(MissingServletRequestPartException e) {
+        log.warn("[MissingRequestPart] partName={}", e.getRequestPartName());
+        return ResponseEntity
+                .status(ErrorCode.INVALID_INPUT.getStatus())
+                .body(ErrorResponse.of(ErrorCode.INVALID_INPUT,
+                        "업로드할 파일을 찾을 수 없습니다. multipart 요청에서 파일 필드 이름을 'file' 로 지정해 다시 보내주세요."));
+    }
+
+    /**
+     * 경로 변수·쿼리 파라미터의 타입이 맞지 않는 경우 → 400.
+     * 예: {@code GET /api/bots/hello/documents} (UUID 자리에 문자열).
+     *
+     * <p>이것도 없으면 500 + ERROR 스택트레이스가 남는다. 주소를 잘못 친 것은 클라이언트 잘못이고,
+     * 무엇보다 <b>로그를 오염시킬 수 있다</b> — 아무 문자열이나 URL 에 넣어 호출하는 것만으로
+     * 서버 로그에 ERROR 스택트레이스를 무제한으로 쌓을 수 있게 된다.
+     *
+     * <p>기대 타입을 응답에 적지 않는 이유: 내부 클래스명({@code java.util.UUID})이 그대로 노출된다.
+     * 사용자에게는 "주소가 올바른지 확인하라"로 충분하고, 정확한 원인은 로그에 남긴다.
+     */
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ErrorResponse> handleTypeMismatch(MethodArgumentTypeMismatchException e) {
+        log.warn("[TypeMismatch] name={} value={} requiredType={}",
+                e.getName(), e.getValue(), e.getRequiredType());
+        return ResponseEntity
+                .status(ErrorCode.INVALID_INPUT.getStatus())
+                .body(ErrorResponse.of(ErrorCode.INVALID_INPUT,
+                        "주소에 잘못된 값이 들어 있습니다. 목록에서 다시 선택하거나 주소가 올바른지 확인해주세요."));
+    }
+
+    /**
      * multipart 최대 크기 초과.
      *
      * <p>Spring 의 multipart 제한(application.yaml)에 걸리면 요청이 Python 까지 가지도 못한다.
@@ -174,8 +219,7 @@ public class GlobalExceptionHandler {
                 .body(ErrorResponse.of(ErrorCode.INTERNAL_ERROR));
     }
 
-    // TODO(W2): 아래 예외들도 개별 핸들러로 분리할 것. 지금은 마지막 handleException 으로 떨어져
-    //   500 이 나가지만 실제로는 400 이 맞다. (해당 파라미터를 쓰는 엔드포인트를 구현할 때 함께 추가한다)
-    //   - ConstraintViolationException (@RequestParam/@PathVariable 검증)
-    //   - MethodArgumentTypeMismatchException (UUID 자리에 문자열이 온 경우)
+    // MethodArgumentTypeMismatchException 은 위에 추가했다(문서 API 가 UUID 경로 변수를 쓰기 시작해서).
+    // TODO(W2): ConstraintViolationException(@RequestParam/@PathVariable 에 붙인 검증 애너테이션)은
+    //   아직 그런 검증을 쓰는 엔드포인트가 없어 남겨둔다. 처음 쓰는 슬라이스에서 함께 추가할 것.
 }

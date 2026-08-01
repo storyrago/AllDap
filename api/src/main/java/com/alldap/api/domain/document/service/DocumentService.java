@@ -2,8 +2,12 @@ package com.alldap.api.domain.document.service;
 
 import com.alldap.api.domain.bot.repository.BotRepository;
 import com.alldap.api.domain.document.dto.DocumentResponse;
+import com.alldap.api.domain.document.entity.Document;
 import com.alldap.api.domain.document.repository.DocumentRepository;
 import com.alldap.api.global.client.AiServiceClient;
+import com.alldap.api.global.client.dto.AiDocumentResponse;
+import com.alldap.api.global.exception.ApiException;
+import com.alldap.api.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -44,29 +48,60 @@ public class DocumentService {
      * (임베딩이 수십 초 걸릴 수 있어 업로드 응답과 처리를 분리한 것 — PRD 요청 흐름 ①)
      */
     public DocumentResponse upload(UUID userId, UUID botId, MultipartFile file) {
-        // TODO(W2): 구현.
-        //   1) botRepository.findByIdAndUserId(botId, userId) 로 소유권 확인. 없으면 BOT_NOT_FOUND.
-        //   2) 빈 파일이면 EMPTY_FILE 로 미리 거절(Python 까지 보낼 필요 없다).
-        //   3) aiServiceClient.uploadDocument(botId, file) 호출
-        //   4) DocumentResponse.from(ai) 로 변환해 반환
-        //   ※ 확장자 검증은 Python 의 detect_type() 이 단일 기준이다. Spring 에 목록을 복제하면
-        //     둘이 어긋났을 때 "Spring 은 통과시켰는데 Python 이 거절"하는 상태가 된다.
-        //     다만 .hwp 는 사용자 안내가 특별하므로(LEGACY_HWP_NOT_SUPPORTED) 예외로 둘지 검토할 것.
-        throw new UnsupportedOperationException("DocumentService.upload 미구현 (W2)");
+        requireOwnedBot(userId, botId);
+
+        // 빈 파일은 Python 까지 보내지 않는다. Python 도 400 으로 막지만,
+        // 왕복 한 번과 documents 행 하나를 아끼는 쪽이 낫다.
+        // (Python 은 INSERT 전에 검사하므로 행이 생기지는 않지만, 네트워크 왕복은 그대로 발생한다)
+        if (file.isEmpty()) {
+            throw new ApiException(ErrorCode.EMPTY_FILE);
+        }
+
+        AiDocumentResponse uploaded = aiServiceClient.uploadDocument(botId, file);
+        log.info("[upload] 문서 업로드 접수 userId={} botId={} documentId={} status={}",
+                userId, botId, uploaded.id(), uploaded.status());
+        return DocumentResponse.from(uploaded);
+
+        // 확장자 검증은 Spring 에 복제하지 않는다 — 단일 기준은 Python 의 detect_type() 이다.
+        // 목록을 양쪽에 두면 반드시 어긋나고, 그때 "Spring 은 통과시켰는데 Python 이 거절"이 된다.
+        // .hwp 의 특별 안내도 Python 이 이미 한국어 문구로 주고 있어,
+        // AiServiceClient 가 그 문구를 그대로 사용자에게 전달한다.
     }
 
     /**
-     * 봇의 문서 목록.
+     * 봇의 문서 목록. 프론트가 업로드 후 상태({@code pending → processing → ready|failed})를 폴링하는 경로다.
      *
-     * <p>TODO(W2): 두 경로 중 하나를 고를 것.
-     *   (a) Python 의 {@code GET /internal/bots/{id}/documents} 를 호출 — 상태 판단 기준이 한 곳에 모인다.
-     *   (b) documentRepository 로 DB 를 직접 조회 — created_at 을 채울 수 있고 Python 이 죽어도 목록은 보인다.
-     *   documents 는 "Spring 도 읽기 허용" 테이블이므로 (b)도 소유권 위반이 아니다.
-     *   목록에 업로드 시각이 필요하다면 (b) 가 유력하다.
+     * <h2>Python 호출이 아니라 DB 직접 조회를 택했다 (설계 결정)</h2>
+     * 두 선택지가 있었다.
+     * <ul>
+     *   <li>(a) Python 의 {@code GET /internal/bots/{id}/documents} 호출</li>
+     *   <li>(b) {@code documentRepository} 로 DB 직접 조회 ← <b>택함</b></li>
+     * </ul>
+     *
+     * <p><b>(b)를 택한 이유 두 가지.</b>
+     * <ol>
+     *   <li><b>업로드 시각을 채울 수 있다.</b> Python 의 {@code DocumentOut} 에는 {@code created_at} 이 없다.
+     *       (a)로 가면 목록에 날짜를 못 띄우고, 그걸 채우려면 결국 DB 를 또 읽어 합쳐야 한다 —
+     *       호출을 두 번 하느니 처음부터 한 번이 낫다.</li>
+     *   <li><b>Python 이 죽어도 목록은 보인다.</b> 이 화면은 <b>폴링</b> 대상이라 호출이 잦다.
+     *       Python 이 내려갔을 때 목록까지 503 이 되면 사용자는 "내 문서가 사라졌나" 싶고,
+     *       죽은 서비스를 초당 몇 번씩 두드리게 된다. 상태 값이 잠시 낡을 뿐 목록은 보이는 편이 낫다.</li>
+     * </ol>
+     *
+     * <p><b>소유권 규칙을 어기는 것 아닌가?</b> 아니다. {@code documents} 는
+     * "쓰기 = Python / <b>읽기 = Spring 도 허용</b>" 테이블이다(AGENTS.md 테이블 소유권).
+     * 우리가 하는 건 SELECT 뿐이고, 상태를 바꾸는 UPDATE 는 여전히 Python 만 한다.
+     *
+     * <p>대가도 분명히 적어둔다: 상태 판단 기준이 두 곳(Python 의 UPDATE, Spring 의 SELECT)에 걸쳐 있어,
+     * 나중에 Python 이 상태 값을 하나 추가하면 Spring 은 그 값을 <b>모른 채 문자열로 흘려보낸다.</b>
+     * {@code Document.status} 를 enum 이 아니라 String 으로 둔 것이 이 상황에 대한 대비다.
      */
     @Transactional(readOnly = true)
     public List<DocumentResponse> findDocuments(UUID userId, UUID botId) {
-        throw new UnsupportedOperationException("DocumentService.findDocuments 미구현 (W2)");
+        requireOwnedBot(userId, botId);
+        return documentRepository.findAllByBotIdOrderByCreatedAtDesc(botId).stream()
+                .map(DocumentResponse::from)
+                .toList();
     }
 
     /**
@@ -76,11 +111,27 @@ public class DocumentService {
      * 문서 → 봇 → 소유자 순으로 거슬러 올라가 권한을 확인해야 한다.
      */
     public void delete(UUID userId, UUID documentId) {
-        // TODO(W2): 구현.
-        //   1) documentRepository.findById(documentId) → 없으면 DOCUMENT_NOT_FOUND
-        //   2) 그 문서의 bot 소유자가 userId 인지 확인 → 아니면 DOCUMENT_NOT_FOUND(403 이 아니라 404)
-        //   3) aiServiceClient.deleteDocument(documentId)
-        //   ※ Spring 이 documentRepository.delete() 를 호출하면 안 된다. 쓰기 소유자는 Python 이다.
-        throw new UnsupportedOperationException("DocumentService.delete 미구현 (W2)");
+        // 문서 → 봇 → 소유자를 한 번의 조인 쿼리로 확인한다.
+        // 없는 문서와 남의 문서를 모두 404 로 답한다 — 403 으로 구분해주면
+        // 무작위 id 를 던져 "그 문서가 존재하는지"를 알아낼 수 있다(봇과 같은 규칙).
+        Document document = documentRepository.findByIdAndBotUserId(documentId, userId)
+                .orElseThrow(() -> new ApiException(ErrorCode.DOCUMENT_NOT_FOUND));
+
+        // ⚠️ documentRepository.delete() 를 부르면 안 된다. documents 의 쓰기 소유자는 Python 이다.
+        // 실제 DELETE 는 Python 이 하고, chunks 는 DB 의 ON DELETE CASCADE 로 함께 사라진다.
+        aiServiceClient.deleteDocument(document.getId());
+        log.info("[delete] 문서 삭제 userId={} documentId={}", userId, documentId);
+    }
+
+    /**
+     * 이 봇이 요청자의 것인지 확인한다. <b>Python 을 부르기 전에 반드시 통과해야 하는 관문이다.</b>
+     *
+     * <p>Python 의 {@code /internal/*} 에는 인증이 없다. 여기서 막지 않으면
+     * 남의 봇 id 하나만 알면 그 봇에 문서를 넣거나 목록을 훔쳐볼 수 있다.
+     * 반환값을 쓰지 않고 존재 확인만 하는 이유는, 필요한 게 "내 봇이 맞다"는 사실 하나뿐이기 때문이다.
+     */
+    private void requireOwnedBot(UUID userId, UUID botId) {
+        botRepository.findByIdAndUserId(botId, userId)
+                .orElseThrow(() -> new ApiException(ErrorCode.BOT_NOT_FOUND));
     }
 }

@@ -294,16 +294,34 @@ Spring:   대화 로그 저장(assistant 메시지 + sources + is_fallback)
 | `api/` Spring 뼈대 | ✅ **골격 완료 · 기동 검증됨.** Gradle-Groovy / Java 21(Temurin) / **Boot 4.0.7** / Gradle 9.5.1 / `com.alldap.api`. `ddl-auto: validate`로 기동 성공 = 엔티티가 스키마와 일치함을 실측 확인 |
 | 인증 (가입·로그인·JWT) | ✅ **구현 완료 · 통합 테스트 7건 통과** (PR #3) |
 | 봇 CRUD | ✅ **구현 완료 · 통합 테스트 8건 통과** (PR #5). **`bot_id` 소유권 격리가 여기서 처음 걸렸다** — 아래 참조 |
-| 문서 업로드·채팅·로그·평가·위젯 API | ⬜ **전부 TODO.** 컨트롤러·서비스 시그니처만 있고 본문은 `UnsupportedOperationException` |
+| 문서 업로드·목록·삭제 | ✅ **구현 완료 · 통합 테스트 15건 통과** (PR #8). **Spring→Python 첫 연동이다** — 아래 참조 |
+| 채팅·로그·평가·위젯 API | ⬜ **전부 TODO.** 컨트롤러·서비스 시그니처만 있고 본문은 `UnsupportedOperationException` |
 | 프론트 스택 결정 | ✅ **Next.js(App Router) + TypeScript로 확정** (`docs/decisions.md`) |
 | `web/` 뼈대 | 🚧 라우트·타입·API 래퍼만 자리 잡음. **화면은 자리표시자(placeholder)** — 봇 API가 생겼으니 이제 붙일 수 있다. 디자인은 레퍼런스 받은 뒤 착수 |
 | `widget/` 스크립트 | 🚧 `alldap-widget.js` 초안. 실제 로드 검증 안 됨 |
 | Flyway · CI · PR 템플릿 | ✅ 도입 완료 (위 Flyway 규칙 참고) |
 
-**`api/` 에서 검증된 것 / 안 된 것 (2026-07-31)**
+**`api/` 에서 검증된 것 / 안 된 것 (2026-08-01)**
 검증됨: 컴파일, Flyway V1 적용, Hibernate `validate` 통과, `/actuator/health` 200,
-**인증 흐름과 봇 CRUD(진짜 톰캣 + 진짜 PostgreSQL/Testcontainers 위 실제 HTTP, 통합 테스트 16건)**.
-검증 안 됨: 나머지 엔드포인트(전부 TODO), **Spring→Python 연동은 아직 한 줄도 호출된 적 없음**, CI 실제 실행.
+**인증·봇 CRUD·문서 API(진짜 톰캣 + 진짜 PostgreSQL/Testcontainers 위 실제 HTTP, 통합 테스트 31건)**,
+**Spring→Python 실패 처리(가짜 HTTP 서버로 죽음·느림·4xx·5xx 재현)**.
+검증 안 됨: 나머지 엔드포인트(채팅·로그·평가·위젯 전부 TODO),
+**진짜 Python 프로세스와의 연동(가짜 서버로만 검증했다 — 실제 uvicorn 을 띄운 종단 확인은 아직)**, CI 실제 실행.
+
+### Spring → Python 호출 — 이후 슬라이스도 이 방식을 따를 것
+
+- **실패 변환은 `AiServiceClient` 안에서 끝낸다.** 호출 지점마다 try-catch 를 적으면 한 곳이 빠지고,
+  거기서 `RestClientException` 이 그대로 올라가 **500** 이 나간다 = "Python 이 죽었다"가
+  "우리 서버가 고장났다"로 둔갑한다.
+- **코드를 나누는 기준은 "누구 잘못인가"다.** 연결 안 됨 → 503 / 느림 → 504 /
+  Python 5xx → 503 / Python 4xx → 사용자 입력 문제(400 계열).
+- ⚠️ **응답 헤더가 온 뒤** 끊기면 `ResourceAccessException` 이 아니라
+  `RestClientException(cause=IOException)` 으로 온다. 둘 다 처리해야 한다.
+- **소유권 확인은 Python 을 부르기 <전에>.** Python `/internal/*` 에는 인증이 없어서,
+  요청이 거기 도달한 시점에 이미 샌 것이다. 테스트도 "404 가 났다"가 아니라
+  **"요청이 Python 까지 가지 않았다"** 를 확인할 것.
+- 재시도·서킷브레이커는 **아직 없다.** 업로드는 재시도하면 `documents` 행이 중복 생성되므로
+  무조건 재시도를 넣으면 안 된다 (`RestClientConfig` 의 TODO 에 조건이 적혀 있다).
 
 ### 봇 소유권 검사 — 이후 슬라이스가 전부 이 위에 얹힌다
 

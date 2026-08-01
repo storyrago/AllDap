@@ -27,4 +27,20 @@ public interface DocumentRepository extends JpaRepository<Document, UUID> {
      * 경로에 botId 가 없는 API 에서 소유권을 검사하는 데 쓴다.
      */
     Optional<Document> findByIdAndBotId(UUID id, UUID botId);
+
+    /**
+     * 문서 → 봇 → 소유자까지 <b>한 번의 쿼리로</b> 거슬러 올라가 확인한다.
+     * {@code DELETE /api/documents/{docId}} 는 경로에 botId 가 없어서 이게 필요하다.
+     *
+     * <p>메서드 이름의 {@code BotUser} 는 Spring Data 가 {@code document.bot.user.id} 로 해석해
+     * {@code JOIN bots ON ... JOIN users ON ...} 을 만들어준다.
+     *
+     * <p><b>왜 findById 로 가져와 자바에서 비교하지 않는가.</b> 두 가지다.
+     * ① {@code BotService.findOwnedBot} 과 같은 이유 — 조회 자체를 소유자로 좁히면
+     *    검사를 빠뜨린 조회를 쓰는 코드를 아예 작성할 수 없다(AGENTS.md 봇 소유권 규칙).
+     * ② {@code Document.bot} 이 LAZY 이고 {@code open-in-view=false} 라,
+     *    자바에서 {@code document.getBot().getUser()} 를 타고 가려면 트랜잭션 안이어야 하고
+     *    프록시 초기화 쿼리가 두 번 더 나간다. 조인 한 번이 더 싸고 더 안전하다.
+     */
+    Optional<Document> findByIdAndBotUserId(UUID id, UUID userId);
 }

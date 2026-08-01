@@ -3,6 +3,7 @@ package com.alldap.api.support;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.context.annotation.Bean;
+import org.springframework.test.context.DynamicPropertyRegistrar;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 import org.testcontainers.utility.DockerImageName;
 
@@ -71,5 +72,42 @@ public class TestcontainersConfiguration {
     @ServiceConnection
     PostgreSQLContainer postgresContainer() {
         return new PostgreSQLContainer(PGVECTOR_IMAGE);
+    }
+
+    /**
+     * Python AI 서비스 자리에 세우는 가짜 서버. <b>여기(공유 설정)에 두는 것이 핵심이다.</b>
+     *
+     * <p>문서 테스트에만 필요하니 그쪽에 두고 싶어지지만, 그러면 그 테스트만
+     * {@code @SpringBootTest} 설정이 달라져 <b>컨텍스트가 하나 더 생기고 Docker 컨테이너도 하나 더 뜬다</b>
+     * (이 클래스 맨 위 주석에 적은 그 함정이다). 설정을 여기 하나로 유지하면
+     * 모든 통합 테스트가 컨텍스트 하나·컨테이너 하나를 공유한다.
+     *
+     * <p>AI 를 호출하지 않는 테스트(인증·봇)는 이 서버가 떠 있어도 아무 영향을 받지 않는다.
+     * 포트 하나를 더 쓸 뿐이다.
+     */
+    @Bean
+    AiServiceStub aiServiceStub() {
+        return new AiServiceStub();
+    }
+
+    /**
+     * 가짜 서버의 주소와 <b>짧은 타임아웃</b>을 설정으로 주입한다.
+     *
+     * <p>{@code DynamicPropertyRegistrar} 는 "빈을 만든 뒤 그 값으로 프로퍼티를 채우는" 장치다.
+     * 스텁의 포트는 OS 가 정하므로 {@code application.yaml} 에 미리 적어둘 수가 없다.
+     * (옛 방식인 {@code @DynamicPropertySource} 는 static 메서드라 빈을 참조하지 못해 여기선 못 쓴다)
+     *
+     * <p><b>읽기 타임아웃을 2초로 줄이는 이유.</b> 운영값은 120초다(LLM 호출이 수십 초 걸리므로).
+     * 그 값 그대로 두면 "느린 Python → 504" 테스트가 <b>2분</b> 걸린다.
+     * 검증하려는 것은 "120초"라는 숫자가 아니라 <b>타임아웃이 504 로 번역되는가</b>이므로,
+     * 값을 줄여도 검증 대상은 그대로다.
+     */
+    @Bean
+    DynamicPropertyRegistrar aiServicePropertiesRegistrar(AiServiceStub stub) {
+        return registry -> {
+            registry.add("app.ai-service.base-url", stub::baseUrl);
+            registry.add("app.ai-service.connect-timeout", () -> "1s");
+            registry.add("app.ai-service.read-timeout", () -> "2s");
+        };
     }
 }

@@ -72,4 +72,19 @@
   ↳ **PATCH의 부분 수정은 `null = 안 보냄`으로 처리했다.** JsonNullable 도입은 보류 — "systemPrompt를 null로 지우기"와 "안 보냄"을 구분해야 하는 화면이 아직 없다. 설정 화면을 만들며 실제로 필요해지면 그때 넣는다.
   ↳ **`getReferenceById` 대신 `findById`로 소유자를 조회한다.** 프록시를 쓰면 SELECT 한 번을 아끼지만, 토큰은 유효한데 계정이 삭제된 경우 INSERT 단계의 FK 위반(500)이 된다. 여기서 걸러야 "다시 로그인하세요"(INVALID_TOKEN)라는 행동 가능한 안내를 줄 수 있다.
 
+2026-08-01 | **문서 목록을 Python 호출이 아니라 Spring 의 DB 직접 조회로 구현** | ① Python 의 `DocumentOut`에 `created_at`이 없어서 Python을 거치면 목록에 업로드 시각을 못 띄운다 — 채우려면 결국 DB를 또 읽어야 하니 호출 두 번이 된다 ② **이 화면은 폴링 대상**이라 호출이 잦은데, Python이 죽었을 때 목록까지 503이 되면 사용자는 "내 문서가 사라졌나" 싶고 죽은 서비스를 초당 몇 번씩 두드리게 된다. 상태 값이 잠시 낡을 뿐 목록은 보이는 편이 낫다. `documents`는 "쓰기=Python / **읽기=Spring도 허용**" 테이블이라 소유권 규칙 위반도 아니다(SELECT만 하고 UPDATE는 여전히 Python) | Python의 `GET /internal/bots/{id}/documents` 호출(상태 판단 기준이 한 곳에 모이지만 위 두 문제), Python 호출 + DB 조회를 합치기(호출 두 번)
+  ↳ **대가**: 상태 판단 기준이 두 곳(Python의 UPDATE, Spring의 SELECT)에 걸친다. Python이 상태 값을 추가하면 Spring은 모른 채 문자열로 흘려보낸다. `Document.status`를 enum이 아니라 String으로 둔 것이 이 상황에 대한 대비다.
+  ↳ **결과**: `AiServiceClient.listDocuments`는 호출자 없는 죽은 코드가 됐다. **지우지 않고 미구현으로 남겼다** — Python에 엔드포인트가 실제로 있어 나중에 갈아탈 수 있지만, 호출자 없는 코드를 미리 구현하면 검증되지 않은 채 "동작한다"는 인상만 남는다.
+
+2026-08-01 | **지원 확장자 목록을 Spring에 복제하지 않고, Python의 400 응답 문구를 그대로 사용자에게 전달** | 목록을 양쪽에 두면 반드시 어긋나고, 그때 "Spring은 통과시켰는데 Python이 거절"하는 상태가 된다. 형식 판단의 단일 기준은 Python의 `detect_type()` 하나다. 그런데 Spring이 자기 기본 문구("지원하지 않는 파일 형식입니다")로 뭉개면 **사용자가 다음에 뭘 해야 하는지를 잃는다** — Python이 주는 "구버전 .hwp는 아직 지원하지 않습니다. 한글에서 .hwpx로 저장 후 올려주세요."가 정확히 AGENTS.md 작업 규칙 4가 요구하는 문구다. 내부 서비스 에러를 밖으로 흘리지 않는 게 원칙이지만, 여기 오는 문구는 `parsers.py`의 `ParseError`가 **애초에 사용자에게 보여주려고 쓴 한국어**라 예외로 둔다 | Spring에 확장자 목록 복제(단일 기준이 깨짐), `ErrorCode`의 기본 문구만 사용(안내 손실), `.hwp`만 Spring에서 특별 처리(부분 복제라 같은 문제)
+  ↳ Python의 **5xx** 메시지는 그대로 흘리지 않는다. "Internal Server Error"는 사용자용 문구가 아니고 내부 구조 노출이다. 4xx만 전달한다.
+
+2026-08-01 | **Python 호출 실패를 `AiServiceClient` 한 곳에서 전부 `ApiException`으로 변환** (503 / 504 / 502를 구분) | 변환을 호출 지점마다 적으면 반드시 한 군데가 빠지고, 빠진 곳에서는 `RestClientException`이 그대로 올라가 `GlobalExceptionHandler`의 마지막 그물에 걸려 **500 INTERNAL_ERROR**가 나간다. 그러면 "Python이 죽었다"가 "우리 서버가 고장났다"로 둔갑해 ① 프론트가 재시도 로직을 잘못 짜고 ② 로그에 가짜 ERROR가 쌓여 진짜 장애가 묻힌다. 코드를 나누는 기준은 **누구 잘못인가**다: 연결 안 됨→503(기다린다) / 느림→504(질문을 줄여 재시도) / Python 5xx→503 / Python 4xx→사용자 입력 문제 | 호출 지점마다 try-catch(빠뜨리기 쉬움), 전부 502로 뭉개기(사용자가 할 수 있는 행동을 구분 못 함), `@ControllerAdvice`에서 `RestClientException`을 잡기(Python 호출인지 다른 HTTP 호출인지 구분 불가)
+  ↳ **함정 기록**: 응답 **헤더가 온 뒤** 끊기거나 본문이 늦으면 `ResourceAccessException`이 아니라 **`RestClientException(cause=IOException)`**으로 온다(`DefaultRestClient`가 본문 읽기 중 IOException을 그렇게 감싼다). 처음엔 이걸 "응답 해석 실패(502)"로 분류해, Python 장애를 DTO 불일치처럼 보이게 만들었다. 코드 리뷰에서 잡아 `cause instanceof IOException`이면 503으로 가도록 고쳤다.
+  ↳ **재시도·서킷브레이커는 아직 없다.** 특히 업로드는 재시도하면 `documents` 행이 중복 생성되므로 무조건 재시도를 넣으면 안 된다. `RestClientConfig`의 TODO에 조건이 적혀 있다.
+
+2026-08-01 | **테스트에서 Python 자리에 JDK 내장 `HttpServer`로 진짜 가짜 서버를 세움** (Mockito 스텁 대신) | 이 슬라이스에서 검증하려는 것 대부분이 **HTTP 경계에서만 드러난다** — ① multipart에 파일명이 실려 나가는가(안 실리면 Python이 확장자를 못 읽어 멀쩡한 PDF도 거절) ② Python이 죽었을 때 실제로 어떤 예외가 오는가 ③ 읽기 타임아웃이 504로 번역되는가. `AiServiceClient`를 Mockito로 흉내내면 "우리가 상상한 예외"를 검증할 뿐이고, 실제로 무슨 예외가 오는지는 영영 모른다(위 "함정 기록"이 정확히 그 경우다). WireMock 대신 JDK 내장을 쓴 이유는 필요한 기능이 "정해둔 응답 + 요청 기록" 둘뿐이라 의존성을 하나 더 들일 값을 못 하기 때문 | Mockito로 클라이언트 스텁(실제 직렬화·예외를 못 봄), WireMock(의존성 추가), 실제 Python을 띄우기(CI에서 Python+DB+LLM 키까지 필요)
+  ↳ **함정**: `HttpServer.create()` 후 `setExecutor()`를 부르지 않으면 JDK 기본값이 `task.run()`이라 **모든 요청이 스레드 하나에서 순차 처리**된다. 그래서 "느린 응답" 테스트의 `sleep`이 서버 전체를 멈춰 **다음 테스트가 엉뚱한 504를 받는다.** 게다가 JUnit 메서드 실행 순서에 따라 나타났다 사라져서, 테스트를 하나 추가하거나 이름만 바꿔도 갑자기 깨진다. 코드 리뷰에서 잡아 `setExecutor(newCachedThreadPool())`로 고쳤고, `MethodOrderer$MethodName`으로 순서를 바꿔 실행해 검증했다.
+  ↳ **검증 방식**: "격리 테스트가 실제로 회귀를 잡는가"를 **회귀를 일부러 주입해** 확인했다(`findAllByBotId...` → `findAll()`). 주입 전에는 12개가 전부 통과했고, 테스트를 추가한 뒤에는 그 하나만 실패했다. 테스트가 통과하는 것과 테스트가 무언가를 지키는 것은 다르다.
+
 <!-- 아래에 계속 추가하세요 -->
