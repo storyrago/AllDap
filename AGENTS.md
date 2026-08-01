@@ -297,7 +297,8 @@ Spring:   대화 로그 저장(assistant 메시지 + sources + is_fallback)
 | 문서 업로드·목록·삭제 | ✅ **구현 완료 · 통합 테스트 15건 통과** (PR #8). **Spring→Python 첫 연동이다** — 아래 참조 |
 | 관리자 채팅 · 피드백 | ✅ **구현 완료 · 통합 테스트 15건 통과** (PR #9). **fallback 치환이 여기서 동작한다** — 아래 참조 |
 | 위젯 채팅(공개) | ⬜ TODO. 흐름은 관리자 채팅과 같지만 **인증이 없어 보호가 세 겹**(publicKey + Origin 검증 + rate limit) 필요. 조건을 정하기 전에 열지 말 것 |
-| 대화 로그·평가 API | ⬜ **TODO.** 컨트롤러·서비스 시그니처만 있고 본문은 `UnsupportedOperationException` |
+| 대화 로그 (목록·상세) | ✅ **구현 완료 · 통합 테스트 11건 통과** (PR #10). 목록 집계는 **쿼리 2번 고정**(N+1 없음) |
+| 평가 API | ⬜ **TODO.** Python 에 `/internal/eval/*` 이 아직 없다 — W3 에서 Python 을 먼저 만든다 |
 | 프론트 스택 결정 | ✅ **Next.js(App Router) + TypeScript로 확정** (`docs/decisions.md`) |
 | `web/` 뼈대 | 🚧 라우트·타입·API 래퍼만 자리 잡음. **화면은 자리표시자(placeholder)** — 봇 API가 생겼으니 이제 붙일 수 있다. 디자인은 레퍼런스 받은 뒤 착수 |
 | `widget/` 스크립트 | 🚧 `alldap-widget.js` 초안. 실제 로드 검증 안 됨 |

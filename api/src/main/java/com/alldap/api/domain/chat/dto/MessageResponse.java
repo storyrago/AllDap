@@ -7,9 +7,9 @@ import java.util.UUID;
 /**
  * 대화 상세의 메시지 한 건. 프론트의 {@code ChatMessage}({@code web/lib/types.ts})와 맞춘다.
  *
- * <p>{@code sources} 는 엔티티에서 JSON 문자열로 들고 있으므로 여기서 파싱해 넣어야 한다.
- * TODO(W2): {@code Message.getSources()} 문자열 → {@code List<SourceResponse>} 변환기를 만들 것.
- *   변환 실패 시 예외를 던지지 말고 빈 목록으로 처리한다(Message.sources 주석 참고).
+ * <p>{@code sources} 는 엔티티에서 JSON 문자열로 들고 있으므로 파싱해서 넣는다.
+ * 파싱은 {@code ConversationLogService} 가 하고, <b>실패해도 예외를 던지지 않는다</b> —
+ * 과거 로그 한 건의 JSON 이 깨졌다고 대화 전체가 500 이 되면 안 된다(Message.sources 주석).
  */
 public record MessageResponse(
         UUID id,
