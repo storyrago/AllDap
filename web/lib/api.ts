@@ -157,13 +157,22 @@ export function subscribeAccessToken(onChange: () => void): () => void {
 }
 
 /**
- * 서버에서 렌더할 때 쓸 값.
+ * 서버 렌더 · 하이드레이션 때 쓸 값. <null 이 아니라 undefined 다.>
  *
- * 서버에는 localStorage 가 없으므로 <항상 null> 이다.
- * 이 함수가 없으면 서버 렌더에서 getAccessToken 이 호출돼 터진다.
+ * 서버에는 localStorage 가 없다. 그렇다고 여기서 null 을 주면 안 된다 —
+ * React 는 이 값을 <서버 렌더뿐 아니라 하이드레이션 첫 렌더에도> 쓰기 때문이다.
+ * (안 그러면 서버가 그린 HTML 과 클라이언트 첫 렌더가 어긋나 hydration mismatch 가 난다)
+ *
+ * 즉 null 을 주면 "토큰이 없다" 와 "아직 못 읽었다" 가 같은 값이 되고,
+ * 가드가 첫 렌더에서 곧바로 /auth 로 튕긴다 — <로그인한 채 새로고침해도 로그아웃된다.>
+ * 실제로 그 버그가 났고(2026-08-02 브라우저 실측), undefined 로 갈라서 고쳤다.
+ *
+ *   undefined = 아직 모름(하이드레이션 전)   null = 확실히 없음(비로그인)
+ *
+ * 하이드레이션이 끝나면 React 가 getAccessToken 으로 다시 읽어 렌더를 갱신한다.
  */
-export function getAccessTokenServerSnapshot(): string | null {
-  return null;
+export function getAccessTokenServerSnapshot(): string | null | undefined {
+  return undefined;
 }
 
 /* ───────────────────────── 요청 공통부 ───────────────────────── */

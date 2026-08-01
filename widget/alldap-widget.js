@@ -485,8 +485,18 @@
 
   var configLoaded = false;
 
+  /* 받아온 설정을 들고 있는다. 채팅 페이지에도 <이 값을> 내려주기 때문이다 (아래 설명). */
+  var botConfig = null;
+
+  /* 설정을 못 받은 이유(한국어 문구). 채팅 화면을 덮는 오버레이에 그대로 띄운다. */
+  var configError = null;
+
   function applyConfig(data) {
     if (!data) { return; }
+    botConfig = data;
+    /* 채팅 페이지가 이미 떠 있으면 지금 바로 전달한다.
+       아직 안 떠 있으면 ready 신호를 받을 때 host-info 에 실어 보낸다. */
+    postToFrame({ type: 'host-info', sessionId: sessionId, hostname: window.location.hostname, config: data });
     if (data.botName) {
       settings.botName = data.botName;
       titleEl.textContent = data.botName;
@@ -497,7 +507,7 @@
       styleEl.textContent = buildCss(data.primaryColor);   // 색만 바꿔 CSS 를 다시 만든다
     }
     /* welcomeMessage 는 여기서 쓰지 않는다. 첫 인사말을 그리는 건 채팅 화면의 일이라
-       iframe 안의 /w/[publicKey] 페이지가 같은 config 를 받아 처리한다.
+       iframe 안의 /w/[publicKey] 페이지가 <위에서 넘긴> config 로 처리한다.
        (로더가 인사말까지 그리면 같은 UI 를 두 곳에서 만들게 된다) */
   }
 
@@ -514,8 +524,13 @@
     getJson('/api/w/' + encodeURIComponent(publicKey) + '/config')
       .then(applyConfig)
       ['catch'](function (err) {
-        // 설정을 못 받아도 위젯이 고장 난 것처럼 보이면 안 된다. 기본값으로 계속 간다.
-        console.warn('[AllDap] 봇 설정을 불러오지 못했습니다. (W2에서 Spring API 연결 예정)', err);
+        /* 이 요청은 <허용 도메인 검증을 통과한 유일한 요청>이다 (아래 host-info 주석 참고).
+           그래서 실패를 조용히 넘기면 안 된다 — 대표 사례가
+           "이 사이트가 허용 도메인에 없다" 이고, 그건 관리자가 설정 화면에서 고칠 수 있다.
+           삼켜버리면 관리자는 위젯이 왜 멀쩡히 뜨는데 답이 이상한지 알 수 없다. */
+        configError = err && err.message ? err.message : '봇 설정을 불러오지 못했습니다.';
+        console.warn('[AllDap] ' + configError);
+        showFatal(configError);
       });
   }
 
@@ -544,6 +559,17 @@
 
   function hideOverlay() {
     overlay.className = 'overlay is-hidden';
+  }
+
+  /*
+   * 되돌릴 수 없는 오류(예: 허용 도메인이 아니다). 이유만 남기고 스피너도 재시도 버튼도 없앤다.
+   * showOverlay 의 두 번째 인자는 "재시도 가능한가" 하나로 스피너까지 같이 정해서
+   * 이 경우를 표현하지 못한다 — 스피너를 두면 "곧 될 것처럼" 보이고,
+   * 재시도 버튼을 두면 눌러도 config 를 다시 부르지 않아 아무 일도 일어나지 않는다.
+   */
+  function showFatal(text) {
+    showOverlay(text, false);
+    spinner.className = 'spinner is-hidden';
   }
 
   function createFrame() {
@@ -619,14 +645,24 @@
     if (data.type === 'ready') {
       frameReady = true;
       if (readyTimer) { clearTimeout(readyTimer); readyTimer = null; }
-      hideOverlay();
+      /* 설정을 못 받았으면 오버레이를 걷지 않는다. 채팅창은 떠 있는데
+         "왜 안 되는지" 는 안 보이는 상태가 제일 나쁘다. */
+      if (configError) { showFatal(configError); } else { hideOverlay(); }
       /* 채팅 페이지가 필요한 정보를 내려준다.
          hostname 만 보내는 이유: allowed_origins 검증에는 도메인이면 충분하고,
-         전체 URL 에는 남의 사이트 쿼리 파라미터(개인정보일 수 있다)가 섞일 수 있다. */
+         전체 URL 에는 남의 사이트 쿼리 파라미터(개인정보일 수 있다)가 섞일 수 있다.
+
+         ⚠️ config 를 <우리가> 실어 보내는 이유 (2026-08-02 실제 설치에서 잡은 버그).
+         채팅 페이지가 스스로 /api/w/{publicKey}/config 를 부르면 <반드시 403 이 난다.>
+         그 요청의 Origin 은 고객 사이트가 아니라 iframe 자신, 즉 우리 앱(:3000)이기 때문이다.
+         고객이 허용 도메인에 우리 앱 주소를 넣어줄 리도 없고, 넣게 하는 것도 이상하다.
+         "허용된 사이트에 설치됐는가" 를 판별할 수 있는 건 <고객 페이지에서 도는 이 로더>뿐이다.
+         그래서 검증되는 요청은 로더가 한 번만 보내고, 결과를 아래로 넘긴다. */
       postToFrame({
         type: 'host-info',
         sessionId: sessionId,
-        hostname: window.location.hostname
+        hostname: window.location.hostname,
+        config: botConfig            // 아직 응답 전이면 null — 도착하면 applyConfig 가 다시 보낸다
       });
       return;
     }
