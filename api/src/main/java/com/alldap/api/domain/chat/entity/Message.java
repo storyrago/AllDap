@@ -1,6 +1,8 @@
 package com.alldap.api.domain.chat.entity;
 
 import com.alldap.api.global.common.BaseEntity;
+import com.alldap.api.global.exception.ApiException;
+import com.alldap.api.global.exception.ErrorCode;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -148,10 +150,24 @@ public class Message extends BaseEntity {
     /**
      * 피드백 기록. 상태 변경을 의도가 드러나는 도메인 메서드로 노출한다(@Setter 금지).
      *
-     * <p>TODO(W2): 값 검증(1 또는 -1 만 허용)과 "user 메시지에는 피드백을 달 수 없다" 규칙을
-     *   여기에서 강제할 것. 컨트롤러가 아니라 엔티티에서 막아야 어느 경로로 들어와도 지켜진다.
+     * <p><b>값 규칙을 컨트롤러가 아니라 여기서 강제하는 이유.</b>
+     * 피드백을 남기는 경로가 앞으로 최소 둘이 된다 — 관리자 대시보드와 위젯 엔드유저.
+     * 검증을 컨트롤러에 두면 경로를 하나 추가할 때마다 같은 검증을 복사해야 하고,
+     * 한 번 빠뜨리면 DB 에 0 이나 5 같은 값이 들어간다. 엔티티에 두면 <b>어느 경로로 와도</b> 지켜진다.
+     *
+     * <p>{@code FeedbackRequest} 의 {@code @Min(-1) @Max(1)} 만으로는 <b>0 이 통과한다.</b>
+     * 여기가 그 구멍을 막는 자리다.
      */
     public void applyFeedback(Short feedback) {
-        throw new UnsupportedOperationException("Message.applyFeedback 미구현 (W2)");
+        if (feedback == null || (feedback != FEEDBACK_UP && feedback != FEEDBACK_DOWN)) {
+            throw new ApiException(ErrorCode.INVALID_INPUT,
+                    "피드백 값은 도움됨(1) 또는 도움안됨(-1) 만 보낼 수 있습니다.");
+        }
+        // 질문에 "도움이 됐다"를 매기는 건 의미가 없다. 품질 지표는 <답변>에 대한 평가로만 집계된다.
+        if (!ROLE_ASSISTANT.equals(role)) {
+            throw new ApiException(ErrorCode.INVALID_INPUT,
+                    "답변에만 피드백을 남길 수 있습니다. 질문이 아니라 답변 메시지를 선택해주세요.");
+        }
+        this.feedback = feedback;
     }
 }

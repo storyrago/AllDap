@@ -18,6 +18,17 @@ public interface ConversationRepository extends JpaRepository<Conversation, UUID
      */
     Optional<Conversation> findFirstByBotIdAndSessionIdOrderByCreatedAtDesc(UUID botId, String sessionId);
 
+    /**
+     * 위와 같지만 <b>channel 까지 맞춰</b> 찾는다. 실제 대화 이어붙이기는 이쪽을 쓴다.
+     *
+     * <p><b>channel 을 빼면 안 되는 이유.</b> sessionId 는 브라우저가 만들어 보내는 값이라
+     * 관리자 테스트 화면과 위젯이 같은 값을 보낼 가능성이 0 이 아니다. 그때 channel 을 안 보면
+     * 관리자가 돌려본 테스트 대화에 엔드유저 대화가 이어붙어 <b>한 대화 안에 두 채널이 섞인다.</b>
+     * 품질 지표에서 테스트 대화를 제외하려고 channel 컬럼을 둔 것인데 그 구분이 무너진다.
+     */
+    Optional<Conversation> findFirstByBotIdAndSessionIdAndChannelOrderByCreatedAtDesc(
+            UUID botId, String sessionId, String channel);
+
     /** 대화 로그 목록 (GET /api/bots/{botId}/logs) */
     Page<Conversation> findAllByBotIdOrderByCreatedAtDesc(UUID botId, Pageable pageable);
 
