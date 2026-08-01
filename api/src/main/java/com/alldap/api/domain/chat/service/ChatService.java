@@ -1,16 +1,18 @@
 package com.alldap.api.domain.chat.service;
 
-import com.alldap.api.domain.bot.entity.Bot;
-import com.alldap.api.domain.bot.repository.BotRepository;
 import com.alldap.api.domain.chat.dto.ChatRequest;
 import com.alldap.api.domain.chat.dto.ChatResponse;
-import com.alldap.api.domain.chat.repository.ConversationRepository;
-import com.alldap.api.domain.chat.repository.MessageRepository;
+import com.alldap.api.domain.chat.dto.SourceResponse;
+import com.alldap.api.domain.chat.entity.Conversation;
 import com.alldap.api.global.client.AiServiceClient;
+import com.alldap.api.global.client.dto.AiChatRequest;
+import com.alldap.api.global.client.dto.AiChatResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import tools.jackson.databind.ObjectMapper;
 
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -18,26 +20,17 @@ import java.util.UUID;
  *
  * <p><b>흐름 (PRD 요청 흐름 ②):</b>
  * <pre>
- * 1. 봇 확인 (관리자 채팅이면 소유권, 위젯이면 publicKey + Origin)
- * 2. conversations 조회 또는 생성 → user 메시지 저장
- * 3. Python 호출 (POST /internal/chat)   ← 수십 초 걸릴 수 있는 구간
+ * 1. 봇 확인 (관리자 채팅이면 소유권)
+ * 2. conversations 조회 또는 생성 → user 메시지 저장     ┐ 짧은 트랜잭션
+ * 3. Python 호출 (POST /internal/chat)                  ← 트랜잭션 &lt;밖&gt;. 수십 초 걸릴 수 있다
  * 4. is_fallback == true 면 answer 를 봇의 fallback_message 로 치환
- * 5. assistant 메시지 저장 (sources JSONB + is_fallback + latency_ms)
+ * 5. assistant 메시지 저장                              ┘ 짧은 트랜잭션
  * 6. messageId 를 포함한 응답 반환 (피드백 API 를 부르려면 필요하다)
  * </pre>
  *
- * <p><b>트랜잭션 경계가 이 클래스의 핵심 설계 포인트다.</b>
- * 3번(Python 호출)을 하나의 트랜잭션 안에 넣으면 수십 초 동안 DB 커넥션이 묶여
- * 동시 사용자가 조금만 늘어도 커넥션 풀이 마른다. 그래서 클래스에 {@code @Transactional} 을 걸지 않고,
- * <b>DB 작업 구간(2번, 5번)만 짧은 트랜잭션으로 끊는다.</b>
- *
- * <p>TODO(W2): 위 구조를 구현할 때 "저장 전용" 메서드를 별도 빈으로 분리할지 결정할 것.
- *   같은 클래스 안에서 {@code @Transactional} 메서드를 self-invocation 하면
- *   프록시를 거치지 않아 트랜잭션이 걸리지 않는다(Spring AOP 의 유명한 함정).
- *
- * <p>TODO(W2): 3번이 실패했을 때 2번에서 저장한 user 메시지를 어떻게 할지 정할 것.
- *   남겨두면 "질문만 있고 답이 없는" 로그가 생기는데, 오히려 장애 추적에 유용할 수 있다.
- *   지우려면 보상 트랜잭션이 필요하다. 남기는 쪽을 기본으로 검토한다.
+ * <p><b>이 클래스에 {@code @Transactional} 이 없는 것이 설계다.</b>
+ * 2·5번의 트랜잭션은 {@link ChatTurnStore} 가 갖고 있고, 3번은 그 밖에서 일어난다.
+ * 왜 별도 빈으로 나눴는지는 그 클래스 주석에 적어두었다(스프링 AOP self-invocation 함정).
  */
 @Slf4j
 @Service
@@ -45,9 +38,10 @@ import java.util.UUID;
 public class ChatService {
 
     private final AiServiceClient aiServiceClient;
-    private final BotRepository botRepository;
-    private final ConversationRepository conversationRepository;
-    private final MessageRepository messageRepository;
+    private final ChatTurnStore turnStore;
+
+    /** {@code messages.sources}(JSONB)에 넣을 JSON 을 만드는 데만 쓴다. */
+    private final ObjectMapper objectMapper;
 
     /**
      * 관리자 테스트 채팅. {@code channel = "test"} 로 기록한다.
@@ -56,45 +50,89 @@ public class ChatService {
      * 관리자가 직접 돌려본 대화가 섞이면 실사용 수치가 왜곡된다.
      */
     public ChatResponse chatAsOwner(UUID userId, UUID botId, ChatRequest request) {
-        // TODO(W2): 구현. 위 클래스 주석의 1~6단계.
-        throw new UnsupportedOperationException("ChatService.chatAsOwner 미구현 (W2)");
+        ChatTurnStore.Turn turn = turnStore.openTurn(
+                userId, botId, request.message(), request.sessionId(), Conversation.CHANNEL_TEST);
+
+        // ⚠️ 여기가 트랜잭션 밖이다. 아래 호출이 실패하면 위에서 저장한 질문만 남는다 — 의도한 동작이다.
+        //
+        // 질문을 지우지 않는 이유: ① 지우려면 보상 트랜잭션이 필요한데 그 코드가 또 실패할 수 있고
+        // ② "질문은 왔는데 답이 없다"는 기록이 장애 추적에 실제로 쓸모가 있다.
+        // 단, 이건 fallback(근거를 못 찾아 거절)과 <완전히 다른 상태>다. fallback 은 답변 행이 남지만
+        // 이쪽은 답변 행 자체가 없다. W3 에서 미답변을 집계할 때 둘을 섞지 말 것.
+        AiChatResponse ai = aiServiceClient.chat(
+                new AiChatRequest(botId, request.message(), request.sessionId()));
+
+        String answer = resolveAnswer(turn.fallbackMessage(), ai);
+        List<SourceResponse> sources = toSources(ai);
+
+        UUID messageId = turnStore.saveAnswer(
+                turn.conversationId(), answer, toSourcesJson(sources), ai.isFallback(), ai.latencyMs());
+
+        log.info("[chat] botId={} conversationId={} messageId={} isFallback={} sources={} latencyMs={}",
+                botId, turn.conversationId(), messageId, ai.isFallback(), sources.size(), ai.latencyMs());
+
+        return new ChatResponse(answer, sources, ai.isFallback(), ai.latencyMs(), messageId);
     }
 
     /**
      * 위젯 채팅(공개). {@code channel = "widget"} 으로 기록한다.
      *
-     * <p>인증이 없으므로 보호 장치가 세 겹이다: publicKey 존재 확인 + Origin 검증 + rate limit.
+     * <p>TODO(W2 위젯 슬라이스): 구현. 관리자 채팅과 <b>본문 흐름은 같지만 진입 조건이 다르다</b> —
+     * 인증이 없으므로 보호 장치가 세 겹이어야 한다: publicKey 존재 확인 + Origin 검증
+     * ({@code bot.allowedOrigins}) + rate limit. 특히 <b>빈 allowedOrigins 를 "전부 허용"으로
+     * 두면 보안 구멍</b>이므로 규칙을 먼저 정할 것(Bot 엔티티 TODO 참고).
+     * 그 조건들이 정해지기 전에는 구현하지 않는다 — 반쯤 열린 공개 엔드포인트가 가장 위험하다.
      */
     public ChatResponse chatAsWidget(String publicKey, String origin, ChatRequest request) {
-        // TODO(W2): 구현. 1단계에서 Origin 검증(bot.allowedOrigins)과 rate limit 을 추가로 통과시킬 것.
-        throw new UnsupportedOperationException("ChatService.chatAsWidget 미구현 (W2)");
+        throw new UnsupportedOperationException("ChatService.chatAsWidget 미구현 (W2 위젯 슬라이스)");
     }
 
-    /**
-     * 피드백 기록 (👍/👎).
-     *
-     * <p>경로에 botId 가 없으므로 message → conversation → bot → 소유자 순으로
-     * 거슬러 올라가 권한을 확인해야 한다.
-     */
+    /** 피드백 기록 (👍/👎). 값 규칙과 소유권 확인은 {@link ChatTurnStore} 와 엔티티가 맡는다. */
     public void applyFeedback(UUID userId, UUID messageId, Short feedback) {
-        // TODO(W2): 구현. Message.applyFeedback() 을 호출한다(엔티티가 값 규칙을 강제).
-        //   TODO(W2): 위젯 엔드유저도 피드백을 남길 수 있어야 하는지 결정할 것.
-        //     PRD §10.1 의 피드백 API 는 인증 경로에 있는데, 실제로 👍/👎 를 누르는 사람은
-        //     대부분 위젯 사용자다. 그렇다면 공개 경로가 따로 필요하고 남용 방지도 필요해진다.
-        throw new UnsupportedOperationException("ChatService.applyFeedback 미구현 (W2)");
+        turnStore.applyFeedback(userId, messageId, feedback);
     }
 
     /**
      * Python 응답을 봇 설정에 맞춰 후처리한다.
      *
-     * <p>현재 봇별 설정을 반영할 수 있는 <b>유일한</b> 지점이다.
-     * {@code is_fallback == true} 이면 Python 이 만든 거절 문구 대신 봇의 {@code fallback_message} 를 쓴다.
-     * ({@code system_prompt} 는 Python 컨트랙트를 고치기 전까지 반영할 방법이 없다)
+     * <p><b>현재 봇별 설정을 반영할 수 있는 유일한 지점이다.</b>
+     * Python 의 {@code POST /internal/chat} 은 {@code fallback_message} 를 받지 않아
+     * 자기 기본 문구로 거절한다. Spring 이 {@code is_fallback == true} 를 보고 봇의 문구로 바꾼다.
      *
-     * <p>TODO(W2): 구현. Python 원본 문구도 로그에 남길지 결정할 것 —
-     *   messages.content 에는 사용자가 실제로 본 문장(치환된 문구)이 들어가야 한다.
+     * <p>⚠️ {@code system_prompt} 는 이 방식으로도 반영할 수 없다. 그건 <b>생성 과정</b>에 들어가야 하는데
+     * Python 요청 스키마에 자리가 없다. 봇 설정 화면에서 저장은 되지만 답변에는 아무 영향이 없다 —
+     * "이미 동작한다"고 말하거나 문서에 쓰지 말 것(AiChatRequest 주석).
      */
-    private String resolveAnswer(Bot bot, String pythonAnswer, boolean isFallback) {
-        throw new UnsupportedOperationException("ChatService.resolveAnswer 미구현 (W2)");
+    private String resolveAnswer(String fallbackMessage, AiChatResponse ai) {
+        if (!ai.isFallback()) {
+            return ai.answer();
+        }
+        // Python 원본 거절 문구는 로그에만 남긴다. messages.content 에는
+        // <사용자가 실제로 본 문장>이 들어가야 로그를 보고 상황을 재현할 수 있다.
+        log.debug("[chat] fallback 치환 — python=\"{}\" → bot=\"{}\"", ai.answer(), fallbackMessage);
+        return fallbackMessage;
+    }
+
+    /** Python 의 snake_case source 를 우리 camelCase DTO 로 바꾼다. null 이면 빈 목록. */
+    private List<SourceResponse> toSources(AiChatResponse ai) {
+        if (ai.sources() == null) {
+            return List.of();
+        }
+        return ai.sources().stream().map(SourceResponse::from).toList();
+    }
+
+    /**
+     * {@code messages.sources}(JSONB)에 저장할 JSON. 근거가 없으면 null 을 저장한다.
+     *
+     * <p><b>Python 응답이 아니라 우리 DTO({@link SourceResponse})를 직렬화하는 이유.</b>
+     * 저장 형식이 우리 공개 API 형식과 같아지므로, 나중에 로그 화면에서 읽을 때
+     * <b>파싱해서 그대로 내려주면 된다</b>(snake_case ↔ camelCase 변환을 두 번 하지 않는다).
+     * Python 이 Source 스키마를 바꿔도 과거 로그는 우리 형식으로 남아 계속 읽힌다.
+     */
+    private String toSourcesJson(List<SourceResponse> sources) {
+        if (sources.isEmpty()) {
+            return null;
+        }
+        return objectMapper.writeValueAsString(sources);
     }
 }

@@ -7,6 +7,7 @@ import com.alldap.api.domain.chat.service.ChatService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -33,17 +34,20 @@ public class ChatController {
      * 프론트에서 로딩 상태와 타임아웃 안내를 반드시 붙일 것.
      */
     @PostMapping("/api/bots/{botId}/chat")
-    public ResponseEntity<ChatResponse> chat(@PathVariable UUID botId,
+    public ResponseEntity<ChatResponse> chat(@AuthenticationPrincipal UUID userId,
+                                             @PathVariable UUID botId,
                                              @Valid @RequestBody ChatRequest request) {
-        // TODO(W2): chatService.chatAsOwner(userId, botId, request) 호출
-        throw new UnsupportedOperationException("ChatController.chat 미구현 (W2)");
+        return ResponseEntity.ok(chatService.chatAsOwner(userId, botId, request));
     }
 
     /** POST /api/messages/{msgId}/feedback — 답변에 👍/👎 */
     @PostMapping("/api/messages/{msgId}/feedback")
-    public ResponseEntity<Void> feedback(@PathVariable UUID msgId,
+    public ResponseEntity<Void> feedback(@AuthenticationPrincipal UUID userId,
+                                         @PathVariable UUID msgId,
                                          @Valid @RequestBody FeedbackRequest request) {
-        // TODO(W2): chatService.applyFeedback(userId, msgId, request.feedback()) 호출 후 204
-        throw new UnsupportedOperationException("ChatController.feedback 미구현 (W2)");
+        chatService.applyFeedback(userId, msgId, request.feedback());
+        // 204. 피드백은 서버에 새 리소스를 만드는 게 아니라 기존 메시지의 값을 바꾸는 것이고,
+        // 프론트가 돌려받아 쓸 값도 없다(버튼 상태는 프론트가 이미 안다).
+        return ResponseEntity.noContent().build();
     }
 }

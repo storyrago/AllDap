@@ -29,6 +29,7 @@ import java.net.http.HttpConnectTimeoutException;
 import java.net.http.HttpTimeoutException;
 import java.util.List;
 import java.util.UUID;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 /**
@@ -82,7 +83,8 @@ public class AiServiceClient {
                 .contentType(MediaType.MULTIPART_FORM_DATA)
                 .body(body)
                 .retrieve()
-                .body(AiDocumentResponse.class));
+                .body(AiDocumentResponse.class),
+                this::translateUploadClientError);
     }
 
     /**
@@ -175,6 +177,22 @@ public class AiServiceClient {
      * </ul>
      */
     private <T> T call(String what, Supplier<T> action) {
+        // 기본 4xx 처리: 사용자가 고칠 수 있는 게 아니라 <우리가 Python 을 잘못 호출한> 것이다.
+        // 내부 사정을 사용자에게 설명하지 않고 502 로 답한다.
+        return call(what, action, e -> new ApiException(ErrorCode.AI_SERVICE_ERROR));
+    }
+
+    /**
+     * 4xx 해석을 호출자가 정할 수 있는 형태.
+     *
+     * <p><b>왜 필요한가.</b> 같은 400 이라도 의미가 엔드포인트마다 다르다.
+     * 업로드의 400 은 "파일 형식이 잘못됐다"(사용자가 고칠 수 있다)지만,
+     * 채팅의 400·422 는 "Spring 이 스키마에 안 맞는 요청을 보냈다"(사용자는 손쓸 수 없다)이다.
+     * 이걸 한 매퍼로 묶어두면 <b>채팅 오류에 "지원하지 않는 파일 형식입니다"가 나간다.</b>
+     * (실제로 업로드 슬라이스의 매퍼를 그대로 두면 그렇게 된다 — 채팅을 붙이며 발견했다)
+     */
+    private <T> T call(String what, Supplier<T> action,
+                       Function<RestClientResponseException, ApiException> on4xx) {
         try {
             return action.get();
 
@@ -182,7 +200,9 @@ public class AiServiceClient {
             // Python 이 HTTP 응답은 돌려준 경우 (4xx / 5xx)
             HttpStatusCode status = e.getStatusCode();
             if (status.is4xxClientError()) {
-                throw translateClientError(what, e);
+                log.warn("[AI 호출] {} — Python 이 {} 로 거절. body={}",
+                        what, status, e.getResponseBodyAsString());
+                throw on4xx.apply(e);
             }
             log.error("[AI 호출] {} 실패 — Python 이 {} 응답. body={}", what, status, e.getResponseBodyAsString());
             throw new ApiException(ErrorCode.AI_SERVICE_UNAVAILABLE);
@@ -213,7 +233,7 @@ public class AiServiceClient {
     }
 
     /**
-     * Python 의 4xx → 사용자에게 보여줄 에러로 변환.
+     * <b>업로드 전용</b> 4xx 변환. 다른 엔드포인트에 재사용하지 말 것 — 위 {@link #call} 주석 참고.
      *
      * <p><b>Python 의 메시지를 그대로 사용자에게 내려보낸다.</b> 보통은 내부 서비스의 에러 문구를
      * 밖으로 흘리면 안 되지만, 여기 오는 문구는 {@code parsers.py} 의 {@code ParseError} 가
@@ -226,9 +246,8 @@ public class AiServiceClient {
      * 목록을 양쪽에 두면 반드시 어긋나고, 그때 "Spring 은 통과시켰는데 Python 이 거절"이 된다.
      * <b>형식 판단의 단일 기준은 Python 의 {@code detect_type()} 하나다.</b>
      */
-    private ApiException translateClientError(String what, RestClientResponseException e) {
+    private ApiException translateUploadClientError(RestClientResponseException e) {
         String detail = extractDetail(e);
-        log.warn("[AI 호출] {} — Python 이 {} 로 거절. detail={}", what, e.getStatusCode(), detail);
 
         // 413: Spring 의 multipart 상한(20MB)과 Python 의 upload_max_bytes(20MB)가 같아서
         // 보통은 Spring 에서 먼저 걸린다. 두 값이 어긋나면 여기로 오므로 대비해 둔다.
@@ -298,11 +317,15 @@ public class AiServiceClient {
      * 봇별 문구 치환은 여기가 아니라 ChatService 에서 한다(클라이언트는 Python 응답을 그대로 전달).
      */
     public AiChatResponse chat(AiChatRequest request) {
-        // TODO(W2): 구현. POST /internal/chat
-        //   ResourceAccessException(타임아웃) -> AI_SERVICE_TIMEOUT
-        //   연결 거부/5xx                     -> AI_SERVICE_UNAVAILABLE
-        //   그 외 4xx                         -> AI_SERVICE_ERROR
-        throw new UnsupportedOperationException("AiServiceClient.chat 미구현 (W2)");
+        // 4xx 매퍼를 넘기지 않는다 = 기본 처리(502). 채팅의 4xx·422 는 사용자가 고칠 수 있는 게 아니라
+        // Spring 이 Python 스키마에 안 맞는 요청을 보낸 것이다. 길이 제한 같은 사용자 입력 문제는
+        // ChatRequest 의 @Valid 가 이미 컨트롤러 진입 시점에 한국어 안내로 걸러낸다.
+        return call("채팅", () -> aiServiceRestClient.post()
+                .uri("/internal/chat")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(request)
+                .retrieve()
+                .body(AiChatResponse.class));
     }
 
     /**
