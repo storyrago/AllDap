@@ -306,10 +306,26 @@ Spring:   대화 로그 저장(assistant 메시지 + sources + is_fallback)
 
 **`api/` 에서 검증된 것 / 안 된 것 (2026-08-01)**
 검증됨: 컴파일, Flyway V1 적용, Hibernate `validate` 통과, `/actuator/health` 200,
-**인증·봇 CRUD·문서 API(진짜 톰캣 + 진짜 PostgreSQL/Testcontainers 위 실제 HTTP, 통합 테스트 31건)**,
-**Spring→Python 실패 처리(가짜 HTTP 서버로 죽음·느림·4xx·5xx 재현)**.
-검증 안 됨: 나머지 엔드포인트(채팅·로그·평가·위젯 전부 TODO),
-**진짜 Python 프로세스와의 연동(가짜 서버로만 검증했다 — 실제 uvicorn 을 띄운 종단 확인은 아직)**, CI 실제 실행.
+**전 엔드포인트(인증·봇·문서·채팅·로그·위젯) 통합 테스트 71건** —
+진짜 톰캣 + 진짜 PostgreSQL(Testcontainers) + 가짜 Python(JDK HttpServer) 위 실제 HTTP.
+**✅ 진짜 3-스택 종단 확인 완료 (2026-08-01)** — 아래 참조.
+검증 안 됨: 평가 API(Python 에 엔드포인트가 없다 — W3), `web/` 화면, **위젯 실제 설치**, CI 실제 실행.
+
+### ✅ 종단 확인 (2026-08-01) — 가짜 서버로는 못 잡는 버그가 하나 나왔다
+
+Docker + Spring + 진짜 uvicorn 을 띄우고 **Spring 을 통해서만** 전 흐름을 돌렸다.
+업로드 → 임베딩 → `ready` → 답변(근거 포함) → fallback → 로그 → 위젯까지 전부 동작.
+
+> ⚠️ **첫 업로드가 422 로 실패했다.** JDK `HttpClient` 기본값이 HTTP/2 라 평문 상대에게
+> h2c 업그레이드를 함께 요청하는데, uvicorn(h11)이 그걸 지원하지 않아
+> **chunked 본문을 FastAPI 까지 전달하지 않는다.** multipart 는 완벽한데 "file 필드가 없다" 는 422 가 났다.
+> → `RestClientConfig` 에서 `HTTP_1_1` 로 고정해 해결.
+>
+> **통합 테스트 71건이 전부 통과하는 상태에서 난 버그다.** 가짜 서버는 multipart 를 파싱하지도,
+> 업그레이드 요청을 처리하지도 않아 재현 자체가 불가능했다.
+> 회귀 테스트는 본문 대신 <b>"보내면 안 되는 헤더가 없는가"</b> 를 검사한다.
+>
+> **교훈: 통합 테스트가 초록불이어도 진짜 상대와 붙여보기 전까지는 연동을 검증했다고 말하지 말 것.**
 
 ### Spring → Python 호출 — 이후 슬라이스도 이 방식을 따를 것
 

@@ -191,15 +191,40 @@ class ChatIntegrationTest {
     }
 
     @Test
-    @DisplayName("fallback 이면 근거가 없으므로 sources 는 null 로 저장된다")
-    void fallback이면_sources가_null() {
-        aiService.enqueue(200, 거절응답);
+    @DisplayName("Python 이 근거를 하나도 주지 않으면 sources 는 null 로 저장된다")
+    void 근거가_아예_없으면_sources는_null() {
+        aiService.enqueue(200, 거절응답);   // sources: []
 
         chat(ownerToken, botId, "질문");
 
         Integer nonNull = jdbcTemplate.queryForObject(
                 "SELECT count(*) FROM messages WHERE role='assistant' AND sources IS NOT NULL", Integer.class);
         assertThat(nonNull).isZero();
+    }
+
+    @Test
+    @DisplayName("fallback 이어도 근거가 딸려 오면 그대로 저장한다 (실제 Python 이 이렇게 동작한다)")
+    void fallback이어도_근거가_있으면_저장한다() {
+        // ⚠️ 이 테스트는 종단 확인에서 배운 것을 고정한다.
+        // 위 테스트가 쓰는 거절응답은 sources 가 비어 있지만, <실제 Python 은 그렇지 않다>.
+        // 검색 컷오프(max_distance=0.55)를 통과한 청크가 있는 채로 생성 단계에서 NO_ANSWER 가 나면
+        // is_fallback=true 인데 sources 는 1건 이상 딸려 온다 — 실측에서 그랬다.
+        // "무엇을 근거로 봤는데도 답을 못 했나" 가 남아야 W3 미답변 분석에 쓸 수 있다.
+        aiService.enqueue(200, """
+                {"answer":"문서에서 관련 내용을 찾지 못했습니다.",
+                 "sources":[{"chunk_id":"22222222-2222-2222-2222-222222222222",
+                             "document_id":"33333333-3333-3333-3333-333333333333",
+                             "filename":"학사규정.pdf","score":0.58,"preview":"휴학 신청은"}],
+                 "is_fallback":true,"latency_ms":300}""");
+
+        Response response = chat(ownerToken, botId, "학식 메뉴 알려줘");
+
+        assertThat(response.json().path("isFallback").asBoolean()).isTrue();
+        assertThat(response.json().path("sources").size()).isEqualTo(1);
+
+        String sources = jdbcTemplate.queryForObject(
+                "SELECT sources::text FROM messages WHERE role = 'assistant'", String.class);
+        assertThat(sources).isNotNull().contains("학사규정.pdf");
     }
 
     // ── 트랜잭션 경계 ────────────────────────────────────────────────────

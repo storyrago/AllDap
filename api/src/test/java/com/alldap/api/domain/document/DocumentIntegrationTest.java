@@ -183,6 +183,30 @@ class DocumentIntegrationTest {
     }
 
     @Test
+    @DisplayName("[회귀] Python 호출에 HTTP/2 업그레이드 헤더가 붙지 않는다")
+    void h2c_업그레이드_헤더를_보내지_않는다() {
+        aiService.enqueue(202, """
+                {"id":"11111111-1111-1111-1111-111111111111","filename":"규정.pdf",
+                 "file_type":"pdf","status":"pending"}""");
+
+        upload(ownerToken, botId, "규정.pdf", "내용");
+
+        // ⚠️ 이 테스트는 <실제 Python 을 띄워본 뒤에> 생겼다.
+        // JDK HttpClient 의 기본값이 HTTP_2 라 평문 상대에게 h2c 업그레이드를 함께 요청하는데,
+        // uvicorn(h11)은 그걸 지원하지 않아 "Unsupported upgrade request" 를 남기고
+        // <chunked 본문을 FastAPI 까지 전달하지 않는다>.
+        // 그 결과 multipart 본문은 완벽한데 Python 이 "file 필드가 없다" 며 422 를 냈다.
+        //
+        // 가짜 서버로는 이 사고를 재현할 수 없다(업그레이드 요청을 그냥 무시하므로).
+        // 그래서 "본문이 맞는가" 대신 <보내면 안 되는 헤더가 없는가> 를 검사한다.
+        AiServiceStub.Recorded sent = aiService.received().get(0);
+        assertThat(sent.hasHeader("Upgrade"))
+                .as("Upgrade 헤더가 붙으면 uvicorn 이 본문을 버린다 — RestClientConfig 의 HTTP/1.1 고정을 확인할 것")
+                .isFalse();
+        assertThat(sent.hasHeader("HTTP2-Settings")).isFalse();
+    }
+
+    @Test
     @DisplayName("문서 목록은 DB 에서 읽으므로 업로드 시각이 함께 내려간다")
     void 문서목록_조회() {
         insertDocument(botId, "먼저.pdf", "ready");

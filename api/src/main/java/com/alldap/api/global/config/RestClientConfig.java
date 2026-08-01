@@ -45,6 +45,20 @@ public class RestClientConfig {
     @Bean
     public RestClient aiServiceRestClient() {
         HttpClient httpClient = HttpClient.newBuilder()
+                // ⚠️ HTTP/1.1 을 명시하는 이 한 줄이 없으면 <문서 업로드가 실패한다>. 종단 확인에서 잡았다.
+                //
+                // JDK HttpClient 의 기본값은 HTTP_2 다. 평문(http://) 상대에게는 HTTP/2 를 바로 쓸 수 없으므로
+                // "HTTP/1.1 로 시작하되 h2c 로 올려달라"는 업그레이드 요청을 함께 보낸다.
+                //   Connection: Upgrade, HTTP2-Settings
+                //   Upgrade: h2c
+                // 그런데 Python 쪽 uvicorn(h11)은 h2c 업그레이드를 지원하지 않는다.
+                // 로그에 "Unsupported upgrade request" 를 남기고 HTTP/1.1 로 계속 처리하는데,
+                // 이때 <chunked 본문이 FastAPI 까지 전달되지 않는다>.
+                // 결과: multipart 본문 자체는 완벽한데 Python 은 "file 필드가 없다"며 422 를 낸다.
+                //
+                // 우리 상대는 내부망의 uvicorn 하나뿐이고 HTTP/2 로 얻을 이득(멀티플렉싱)도 없다.
+                // 협상 자체를 하지 않는 편이 단순하고 안전하다.
+                .version(HttpClient.Version.HTTP_1_1)
                 .connectTimeout(aiServiceProperties.connectTimeout())
                 .build();
 
