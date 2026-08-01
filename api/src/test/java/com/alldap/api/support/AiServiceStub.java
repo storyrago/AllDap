@@ -10,7 +10,10 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
@@ -86,12 +89,19 @@ public class AiServiceStub implements AutoCloseable {
     /**
      * 스텁이 받은 요청 하나.
      *
-     * @param method HTTP 메서드
-     * @param path   경로 (쿼리 제외)
-     * @param body   본문 — multipart 원본 바이트를 문자열로 본다.
-     *               바이너리가 섞여 있어도 파일명·필드명 같은 <b>ASCII 헤더 부분은 그대로 읽힌다.</b>
+     * @param method  HTTP 메서드
+     * @param path    경로 (쿼리 제외)
+     * @param body    본문 — multipart 원본 바이트를 문자열로 본다.
+     *                바이너리가 섞여 있어도 파일명·필드명 같은 <b>ASCII 헤더 부분은 그대로 읽힌다.</b>
+     * @param headers 요청 헤더. 이름은 <b>소문자로 정규화</b>해 담는다(HTTP 헤더는 대소문자를 구분하지 않는다).
+     *                종단 확인에서 "우리가 보내면 안 되는 헤더"가 문제를 일으킨 적이 있어 함께 기록한다
+     *                ({@code RestClientConfig} 의 HTTP/1.1 고정 주석 참고)
      */
-    public record Recorded(String method, String path, String body) {
+    public record Recorded(String method, String path, String body, Map<String, String> headers) {
+
+        public boolean hasHeader(String name) {
+            return headers.containsKey(name.toLowerCase(Locale.ROOT));
+        }
     }
 
     public AiServiceStub() {
@@ -158,10 +168,16 @@ public class AiServiceStub implements AutoCloseable {
 
     private void handle(HttpExchange exchange) throws IOException {
         byte[] requestBody = exchange.getRequestBody().readAllBytes();
+
+        Map<String, String> headers = new HashMap<>();
+        exchange.getRequestHeaders().forEach((name, values) ->
+                headers.put(name.toLowerCase(Locale.ROOT), String.join(",", values)));
+
         received.add(new Recorded(
                 exchange.getRequestMethod(),
                 exchange.getRequestURI().getPath(),
-                new String(requestBody, StandardCharsets.UTF_8)));
+                new String(requestBody, StandardCharsets.UTF_8),
+                headers));
 
         Canned response = canned.poll();
         if (response == null) {
