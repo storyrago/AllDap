@@ -145,11 +145,13 @@ export interface DocumentItem {
   charCount: number | null;
   chunkCount: number | null;
   /**
-   * Python DocumentOut 에는 없는 필드다. documents 테이블에는 created_at 이 있으므로
-   * Spring 이 DB 에서 읽어 채워줄 수 있다.
-   * TODO(W2): Spring 이 실제로 내려주는지 확인하고, 안 내려주면 이 필드를 지울 것.
+   * Python DocumentOut 에는 없는 필드다. Spring 이 documents 테이블에서 읽어 채워준다.
+   *
+   * ⚠️ **목록 조회에만 값이 있고 업로드 응답에는 null 이다.** 업로드는 Python 응답을 그대로
+   * 변환해 돌려주는데 거기에 created_at 이 없기 때문이다(종단 확인에서 실측).
+   * 그래서 optional 로 둔다 — 업로드 직후 화면에서 이 값을 쓰면 비어 있다.
    */
-  createdAt?: IsoDateTime;
+  createdAt?: IsoDateTime | null;
 }
 
 /* ───────────────────────── 채팅 (F-03) ───────────────────────── */
