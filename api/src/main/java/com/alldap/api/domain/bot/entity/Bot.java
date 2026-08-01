@@ -180,7 +180,42 @@ public class Bot extends BaseEntity {
         }
     }
 
-    // TODO(W2): allowed_origins 검증(위젯 Origin 체크)은 도메인 메서드
-    //   isOriginAllowed(String origin) 으로 두는 게 맞다. 규칙(와일드카드 허용 여부, 빈 배열의 의미)을
-    //   먼저 정할 것 — 빈 배열을 "전부 허용"으로 두면 보안 구멍이 된다.
+    /**
+     * 이 Origin 에서 위젯을 쓰도록 허용했는가.
+     *
+     * <h2>빈 목록은 "전부 허용" 이 아니라 "전부 차단" 이다 (가장 중요한 규칙)</h2>
+     * 봇을 만들면 {@code allowedOrigins} 는 빈 배열이다. 이걸 "아직 설정 안 했으니 다 열어두자" 로
+     * 해석하면 <b>모든 신규 봇이 무방비 상태로 태어난다.</b> publicKey 는 고객 사이트 HTML 에
+     * 그대로 노출되므로 누구나 복사해 자기 사이트에 붙일 수 있고, 그러면 LLM 비용이 봇 주인에게 청구된다.
+     * 보안 기본값은 <b>닫힘</b>이어야 한다 — 열려면 주인이 의도를 갖고 도메인을 적어야 한다.
+     *
+     * <p>대신 UX 로 보완한다: 차단됐을 때 {@link com.alldap.api.global.exception.ErrorCode#ORIGIN_NOT_ALLOWED}
+     * 가 "봇 설정의 허용 도메인에 현재 주소를 추가해주세요" 라고 무엇을 하면 되는지 알려준다.
+     *
+     * <h2>정확히 일치만 허용한다</h2>
+     * 와일드카드({@code *.example.com})는 지원하지 않는다. 부분 일치·접미사 비교는
+     * {@code evil-example.com} 이 {@code example.com} 으로 통과하는 고전적인 실수를 부른다.
+     * 필요해지면 그때 <b>파싱된 호스트 단위</b>로 규칙을 만든다. 지금은 필요 없다.
+     *
+     * <p>Origin 은 스킴+호스트+포트다({@code https://example.com:8443}). 경로는 들어 있지 않다.
+     * 대소문자는 스킴·호스트만 무시하면 되지만, 실무에서 오는 값이 이미 소문자로 정규화돼 있어
+     * 여기서는 {@code trim} 뒤 대소문자 무시 비교로 충분하다.
+     */
+    public boolean isOriginAllowed(String origin) {
+        if (origin == null || origin.isBlank() || allowedOrigins == null) {
+            return false;
+        }
+        String normalized = origin.trim();
+        for (String allowed : allowedOrigins) {
+            if (allowed != null && allowed.trim().equalsIgnoreCase(normalized)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** 허용 도메인을 하나도 설정하지 않은 상태. 안내 문구를 다르게 주려고 구분한다. */
+    public boolean hasNoAllowedOrigins() {
+        return allowedOrigins == null || allowedOrigins.length == 0;
+    }
 }
