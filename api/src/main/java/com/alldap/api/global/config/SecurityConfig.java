@@ -69,6 +69,10 @@ public class SecurityConfig {
                         .requestMatchers("/api/w/**").permitAll()
                         // 헬스체크만 공개. 나머지 actuator 엔드포인트는 노출하지 않는다.
                         .requestMatchers("/actuator/health").permitAll()
+                        // 위젯 로더 스크립트. 고객 사이트의 <script> 태그가 <인증 없이> 받아가야 한다.
+                        // 열지 않으면 설치 코드를 복사해 붙여도 401 이 떨어져 위젯이 아예 뜨지 않는다.
+                        // (실제로 붙여보고 알았다) 정적 파일 하나뿐이라 노출 위험은 없다.
+                        .requestMatchers("/widget/**").permitAll()
                         // (예전에 있던 `OPTIONS /** permitAll` 은 지웠다.
                         //  위 .cors(...) 배선으로 프리플라이트는 CorsFilter 가 인가 판단 <b>전에</b> 끝내므로
                         //  더 이상 필요 없고, 남겨두면 모든 경로에 대해 OPTIONS 를 인증 없이 열어두는 셈이라

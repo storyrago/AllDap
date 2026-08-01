@@ -18,7 +18,6 @@
 import type {
   AuthResponse,
   Bot,
-  BotSummary,
   ChatMessage,
   ChatRequest,
   ChatResponse,
@@ -119,11 +118,52 @@ export function getAccessToken(): string | null {
 export function setAccessToken(token: string): void {
   if (typeof window === "undefined") return;
   window.localStorage.setItem(TOKEN_STORAGE_KEY, token);
+  notifyTokenChanged();
 }
 
 export function clearAccessToken(): void {
   if (typeof window === "undefined") return;
   window.localStorage.removeItem(TOKEN_STORAGE_KEY);
+  notifyTokenChanged();
+}
+
+/* ── 토큰을 "외부 저장소"로 구독하기 ─────────────────────────────────────
+ *
+ * localStorage 는 React 바깥에 있는 상태다. 화면이 그 값을 읽어 렌더에 쓰려면
+ * "값이 바뀌면 알려달라"는 구독이 필요하고, React 는 그걸 위해 useSyncExternalStore 를 준다.
+ *
+ * <왜 useEffect + useState 로 안 하나.>
+ * effect 안에서 setState 를 하면 렌더가 한 번 더 돌고(cascading render),
+ * eslint 의 react-hooks/set-state-in-effect 가 이를 막는다. 규칙이 옳다 —
+ * "바깥 저장소를 읽는 일"은 상태 복사가 아니라 구독으로 표현하는 게 맞다.
+ *
+ * 브라우저의 storage 이벤트는 <다른 탭>에서 바뀔 때만 발생한다.
+ * 그래서 같은 탭의 로그인·로그아웃은 위 두 함수가 직접 알린다.
+ */
+const TOKEN_CHANGED_EVENT = "alldap:token-changed";
+
+function notifyTokenChanged(): void {
+  window.dispatchEvent(new Event(TOKEN_CHANGED_EVENT));
+}
+
+/** useSyncExternalStore 의 구독 함수. 정리 함수를 돌려줘야 한다. */
+export function subscribeAccessToken(onChange: () => void): () => void {
+  window.addEventListener("storage", onChange); // 다른 탭
+  window.addEventListener(TOKEN_CHANGED_EVENT, onChange); // 같은 탭
+  return () => {
+    window.removeEventListener("storage", onChange);
+    window.removeEventListener(TOKEN_CHANGED_EVENT, onChange);
+  };
+}
+
+/**
+ * 서버에서 렌더할 때 쓸 값.
+ *
+ * 서버에는 localStorage 가 없으므로 <항상 null> 이다.
+ * 이 함수가 없으면 서버 렌더에서 getAccessToken 이 호출돼 터진다.
+ */
+export function getAccessTokenServerSnapshot(): string | null {
+  return null;
 }
 
 /* ───────────────────────── 요청 공통부 ───────────────────────── */
@@ -209,7 +249,18 @@ export const api = {
 
   /** 봇 (F-06) */
   bots: {
-    list: () => request<BotSummary[]>("/api/bots"),
+    /**
+     * ⚠️ 반환 타입이 {@link BotSummary} 가 아니라 {@link Bot} 이다.
+     *
+     * 뼈대에서는 `BotSummary[]`(문서 수·주간 대화 수·최근 평가 점수 포함)로 적어뒀지만,
+     * <b>서버는 그 집계를 아직 내려주지 않는다.</b> 집계를 붙이려면 봇마다 count 를 돌리게 되어
+     * N+1 이 되므로 group by 한 번으로 가져오는 쿼리가 필요한데, 그건 별도 작업이다.
+     *
+     * 타입을 `BotSummary[]` 로 두면 <b>화면 코드가 없는 필드를 있다고 믿게 된다</b> —
+     * 컴파일은 통과하고 런타임에 `undefined` 가 화면에 찍힌다.
+     * 실제로 내려오는 것만 타입에 적는 편이 안전하다.
+     */
+    list: () => request<Bot[]>("/api/bots"),
     create: (payload: CreateBotRequest) =>
       request<Bot>("/api/bots", { method: "POST", body: payload }),
     get: (botId: Uuid) => request<Bot>(`/api/bots/${botId}`),
@@ -248,11 +299,17 @@ export const api = {
         method: "POST",
         body: payload,
       }),
-    /** 👍(1) / 👎(-1) */
-    feedback: (messageId: Uuid, value: 1 | -1) =>
+    /**
+     * 👍(1) / 👎(-1)
+     *
+     * ⚠️ 본문 키가 `feedback` 이다. 뼈대에서는 `{ value }` 로 적혀 있었는데
+     * Spring 의 `FeedbackRequest` 는 `{ feedback }` 을 받으므로 그대로 두면 400 이 났다.
+     * 서버가 실제로 생긴 뒤 대조해서 고친 것 — 뼈대의 추정값은 이렇게 어긋날 수 있다.
+     */
+    feedback: (messageId: Uuid, feedback: 1 | -1) =>
       request<void>(`/api/messages/${messageId}/feedback`, {
         method: "POST",
-        body: { value },
+        body: { feedback },
       }),
   },
 

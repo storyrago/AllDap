@@ -98,6 +98,11 @@ export interface Bot {
  * PRD §8 "봇 카드(문서 수·주간 대화 수·최근 평가 점수)" 요구사항에서 나온 타입.
  * TODO(W2): 이 집계를 Spring 이 한 번에 내려줄지, 별도 API 로 뺄지 결정할 것.
  */
+/**
+ * ⚠️ **서버가 아직 이 모양으로 내려주지 않는다.** `GET /api/bots` 는 집계 없이 {@link Bot} 배열을 준다.
+ * 집계를 붙이려면 봇마다 count 를 돌리지 않고 group by 한 번으로 가져와야 해서 별도 작업이다.
+ * 그때까지 이 타입을 화면에서 쓰지 말 것 — 없는 필드를 있다고 믿게 만든다.
+ */
 export interface BotSummary extends Bot {
   documentCount: number;
   /** 최근 7일 대화 수 */
@@ -140,11 +145,13 @@ export interface DocumentItem {
   charCount: number | null;
   chunkCount: number | null;
   /**
-   * Python DocumentOut 에는 없는 필드다. documents 테이블에는 created_at 이 있으므로
-   * Spring 이 DB 에서 읽어 채워줄 수 있다.
-   * TODO(W2): Spring 이 실제로 내려주는지 확인하고, 안 내려주면 이 필드를 지울 것.
+   * Python DocumentOut 에는 없는 필드다. Spring 이 documents 테이블에서 읽어 채워준다.
+   *
+   * ⚠️ **목록 조회에만 값이 있고 업로드 응답에는 null 이다.** 업로드는 Python 응답을 그대로
+   * 변환해 돌려주는데 거기에 created_at 이 없기 때문이다(종단 확인에서 실측).
+   * 그래서 optional 로 둔다 — 업로드 직후 화면에서 이 값을 쓰면 비어 있다.
    */
-  createdAt?: IsoDateTime;
+  createdAt?: IsoDateTime | null;
 }
 
 /* ───────────────────────── 채팅 (F-03) ───────────────────────── */

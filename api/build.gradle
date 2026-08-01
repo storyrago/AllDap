@@ -71,3 +71,21 @@ dependencies {
 tasks.named('test') {
 	useJUnitPlatform()
 }
+
+/*
+ * 위젯 로더 스크립트를 Spring 의 정적 리소스로 함께 담는다.
+ *
+ * 왜 필요한가: 봇 설정 화면이 안내하는 설치 코드가
+ *   <script src="http://.../widget/alldap-widget.js" data-public-key="..."></script>
+ * 인데, 이 복사가 실제로 동작하려면 그 주소에서 파일이 나와야 한다.
+ * (실행해보고 401 이 나서 알았다 — 파일이 저장소 루트의 widget/ 에만 있었다)
+ *
+ * 왜 파일을 복사해 두 벌로 만들지 않았나: 원본은 widget/ 하나뿐이고
+ * 빌드할 때만 결과물에 담는다. 소스에 사본이 생기면 반드시 한쪽만 고쳐져 어긋난다.
+ */
+processResources {
+	from("${projectDir}/../widget") {
+		include 'alldap-widget.js'
+		into 'static/widget'
+	}
+}

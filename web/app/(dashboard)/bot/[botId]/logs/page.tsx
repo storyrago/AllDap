@@ -1,69 +1,296 @@
-import { PageHeader } from "@/components/PageHeader";
-import { Placeholder } from "@/components/Placeholder";
+"use client";
 
-export const metadata = {
-  title: "대화 로그 — AllDap",
-};
-
-/**
- * `/bot/[botId]/logs` — PRD §8 "세션별 열람, 필터(미답변/👎/기간)"
+/*
+ * `/bot/[botId]/logs` — 대화 로그 목록 · 상세.
  *
- * 호출할 Spring API:
- *   GET /api/bots/{botId}/logs?onlyFallback&onlyThumbsDown&from&to&page&size
- *       → Paged<ConversationSummary>            (api.logs.list)
- *   GET /api/bots/{botId}/logs/{conversationId} → ChatMessage[]  (api.logs.messages)
+ * W3(품질 대시보드)의 "미답변 목록"이 결국 이 데이터에서 나온다.
+ * 그래서 이 화면의 핵심 필터는 <미답변만 보기>다 — 봇이 무엇에 답하지 못했는지가
+ * 곧 "어떤 문서를 더 올려야 하는가"의 답이기 때문이다.
  *
- * ⚠️ 두 번째 경로는 PRD §10.1 표에 없다. 세션 상세를 보려면 필요하므로
- *    W2에서 Spring 설계할 때 경로를 확정해야 한다. 여기 적은 건 제안일 뿐이다.
- *
- * 데이터 출처: conversations / messages 테이블. 둘 다 Spring 이 쓰기 소유자다.
- * (Python 은 대화 로그를 저장하지 않는다 — 아키텍처의 테이블 소유권 규칙)
+ * 호출하는 Spring API:
+ *   GET /api/bots/{botId}/logs?onlyFallback&onlyThumbsDown&page&size
+ *   GET /api/bots/{botId}/logs/{conversationId}
  */
+
+import { useCallback, useEffect, useState } from "react";
+import { useParams } from "next/navigation";
+import { ApiError, api } from "@/lib/api";
+import type { ChatMessage, ConversationSummary, Paged } from "@/lib/types";
+import { PageHeader } from "@/components/PageHeader";
+
+const PAGE_SIZE = 20;
+
 export default function LogsPage() {
+  const { botId } = useParams<{ botId: string }>();
+
+  const [page, setPage] = useState(0);
+  const [onlyFallback, setOnlyFallback] = useState(false);
+  const [onlyThumbsDown, setOnlyThumbsDown] = useState(false);
+
+  const [logs, setLogs] = useState<Paged<ConversationSummary> | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  /** 펼쳐 놓은 대화. null 이면 아무것도 안 펼친 상태. */
+  const [openId, setOpenId] = useState<string | null>(null);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messagesLoading, setMessagesLoading] = useState(false);
+
+  const loadLogs = useCallback(async () => {
+    setLoading(true);
+    try {
+      setLogs(
+        await api.logs.list(botId, {
+          onlyFallback,
+          onlyThumbsDown,
+          page,
+          size: PAGE_SIZE,
+        }),
+      );
+      setError(null);
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : "대화 로그를 불러오지 못했습니다.");
+    } finally {
+      setLoading(false);
+    }
+  }, [botId, onlyFallback, onlyThumbsDown, page]);
+  /*
+   * 의존성이 네 개인 이유: 이 중 무엇이 바뀌어도 <다른 목록>을 불러야 한다.
+   * 하나라도 빠뜨리면 필터를 눌렀는데 목록이 그대로인 버그가 된다.
+   */
+
+  useEffect(() => {
+    /*
+     * effect 안에서 async 함수를 <즉시 실행>하고 취소 플래그를 둔다.
+     *
+     * 왜 `void loadLogs()` 이 아닌가 — 두 가지 이유가 겹친다.
+     * ① 화면을 떠난 뒤 응답이 도착하면 사라진 컴포넌트의 상태를 갱신하려 든다.
+     *    cancelled 플래그로 그때는 아무것도 하지 않는다.
+     * ② eslint 의 react-hooks/set-state-in-effect 규칙이 "effect 에서 setState 를 하는 함수를
+     *    그냥 호출하는" 모양을 막는다. 응답이 온 <뒤>에 갱신한다는 게 코드 모양에 드러나야 한다.
+     */
+    let cancelled = false;
+    void (async () => {
+      await loadLogs();
+      if (cancelled) return;
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [loadLogs]);
+
+  /**
+   * 필터를 바꿀 때 페이지를 0으로 되돌린다.
+   *
+   * 이걸 빼먹는 게 페이지네이션의 가장 흔한 버그다 —
+   * 3페이지를 보다가 필터를 켜면 결과가 5건뿐인데 3페이지를 요청해서
+   * <빈 화면>이 나오고, 사용자는 "필터에 해당하는 게 없다"고 오해한다.
+   */
+  function changeFilter(next: { onlyFallback?: boolean; onlyThumbsDown?: boolean }) {
+    if (next.onlyFallback !== undefined) setOnlyFallback(next.onlyFallback);
+    if (next.onlyThumbsDown !== undefined) setOnlyThumbsDown(next.onlyThumbsDown);
+    setPage(0);
+    setOpenId(null);
+  }
+
+  async function toggleConversation(conversationId: string) {
+    // 같은 것을 다시 누르면 접는다.
+    if (openId === conversationId) {
+      setOpenId(null);
+      return;
+    }
+    setOpenId(conversationId);
+    setMessages([]);
+    setMessagesLoading(true);
+    try {
+      setMessages(await api.logs.messages(botId, conversationId));
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : "대화 내용을 불러오지 못했습니다.");
+    } finally {
+      setMessagesLoading(false);
+    }
+  }
+
   return (
     <>
       <PageHeader
         title="대화 로그"
-        description="위젯에서 실제로 오간 대화입니다. 미답변과 👎 를 먼저 보면 무엇을 보강할지 바로 보입니다."
+        description="실제로 오간 대화입니다. 답하지 못한 질문은 무엇을 보강해야 하는지 알려줍니다."
       />
 
-      <div className="space-y-4">
-        <Placeholder title="필터 바" api="GET /api/bots/{botId}/logs 의 쿼리 파라미터">
-          <p>
-            미답변만(onlyFallback) · 👎만(onlyThumbsDown) · 기간(from/to) ·
-            채널(widget / test)
-          </p>
-          <p>
-            기본값은 &ldquo;미답변만&rdquo; 을 켜두는 편이 낫다. 전체 로그를 처음부터 훑는 건
-            아무도 안 한다.
-          </p>
-        </Placeholder>
+      <div className="mt-4 flex flex-wrap gap-4 text-sm">
+        <Checkbox
+          checked={onlyFallback}
+          onChange={(v) => changeFilter({ onlyFallback: v })}
+          label="미답변만"
+        />
+        <Checkbox
+          checked={onlyThumbsDown}
+          onChange={(v) => changeFilter({ onlyThumbsDown: v })}
+          label="👎 받은 것만"
+        />
+      </div>
 
-        <Placeholder
-          title="세션 목록"
-          api="GET /api/bots/{botId}/logs → Paged<ConversationSummary>"
-        >
-          <p>행: 첫 질문 / 채널 / 메시지 수 / 미답변 포함 여부 / 시각</p>
-          <p>
-            ⚠️ 페이지네이션 응답 모양이 아직 미정이다. Spring Data 의 Page 를 그대로
-            내리면 필드명이 content / totalElements / number 가 된다.
-            lib/types.ts 의 Paged&lt;T&gt; 와 맞춰야 한다.
-          </p>
-        </Placeholder>
+      {error && (
+        <p role="alert" className="mt-4 text-sm text-red-600 dark:text-red-400">
+          {error}
+        </p>
+      )}
 
-        <Placeholder
-          title="세션 상세 (메시지 타임라인)"
-          api="GET /api/bots/{botId}/logs/{conversationId} (경로 미확정)"
-        >
-          <p>
-            user / assistant 를 번갈아 보여주고, assistant 메시지에는 출처(sources)와
-            응답 시간(latencyMs), 피드백(👍/👎)을 함께 표시한다.
+      <div className="mt-4">
+        {loading ? (
+          <p className="text-sm text-muted">불러오는 중…</p>
+        ) : !logs || logs.items.length === 0 ? (
+          <p className="rounded-lg border border-subtle px-6 py-10 text-center text-sm text-muted">
+            {onlyFallback || onlyThumbsDown
+              ? "조건에 맞는 대화가 없습니다."
+              : "아직 대화가 없습니다. 테스트 채팅이나 위젯으로 질문해보세요."}
           </p>
-          <p>
-            fallback 된 메시지는 눈에 띄게 표시한다 — 이게 ⑤ 미답변 목록의 원재료다.
-          </p>
-        </Placeholder>
+        ) : (
+          <>
+            <ul className="divide-y divide-subtle rounded-lg border border-subtle bg-surface">
+              {logs.items.map((conversation) => (
+                <li key={conversation.id}>
+                  <button
+                    type="button"
+                    onClick={() => void toggleConversation(conversation.id)}
+                    /* aria-expanded 는 "이 버튼이 무언가를 펼친다"를 스크린리더에 알려준다. */
+                    aria-expanded={openId === conversation.id}
+                    className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-foreground/5"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm">
+                        {conversation.firstUserMessage ?? "(질문 없음)"}
+                      </p>
+                      <p className="mt-0.5 text-xs text-muted">
+                        {formatDateTime(conversation.createdAt)} · 메시지{" "}
+                        {conversation.messageCount}개
+                      </p>
+                    </div>
+
+                    {/* 관리자 테스트 대화와 실사용을 구분해 보여준다 — 지표 해석이 달라진다. */}
+                    <span className="shrink-0 rounded-full bg-foreground/10 px-2 py-0.5 text-xs text-muted">
+                      {conversation.channel === "test" ? "테스트" : "위젯"}
+                    </span>
+                    {conversation.hasFallback && (
+                      <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                        미답변 포함
+                      </span>
+                    )}
+                  </button>
+
+                  {openId === conversation.id && (
+                    <div className="space-y-3 border-t border-subtle bg-background/50 px-4 py-3">
+                      {messagesLoading ? (
+                        <p className="text-sm text-muted">불러오는 중…</p>
+                      ) : (
+                        messages.map((message) => (
+                          <MessageRow key={message.id} message={message} />
+                        ))
+                      )}
+                    </div>
+                  )}
+                </li>
+              ))}
+            </ul>
+
+            <div className="mt-4 flex items-center justify-between text-sm">
+              <span className="text-muted">
+                총 {logs.totalElements}건 · {logs.page + 1}/{Math.max(logs.totalPages, 1)} 페이지
+              </span>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPage((p) => p - 1)}
+                  disabled={logs.page === 0}
+                  className="rounded-md border border-subtle px-3 py-1.5 disabled:opacity-40"
+                >
+                  이전
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPage((p) => p + 1)}
+                  disabled={logs.page + 1 >= logs.totalPages}
+                  className="rounded-md border border-subtle px-3 py-1.5 disabled:opacity-40"
+                >
+                  다음
+                </button>
+              </div>
+            </div>
+          </>
+        )}
       </div>
     </>
   );
+}
+
+/** 대화 상세의 메시지 한 줄. 채팅 화면과 달리 <읽기 전용>이라 피드백 버튼이 없다. */
+function MessageRow({ message }: { message: ChatMessage }) {
+  const isUser = message.role === "user";
+  return (
+    <div className={isUser ? "flex justify-end" : ""}>
+      <div className={isUser ? "max-w-[80%]" : "max-w-[85%]"}>
+        <p
+          className={`rounded-lg px-3 py-2 text-sm ${
+            isUser
+              ? "bg-accent text-white"
+              : message.isFallback
+                ? "border border-dashed border-subtle text-muted"
+                : "bg-foreground/5"
+          }`}
+        >
+          {message.content}
+        </p>
+
+        {/* 근거는 fallback 이 아닐 때만 보여준다 — 채팅 화면과 같은 이유다. */}
+        {!message.isFallback && message.sources && message.sources.length > 0 && (
+          <p className="mt-1 text-xs text-muted">
+            근거: {message.sources.map((s) => s.filename).join(", ")}
+          </p>
+        )}
+
+        {message.feedback !== null && message.feedback !== undefined && (
+          <p className="mt-1 text-xs">{message.feedback === 1 ? "👍" : "👎"}</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function Checkbox({
+  checked,
+  onChange,
+  label,
+}: {
+  checked: boolean;
+  onChange: (value: boolean) => void;
+  label: string;
+}) {
+  return (
+    <label className="flex items-center gap-2">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+      />
+      <span>{label}</span>
+    </label>
+  );
+}
+
+/**
+ * 서버가 주는 ISO 시각을 한국어로.
+ *
+ * 브라우저의 시간대를 그대로 쓴다(toLocaleString 기본 동작).
+ * 서버의 로그 <필터>는 KST 고정인데 여기는 브라우저 기준이라 엄밀히는 어긋날 수 있다.
+ * 지금은 사용자가 전부 한국에 있어 차이가 없다.
+ * TODO(W3 이후): 해외 사용자가 생기면 표시 기준을 서버와 맞출 것.
+ */
+function formatDateTime(iso: string): string {
+  return new Date(iso).toLocaleString("ko-KR", {
+    month: "numeric",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
