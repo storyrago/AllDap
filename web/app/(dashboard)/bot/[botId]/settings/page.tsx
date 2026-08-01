@@ -1,109 +1,316 @@
-import { PageHeader } from "@/components/PageHeader";
-import { Placeholder } from "@/components/Placeholder";
+"use client";
 
-export const metadata = {
-  title: "봇 설정 — AllDap",
-};
-
-/**
- * `/bot/[botId]/settings` — PRD §8 "봇 문구·색상·허용 도메인, 임베드 코드 복사 / 코드 복사가 전환 포인트"
+/*
+ * `/bot/[botId]/settings` — 봇 문구 · 허용 도메인 · 임베드 코드 · 삭제.
  *
- * 호출할 Spring API:
- *   GET    /api/bots/{botId}  → Bot           (api.bots.get)
- *   PATCH  /api/bots/{botId}  → Bot           (api.bots.update)
- *   DELETE /api/bots/{botId}                  (api.bots.remove)
+ * PRD §8 이 "코드 복사가 전환 포인트" 라고 적어둔 화면이다.
+ * 여기서 허용 도메인을 넣고 스니펫을 복사해 붙이면 위젯이 실제로 뜬다.
  *
- * bots 테이블의 편집 가능한 컬럼: name, system_prompt, welcome_message,
- * fallback_message, allowed_origins
+ * 호출하는 Spring API:
+ *   GET    /api/bots/{botId}   → Bot
+ *   PATCH  /api/bots/{botId}   → Bot   (보낸 필드만 수정된다)
+ *   DELETE /api/bots/{botId}
  */
+
+import { useCallback, useEffect, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { API_BASE_URL, ApiError, api } from "@/lib/api";
+import type { Bot } from "@/lib/types";
+import { PageHeader } from "@/components/PageHeader";
+
 export default function SettingsPage() {
+  const { botId } = useParams<{ botId: string }>();
+  const router = useRouter();
+
+  const [bot, setBot] = useState<Bot | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
+
+  /*
+   * 폼 입력값을 봇 객체와 <따로> 들고 있는 이유.
+   *
+   * 서버에서 받은 bot 을 그대로 편집하면 "저장 전 원래 값"이 사라져서
+   * 무엇이 바뀌었는지 알 수 없고, 저장 실패 시 되돌릴 수도 없다.
+   * 서버 상태(bot)와 편집 중인 값(form)을 분리해 두는 게 폼의 기본형이다.
+   */
+  const [form, setForm] = useState({
+    name: "",
+    welcomeMessage: "",
+    fallbackMessage: "",
+    systemPrompt: "",
+    /* 허용 도메인은 배열이지만 입력은 줄바꿈으로 받는다. 한 줄에 하나가 가장 편집하기 쉽다. */
+    allowedOrigins: "",
+  });
+
+  const loadBot = useCallback(async () => {
+    try {
+      const loaded = await api.bots.get(botId);
+      setBot(loaded);
+      setForm({
+        name: loaded.name,
+        welcomeMessage: loaded.welcomeMessage,
+        fallbackMessage: loaded.fallbackMessage,
+        // 서버는 null 을 줄 수 있는데 <input value> 에 null 을 넣으면 React 가 경고한다
+        // ("제어 컴포넌트가 비제어로 바뀐다"). "값 없음"을 빈 문자열로 바꿔 규칙을 지킨다.
+        systemPrompt: loaded.systemPrompt ?? "",
+        allowedOrigins: loaded.allowedOrigins.join("\n"),
+      });
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : "봇 정보를 불러오지 못했습니다.");
+    } finally {
+      setLoading(false);
+    }
+  }, [botId]);
+
+  useEffect(() => {
+    void loadBot();
+  }, [loadBot]);
+
+  async function handleSave(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setSaving(true);
+    setError(null);
+    setSaved(false);
+
+    try {
+      const updated = await api.bots.update(botId, {
+        name: form.name.trim(),
+        welcomeMessage: form.welcomeMessage,
+        fallbackMessage: form.fallbackMessage,
+        systemPrompt: form.systemPrompt,
+        /*
+         * 줄바꿈으로 나눈 뒤 빈 줄을 걸러낸다.
+         * 빈 문자열이 배열에 들어가면 서버는 "허용 도메인이 있다"고 판정하는데
+         * 실제로는 아무 도메인도 못 맞춰서, 원인을 찾기 어려운 상태가 된다.
+         */
+        allowedOrigins: form.allowedOrigins
+          .split("\n")
+          .map((line) => line.trim())
+          .filter((line) => line.length > 0),
+      });
+      setBot(updated);
+      setSaved(true);
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : "저장하지 못했습니다.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDelete() {
+    if (!bot) return;
+    // 봇을 지우면 문서·청크·대화 로그가 DB 의 CASCADE 로 전부 사라진다. 되돌릴 수 없다.
+    if (
+      !window.confirm(
+        `"${bot.name}" 봇을 삭제할까요?\n올린 문서와 대화 기록이 모두 사라지며 되돌릴 수 없습니다.`,
+      )
+    ) {
+      return;
+    }
+    try {
+      await api.bots.remove(botId);
+      router.replace("/dashboard");
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : "삭제하지 못했습니다.");
+    }
+  }
+
+  if (loading) return <p className="text-sm text-muted">불러오는 중…</p>;
+  if (!bot) {
+    return (
+      <p role="alert" className="text-sm text-red-600">
+        {error ?? "봇을 찾을 수 없습니다."}
+      </p>
+    );
+  }
+
+  /* 고객이 자기 사이트에 붙일 한 줄. publicKey 가 그대로 노출되는 게 정상이다. */
+  const snippet = `<script src="${API_BASE_URL}/widget/alldap-widget.js" data-public-key="${bot.publicKey}"></script>`;
+
   return (
     <>
-      <PageHeader
-        title="봇 설정"
-        description="봇 문구와 임베드 코드를 관리합니다."
-      />
+      <PageHeader title="봇 설정" description="봇 문구와 임베드 코드를 관리합니다." />
 
-      <div className="space-y-4">
-        <Placeholder title="기본 정보" api="PATCH /api/bots/{botId}">
-          <p>봇 이름(name)</p>
-        </Placeholder>
+      <form onSubmit={handleSave}>
+        <Section title="기본 정보">
+          <TextField
+            label="봇 이름"
+            value={form.name}
+            onChange={(v) => setForm({ ...form, name: v })}
+            maxLength={100}
+          />
+          <TextField
+            label="인사말"
+            hint="위젯을 열면 먼저 보이는 문구입니다."
+            value={form.welcomeMessage}
+            onChange={(v) => setForm({ ...form, welcomeMessage: v })}
+          />
+          <TextField
+            label="거절 문구"
+            hint="문서에서 근거를 찾지 못했을 때 이 문구가 대신 나갑니다. 담당자 연락처를 넣어두면 좋습니다."
+            value={form.fallbackMessage}
+            onChange={(v) => setForm({ ...form, fallbackMessage: v })}
+          />
+        </Section>
 
-        <Placeholder title="대화 문구" api="PATCH /api/bots/{botId}">
-          <p>환영 문구(welcomeMessage) — 위젯이 열릴 때 먼저 띄우는 인사말</p>
-          <p>
-            거절 문구(fallbackMessage) — 근거를 못 찾았을 때 보여줄 문장.
-            &ldquo;담당자에게 문의해주세요&rdquo; 처럼 다음 행동을 알려주는 문장이 좋다.
+        <Section title="시스템 프롬프트">
+          {/*
+            거짓 완성 금지 — 저장은 되지만 답변에는 <아직> 반영되지 않는다.
+            Python 의 /internal/chat 요청 스키마에 자리가 없어서다.
+            화면에 적어두지 않으면 사용자는 값을 넣고 "왜 안 먹지?" 하게 된다.
+          */}
+          <p className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-300">
+            ⚠️ 지금은 <b>저장만 되고 답변에는 반영되지 않습니다.</b> AI 서비스가 이 값을 받도록 고친
+            뒤에 동작합니다.
           </p>
-        </Placeholder>
+          <TextArea
+            label="답변 지침"
+            rows={3}
+            value={form.systemPrompt}
+            onChange={(v) => setForm({ ...form, systemPrompt: v })}
+          />
+        </Section>
 
-        {/*
-          ★ 여기가 이 프로젝트에서 문서로 꼭 남겨야 하는 갭이다.
-        */}
-        <Placeholder title="시스템 프롬프트 (systemPrompt)" api="PATCH /api/bots/{botId}">
-          <p>
-            ⚠️ <strong>지금은 저장만 되고 답변에는 반영되지 않는다.</strong>
-          </p>
-          <p>
-            이유: Python 의 POST /internal/chat 요청 본문이
-            {" "}{"{ bot_id, message, session_id }"} 뿐이라 system_prompt 를 받을 자리가 없다
-            (ai-service/app/schemas.py 의 ChatRequest).
-          </p>
-          <p>
-            반면 fallbackMessage 는 반영할 수 있다. Python 이 is_fallback=true 를
-            돌려주면 Spring 이 answer 를 봇의 fallbackMessage 로 치환하면 되기 때문.
-          </p>
-          <p>
-            TODO: Python ChatRequest 에 system_prompt 를 추가하고 generator 프롬프트에
-            끼워넣은 뒤, Spring 이 봇 설정을 실어 보내도록 할 것.
-            그때까지 이 입력란에는 &ldquo;아직 반영되지 않습니다&rdquo; 안내를 반드시 붙일 것
-            (사용자가 바꿨는데 아무 일도 안 일어나면 버그로 오해한다).
-          </p>
-        </Placeholder>
+        <Section title="허용 도메인">
+          <TextArea
+            label="위젯을 설치할 주소 (한 줄에 하나)"
+            hint="예: https://example.com — 프로토콜과 포트까지 정확히 일치해야 합니다."
+            rows={3}
+            value={form.allowedOrigins}
+            onChange={(v) => setForm({ ...form, allowedOrigins: v })}
+            placeholder={"https://example.com\nhttps://www.example.com"}
+          />
+          {/* 빈 목록 = 전부 차단이 서버의 규칙이다. 그 사실을 화면에서 먼저 알려준다. */}
+          {bot.allowedOrigins.length === 0 && (
+            <p className="text-xs text-amber-700 dark:text-amber-400">
+              아직 허용 도메인이 없어 <b>위젯이 어느 사이트에서도 뜨지 않습니다.</b> 설치할 주소를
+              먼저 등록해주세요.
+            </p>
+          )}
+        </Section>
 
-        <Placeholder title="허용 도메인 (allowedOrigins)" api="PATCH /api/bots/{botId}">
-          <p>
-            위젯을 설치할 사이트 주소 목록. 등록되지 않은 Origin 에서 온 위젯 요청은
-            Spring 이 거절한다.
-          </p>
-          <p>
-            비워두면 어디서나 호출 가능해진다 — 남이 우리 봇을 자기 사이트에 붙여
-            LLM 비용을 태울 수 있다. 빈 값일 때 경고를 보여줄 것.
-          </p>
-        </Placeholder>
+        <div className="mt-4 flex items-center gap-3">
+          <button
+            type="submit"
+            disabled={saving}
+            className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+          >
+            {saving ? "저장 중…" : "저장"}
+          </button>
+          {error && (
+            <span role="alert" className="text-sm text-red-600 dark:text-red-400">
+              {error}
+            </span>
+          )}
+          {saved && (
+            <span className="text-sm text-green-700 dark:text-green-400">저장했습니다.</span>
+          )}
+        </div>
+      </form>
 
-        <Placeholder title="브랜드 색상">
-          <p>
-            ⚠️ PRD 와 DB 의 불일치: PRD F-04 / §8 은 색상 커스텀을 요구하는데
-            db/V1__init.sql 의 bots 테이블에는 색상 컬럼이 없다.
-          </p>
-          <p>
-            TODO(W2): bots 에 theme_color 컬럼을 추가하거나, 색상 커스텀을 MVP 에서
-            빼기로 결정할 것. 스키마 변경은 db/ 의 SQL 이 단일 진실 공급원이다.
-          </p>
-        </Placeholder>
+      <Section title="임베드 코드">
+        <p className="text-xs text-muted">
+          고객 사이트의 <code>&lt;/body&gt;</code> 바로 앞에 이 한 줄을 붙이면 위젯이 뜹니다.
+        </p>
+        <pre className="overflow-x-auto rounded-md border border-subtle bg-background p-3 text-xs">
+          {snippet}
+        </pre>
+        <button
+          type="button"
+          onClick={() => void navigator.clipboard.writeText(snippet)}
+          className="rounded-md border border-subtle px-3 py-1.5 text-sm"
+        >
+          복사
+        </button>
+      </Section>
 
-        <Placeholder title="임베드 코드 복사 ★" api="GET /api/bots/{botId} 의 publicKey 사용">
-          <p>
-            PRD 는 이 버튼을 &ldquo;전환 포인트&rdquo;라고 부른다. 관리자의 기술 숙련도 상한이
-            &ldquo;복사해서 붙여넣기&rdquo;이기 때문에, 설치는 스크립트 한 줄이어야 한다.
-          </p>
-          <p>
-            보여줄 코드는 /w/{"{publicKey}"} 를 iframe 으로 띄우는 로더 스크립트다.
-          </p>
-          <p>
-            TODO(W2): public/widget.js (플로팅 버튼 → iframe 삽입) 를 만들고,
-            여기서 그 스크립트 태그 한 줄을 복사시키도록 할 것. 아직 없다.
-          </p>
-        </Placeholder>
-
-        <Placeholder title="봇 삭제" api="DELETE /api/bots/{botId}">
-          <p>
-            봇을 지우면 문서·청크·대화·평가가 전부 연쇄 삭제된다 (ON DELETE CASCADE).
-            봇 이름을 직접 입력해야 삭제되도록 할 것.
-          </p>
-        </Placeholder>
-      </div>
+      <Section title="위험 구역">
+        <p className="text-xs text-muted">
+          봇을 지우면 올린 문서와 대화 기록이 <b>모두</b> 사라집니다. 되돌릴 수 없습니다.
+        </p>
+        <button
+          type="button"
+          onClick={handleDelete}
+          className="rounded-md border border-red-300 px-3 py-1.5 text-sm text-red-600 dark:border-red-900 dark:text-red-400"
+        >
+          이 봇 삭제
+        </button>
+      </Section>
     </>
+  );
+}
+
+/* ── 아래는 이 화면에서만 쓰는 작은 조각들 ────────────────────────────────
+ * 별도 파일로 빼지 않은 이유: 다른 화면에서 쓸 일이 아직 없다.
+ * 두 번째 사용처가 생기면 그때 components/ 로 옮긴다.
+ */
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section className="mt-6 space-y-3 rounded-lg border border-subtle bg-surface p-4">
+      <h2 className="text-sm font-semibold">{title}</h2>
+      {children}
+    </section>
+  );
+}
+
+function TextField({
+  label,
+  hint,
+  value,
+  onChange,
+  maxLength,
+}: {
+  label: string;
+  hint?: string;
+  value: string;
+  /* 이벤트가 아니라 <값>을 넘기는 시그니처로 둔다 — 호출부가 e.target.value 를 몰라도 된다. */
+  onChange: (value: string) => void;
+  maxLength?: number;
+}) {
+  return (
+    <label className="block">
+      <span className="mb-1 block text-sm font-medium">{label}</span>
+      {hint && <span className="mb-1 block text-xs text-muted">{hint}</span>}
+      <input
+        type="text"
+        value={value}
+        maxLength={maxLength}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full rounded-md border border-subtle bg-background px-3 py-2 text-sm outline-none focus:border-accent"
+      />
+    </label>
+  );
+}
+
+function TextArea({
+  label,
+  hint,
+  value,
+  onChange,
+  rows,
+  placeholder,
+}: {
+  label: string;
+  hint?: string;
+  value: string;
+  onChange: (value: string) => void;
+  rows: number;
+  placeholder?: string;
+}) {
+  return (
+    <label className="block">
+      <span className="mb-1 block text-sm font-medium">{label}</span>
+      {hint && <span className="mb-1 block text-xs text-muted">{hint}</span>}
+      <textarea
+        value={value}
+        rows={rows}
+        placeholder={placeholder}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full rounded-md border border-subtle bg-background px-3 py-2 text-sm outline-none focus:border-accent"
+      />
+    </label>
   );
 }
