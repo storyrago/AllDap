@@ -103,7 +103,7 @@ public class BotService {
      * 무엇을 노출할지 고르는 책임을 위젯 쪽 DTO 한 곳에 모으기 위해서다.
      */
     public Bot findByPublicKey(String publicKey) {
-        // TODO(W2): 구현. 없으면 ApiException(BOT_NOT_FOUND).
-        throw new UnsupportedOperationException("BotService.findByPublicKey 미구현 (W2)");
+        return botRepository.findByPublicKey(publicKey)
+                .orElseThrow(() -> new ApiException(ErrorCode.BOT_NOT_FOUND));
     }
 }

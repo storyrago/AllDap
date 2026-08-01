@@ -108,6 +108,12 @@ public class TestcontainersConfiguration {
             registry.add("app.ai-service.base-url", stub::baseUrl);
             registry.add("app.ai-service.connect-timeout", () -> "1s");
             registry.add("app.ai-service.read-timeout", () -> "2s");
+
+            // 위젯 요청 제한을 아주 낮게 잡는다. 운영값(20·60)으로 두면 한도 초과를 재현하려고
+            // 테스트에서 수십 번을 호출해야 하는데, 검증 대상은 "20" 이라는 숫자가 아니라
+            // <한도를 넘으면 429 가 나가는가> 이므로 값을 줄여도 검증 내용은 그대로다.
+            registry.add("app.widget.chat-per-minute", () -> "3");
+            registry.add("app.widget.config-per-minute", () -> "5");
         };
     }
 }

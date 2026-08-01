@@ -117,13 +117,26 @@ public class SecurityConfig {
      *       API 호출마다 OPTIONS 가 한 번씩 더 붙는다(요청 수가 두 배).</li>
      * </ul>
      *
-     * <p>TODO(W2 위젯 슬라이스): {@code /api/w/**} 는 여기서 다루지 않는다.
-     *   위젯은 <b>봇마다</b> 허용 도메인이 다르므로({@code bots.allowed_origins}) 정적 목록으로는 표현할 수 없고,
-     *   요청 경로의 {@code publicKey} 로 봇을 조회해 그 봇의 허용 도메인을 돌려주는
-     *   {@code CorsConfigurationSource} 구현이 따로 필요하다.
-     *   그때 {@code "/api/w/**"} 규칙을 아래 {@code "/api/**"} 보다 <b>먼저</b> 등록해야 한다 —
-     *   {@code UrlBasedCorsConfigurationSource} 는 등록된 순서대로 훑다가 처음 일치하는 규칙을 쓴다.
-     *   그 전까지 위젯을 고객 사이트에서 부르면 브라우저에서 막힌다(= 안전한 쪽으로 닫혀 있다).
+     * <h2>위젯({@code /api/w/**})은 <b>모든 오리진에 열어두고</b> 검사는 애플리케이션이 한다</h2>
+     * 처음에는 봇의 {@code allowed_origins} 를 CORS 응답에 그대로 실어 브라우저가 막게 만들었다.
+     * <b>동작은 했지만 잘못된 설계였다.</b> 두 가지 이유로 되돌렸다.
+     *
+     * <ol>
+     *   <li><b>CORS 는 인가 수단이 아니다.</b> 브라우저에게 "이 응답을 스크립트에 넘겨도 되나" 를
+     *       알려주는 정책일 뿐이고, 브라우저가 아닌 호출자(curl·서버)는 아예 신경 쓰지 않는다.
+     *       즉 CORS 로 막아도 <b>요청은 그대로 처리되고 LLM 비용도 그대로 나간다.</b></li>
+     *   <li><b>우리 에러 메시지를 읽을 수 없게 만든다.</b> CORS 필터가 먼저 끊으면
+     *       응답 본문이 {@code Invalid CORS request} 평문이 되어
+     *       PRD §10.3 의 {@code {"error":{...}}} 포맷이 깨진다. 그러면 위젯은
+     *       "허용 도메인에 이 주소를 추가하세요" 라는 <b>해결 방법을 사용자에게 보여줄 수 없다.</b></li>
+     * </ol>
+     *
+     * <p>그래서 브라우저에게는 열어주고, <b>진짜 판단은 {@code WidgetController} 가</b> 한다.
+     * 거기서 403 + 한국어 안내를 공통 포맷으로 내려준다.
+     * 이 순서 덕분에 위젯은 실패 사유를 화면에 그대로 띄울 수 있다.
+     *
+     * <p>{@code UrlBasedCorsConfigurationSource} 는 등록 순서대로 훑다가 처음 일치하는 규칙을 쓰므로
+     * {@code "/api/w/**"} 를 {@code "/api/**"} 보다 <b>먼저</b> 등록해야 한다.
      */
     @Bean
     public CorsConfigurationSource corsConfigurationSource(CorsProperties corsProperties) {
@@ -136,7 +149,20 @@ public class SecurityConfig {
         adminApi.setAllowCredentials(false);
         adminApi.setMaxAge(Duration.ofHours(1));
 
+        CorsConfiguration widgetApi = new CorsConfiguration();
+        // 위젯은 고객 도메인이 무엇이든 설치될 수 있다. 목록을 미리 알 수 없으므로 전부 허용하고,
+        // "이 봇을 이 도메인에서 써도 되는가" 는 WidgetController 가 판단한다.
+        widgetApi.setAllowedOrigins(List.of("*"));
+        widgetApi.setAllowedMethods(List.of("GET", "POST"));
+        // 위젯은 JWT 를 쓰지 않는다. Content-Type 만 있으면 된다.
+        widgetApi.setAllowedHeaders(List.of("Content-Type"));
+        // ⚠️ 오리진을 * 로 여는 이상 credentials 는 절대 켜면 안 된다(브라우저도 거부한다).
+        // 우리는 쿠키를 쓰지 않으므로 켤 이유도 없다.
+        widgetApi.setAllowCredentials(false);
+        widgetApi.setMaxAge(Duration.ofHours(1));
+
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/api/w/**", widgetApi);   // ← 반드시 먼저
         source.registerCorsConfiguration("/api/**", adminApi);
         return source;
     }

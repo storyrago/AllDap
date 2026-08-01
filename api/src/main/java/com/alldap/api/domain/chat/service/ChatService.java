@@ -1,5 +1,7 @@
 package com.alldap.api.domain.chat.service;
 
+import com.alldap.api.domain.bot.entity.Bot;
+import com.alldap.api.domain.bot.service.BotService;
 import com.alldap.api.domain.chat.dto.ChatRequest;
 import com.alldap.api.domain.chat.dto.ChatResponse;
 import com.alldap.api.domain.chat.dto.SourceResponse;
@@ -40,6 +42,9 @@ public class ChatService {
     private final AiServiceClient aiServiceClient;
     private final ChatTurnStore turnStore;
 
+    /** 위젯 경로 전용. publicKey 로 봇을 찾는 데만 쓴다(관리자 경로는 소유권 조회를 따로 한다). */
+    private final BotService botService;
+
     /** {@code messages.sources}(JSONB)에 넣을 JSON 을 만드는 데만 쓴다. */
     private final ObjectMapper objectMapper;
 
@@ -77,14 +82,37 @@ public class ChatService {
     /**
      * 위젯 채팅(공개). {@code channel = "widget"} 으로 기록한다.
      *
-     * <p>TODO(W2 위젯 슬라이스): 구현. 관리자 채팅과 <b>본문 흐름은 같지만 진입 조건이 다르다</b> —
-     * 인증이 없으므로 보호 장치가 세 겹이어야 한다: publicKey 존재 확인 + Origin 검증
-     * ({@code bot.allowedOrigins}) + rate limit. 특히 <b>빈 allowedOrigins 를 "전부 허용"으로
-     * 두면 보안 구멍</b>이므로 규칙을 먼저 정할 것(Bot 엔티티 TODO 참고).
-     * 그 조건들이 정해지기 전에는 구현하지 않는다 — 반쯤 열린 공개 엔드포인트가 가장 위험하다.
+     * <p>관리자 채팅과 <b>본문 흐름은 같고 진입 조건만 다르다.</b> 인증이 없으므로
+     * 소유권 대신 publicKey 존재 확인 + rate limit 을 통과해야 한다(컨트롤러가 담당).
+     *
+     * <p><b>{@code origin} 을 받지만 여기서 차단하지 않는다 — 알고 그렇게 뒀다.</b>
+     * 이 요청은 iframe({@code /w/{publicKey}}) 안에서 나가므로 헤더의 Origin 은
+     * 고객 사이트가 아니라 <b>우리 Next.js</b>다. 즉 봇의 허용 도메인과 대조할 값 자체가 오지 않는다.
+     * Origin 대조는 <b>설정 조회</b>({@code GET /config})에서 한다 — 그건 로더가 고객 페이지에서
+     * 직접 부르므로 브라우저가 진짜 Origin 을 붙여준다. 설정 조회가 막히면 위젯 UI 가 아예 뜨지 않으므로
+     * 정상 브라우저 경로에서는 그 단계가 실질적 억제력이 된다.
+     * 여기서는 진단용으로 기록만 하고, 실질 방어는 rate limit 이 맡는다(WidgetController 주석).
      */
     public ChatResponse chatAsWidget(String publicKey, String origin, ChatRequest request) {
-        throw new UnsupportedOperationException("ChatService.chatAsWidget 미구현 (W2 위젯 슬라이스)");
+        Bot bot = botService.findByPublicKey(publicKey);
+        log.debug("[widget-chat] publicKey={} origin={}", publicKey, origin);
+
+        ChatTurnStore.Turn turn = turnStore.openWidgetTurn(
+                bot.getId(), request.message(), request.sessionId());
+
+        AiChatResponse ai = aiServiceClient.chat(
+                new AiChatRequest(bot.getId(), request.message(), request.sessionId()));
+
+        String answer = resolveAnswer(turn.fallbackMessage(), ai);
+        List<SourceResponse> sources = toSources(ai);
+
+        UUID messageId = turnStore.saveAnswer(
+                turn.conversationId(), answer, toSourcesJson(sources), ai.isFallback(), ai.latencyMs());
+
+        log.info("[widget-chat] botId={} conversationId={} isFallback={} latencyMs={}",
+                bot.getId(), turn.conversationId(), ai.isFallback(), ai.latencyMs());
+
+        return new ChatResponse(answer, sources, ai.isFallback(), ai.latencyMs(), messageId);
     }
 
     /** 피드백 기록 (👍/👎). 값 규칙과 소유권 확인은 {@link ChatTurnStore} 와 엔티티가 맡는다. */

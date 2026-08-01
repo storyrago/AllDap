@@ -69,6 +69,12 @@ app:
     #    "공개된 기본값으로 운영에 뜨는 것"을 막는 기동 가드가 이 문자열을 비교한다.
     secret: ${JWT_SECRET:alldap-local-dev-only-secret-key-do-not-use-in-production-0123456789}
     access-token-ttl: 24h
+  widget:
+    # 위젯은 인증 없이 열려 있는 유일한 문이라 요청 수 제한이 실질적 방어선이다.
+    # 채팅은 건당 LLM 비용이 들어 낮게, 설정 조회는 비용이 없어 넉넉히 잡는다.
+    # (제한기의 한계 — 인스턴스가 늘면 각자 세므로 실질 한도가 배가 된다 — 는 RateLimiter 주석 참고)
+    chat-per-minute: ${WIDGET_CHAT_PER_MINUTE:20}
+    config-per-minute: ${WIDGET_CONFIG_PER_MINUTE:60}
   cors:
     # 관리자 화면(Next.js)이 떠 있는 오리진. 브라우저는 포트가 다르면 다른 출처로 본다.
     # 여러 개면 쉼표로 구분한다. 예: CORS_ALLOWED_ORIGINS=https://a.example.com,https://b.example.com

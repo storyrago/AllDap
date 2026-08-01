@@ -60,9 +60,32 @@ public class ChatTurnStore {
     public Turn openTurn(UUID userId, UUID botId, String message, String sessionId, String channel) {
         Bot bot = botRepository.findByIdAndUserId(botId, userId)
                 .orElseThrow(() -> new ApiException(ErrorCode.BOT_NOT_FOUND));
+        return open(bot, message, sessionId, channel);
+    }
 
+    /**
+     * 위젯용. <b>소유권 검사가 없다</b> — 위젯은 인증이 없어 "누구의 것인가" 를 물을 수 없기 때문이다.
+     *
+     * <p>대신 진입 조건이 다르다: 호출자({@code ChatService.chatAsWidget})가 publicKey 로
+     * 봇을 이미 찾아왔고, rate limit 을 통과한 뒤에만 여기 도달한다.
+     * <b>이 메서드를 관리자 경로에서 쓰면 소유권 검사가 통째로 빠지므로 절대 그러지 말 것.</b>
+     */
+    @Transactional
+    public Turn openWidgetTurn(UUID botId, String message, String sessionId) {
+        Bot bot = botRepository.findById(botId)
+                .orElseThrow(() -> new ApiException(ErrorCode.BOT_NOT_FOUND));
+        return open(bot, message, sessionId, Conversation.CHANNEL_WIDGET);
+    }
+
+    /**
+     * 대화를 찾거나 만들고 질문을 저장한다.
+     *
+     * <p>{@code private} 이라 프록시를 거치지 않지만 문제없다 — 호출자가 이미 트랜잭션 안이다.
+     * (트랜잭션이 필요한 쪽은 {@code public} 진입점이고, 여기는 그 안에서 도는 코드다)
+     */
+    private Turn open(Bot bot, String message, String sessionId, String channel) {
         Conversation conversation = conversationRepository
-                .findFirstByBotIdAndSessionIdAndChannelOrderByCreatedAtDesc(botId, sessionId, channel)
+                .findFirstByBotIdAndSessionIdAndChannelOrderByCreatedAtDesc(bot.getId(), sessionId, channel)
                 .orElseGet(() -> conversationRepository.save(Conversation.create(bot, sessionId, channel)));
 
         messageRepository.save(Message.createUserMessage(conversation, message));
