@@ -18,7 +18,6 @@
 import type {
   AuthResponse,
   Bot,
-  BotSummary,
   ChatMessage,
   ChatRequest,
   ChatResponse,
@@ -119,11 +118,52 @@ export function getAccessToken(): string | null {
 export function setAccessToken(token: string): void {
   if (typeof window === "undefined") return;
   window.localStorage.setItem(TOKEN_STORAGE_KEY, token);
+  notifyTokenChanged();
 }
 
 export function clearAccessToken(): void {
   if (typeof window === "undefined") return;
   window.localStorage.removeItem(TOKEN_STORAGE_KEY);
+  notifyTokenChanged();
+}
+
+/* ── 토큰을 "외부 저장소"로 구독하기 ─────────────────────────────────────
+ *
+ * localStorage 는 React 바깥에 있는 상태다. 화면이 그 값을 읽어 렌더에 쓰려면
+ * "값이 바뀌면 알려달라"는 구독이 필요하고, React 는 그걸 위해 useSyncExternalStore 를 준다.
+ *
+ * <왜 useEffect + useState 로 안 하나.>
+ * effect 안에서 setState 를 하면 렌더가 한 번 더 돌고(cascading render),
+ * eslint 의 react-hooks/set-state-in-effect 가 이를 막는다. 규칙이 옳다 —
+ * "바깥 저장소를 읽는 일"은 상태 복사가 아니라 구독으로 표현하는 게 맞다.
+ *
+ * 브라우저의 storage 이벤트는 <다른 탭>에서 바뀔 때만 발생한다.
+ * 그래서 같은 탭의 로그인·로그아웃은 위 두 함수가 직접 알린다.
+ */
+const TOKEN_CHANGED_EVENT = "alldap:token-changed";
+
+function notifyTokenChanged(): void {
+  window.dispatchEvent(new Event(TOKEN_CHANGED_EVENT));
+}
+
+/** useSyncExternalStore 의 구독 함수. 정리 함수를 돌려줘야 한다. */
+export function subscribeAccessToken(onChange: () => void): () => void {
+  window.addEventListener("storage", onChange); // 다른 탭
+  window.addEventListener(TOKEN_CHANGED_EVENT, onChange); // 같은 탭
+  return () => {
+    window.removeEventListener("storage", onChange);
+    window.removeEventListener(TOKEN_CHANGED_EVENT, onChange);
+  };
+}
+
+/**
+ * 서버에서 렌더할 때 쓸 값.
+ *
+ * 서버에는 localStorage 가 없으므로 <항상 null> 이다.
+ * 이 함수가 없으면 서버 렌더에서 getAccessToken 이 호출돼 터진다.
+ */
+export function getAccessTokenServerSnapshot(): string | null {
+  return null;
 }
 
 /* ───────────────────────── 요청 공통부 ───────────────────────── */

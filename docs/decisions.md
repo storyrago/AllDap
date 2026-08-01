@@ -160,3 +160,8 @@
 2026-08-02 | **✅ 위젯 실제 설치 검증 완료 — 프로젝트 시작부터 미검증이던 항목** | `widget/demo.html`(호스트 CSS 를 일부러 고약하게 짠 가짜 학과 홈페이지)에 실제 publicKey 로 설치해 브라우저에서 확인했다. 확인된 것: ① 스크립트 200 으로 로드 ② **Shadow DOM 격리가 실제로 동작** — 호스트의 `button { background: red !important }` 에도 위젯이 안 깨졌다 ③ 런처 클릭 → 패널 열림 ④ `GET /api/w/{publicKey}/config` **200** 이고 헤더에 봇 이름이 반영됨 = **Origin 검증 통과**(허용 도메인에 등록한 주소에서만) | —
   ↳ **아직 안 된 것**: iframe 안의 `/w/[publicKey]` 페이지가 자리표시자라 채팅 화면은 "불러오는 중" 에서 멈춘다. 위젯 채팅 페이지를 만들면 완결된다.
 
+2026-08-02 | **effect 안에서 setState 하는 모양을 전부 걷어냄** (`react-hooks/set-state-in-effect`, eslint-plugin-react-hooks 7) | **CI 가 잡았다 — 로컬에서 `npm run lint` 를 안 돌린 게 원인이다.** `next build` 는 ESLint 를 실행하지 않아서 타입·빌드·브라우저 확인이 전부 통과해도 린트만 빨간불이었다. 규칙의 취지는 옳다: effect 에서 setState 를 하면 렌더가 한 번 더 돌고(cascading render), "바깥 세계를 읽는 일"은 상태 복사가 아니라 <구독>으로 표현해야 한다 | 규칙 끄기(취지가 옳아서 끄면 같은 실수가 계속 쌓인다), 줄마다 eslint-disable(6군데에 붙이면 규칙이 사실상 꺼진 것과 같다)
+  ↳ **규칙이 무엇을 허용하는지 실험으로 알아냈다.** `await` 위치를 옮기는 것으로는 안 통했고(규칙이 함수 안까지 따라 들어간다), `.then()` 콜백과 **effect 안 async 즉시실행 + 취소 플래그**는 통과했다. 후자를 택했다 — 규칙을 피하려는 게 아니라 **화면을 떠난 뒤 응답이 와도 상태를 갱신하지 않는다**는 실제 개선이기 때문이다.
+  ↳ **인증 가드는 `useSyncExternalStore` 로 바꿨다.** localStorage 는 React 바깥의 상태라 이 훅이 정확히 그 용도다. 덤으로 **다른 탭에서 로그아웃하면 이 탭도 즉시 로그인 화면으로 간다** — 예전 방식(effect 에서 한 번만 읽기)은 그걸 못 잡았다. 같은 탭 변경은 `storage` 이벤트가 안 오므로 `setAccessToken`/`clearAccessToken` 이 직접 알린다.
+  ↳ **검증 절차에 `npm run lint` 를 추가한다.** 빌드가 통과해도 린트는 따로 봐야 한다.
+

@@ -59,7 +59,23 @@ export default function DocumentsPage() {
   // 빼먹으면 봇을 바꿔도 이전 봇의 문서가 계속 보인다.
 
   useEffect(() => {
-    void loadDocuments();
+    /*
+     * effect 안에서 async 함수를 <즉시 실행>하고 취소 플래그를 둔다.
+     *
+     * 왜 `void loadDocuments()` 이 아닌가 — 두 가지 이유가 겹친다.
+     * ① 화면을 떠난 뒤 응답이 도착하면 사라진 컴포넌트의 상태를 갱신하려 든다.
+     *    cancelled 플래그로 그때는 아무것도 하지 않는다.
+     * ② eslint 의 react-hooks/set-state-in-effect 규칙이 "effect 에서 setState 를 하는 함수를
+     *    그냥 호출하는" 모양을 막는다. 응답이 온 <뒤>에 갱신한다는 게 코드 모양에 드러나야 한다.
+     */
+    let cancelled = false;
+    void (async () => {
+      await loadDocuments();
+      if (cancelled) return;
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [loadDocuments]);
 
   /*

@@ -30,10 +30,15 @@
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { clearAccessToken, getAccessToken } from "@/lib/api";
+import {
+  clearAccessToken,
+  getAccessToken,
+  getAccessTokenServerSnapshot,
+  subscribeAccessToken,
+} from "@/lib/api";
 
 export default function DashboardLayout({
   children,
@@ -43,31 +48,31 @@ export default function DashboardLayout({
   const router = useRouter();
 
   /*
-   * "아직 토큰을 확인하지 못했다" 상태.
+   * 토큰을 <상태로 복사하지 않고 구독해서 읽는다>.
    *
-   * 왜 boolean 하나가 필요한가: 첫 렌더는 토큰을 읽기 <전>에 일어난다
-   * (useEffect 는 렌더가 끝난 뒤 실행된다). 이 값이 없으면 그 찰나에
-   * 대시보드 내용이 그려졌다가 사라져 화면이 번쩍인다.
+   * useSyncExternalStore 는 "React 바깥에 있는 값"을 렌더에 안전하게 끌어오는 훅이다.
+   * 인자 셋의 뜻: (구독 함수, 브라우저에서 읽는 함수, 서버에서 읽는 함수).
+   *
+   * <왜 useEffect + useState 가 아닌가.> 그렇게 하면 effect 안에서 setState 를 하게 되어
+   * 렌더가 한 번 더 돌고, eslint 의 react-hooks/set-state-in-effect 가 이를 막는다.
+   * 규칙이 옳다 — 바깥 저장소를 읽는 일은 "상태 복사"가 아니라 "구독"으로 표현하는 게 맞다.
+   *
+   * 덤으로 얻는 것: 다른 탭에서 로그아웃하면 이 탭도 즉시 로그인 화면으로 간다.
+   * 예전 방식은 처음 한 번만 읽어서 그걸 못 잡았다.
    */
-  const [checking, setChecking] = useState(true);
+  const token = useSyncExternalStore(
+    subscribeAccessToken,
+    getAccessToken,
+    getAccessTokenServerSnapshot,
+  );
 
   useEffect(() => {
-    if (getAccessToken() === null) {
-      router.replace("/auth");
-      return; // 이동할 것이므로 checking 을 풀지 않는다 — 풀면 내용이 잠깐 보인다
-    }
-    setChecking(false);
-  }, [router]);
+    // 여기서는 setState 를 하지 않는다. 화면 이동이라는 <바깥 세계의 일>만 한다.
+    if (token === null) router.replace("/auth");
+  }, [token, router]);
   /*
-   * 의존성 배열에 왜 router 가 들어갔나.
-   *
-   * useEffect 는 "이 안에서 쓰는 바깥 값이 바뀌면 다시 실행하라" 는 규칙이다.
-   * 여기서 쓰는 바깥 값은 router 하나뿐이므로 그것만 적는다.
-   * (getAccessToken 은 import 한 함수라 렌더마다 새로 만들어지지 않아 넣지 않는다)
-   *
-   * router 는 실제로는 거의 안 바뀌므로 이 effect 는 사실상 처음 한 번만 돈다.
-   * 그렇다고 빈 배열 [] 로 두면 안 된다 — 쓰는 값을 적지 않는 습관이 붙으면
-   * 나중에 "왜 값이 안 바뀌지" 하는 버그를 반드시 만든다. 규칙대로 적는다.
+   * 의존성에 token 과 router 를 적는 이유: 이 안에서 쓰는 바깥 값이 그 둘이다.
+   * token 이 바뀌면(로그아웃) 다시 판단해야 하므로 반드시 들어가야 한다.
    */
 
   function handleLogout() {
@@ -95,8 +100,8 @@ export default function DashboardLayout({
       </header>
 
       <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-8">
-        {/* 토큰 확인 전에는 내용을 그리지 않는다 (위 "깜빡임" 주석 참고) */}
-        {checking ? <p className="text-sm text-muted">불러오는 중…</p> : children}
+        {/* 토큰이 없으면 내용을 그리지 않는다 — 위로 이동하는 중이다 (위 "깜빡임" 주석 참고) */}
+        {token === null ? <p className="text-sm text-muted">불러오는 중…</p> : children}
       </main>
     </div>
   );

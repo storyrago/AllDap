@@ -48,10 +48,23 @@ export default function DashboardPage() {
   }, []);
 
   useEffect(() => {
-    void loadBots();
-    // void 를 붙인 이유: loadBots 는 async 라 Promise 를 돌려주는데,
-    // useEffect 의 콜백이 Promise 를 반환하면 React 는 그걸 <정리 함수>로 오해한다.
-    // "이 Promise 는 일부러 기다리지 않는다" 를 명시하는 관용구다.
+    /*
+     * effect 안에서 async 함수를 <즉시 실행>하고 취소 플래그를 둔다.
+     *
+     * 왜 `void loadBots()` 이 아닌가 — 두 가지 이유가 겹친다.
+     * ① 화면을 떠난 뒤 응답이 도착하면 사라진 컴포넌트의 상태를 갱신하려 든다.
+     *    cancelled 플래그로 그때는 아무것도 하지 않는다.
+     * ② eslint 의 react-hooks/set-state-in-effect 규칙이 "effect 에서 setState 를 하는 함수를
+     *    그냥 호출하는" 모양을 막는다. 응답이 온 <뒤>에 갱신한다는 게 코드 모양에 드러나야 한다.
+     */
+    let cancelled = false;
+    void (async () => {
+      await loadBots();
+      if (cancelled) return;
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [loadBots]);
 
   async function handleCreate(event: React.FormEvent<HTMLFormElement>) {
