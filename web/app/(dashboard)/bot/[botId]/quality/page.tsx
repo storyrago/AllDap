@@ -363,7 +363,10 @@ function RunSection({
                   {resultsLoading ? (
                     <p className="text-xs text-muted">불러오는 중…</p>
                   ) : (
-                    <ResultTable results={results} />
+                    <>
+                      <RunSummary results={results} />
+                      <ResultTable results={results} />
+                    </>
                   )}
                 </div>
               )}
@@ -401,6 +404,36 @@ function StatusBadge({ status }: { status: string }) {
     >
       {label[status] ?? status}
     </span>
+  );
+}
+
+/**
+ * 실행 한 건의 구성 요약.
+ *
+ * <b>측정 실패가 몇 건인지 반드시 보여야 한다.</b> 그 숫자를 모르면
+ * "응답률 1.0" 이 21문항 중 16문항만 돌린 결과라는 걸 알 수 없다.
+ * 점수는 정직해도 <표본이 줄었다>는 사실은 따로 알려야 한다.
+ */
+function RunSummary({ results }: { results: EvalResult[] }) {
+  const total = results.length;
+  // 질문을 물어보지도 못한 건(호출 실패). 응답률 분모에서 빠진 것들이다.
+  const notMeasured = results.filter((r) => r.generatedAnswer === null).length;
+  // 답은 했는데 채점이 없는 건 = fallback 이거나 채점 실패.
+  const notScored = results.filter(
+    (r) => r.generatedAnswer !== null && r.faithfulness === null,
+  ).length;
+
+  return (
+    <p className="mb-3 text-xs text-muted">
+      질문 {total}건 · 채점됨 {total - notMeasured - notScored}건
+      {notScored > 0 && <> · 미채점 {notScored}건</>}
+      {notMeasured > 0 && (
+        <span className="text-amber-700 dark:text-amber-400">
+          {" "}
+          · <strong>측정 실패 {notMeasured}건</strong> (점수 계산에서 제외됨)
+        </span>
+      )}
+    </p>
   );
 }
 
@@ -449,12 +482,27 @@ function ResultTable({ results }: { results: EvalResult[] }) {
             </div>
           </div>
 
-          {r.faithfulness === null && (
-            <p className="mt-2 text-xs text-muted">
-              채점하지 않았습니다 — 답변이 fallback 이었거나 채점에 실패했습니다.
-              <strong> 0점이라는 뜻이 아닙니다.</strong>
-            </p>
-          )}
+          {/*
+            점수가 없는 이유가 두 가지이고 <성격이 완전히 다르다>. 반드시 갈라서 보여준다.
+              · generatedAnswer 가 null  → 질문을 <물어보지도 못했다> (호출 실패·쿼터 초과).
+                                           우리 인프라 문제이지 챗봇 품질이 아니다.
+                                           그래서 응답률 분모에서도 빠진다.
+              · generatedAnswer 는 있는데 점수가 null → 답은 했다. fallback 이라 채점 대상이
+                                           아니었거나 채점 호출이 실패했다.
+            한 문구로 뭉개면 "쿼터가 모자란 날"이 "품질이 나쁜 날"로 읽힌다.
+          */}
+          {r.faithfulness === null &&
+            (r.generatedAnswer === null ? (
+              <p className="mt-2 text-xs text-amber-700 dark:text-amber-400">
+                ⚠️ 측정하지 못했습니다 — 검색·생성 호출이 실패했습니다(쿼터 초과 등).
+                <strong> 챗봇 품질과 무관하며 응답률 계산에서도 제외됩니다.</strong>
+              </p>
+            ) : (
+              <p className="mt-2 text-xs text-muted">
+                채점하지 않았습니다 — 답변이 fallback 이었거나 채점에 실패했습니다.
+                <strong> 0점이라는 뜻이 아닙니다.</strong>
+              </p>
+            ))}
         </li>
       ))}
     </ul>

@@ -110,6 +110,9 @@ def _execute(run_id: UUID, bot_id: UUID) -> None:
     faiths: list[float] = []
     rels: list[float] = []
     answered = 0
+    # ⚠️ processed 는 <검색·생성이 실제로 돌아간> 질문 수다. total 과 다를 수 있다.
+    #    응답률의 분모가 되며, 이걸 total 로 쓰면 안 되는 이유는 아래 집계 부분 주석 참고.
+    processed = 0
     rows: list[tuple] = []
 
     for qid, question, ground_truth in questions:
@@ -122,9 +125,16 @@ def _execute(run_id: UUID, bot_id: UUID) -> None:
         except Exception as e:  # noqa: BLE001
             # 한 질문이 실패했다고 실행 전체를 죽이지 않는다(429 쿼터 등).
             # 점수 없이 행만 남겨 "이 질문은 못 쟀다"를 보이게 한다.
+            #
+            # ⚠️ processed 를 <올리지 않는다>. 이건 "답을 못 했다"가 아니라
+            #    "물어보지도 못했다"이기 때문이다 — 우리 인프라가 실패한 것이지
+            #    챗봇의 품질 문제가 아니다. 응답률 분모에 넣으면 점수가 거짓이 된다.
+            #    (generated_answer 가 NULL 로 남아 fallback 과 구분된다)
             _log.warning("질문 처리 실패(건너뜀) qid=%s: %s: %s", qid, type(e).__name__, e)
             rows.append((run_id, qid, None, json.dumps([]), None, None))
             continue
+
+        processed += 1
 
         retrieved = json.dumps(
             [{"chunk_id": str(s.chunk_id), "filename": s.filename, "score": s.score} for s in sources],
@@ -152,7 +162,21 @@ def _execute(run_id: UUID, bot_id: UUID) -> None:
     total = len(questions)
     avg_f = sum(faiths) / len(faiths) if faiths else None
     avg_r = sum(rels) / len(rels) if rels else None
-    answered_rate = answered / total if total else None
+
+    # ⚠️ 분모가 total 이 아니라 processed 다. 여기서 total 을 쓰면 <응답률이 거짓말을 한다.>
+    #
+    # 실제로 그 버그를 냈다(2026-08-02): 질문 21개 중 5개가 429 쿼터 초과로 아예 처리되지
+    # 않았는데 분모에 그대로 들어가 응답률이 0.762 로 찍혔다. 진짜 값은 16/16 = 1.0 이다.
+    # <"답을 못 했다"와 "물어보지도 못했다"는 완전히 다른 상태다.>
+    # 전자는 챗봇의 품질이고 후자는 우리 인프라의 문제인데, 섞으면 W4 비교표에서
+    # 쿼터가 모자란 날의 실행이 "품질이 나쁜 설정"으로 둔갑한다.
+    #
+    # AGENTS.md 가 W2 에서 이미 경고한 항목이다 — "Python 호출이 실패하면 질문만 남고
+    # 답변 행이 없다. 이건 fallback 과 다른 상태다 — W3 에서 미답변을 집계할 때 섞지 말 것."
+    #
+    # 처리 실패 건수는 별도 컬럼이 없어 저장하지 않는다. 대신 eval_results 에
+    # generated_answer=NULL 인 행으로 남으므로 화면이 세어 보여줄 수 있다.
+    answered_rate = answered / processed if processed else None
 
     with cursor(commit=True) as cur:
         cur.executemany(
@@ -169,6 +193,6 @@ def _execute(run_id: UUID, bot_id: UUID) -> None:
         )
 
     _log.info(
-        "평가 실행 완료 run_id=%s 질문 %d개 · 답변 %d개 · 채점 %d개",
-        run_id, total, answered, len(faiths),
+        "평가 실행 완료 run_id=%s 질문 %d개 · 처리 %d개(실패 %d) · 답변 %d개 · 채점 %d개",
+        run_id, total, processed, total - processed, answered, len(faiths),
     )

@@ -61,6 +61,19 @@ class Settings(BaseSettings):
     chat_model: str = "gemini-3.5-flash-lite"
     max_tokens: int = 1024
 
+    # 테스트 질문 생성 전용 모델. <chat_model 과 일부러 다른 모델을 쓴다.>
+    #
+    # 이유는 품질이 아니라 <무료 한도>다. Gemini 무료 등급은
+    # GenerateRequestsPerDayPerProjectPerModel-FreeTier — 즉 <모델별로> 하루 20회다(실측).
+    # 질문 생성과 답변 생성이 같은 모델을 쓰면 한 통에서 같이 깎여,
+    # 질문 20개를 만들면 그날 평가 실행을 한 번도 못 돌린다.
+    # 모델을 나누면 각각 20회를 받는다.
+    #
+    # gemini-3.1-flash-lite 를 고른 근거(2026-08-02 실측): 호출 가능하고
+    # thoughtsTokenCount=0(사고를 안 해 JSON 잘림이 없다). AGENTS.md 의 모델 표 참고.
+    # ⚠️ 사고하는 모델로 바꾸면 evaluator.py 의 잘림 문제가 재발한다.
+    eval_question_model: str = "gemini-3.1-flash-lite"
+
     # 검색
     top_k: int = 5
     # 이 거리(코사인)보다 먼 청크는 근거로 쓰지 않는다 → fallback 유도

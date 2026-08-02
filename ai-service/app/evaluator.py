@@ -111,7 +111,10 @@ def make_question(content: str) -> QuestionPair | None:
 
     try:
         resp = _gemini().models.generate_content(
-            model=s.chat_model,
+            # ⚠️ chat_model 이 아니라 <질문 생성 전용 모델>이다.
+            #    무료 한도가 모델별로 잡혀서, 답변 생성과 나눠야 서로의 한도를 안 깎는다.
+            #    (config.py 의 eval_question_model 주석 참고)
+            model=s.eval_question_model,
             contents=f"<내용>\n{content}\n</내용>",
             config=types.GenerateContentConfig(
                 system_instruction=GENERATION_PROMPT,
