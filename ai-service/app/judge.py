@@ -14,10 +14,12 @@
   같은 모델이 채점하면 같은 판단을 그대로 반복한다.
   → 반드시 잡아야 할 케이스에서 판정기가 가장 눈이 먼다.
 
-그래서 이렇게 갈랐다:
-  답변 생성 : Google Gemini      (gemini-3.5-flash-lite)
-  채점      : Cloudflare Mistral (@cf/mistralai/mistral-small-3.1-24b-instruct)
-제공자도 모델 계열도 다르다. 분리로는 가장 강한 형태다.
+그래서 이렇게 갈랐다 (2026-08-02 답변 생성이 Cloudflare 로 옮겨온 뒤 기준):
+  답변 생성 : @cf/meta/llama-3.3-70b-instruct-fp8-fast   (Meta 계열)
+  채점      : @cf/mistralai/mistral-small-3.1-24b-instruct (Mistral 계열)
+제공자는 같아졌지만 <모델 계열이 다르다>. 가중치를 공유하지 않으므로
+"같은 실수를 반복하는" 문제는 그대로 피한다.
+⚠️ 답변 생성 모델을 바꿀 때 이 모델과 겹치지 않는지 반드시 확인할 것.
 
 왜 이 모델인가 (2026-08-02 실측)
 ─────────────────────────────────────────────────────────────────────────────
@@ -38,16 +40,13 @@ from __future__ import annotations
 import json
 import logging
 
-import httpx
 from pydantic import BaseModel
 
+from . import cf
 from .config import get_settings
 from .schemas import Source
 
 _log = logging.getLogger(__name__)
-
-_http: httpx.Client | None = None
-
 
 class Scores(BaseModel):
     """채점 결과 한 건.
@@ -80,47 +79,6 @@ SYSTEM_PROMPT = """당신은 문서 기반 챗봇의 답변을 채점하는 평�
 
 반드시 아래 JSON 형식으로만 답하세요. 다른 말을 덧붙이지 마세요.
 {"faithfulness": 숫자, "relevancy": 숫자, "reason": "한국어 한 문장"}"""
-
-
-def _client() -> tuple[httpx.Client, str]:
-    """Cloudflare Workers AI 클라이언트. retriever._cf() 와 같은 이유로 캐시한다."""
-    global _http
-    s = get_settings()
-    if not s.cf_account_id or not s.cf_api_token:
-        raise RuntimeError("CF_ACCOUNT_ID / CF_API_TOKEN 이 설정되지 않았습니다 (.env 확인)")
-    if _http is None:
-        _http = httpx.Client(
-            headers={"Authorization": f"Bearer {s.cf_api_token}"},
-            timeout=120.0,
-        )
-    url = (
-        f"https://api.cloudflare.com/client/v4/accounts/{s.cf_account_id}"
-        f"/ai/run/{s.judge_model}"
-    )
-    return _http, url
-
-
-def _response_text(result: dict) -> str:
-    """Cloudflare 응답에서 모델이 뱉은 <텍스트>를 꺼낸다.
-
-    ⚠️ 같은 모델이 같은 엔드포인트로 <두 가지 모양>을 준다 (2026-08-02 실측).
-        result["response"]                        ← Workers AI 고유 형식
-        result["choices"][0]["message"]["content"] ← OpenAI 호환 형식
-    보통 둘 다 들어 있고 내용이 같지만, 한쪽이 비어 있는 응답이 실제로 왔다.
-    한쪽만 보면 그때 채점이 통째로 실패한다 — 실제로 3건 중 1건이 그렇게 날아갔다.
-    그래서 둘 다 훑고, 먼저 <내용이 있는> 쪽을 쓴다.
-    """
-    text = result.get("response")
-    if isinstance(text, str) and text.strip():
-        return text
-
-    choices = result.get("choices")
-    if isinstance(choices, list) and choices:
-        content = (choices[0].get("message") or {}).get("content")
-        if isinstance(content, str) and content.strip():
-            return content
-
-    return ""
 
 
 def _extract_json(raw: str) -> dict | None:
@@ -163,7 +121,6 @@ def score(question: str, ground_truth: str, sources: list[Source], answer: str) 
     평균에서 <제외>해야 한다. 0점으로 처리하면 채점 실패가 품질 저하로 둔갑한다.
     """
     s = get_settings()
-    client, url = _client()
 
     context = "\n\n".join(
         f"[근거 {i}] (출처: {src.filename})\n{src.preview}"
@@ -177,30 +134,20 @@ def score(question: str, ground_truth: str, sources: list[Source], answer: str) 
     )
 
     try:
-        resp = client.post(
-            url,
-            json={
-                "messages": [
-                    {"role": "system", "content": SYSTEM_PROMPT},
-                    {"role": "user", "content": user},
-                ],
-                # 결과 JSON 은 100토큰이면 충분한데 넉넉히 준다.
-                # 모자라면 JSON 이 중간에 끊겨 파싱에 실패하고, 그 질문은 점수 없이 날아간다.
-                # (같은 종류의 잘림을 질문 생성에서 이미 한 번 겪었다 — evaluator.py 주석 참고)
-                "max_tokens": 1024,
-            },
-        )
-        resp.raise_for_status()
-        body = resp.json()
+        result = cf.run(s.judge_model, {
+            "messages": [
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": user},
+            ],
+            # 결과 JSON 은 100토큰이면 충분한데 넉넉히 준다.
+            # 모자라면 JSON 이 중간에 끊겨 파싱에 실패하고, 그 질문은 점수 없이 날아간다.
+            "max_tokens": 1024,
+        })
     except Exception as e:  # noqa: BLE001 - 한 건 실패가 실행 전체를 죽이면 안 된다
         _log.warning("채점 호출 실패: %s: %s", type(e).__name__, e)
         return None
 
-    if not body.get("success", False):
-        _log.warning("채점 실패(Cloudflare): %s", body.get("errors"))
-        return None
-
-    raw = _response_text(body.get("result") or {})
+    raw = cf.text_of(result)
     d = _extract_json(raw)
     if d is None:
         # ⚠️ 로그에 <모델이 뱉은 텍스트>를 남긴다. 예전엔 응답 dict 전체를 찍었는데,

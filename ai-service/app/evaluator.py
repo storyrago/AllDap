@@ -31,17 +31,29 @@ import json
 import logging
 from uuid import UUID
 
+from google import genai
 from google.genai import types
 from pydantic import BaseModel, Field
 
 from .config import get_settings
 from .db import cursor
-# generator 의 클라이언트를 그대로 쓴다. 같은 코드를 3벌째 복사하지 않으려는 것뿐이다.
-# (_gemini 는 이름 앞에 _ 가 붙어 "모듈 내부용"이라는 뜻이지만, 파이썬은 이를 강제하지 않는다.
-#  약속을 어기는 셈이라 이유를 남긴다 — 아래 TODO 가 해소되면 이 import 도 없어진다.)
-# TODO(W3): _gemini() 가 retriever.py 와 generator.py 에 <이미 2벌> 복사돼 있다.
-#           셋을 공용 모듈 하나로 합치는 건 이 슬라이스와 무관하므로 별도 커밋으로 뺀다.
-from .generator import _gemini
+
+# ⚠️ 이 파일이 <이 프로젝트에서 유일하게 남은 Gemini 사용처>다.
+#    임베딩은 Cloudflare(retriever), 채점도 Cloudflare(judge), 답변 생성도 Cloudflare(generator)로
+#    옮겼고 질문 생성만 Gemini 에 남았다. 남긴 이유는 품질이 아니라 <분리>다 —
+#    질문·답변·채점을 전부 같은 제공자로 두면 셋이 같은 편향을 공유한다.
+#    (예전에는 generator 의 _gemini() 를 빌려 썼는데, generator 가 Cloudflare 로 가면서 여기로 옮겼다)
+_client: genai.Client | None = None
+
+
+def _gemini() -> genai.Client:
+    global _client
+    if _client is None:
+        s = get_settings()
+        if not s.google_api_key:
+            raise RuntimeError("GOOGLE_API_KEY가 설정되지 않았습니다 (.env 확인)")
+        _client = genai.Client(api_key=s.google_api_key)
+    return _client
 
 # uvicorn 이 자기 로거 설정을 그대로 물려주므로 별도 설정 없이 콘솔에 찍힌다.
 # 청크를 건너뛴 이유를 남기는 용도다 — 안 남기면 "4개 요청했는데 3개 나온" 이유를 알 수 없다.

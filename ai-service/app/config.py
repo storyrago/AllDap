@@ -10,8 +10,10 @@ from pydantic_settings import BaseSettings
 class Settings(BaseSettings):
     database_url: str = "postgresql://alldap:alldap@localhost:5432/alldap"
 
-    # 생성(답변·질문)은 Google Gemini 를 쓴다.
-    # ⚠️ 임베딩은 더 이상 Gemini 가 아니다 — 아래 Cloudflare 항목 참고.
+    # ⚠️ Gemini 는 이제 <테스트 질문 생성>에만 쓴다 (eval_question_model).
+    #    임베딩·답변생성·채점은 전부 Cloudflare 로 옮겼다. 아래 각 항목 참고.
+    #    질문 생성만 남긴 이유는 품질이 아니라 <분리>다 — 질문·답변·채점을 전부
+    #    같은 제공자로 두면 셋이 같은 편향을 공유한다.
     google_api_key: str = ""
 
     # ── 임베딩: Cloudflare Workers AI ──────────────────────────────────
@@ -38,27 +40,27 @@ class Settings(BaseSettings):
     cf_account_id: str = ""
     cf_api_token: str = ""
 
-    # 생성 — flash 계열은 무료 등급에서 쓸 수 있다(pro 계열은 확인 안 됨).
+    # ── 답변 생성: Cloudflare Workers AI ──────────────────────────────
+    # 2026-08-02 에 gemini-3.5-flash-lite 에서 옮겼다.
     #
-    # ⚠️ models.list() 에 나오는 모델이라고 다 부를 수 있는 게 아니다.
-    #    구세대는 목록에 남아 있으면서 호출하면 404 를 준다:
-    #      "This model models/... is no longer available to new users."
-    #    2026-08-02 실측으로 gemini-2.5-flash-lite 가 그렇게 막혔다.
-    #    <목록만 보고 고르지 말고 반드시 실제로 호출해볼 것.>
+    # ⚠️ 품질 때문이 아니라 <무료 한도> 때문이다. Gemini 무료는
+    #    GenerateRequestsPerDayPerProjectPerModel-FreeTier — 모델당 하루 20회다(실측).
+    #    평가 1회 = 질문 수만큼 답변 생성 호출이라, 21문항 실행이 쿼터에 걸려
+    #    5건이 아예 처리되지 못했다. W4 는 설정을 바꿔가며 여러 번 돌려야 하는데
+    #    하루 한 번으로는 진도가 안 나간다. Cloudflare 는 10,000 뉴런/일이라 사실상 넉넉하다.
     #
-    # gemini-3.5-flash 에서 flash-lite 로 바꾼 이유 (2026-08-02):
-    #   ① <사고 토큰 문제가 사라진다.> flash 는 사고 토큰이 max_output_tokens 를 함께 먹어
-    #      JSON 이 중간에 잘렸다(evaluator.py 주석의 실측 참고). flash-lite 는 같은 요청에
-    #      thoughtsTokenCount=0 으로 답한다 — 껄 것이 없다.
-    #   ② 비용이 1/4 수준이다(입력 $1.50→$0.30, 출력 $9.00→$2.50 / 1M).
-    #      현재 쓰던 3.5-flash 가 Flash 라인에서 가장 비싼 축이었다.
-    #   ③ 무료 등급 한도는 <모델별로 따로> 잡힌다
-    #      (quotaId: GenerateRequestsPerDayPerProjectPerModel-FreeTier).
-    #      즉 용도별로 모델을 나누면 각각 별도 한도를 받는다.
+    # 모델 선택 근거 (2026-08-02 실측): <환각 억제(NO_ANSWER) 준수>로 걸렀다.
+    # 근거 없는 질문에 정확히 "NO_ANSWER" 를 뱉는지 3회씩 확인:
+    #   llama-3.3-70b-fp8-fast : 3/3 · 650~1181ms   ← 채택 (가장 빠름)
+    #   gpt-oss-120b           : 3/3 · 1174~2473ms
+    #   nemotron-3-120b        : 3/3 · 1980~2742ms
+    #   gemma-4-26b            : 3/3 · 3286~5126ms
+    #   qwen3-30b-a3b          : 0/3 ❌ — "확인되지 않았습니다"로 <풀어서> 답한다.
+    #                            NO_ANSWER 토큰이 없으니 generator 의 부분 문자열 검사에
+    #                            안 걸려 fallback 이 아닌 것으로 집계된다 = 환각 억제가 뚫린다.
     #
-    # ⚠️ 모델을 바꾸면 fallback 수치를 <반드시 다시 재야 한다>. W1 완료 조건의
-    #    "근거 없는 질문 10개 → fallback 10/10" 은 gemini-3.5-flash 기준이었다.
-    chat_model: str = "gemini-3.5-flash-lite"
+    # ⚠️ judge_model(mistral-small)과 <반드시 달라야 한다>. 같으면 자기 답을 자기가 채점한다.
+    chat_model: str = "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
     max_tokens: int = 1024
 
     # 테스트 질문 생성 전용 모델. <chat_model 과 일부러 다른 모델을 쓴다.>
@@ -92,7 +94,8 @@ class Settings(BaseSettings):
     #
     # ⚠️ <답변 생성 모델(chat_model)과 반드시 달라야 한다.> 같은 모델이 자기 답변을
     #    채점하면 자기 실수를 그대로 통과시킨다. 자세한 근거는 judge.py 첫 주석 참고.
-    #    지금은 생성 Google Gemini / 채점 Cloudflare Mistral 로 제공자까지 갈라져 있다.
+    #    현재 배치: 답변 = Meta llama-3.3-70b / 채점 = Mistral small-3.1-24b.
+    #    제공자는 같지만 <모델 계열이 달라> 가중치를 공유하지 않는다.
     #
     # 이 모델을 고른 근거(2026-08-02 실측): 정답이 정해진 한국어 3케이스
     # (충실한 답 / 지어낸 답 / 절반만 맞는 답)에서 1 / 0 / 0.5 를 정확히 매겼고 가장 빨랐다.

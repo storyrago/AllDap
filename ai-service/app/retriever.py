@@ -6,50 +6,16 @@ W4에서 여기에 키워드(BM25) 검색과 리랭커를 추가하고,
 
 임베딩 제공자: Cloudflare Workers AI (@cf/baai/bge-m3, 1024차원).
 2026-08-02 에 Google Gemini 에서 옮겼다 — 이유는 config.py 주석 참고(약관·한도).
-<생성(답변·질문)은 여전히 Gemini 다.> 이 파일만 제공자가 다르다.
+제공자 배치: 임베딩·답변생성·채점 = Cloudflare / 질문생성 = Gemini(evaluator.py).
 """
 from __future__ import annotations
 
 from uuid import UUID
 
-import httpx
-
+from . import cf
 from .config import get_settings
 from .db import cursor
 from .schemas import Source
-
-_http: httpx.Client | None = None
-
-
-def _cf() -> tuple[httpx.Client, str]:
-    """Cloudflare Workers AI 클라이언트와 호출 URL.
-
-    왜 전역에 하나만 두고 재사용하는가 — httpx.Client 는 안에 커넥션 풀을 들고 있다.
-    요청마다 새로 만들면 TCP 연결과 TLS 악수를 매번 다시 한다.
-    위의 _gemini() 가 _client 를 캐시하는 것과 정확히 같은 이유다.
-
-    `global` 은 "이 함수 안에서 바깥 변수를 <바꾸겠다>"는 선언이다.
-    안 쓰면 파이썬은 _http 를 함수 안의 새 지역 변수로 만들어버려서,
-    함수를 나가는 순간 사라진다 — 캐시가 전혀 동작하지 않는다.
-    """
-    global _http
-    s = get_settings()
-    if not s.cf_account_id or not s.cf_api_token:
-        raise RuntimeError(
-            "CF_ACCOUNT_ID / CF_API_TOKEN 이 설정되지 않았습니다 (ai-service/.env 확인)"
-        )
-    if _http is None:
-        _http = httpx.Client(
-            headers={"Authorization": f"Bearer {s.cf_api_token}"},
-            # 배치 100개가 0.7초쯤 걸린다(실측). 네트워크가 느릴 때를 감안해 넉넉히 준다.
-            timeout=60.0,
-        )
-    url = (
-        f"https://api.cloudflare.com/client/v4/accounts/{s.cf_account_id}"
-        f"/ai/run/{s.embedding_model}"
-    )
-    return _http, url
-
 
 def embed(texts: list[str], *, task_type: str = "RETRIEVAL_DOCUMENT") -> list[list[float]]:
     """여러 텍스트를 배치로 임베딩. 순서는 입력과 동일하게 보장된다.
@@ -66,19 +32,11 @@ def embed(texts: list[str], *, task_type: str = "RETRIEVAL_DOCUMENT") -> list[li
     if not texts:
         return []
     s = get_settings()
-    client, url = _cf()
 
     out: list[list[float]] = []
     for i in range(0, len(texts), s.embedding_batch_size):
         batch = texts[i : i + s.embedding_batch_size]
-        resp = client.post(url, json={"text": batch})
-        # 4xx·5xx 면 여기서 예외가 난다. 조용히 넘어가면 빈 벡터가 DB 에 들어간다.
-        resp.raise_for_status()
-        body = resp.json()
-        # Cloudflare 는 성공/실패를 <HTTP 코드가 아니라 본문의 success 로도> 알린다.
-        if not body.get("success", False):
-            raise RuntimeError(f"Cloudflare 임베딩 실패: {body.get('errors')}")
-        out.extend(body["result"]["data"])
+        out.extend(cf.run(s.embedding_model, {"text": batch})["data"])
 
     if len(out) != len(texts):
         # 입력을 합쳐 벡터 1개만 돌려주는 모델을 쓰면 여기서 걸린다
