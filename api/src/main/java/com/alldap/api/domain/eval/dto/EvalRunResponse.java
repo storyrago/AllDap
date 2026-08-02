@@ -5,6 +5,7 @@ import com.alldap.api.global.client.dto.AiEvalRunResponse;
 import tools.jackson.databind.ObjectMapper;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -29,6 +30,28 @@ public record EvalRunResponse(
         BigDecimal answeredRate,
         /** running | completed | failed */
         String status,
+        /** 이 실행의 대상 질문 수. avg_* 를 해석하려면 반드시 필요한 분모. 옛 실행은 null. */
+        Integer questionCount,
+        /** 실제로 채점된 질문 수. avg_* 의 진짜 분모. */
+        Integer scoredCount,
+        /**
+         * <b>설정 비교(W4 before/after)에는 이 값을 써야 한다.</b>
+         *
+         * <p>{@code avgFaithfulness} 는 <b>답을 덜 할수록 저절로 올라간다.</b>
+         * fallback 은 채점에서 빠지므로, 어려운 질문이 fallback 되면
+         * 남은 쉬운 질문들만 평균에 남는다(생존 편향).
+         *
+         * <p>실제로 속았다 — 리랭커 before/after 에서 충실성이 0.714 → 0.789 로 올랐는데,
+         * 0점짜리 2건이 fallback 된 결과였고 그 2건을 0으로 환산하면 0.714 로 동일했다.
+         *
+         * <p>그래서 분모를 전체 질문 수로 되돌린다:
+         * {@code avgFaithfulness × scoredCount / questionCount}.
+         * 답을 덜 하면 이 값도 같이 내려가므로 편향에 넘어가지 않는다.
+         *
+         * <p>분모를 모르는 옛 실행은 null 이다. 화면은 "표본 미기록"으로 표시하고
+         * 비교 대상에서 빼야 한다 — 모르는 걸 0 이나 avgFaithfulness 로 채우면 또 속는다.
+         */
+        BigDecimal overallFaithfulness,
         Instant createdAt
 ) {
 
@@ -41,8 +64,25 @@ public record EvalRunResponse(
                 run.getAvgRelevancy(),
                 run.getAnsweredRate(),
                 run.getStatus(),
+                run.getQuestionCount(),
+                run.getScoredCount(),
+                overall(run.getAvgFaithfulness(), run.getScoredCount(), run.getQuestionCount()),
                 run.getCreatedAt()
         );
+    }
+
+    /**
+     * 생존 편향을 걷어낸 충실성. 계산할 수 없으면 null 이다.
+     *
+     * <p>null 을 돌려주는 경우: 아직 점수가 없거나(running), 옛 실행이라 분모를 모르거나,
+     * 질문이 0건인 경우. <b>0 으로 채우지 않는다</b> — "모른다"와 "0점"은 다르다.
+     */
+    private static BigDecimal overall(BigDecimal avg, Integer scored, Integer total) {
+        if (avg == null || scored == null || total == null || total == 0) {
+            return null;
+        }
+        return avg.multiply(BigDecimal.valueOf(scored))
+                .divide(BigDecimal.valueOf(total), 3, RoundingMode.HALF_UP);
     }
 
     /**
@@ -63,6 +103,9 @@ public record EvalRunResponse(
                 toDecimal(run.avgRelevancy()),
                 toDecimal(run.answeredRate()),
                 run.status(),
+                // Python 이 실행을 <시작할 때> 주는 응답에는 아직 집계가 없다.
+                // 화면은 폴링해서 완료된 실행을 다시 읽으므로 여기서 채울 필요가 없다.
+                null, null, null,
                 run.createdAt()
         );
     }

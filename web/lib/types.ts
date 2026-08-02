@@ -304,6 +304,23 @@ export interface EvalRun {
   /** 응답률: fallback 하지 않고 답한 비율 (0~1) */
   answeredRate: number | null;
   status: EvalRunStatus;
+  /** 이 실행의 대상 질문 수. avgFaithfulness 를 해석하려면 반드시 필요한 분모. 옛 실행은 null */
+  questionCount: number | null;
+  /** 실제로 채점된 질문 수. avgFaithfulness 의 진짜 분모 */
+  scoredCount: number | null;
+  /**
+   * ★ 설정 비교(W4 before/after)에는 <이 값>을 써야 한다.
+   *
+   * `avgFaithfulness` 는 <답을 덜 할수록 저절로 올라간다>. fallback 은 채점에서 빠지므로
+   * 어려운 질문이 fallback 되면 남은 쉬운 질문들만 평균에 남는다(생존 편향).
+   *
+   * 실제로 속았다 — 리랭커 비교에서 충실성이 0.714 → 0.789 로 올랐는데,
+   * 0점짜리 2건이 fallback 된 결과였고 그 2건을 0으로 환산하면 0.714 로 동일했다.
+   *
+   * 이 값은 분모를 전체 질문 수로 되돌린 것이라 답을 덜 하면 같이 내려간다.
+   * 분모를 모르는 옛 실행은 null 이다 — 0 으로 그리면 또 속는다.
+   */
+  overallFaithfulness: number | null;
   createdAt: IsoDateTime;
 }
 

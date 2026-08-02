@@ -9,16 +9,31 @@
 <실제 파이프라인을 그대로 태우는 것>이 핵심이다. 채팅과 다른 경로로 돌리면
 "평가에서는 좋았는데 실사용에서는 다르다"가 되어 측정이 무의미해진다.
 
-세 가지 숫자와 그 관계 (같이 봐야 한다)
+저장하는 숫자들과 그 관계 (반드시 같이 봐야 한다)
 ─────────────────────────────────────────────────────────────────────────────
+  question_count    이 실행의 대상 질문 수 (비교의 기준 분모)
+  scored_count      실제로 채점까지 간 질문 수 (avg_* 의 진짜 분모)
   answered_rate     fallback 하지 않고 답한 비율
-  avg_faithfulness  <답한 것들 중> 답변이 근거에 기반한 비율
-  avg_relevancy     <답한 것들 중> 질문에 맞는 답이었는지
+  avg_faithfulness  <채점된 것들 중> 답변이 근거에 기반한 정도
+  avg_relevancy     <채점된 것들 중> 질문에 맞는 답이었는지
 
 ⚠️ 응답률이 높다고 좋은 게 아니다. 근거 없이 마구 답하면 응답률은 오르고 충실성은 떨어진다.
-   반대로 아무것도 답 안 하면 충실성은 완벽해 보이고 응답률이 0이 된다.
    그래서 fallback 한 답변은 <채점에서 제외>하고 응답률로만 센다 —
    "모르겠다"는 근거에 충실하긴 하지만 그걸 1.0 으로 세면 평균이 거짓말이 된다.
+
+🔴 <반대 방향이 더 위험하다 — 실제로 속았다.>
+   avg_faithfulness 는 <답을 덜 할수록 저절로 올라간다.> fallback 이 채점에서 빠지므로,
+   어려운 질문이 fallback 되면 남은 쉬운 질문들만 평균에 남는다(생존 편향).
+
+   리랭커 before/after 실측(2026-08-02):
+     충실성 0.714 → 0.789 로 <올랐다>. 그런데 0점짜리 2건이 fallback 된 결과였고,
+     그 2건을 0 으로 환산하면 0.714 로 <완전히 동일>했다. 실제 개선은 없었다.
+
+   그래서 설정을 비교할 때는 avg_faithfulness 를 <그대로 쓰면 안 된다.>
+   question_count 를 분모로 되돌린 값을 봐야 한다:
+       전체 충실성 = avg_faithfulness × scored_count / question_count
+   이 값은 답을 덜 하면 같이 내려가므로 편향에 넘어가지 않는다.
+   (V3__eval_run_counts.sql 이 그래서 만들어졌다)
 
 config 에 실행 시점 설정을 저장하는 이유
 ─────────────────────────────────────────────────────────────────────────────
@@ -55,10 +70,13 @@ def create_run(bot_id: UUID) -> tuple[UUID, int]:
         "chat_model": s.chat_model,
         "embedding_model": s.embedding_model,
         "judge_model": s.judge_model,
-        # W4 에서 켜고 끌 것들. 아직 구현 전이라 항상 false 지만,
-        # 지금부터 남겨둬야 나중 실행과 <같은 모양으로> 비교된다.
+        # W4 에서 켜고 끄는 것들. 이 값이 before/after 비교의 <축>이다.
+        "reranker": s.reranker_enabled,
+        "reranker_model": s.reranker_model if s.reranker_enabled else None,
+        "rerank_candidates": s.rerank_candidates if s.reranker_enabled else None,
+        # 하이브리드(키워드+벡터)는 아직 구현 전이다. 항상 false 지만 키를 남겨야
+        # 나중 실행과 <같은 모양으로> 비교된다.
         "hybrid": False,
-        "reranker": False,
     }
 
     with cursor(commit=True) as cur:
@@ -187,9 +205,10 @@ def _execute(run_id: UUID, bot_id: UUID) -> None:
         )
         cur.execute(
             """UPDATE eval_runs
-                  SET avg_faithfulness=%s, avg_relevancy=%s, answered_rate=%s, status='completed'
+                  SET avg_faithfulness=%s, avg_relevancy=%s, answered_rate=%s,
+                      question_count=%s, scored_count=%s, status='completed'
                 WHERE id=%s""",
-            (avg_f, avg_r, answered_rate, run_id),
+            (avg_f, avg_r, answered_rate, total, len(faiths), run_id),
         )
 
     _log.info(

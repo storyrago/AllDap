@@ -76,8 +76,27 @@ class Settings(BaseSettings):
     # ⚠️ 사고하는 모델로 바꾸면 evaluator.py 의 잘림 문제가 재발한다.
     eval_question_model: str = "gemini-3.1-flash-lite"
 
-    # 검색
+    # ── 검색 (W4 에서 켜고 끄며 비교한다) ─────────────────────────────
     top_k: int = 5
+
+    # 리랭커 — 벡터가 가져온 후보를 다시 정렬한다.
+    #
+    # ⚠️ 기본값이 False 인 이유는 "아직 안 붙였다"가 아니라 <실측 결과 나빠서>다.
+    #    @cf/baai/bge-reranker-base 는 한국어에서 주체를 구분하지 못한다.
+    #    정답이 정해진 6케이스 실측(2026-08-02): 벡터만 6/6 → 리랭커 3/6.
+    #    망친 3건이 전부 "같은 어휘, 다른 대상"이었다 —
+    #    "계약직 연차"에 정규직 문단을, "정규직 재택"에 계약직 문단을 1위로 올렸다.
+    #    영어·중국어 중심으로 학습된 모델이라 그런 것으로 보인다.
+    #    자세한 before/after 는 docs/decisions.md 참고.
+    #
+    # 그럼 왜 코드를 남겼나: W4 의 결론이 "붙이면 나빠진다"이고, 그 근거가 이 코드로
+    # 만든 숫자다. 지우면 <재현할 수 없는 주장>이 된다. 한국어 리랭커가 생기면
+    # reranker_model 만 바꿔 다시 재면 된다.
+    reranker_enabled: bool = False
+    reranker_model: str = "@cf/baai/bge-reranker-base"
+    # 리랭커는 벡터가 <가져온 것 안에서> 순서만 바꾼다. 후보에 없으면 살릴 수 없다.
+    # 그래서 top_k 보다 넉넉히 뽑아 재정렬한 뒤 top_k 만 남긴다.
+    rerank_candidates: int = 20
     # 이 거리(코사인)보다 먼 청크는 근거로 쓰지 않는다 → fallback 유도
     max_distance: float = 0.55
 

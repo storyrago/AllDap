@@ -217,19 +217,41 @@ function fmt(v: number | null | undefined): string {
 
 /** ① 점수 카드 — 최근 실행의 세 숫자 */
 function ScoreCards({ run }: { run: EvalRun | null }) {
+  /*
+   * ★ 전체 충실성을 <맨 앞>에 둔다. 설정을 비교할 때 봐야 하는 값이 이것이기 때문이다.
+   *
+   * "충실성"(avgFaithfulness)은 답한 것들만의 평균이라 <답을 덜 할수록 올라간다>.
+   * 리랭커 비교에서 실제로 0.714 → 0.789 로 "개선"돼 보였는데, 0점짜리 2건이
+   * fallback 되어 채점에서 빠진 결과였다. 전체 충실성으로 보면 0.714 → 0.714, 변화 없음이었다.
+   * 큰 글씨로 먼저 보이는 숫자가 속이는 숫자면 안 된다.
+   */
   const cards = [
-    { label: "충실성", hint: "답이 근거 문서와 일치하는가", value: run?.avgFaithfulness },
-    { label: "관련성", hint: "질문에 맞는 답인가", value: run?.avgRelevancy },
+    {
+      label: "전체 충실성",
+      hint: "전체 질문 대비 · 설정 비교는 이 값으로",
+      value: run?.overallFaithfulness,
+      primary: true,
+    },
+    { label: "충실성", hint: "답한 것들 중 · 답을 덜 하면 올라간다", value: run?.avgFaithfulness },
+    { label: "관련성", hint: "답한 것들 중 · 질문에 맞는 답인가", value: run?.avgRelevancy },
     { label: "응답률", hint: "fallback 하지 않고 답한 비율", value: run?.answeredRate },
   ];
 
   return (
     <section className="mb-8 mt-6">
       <h2 className="mb-2 text-sm font-semibold">최근 평가 점수</h2>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {cards.map((c) => (
-          <div key={c.label} className="rounded-lg border border-subtle bg-surface px-4 py-3">
-            <p className="text-xs text-muted">{c.label}</p>
+          <div
+            key={c.label}
+            className={`rounded-lg border px-4 py-3 ${
+              c.primary ? "border-accent bg-accent/5" : "border-subtle bg-surface"
+            }`}
+          >
+            <p className="text-xs text-muted">
+              {c.primary && "★ "}
+              {c.label}
+            </p>
             <p className="mt-1 text-2xl font-semibold tabular-nums">{fmt(c.value)}</p>
             <p className="mt-1 text-xs text-muted">{c.hint}</p>
           </div>
@@ -239,6 +261,9 @@ function ScoreCards({ run }: { run: EvalRun | null }) {
       {run ? (
         <p className="mt-2 text-xs text-muted">
           {new Date(run.createdAt).toLocaleString("ko-KR")} 실행 · 상태 {run.status}
+          {run.questionCount !== null && (
+            <> · 질문 {run.questionCount}건 중 {run.scoredCount}건 채점</>
+          )}
         </p>
       ) : (
         <p className="mt-2 text-xs text-muted">아직 실행한 평가가 없습니다.</p>
@@ -246,7 +271,13 @@ function ScoreCards({ run }: { run: EvalRun | null }) {
 
       <p className="mt-2 text-xs text-muted">
         ⚠️ 응답률은 높다고 무조건 좋은 게 아닙니다. 근거 없이 답하면 응답률은 올라가고 충실성은
-        떨어집니다. <strong>두 값을 반드시 같이 보세요.</strong>
+        떨어집니다.
+      </p>
+      <p className="mt-1 text-xs text-muted">
+        ⚠️ <strong>반대 방향이 더 위험합니다.</strong> &ldquo;충실성&rdquo;은 답한 것들만의
+        평균이라 <strong>답을 덜 할수록 저절로 올라갑니다.</strong> 그래서 설정을 비교할 때는
+        분모를 전체 질문으로 되돌린 <strong>&ldquo;전체 충실성&rdquo;</strong>을 봐야 합니다.
+        (리랭커 실험에서 충실성은 0.714→0.789 로 올랐지만 전체 충실성은 0.714 로 변화가 없었습니다)
       </p>
     </section>
   );
@@ -341,11 +372,17 @@ function RunSection({
               >
                 <div className="min-w-0 flex-1">
                   <p className="text-sm tabular-nums">
-                    충실성 {fmt(run.avgFaithfulness)} · 관련성 {fmt(run.avgRelevancy)} · 응답률{" "}
-                    {fmt(run.answeredRate)}
+                    <strong>전체 충실성 {fmt(run.overallFaithfulness)}</strong>
+                    <span className="text-muted">
+                      {" "}· 충실성 {fmt(run.avgFaithfulness)} · 관련성 {fmt(run.avgRelevancy)} ·
+                      응답률 {fmt(run.answeredRate)}
+                    </span>
                   </p>
                   <p className="mt-0.5 text-xs text-muted">
                     {new Date(run.createdAt).toLocaleString("ko-KR")}
+                    {run.questionCount !== null && (
+                      <> · {run.scoredCount}/{run.questionCount} 채점</>
+                    )}
                     {run.config && (
                       <>
                         {" · "}topK {run.config.topK} · maxDistance {run.config.maxDistance}
