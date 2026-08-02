@@ -50,6 +50,16 @@ public record EvalConfigResponse(
         }
         try {
             JsonNode n = mapper.readTree(configJson);
+
+            // ⚠️ isObject() 검사가 없으면 안 된다. JSON 은 문자열·숫자·배열도 <유효한 JSON> 이라
+            //    readTree 가 성공해버린다. 그러면 아래 path("top_k") 가 전부 "없음"이 되어
+            //    <필드가 전부 null 인 객체>가 만들어진다 —
+            //    "설정을 못 읽었다"와 "설정은 있는데 값이 다 비었다"가 구분되지 않는다.
+            //    비교표에서 그건 거짓말이다. 객체가 아니면 아예 null 을 준다.
+            if (!n.isObject()) {
+                return null;
+            }
+
             return new EvalConfigResponse(
                     intOrNull(n, "top_k"),
                     doubleOrNull(n, "max_distance"),
