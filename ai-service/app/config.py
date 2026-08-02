@@ -71,10 +71,11 @@ class Settings(BaseSettings):
     # 질문 20개를 만들면 그날 평가 실행을 한 번도 못 돌린다.
     # 모델을 나누면 각각 20회를 받는다.
     #
-    # gemini-3.1-flash-lite 를 고른 근거(2026-08-02 실측): 호출 가능하고
-    # thoughtsTokenCount=0(사고를 안 해 JSON 잘림이 없다). AGENTS.md 의 모델 표 참고.
+    # gemini-3.5-flash-lite 로 되돌린 이유(2026-08-02): 답변 생성이 Cloudflare 로 옮겨가면서
+    # 이 모델의 하루 20회가 <통째로 비었다>. 굳이 다른 모델을 쓸 이유가 없어졌다.
+    # (호출 가능 + thoughtsTokenCount=0 이라 JSON 잘림도 없다 — AGENTS.md 의 모델 표 참고)
     # ⚠️ 사고하는 모델로 바꾸면 evaluator.py 의 잘림 문제가 재발한다.
-    eval_question_model: str = "gemini-3.1-flash-lite"
+    eval_question_model: str = "gemini-3.5-flash-lite"
 
     # ── 검색 (W4 에서 켜고 끄며 비교한다) ─────────────────────────────
     top_k: int = 5
