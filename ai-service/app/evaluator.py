@@ -120,21 +120,25 @@ def make_question(content: str) -> QuestionPair | None:
                 # response_schema 까지 줘야 필드 이름·타입이 고정된다.
                 response_mime_type="application/json",
                 response_schema=QuestionPair,
-                # ⚠️ 사고(thinking)를 끈다. 성능 튜닝이 아니라 <버그 수정>이다.
+                # ⚠️ 사고(thinking) 설정을 <여기서 주지 않는다>. 모델이 알아서 꺼져 있다.
                 #
-                # gemini-3.5-flash 는 답을 내기 전에 "생각"을 하는데, 그 사고 토큰이
-                # max_output_tokens 를 <함께> 소모한다. 그래서 JSON 자체는 50토큰도 안 되는데
-                # 사고에 1024를 다 써버리고 본문이 중간에 잘린다(finish_reason=MAX_TOKENS).
-                # 잘린 JSON 은 파싱이 안 되므로 그 청크는 조용히 버려진다.
+                # 배경: gemini-3.5-flash 는 답을 내기 전에 "생각"을 하는데, 그 사고 토큰이
+                # max_output_tokens 를 <함께> 소모한다. JSON 자체는 50토큰도 안 되는데
+                # 사고에 1024를 다 써버리고 본문이 중간에 잘렸다(finish_reason=MAX_TOKENS).
+                # 잘린 JSON 은 파싱이 안 되므로 그 청크가 조용히 버려졌다.
+                #   실측(2026-08-02, 같은 청크 5회씩, gemini-3.5-flash):
+                #     사고 켬 → 잘림 3회, 평균 3768ms  /  thinking_budget=0 → 잘림 0회, 평균 1164ms
                 #
-                # 실측(2026-08-02, 같은 청크 5회씩):
-                #   사고 켬 → 성공 2/5, MAX_TOKENS 로 잘림 3회, 평균 3768ms
-                #   사고 끔 → 성공 2/5, 잘림 0회,             평균 1164ms  (나머지는 429 쿼터)
-                # 즉 잘림이 사라지고 3배 빨라진다.
+                # 그래서 한동안 `thinking_config=ThinkingConfig(thinking_budget=0)` 을 넣어뒀는데,
+                # <그 파라미터를 지웠다.> 이유 두 가지 (둘 다 2026-08-02 실측):
+                #   ① gemini-3.5-flash-lite 는 그 인자를 아예 거부한다 — HTTP 400 invalid argument.
+                #      즉 남겨두면 모델을 바꾸는 순간 질문 생성이 통째로 죽는다.
+                #   ② 그리고 애초에 필요가 없다. flash-lite 는 같은 요청에서
+                #      thoughtsTokenCount=0 으로 응답한다(사고를 안 한다). 껄 것이 없다.
                 #
-                # 끄는 게 안전한 이유: 이 작업은 "주어진 문단에서 사실 하나를 뽑아 문제로 만들기"라
-                # 추론이 필요 없다. 반대로 <채팅 답변 생성은 사고를 켜둔다> — 거기선 필요하다.
-                thinking_config=types.ThinkingConfig(thinking_budget=0),
+                # ⚠️ 모델을 <사고하는 모델>로 되돌리면 잘림이 재발한다. 그때는 이 줄을 되살리지 말고
+                #    현행 파라미터인 thinking_level 을 쓸 것 — thinking_budget 은 구버전 이름이라
+                #    모델에 따라 400 이 난다.
             ),
         )
     except Exception as e:  # noqa: BLE001 - 어떤 실패든 이 청크만 건너뛰면 된다

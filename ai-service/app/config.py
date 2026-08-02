@@ -26,10 +26,26 @@ class Settings(BaseSettings):
     embedding_batch_size: int = 100
 
     # 생성 — flash 계열은 무료 등급에서 쓸 수 있다(pro 계열은 확인 안 됨).
-    # ⚠️ 2.x 계열(gemini-2.5-flash, 2.0-flash 등)은 요금표에 무료로 적혀 있지만
-    #    신규 계정에서는 404 다: "no longer available to new users".
-    #    models.list() 에는 여전히 나오므로 목록만 보고 고르면 안 되고, 실제로 호출해봐야 안다.
-    chat_model: str = "gemini-3.5-flash"
+    #
+    # ⚠️ models.list() 에 나오는 모델이라고 다 부를 수 있는 게 아니다.
+    #    구세대는 목록에 남아 있으면서 호출하면 404 를 준다:
+    #      "This model models/... is no longer available to new users."
+    #    2026-08-02 실측으로 gemini-2.5-flash-lite 가 그렇게 막혔다.
+    #    <목록만 보고 고르지 말고 반드시 실제로 호출해볼 것.>
+    #
+    # gemini-3.5-flash 에서 flash-lite 로 바꾼 이유 (2026-08-02):
+    #   ① <사고 토큰 문제가 사라진다.> flash 는 사고 토큰이 max_output_tokens 를 함께 먹어
+    #      JSON 이 중간에 잘렸다(evaluator.py 주석의 실측 참고). flash-lite 는 같은 요청에
+    #      thoughtsTokenCount=0 으로 답한다 — 껄 것이 없다.
+    #   ② 비용이 1/4 수준이다(입력 $1.50→$0.30, 출력 $9.00→$2.50 / 1M).
+    #      현재 쓰던 3.5-flash 가 Flash 라인에서 가장 비싼 축이었다.
+    #   ③ 무료 등급 한도는 <모델별로 따로> 잡힌다
+    #      (quotaId: GenerateRequestsPerDayPerProjectPerModel-FreeTier).
+    #      즉 용도별로 모델을 나누면 각각 별도 한도를 받는다.
+    #
+    # ⚠️ 모델을 바꾸면 fallback 수치를 <반드시 다시 재야 한다>. W1 완료 조건의
+    #    "근거 없는 질문 10개 → fallback 10/10" 은 gemini-3.5-flash 기준이었다.
+    chat_model: str = "gemini-3.5-flash-lite"
     max_tokens: int = 1024
 
     # 검색
