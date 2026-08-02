@@ -10,20 +10,33 @@ from pydantic_settings import BaseSettings
 class Settings(BaseSettings):
     database_url: str = "postgresql://alldap:alldap@localhost:5432/alldap"
 
-    # 임베딩과 생성 모두 Google Gemini 를 쓴다. 키 하나로 둘 다 된다.
+    # 생성(답변·질문)은 Google Gemini 를 쓴다.
+    # ⚠️ 임베딩은 더 이상 Gemini 가 아니다 — 아래 Cloudflare 항목 참고.
     google_api_key: str = ""
 
-    # 임베딩 — 모델을 바꾸면 embedding_dim과 DB의 VECTOR(n)도 함께 바꿀 것.
-    # gemini-embedding-001 을 쓰는 이유(gemini-embedding-2 가 아니라):
-    #   ① 문자열 리스트를 주면 각각 개별 임베딩을 돌려준다.
-    #      embedding-2 는 리스트를 통째로 합쳐 벡터 1개를 반환해서,
-    #      청크 100개가 에러 없이 벡터 1개로 뭉개진다. 조용히 깨지는 종류의 버그다.
-    #   ② task_type 파라미터가 이 모델에만 있다 (retriever.py 주석 참고)
-    embedding_model: str = "gemini-embedding-001"
-    # 기본 출력이 3072차원이지만 MRL 기반이라 잘라 쓸 수 있고, 1536은 공식 권장값이다.
-    # DB 컬럼이 VECTOR(1536) 이므로 여기에 맞춘다 → 마이그레이션 불필요.
-    embedding_dim: int = 1536
+    # ── 임베딩: Cloudflare Workers AI ──────────────────────────────────
+    # 2026-08-02 에 gemini-embedding-001(1536차원) 에서 옮겼다.
+    #
+    # ⚠️ 성능 때문이 아니다. 두 모델을 <같은 한국어 검색 벤치마크에서 나란히 잰
+    #    측정치가 존재하지 않는다>. 옮긴 이유는 두 가지다:
+    #      ① 약관 — Gemini 무료 등급은 공식 가격표에 "Used to improve our products: Yes",
+    #         즉 입력을 학습에 쓴다고 적혀 있다. 이 제품은 고객 사내 문서를 받는 것이 목적이다.
+    #         Cloudflare 는 "고객 콘텐츠를 모델 학습에 쓰지 않는다"를 문서에 명시한다.
+    #      ② 한도 — Gemini 무료 한도는 수치가 비공개인데, Cloudflare 는
+    #         10,000 뉴런/일(bge-m3 기준 약 930만 토큰/일)이 공개돼 있고 매일 리셋된다.
+    #    "한국어 성능이 더 좋다"고 말하면 출처를 대라는 순간 무너진다. 그건 W4 에서 직접 잰다.
+    #
+    # 실측(2026-08-02): 차원 1024 / 입력 2개→벡터 2개 / 배치 100개 705ms /
+    #                   응답 경로는 result.data
+    embedding_model: str = "@cf/baai/bge-m3"
+    # ⚠️ 이 값과 DB 의 VECTOR(n) 은 <반드시 함께> 바꿔야 한다.
+    #    하나만 바꾸면 INSERT 할 때까지 아무 에러도 안 나고 조용히 깨진다.
+    #    (현재 1024 ↔ V2__embedding_1024.sql)
+    embedding_dim: int = 1024
+    # Cloudflare 배열 상한은 문서에 없다. 100개가 되는 것은 실측으로 확인했다.
     embedding_batch_size: int = 100
+    cf_account_id: str = ""
+    cf_api_token: str = ""
 
     # 생성 — flash 계열은 무료 등급에서 쓸 수 있다(pro 계열은 확인 안 됨).
     #
