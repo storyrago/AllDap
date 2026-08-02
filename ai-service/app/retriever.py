@@ -139,10 +139,22 @@ def _rerank(query: str, sources: list[Source]) -> list[Source]:
     점수 내림차순으로 온다. id 는 우리가 보낸 contexts 배열의 인덱스다.
     """
     s = get_settings()
+    # ⚠️ preview(앞 200자)가 아니라 <전체 본문>을 넘긴다.
+    #
+    # 🐛 처음엔 preview 를 넘겼고, 그 상태로 "리랭커가 벡터보다 나쁘다"고 판정했다.
+    #    그런데 청크가 500자 단위라 <절반 이상을 리랭커가 못 본> 상태였다.
+    #    정답이 250번째 글자에 있으면 리랭커에게는 없는 것과 같다.
+    #    같은 실수를 judge.py 에서도 냈다(거기가 더 심각했다 — 채점이 통째로 틀렸다).
+    #
+    # 교훈: <판단하는 쪽은 판단 대상이 본 것과 같은 것을 봐야 한다.>
+    #       덜 보여주고 "못 맞힌다"고 판정하면 그건 모델이 아니라 우리 잘못이다.
+    contents = fetch_contents([src.chunk_id for src in sources])
     try:
         result = cf.run(s.reranker_model, {
             "query": query,
-            "contexts": [{"text": src.preview} for src in sources],
+            "contexts": [
+                {"text": contents.get(src.chunk_id, src.preview)} for src in sources
+            ],
         })
         order = [item["id"] for item in result["response"]]
     except Exception as e:  # noqa: BLE001 - 순서 개선 실패가 검색 실패가 되면 안 된다
