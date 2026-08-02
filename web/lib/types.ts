@@ -255,10 +255,10 @@ export interface Paged<T> {
 /* ───────────────────────── 품질 평가 (F-05, W3) ───────────────────────── */
 
 /**
- * ⚠️ 아래 평가 타입들은 아직 "설계상의 약속"이다.
- *    Python 의 /internal/eval/* 은 아직 존재하지 않는다 (W3에서 구현 예정).
- *    DB 스키마(db/V1__init.sql 의 eval_questions / eval_runs / eval_results)에
- *    맞춰 미리 그려둔 것이므로, W3에서 실제 구현과 반드시 대조할 것.
+ * ✅ 2026-08-02: 실제 API 응답과 대조 완료.
+ *    Python 의 /internal/eval/* 과 Spring 의 /api/bots/{botId}/eval/* 이 모두 구현됐고,
+ *    아래 타입은 <실제로 돌려받은 JSON> 을 보고 고친 것이다(더 이상 추측이 아니다).
+ *    다만 `UnansweredQuestion` 만은 여전히 미구현 API 의 약속이다 — 아래 주석 참고.
  */
 
 /** 테스트 질문 1건 (eval_questions) */
@@ -304,20 +304,57 @@ export interface EvalRun {
   /** 응답률: fallback 하지 않고 답한 비율 (0~1) */
   answeredRate: number | null;
   status: EvalRunStatus;
+  /** 이 실행의 대상 질문 수. avgFaithfulness 를 해석하려면 반드시 필요한 분모. 옛 실행은 null */
+  questionCount: number | null;
+  /** 실제로 채점된 질문 수. avgFaithfulness 의 진짜 분모 */
+  scoredCount: number | null;
+  /**
+   * ★ 설정 비교(W4 before/after)에는 <이 값>을 써야 한다.
+   *
+   * `avgFaithfulness` 는 <답을 덜 할수록 저절로 올라간다>. fallback 은 채점에서 빠지므로
+   * 어려운 질문이 fallback 되면 남은 쉬운 질문들만 평균에 남는다(생존 편향).
+   *
+   * 실제로 속았다 — 리랭커 비교에서 충실성이 0.714 → 0.789 로 올랐는데,
+   * 0점짜리 2건이 fallback 된 결과였고 그 2건을 0으로 환산하면 0.714 로 동일했다.
+   *
+   * 이 값은 분모를 전체 질문 수로 되돌린 것이라 답을 덜 하면 같이 내려간다.
+   * 분모를 모르는 옛 실행은 null 이다 — 0 으로 그리면 또 속는다.
+   */
+  overallFaithfulness: number | null;
   createdAt: IsoDateTime;
 }
 
-/** 질문 하나에 대한 채점 결과 (eval_results) */
+/**
+ * 평가 중 검색된 청크 하나 (스냅샷).
+ *
+ * ⚠️ 채팅의 `Source` 와 <다른 타입>이다. 필드가 적다 —
+ *    Python 이 평가 결과에 남기는 건 chunkId / filename / score 셋뿐이라
+ *    documentId·preview 가 없다. 같은 타입인 척하면 화면이
+ *    "왜 여기만 preview 가 비지?" 를 계속 묻게 된다.
+ */
+export interface EvalRetrievedChunk {
+  chunkId: Uuid;
+  filename: string;
+  /** 0~1. 1에 가까울수록 관련성 높음 */
+  score: number | null;
+}
+
+/**
+ * 질문 하나에 대한 채점 결과 (eval_results). 2026-08-02 실제 응답과 대조해 맞춤.
+ *
+ * ⚠️ `faithfulness`/`relevancy` 가 null 이면 <채점하지 못했다>는 뜻이지 0점이 아니다.
+ *    ① 답변이 fallback 이라 채점 대상이 아니었거나 ② 채점 호출이 실패한 경우다.
+ *    화면은 이 둘을 "—" 처럼 <점수가 아닌 표시>로 그려야 한다. 0 으로 그리면 거짓말이 된다.
+ */
 export interface EvalResult {
   id: Uuid;
-  runId: Uuid;
   questionId: Uuid;
-  /** 화면에서 질문 원문을 같이 보여줘야 하므로 Spring 이 조인해서 내려주길 기대한다.
-   *  TODO(W2/W3): 조인 없이 questionId 만 오면 프론트가 별도 조회해야 한다. 확인할 것. */
-  question?: string;
+  question: string;
+  /** 질문 생성 시 함께 만든 기대 답변 */
+  groundTruth: string;
   generatedAnswer: string | null;
-  /** 이 답변이 실제로 참고한 청크들 */
-  retrievedChunks: Source[] | null;
+  /** 이 답변이 실제로 참고한 청크들. 파싱 실패 시 빈 배열. */
+  retrievedChunks: EvalRetrievedChunk[];
   faithfulness: number | null;
   relevancy: number | null;
 }

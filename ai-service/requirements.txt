@@ -7,7 +7,13 @@ pydantic-settings==2.7.0
 psycopg[binary,pool]==3.2.3
 pgvector==0.3.6
 
+# 생성(답변·질문). 임베딩은 Cloudflare 로 옮겼다.
 google-genai==2.16.0
+
+# 임베딩(Cloudflare Workers AI) 호출용.
+# google-genai 가 이미 끌고 오지만, 우리가 직접 import 하므로 명시한다 —
+# 남의 패키지에 딸려온 것에 기대면 그 패키지를 빼는 순간 조용히 깨진다.
+httpx==0.28.1
 
 pymupdf==1.25.1
 python-docx==1.1.2

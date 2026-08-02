@@ -1,11 +1,18 @@
 package com.alldap.api.domain.eval.controller;
 
 import com.alldap.api.domain.eval.dto.EvalQuestionResponse;
+import com.alldap.api.domain.eval.dto.EvalResultResponse;
 import com.alldap.api.domain.eval.dto.EvalRunResponse;
+import com.alldap.api.domain.eval.dto.GenerateQuestionsRequest;
+import com.alldap.api.domain.eval.service.EvalService;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -15,70 +22,94 @@ import java.util.UUID;
 /**
  * 품질 평가 API (PRD §10.1 {@code /api/bots/{botId}/eval/*}). 인증 필요.
  *
- * <p><b>⚠️ 이 컨트롤러는 W3 전까지 전부 미구현이다. 스텁이다.</b>
- * 이유는 Spring 쪽 사정이 아니라 <b>Python 에 {@code /internal/eval/*} 이 아직 없기 때문</b>이다
- * (PRD §10.2 — 해당 엔드포인트는 W3 에서 구현 예정).
- * 질문 자동 생성도 LLM-as-judge 채점도 Python 파이프라인이 해야 하는 일이라
- * Spring 이 먼저 만들 수 있는 게 사실상 없다.
+ * <p><b>W3 이 이 프로젝트의 심장이다.</b> 평가 대시보드가 없으면 그냥 흔한 챗봇 빌더다.
+ * 최종 산출물인 "검색 방식 before/after 비교표"가 이 API 위에서 만들어진다.
  *
- * <p>그런데도 경로를 미리 잡아두는 이유: W3 이 이 프로젝트의 심장이고
- * (일정이 밀리면 위젯을 버리더라도 W3 은 지킨다), 프론트 화면 배치가
- * 이 경로를 전제로 진행되기 때문이다. 서비스 클래스는 만들지 않았다 —
- * 무엇을 호출할지 정해지지 않은 상태에서 서비스를 만들면 존재하지 않는 컨트랙트를 코드로 굳히게 된다.
- *
- * <p>조회 계열(질문 목록·실행 이력)은 eval_* 테이블을 Spring 이 읽어도 되므로
- * Python 없이도 W3 초반에 먼저 붙일 수 있다.
+ * <p><b>userId 는 {@code @AuthenticationPrincipal} 로만 받는다.</b> 쿼리 파라미터나 본문으로 받으면
+ * 남의 id 를 적어 보내는 것만으로 격리가 무너진다. 소유권 확인은 전부 서비스가 하고,
+ * <b>Python 을 부르기 전에</b> 끝난다 — Python 의 {@code /internal/*} 에는 인증이 없기 때문이다.
  */
 @RestController
+@RequiredArgsConstructor
 @RequestMapping("/api/bots/{botId}/eval")
 public class EvalController {
 
-    // TODO(W3): EvalService 를 주입할 것. 지금 만들지 않는 이유는 클래스 주석 참고.
+    private final EvalService evalService;
 
     /**
      * GET /api/bots/{botId}/eval/questions — 테스트 질문 목록.
      *
-     * <p>TODO(W3): 구현. eval_questions 는 Spring 이 읽어도 되는 테이블이라
-     *   EvalQuestionRepository 조회만으로 가능하다. Python 호출이 필요 없다.
+     * <p>Python 을 부르지 않고 DB 를 직접 읽는다. {@code eval_questions} 는
+     * "쓰기 = Python / 읽기 = Spring 도 허용" 테이블이다(AGENTS.md 테이블 소유권).
      */
     @GetMapping("/questions")
-    public ResponseEntity<List<EvalQuestionResponse>> getQuestions(@PathVariable UUID botId) {
-        throw new UnsupportedOperationException("EvalController.getQuestions 미구현 (W3)");
+    public ResponseEntity<List<EvalQuestionResponse>> getQuestions(@AuthenticationPrincipal UUID userId,
+                                                                   @PathVariable UUID botId) {
+        return ResponseEntity.ok(evalService.findQuestions(userId, botId));
     }
 
     /**
-     * POST /api/bots/{botId}/eval/questions — 문서에서 테스트 질문 자동 생성.
+     * POST /api/bots/{botId}/eval/questions/generate — 문서에서 테스트 질문 자동 생성.
      *
-     * <p>TODO(W3): Python 에 {@code POST /internal/eval/questions} 를 먼저 만들어야 한다.
-     *   문서 청크를 골라 LLM 으로 "질문 + 기대 답변" 쌍을 뽑는 작업이므로 Spring 이 할 수 없다.
-     *   생성에 시간이 걸리므로 문서 업로드처럼 202 + 폴링 구조가 될 가능성이 높다.
+     * <p>경로 끝에 {@code /generate} 를 붙인 이유: 같은 {@code /questions} 에 POST 를 두면
+     * "질문을 직접 하나 추가한다"와 구분되지 않는다. 나중에 수동 추가를 붙일 자리를 비워둔다.
+     * (프론트 {@code web/lib/api.ts} 가 이미 이 경로를 가정하고 있다)
+     *
+     * <p>200 이다. 202 가 아닌 이유는 <b>동기 호출</b>이기 때문이다 —
+     * {@code eval_questions} 에는 상태 컬럼이 없어 202 를 줘도 폴링할 대상이 없다.
      */
-    @PostMapping("/questions")
-    public ResponseEntity<Void> generateQuestions(@PathVariable UUID botId) {
-        throw new UnsupportedOperationException("EvalController.generateQuestions 미구현 (W3, Python 선행 필요)");
+    @PostMapping("/questions/generate")
+    public ResponseEntity<List<EvalQuestionResponse>> generateQuestions(
+            @AuthenticationPrincipal UUID userId,
+            @PathVariable UUID botId,
+            @Valid @RequestBody(required = false) GenerateQuestionsRequest request) {
+
+        // 본문 없이 부를 수 있게 둔다. 화면에서 개수를 고르지 않고 "생성" 만 누르는 흐름이 기본이다.
+        int count = request == null ? new GenerateQuestionsRequest(null).countOrDefault()
+                                    : request.countOrDefault();
+        return ResponseEntity.ok(evalService.generateQuestions(userId, botId, count));
     }
 
     /**
-     * POST /api/bots/{botId}/eval/runs — 평가 실행.
+     * POST /api/bots/{botId}/eval/runs — 평가 실행 시작.
      *
-     * <p>TODO(W3): Python 에 {@code POST /internal/eval/runs} 를 먼저 만들어야 한다.
-     *   질문 수만큼 검색·생성·채점이 돌아가 수 분 걸릴 수 있으므로 동기 호출로 두면 안 된다.
-     *   eval_runs.status(running → completed/failed)가 그 비동기 처리를 전제로 만들어진 컬럼이다.
+     * <p><b>202 Accepted 다.</b> 요청을 접수했을 뿐 채점은 아직 끝나지 않았다.
+     * 200 으로 답하면 프론트가 "다 됐다"고 읽고 상태 폴링을 하지 않는다(업로드와 같은 이유).
+     * {@code eval_runs.status} 가 {@code running → completed|failed} 로 바뀌는 것을 폴링해야 한다.
      */
     @PostMapping("/runs")
-    public ResponseEntity<EvalRunResponse> startRun(@PathVariable UUID botId) {
-        throw new UnsupportedOperationException("EvalController.startRun 미구현 (W3, Python 선행 필요)");
+    public ResponseEntity<EvalRunResponse> startRun(@AuthenticationPrincipal UUID userId,
+                                                    @PathVariable UUID botId) {
+        return ResponseEntity.accepted().body(evalService.startRun(userId, botId));
     }
 
     /**
-     * GET /api/bots/{botId}/eval/runs — 평가 이력.
+     * GET /api/bots/{botId}/eval/runs — 평가 실행 이력 (최신순).
      *
-     * <p>TODO(W3): 구현. eval_runs 조회만으로 가능하다(Python 호출 불필요).
-     *   W4 의 before/after 비교표가 이 목록 위에서 만들어진다.
+     * <p>프론트가 이 목록을 폴링해 실행이 끝나는 것을 본다.
+     * W4 의 before/after 비교표도 여기서 두 실행을 골라 만든다 — {@code config} 가 그 축이다.
      */
     @GetMapping("/runs")
-    public ResponseEntity<List<EvalRunResponse>> getRuns(@PathVariable UUID botId) {
-        throw new UnsupportedOperationException("EvalController.getRuns 미구현 (W3)");
+    public ResponseEntity<List<EvalRunResponse>> getRuns(@AuthenticationPrincipal UUID userId,
+                                                         @PathVariable UUID botId) {
+        return ResponseEntity.ok(evalService.findRuns(userId, botId));
+    }
+
+    /**
+     * GET /api/bots/{botId}/eval/runs/{runId}/results — 실행 1회의 질문별 채점 결과.
+     *
+     * <p>경로에 {@code botId} 가 함께 있는 이유는 <b>격리</b>다. {@code runId} 만으로 조회하면
+     * 남의 실행 id 를 알아낸 사람이 그 결과를 볼 수 있다. 서비스가 두 값을 함께 쿼리에 넣는다.
+     *
+     * <p>점수 낮은 순 정렬은 <b>프론트가 한다</b>. 서버는 저장 순서(createdAt)로 주고,
+     * 화면이 "점수 낮은 순 / 미채점 먼저" 처럼 목적에 맞게 정렬한다 —
+     * 정렬 기준이 화면마다 다를 수 있어 서버에 못박지 않는다.
+     */
+    @GetMapping("/runs/{runId}/results")
+    public ResponseEntity<List<EvalResultResponse>> getResults(@AuthenticationPrincipal UUID userId,
+                                                               @PathVariable UUID botId,
+                                                               @PathVariable UUID runId) {
+        return ResponseEntity.ok(evalService.findResults(userId, botId, runId));
     }
 
     // TODO(W3): 미답변(fallback) 집계 API 경로를 확정할 것. 후보: GET /api/bots/{botId}/eval/unanswered

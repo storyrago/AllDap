@@ -82,6 +82,22 @@ public class EvalRun extends BaseEntity {
     @Column(name = "answered_rate", precision = 4, scale = 3)
     private BigDecimal answeredRate;
 
+    /**
+     * 이 실행의 대상 질문 수. <b>{@code avg_*} 를 해석하려면 반드시 필요한 분모다.</b>
+     *
+     * <p>옛 실행(V3 이전)은 null 이다. 그때 몇 문항이었는지 알 수 없어 채워 넣지 않았다 —
+     * 추측해서 넣으면 없는 사실을 지어내는 것이다.
+     */
+    @Column(name = "question_count")
+    private Integer questionCount;
+
+    /**
+     * 실제로 채점된 질문 수. {@code avgFaithfulness}/{@code avgRelevancy} 의 진짜 분모다.
+     * {@code questionCount} 보다 작으면 fallback·처리실패로 빠진 것이 있다는 뜻이다.
+     */
+    @Column(name = "scored_count")
+    private Integer scoredCount;
+
     /** running | completed | failed. Python 이 갱신한다. */
     @Column(name = "status", length = 20, nullable = false)
     private String status;

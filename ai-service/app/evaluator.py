@@ -31,17 +31,29 @@ import json
 import logging
 from uuid import UUID
 
+from google import genai
 from google.genai import types
 from pydantic import BaseModel, Field
 
 from .config import get_settings
 from .db import cursor
-# generator 의 클라이언트를 그대로 쓴다. 같은 코드를 3벌째 복사하지 않으려는 것뿐이다.
-# (_gemini 는 이름 앞에 _ 가 붙어 "모듈 내부용"이라는 뜻이지만, 파이썬은 이를 강제하지 않는다.
-#  약속을 어기는 셈이라 이유를 남긴다 — 아래 TODO 가 해소되면 이 import 도 없어진다.)
-# TODO(W3): _gemini() 가 retriever.py 와 generator.py 에 <이미 2벌> 복사돼 있다.
-#           셋을 공용 모듈 하나로 합치는 건 이 슬라이스와 무관하므로 별도 커밋으로 뺀다.
-from .generator import _gemini
+
+# ⚠️ 이 파일이 <이 프로젝트에서 유일하게 남은 Gemini 사용처>다.
+#    임베딩은 Cloudflare(retriever), 채점도 Cloudflare(judge), 답변 생성도 Cloudflare(generator)로
+#    옮겼고 질문 생성만 Gemini 에 남았다. 남긴 이유는 품질이 아니라 <분리>다 —
+#    질문·답변·채점을 전부 같은 제공자로 두면 셋이 같은 편향을 공유한다.
+#    (예전에는 generator 의 _gemini() 를 빌려 썼는데, generator 가 Cloudflare 로 가면서 여기로 옮겼다)
+_client: genai.Client | None = None
+
+
+def _gemini() -> genai.Client:
+    global _client
+    if _client is None:
+        s = get_settings()
+        if not s.google_api_key:
+            raise RuntimeError("GOOGLE_API_KEY가 설정되지 않았습니다 (.env 확인)")
+        _client = genai.Client(api_key=s.google_api_key)
+    return _client
 
 # uvicorn 이 자기 로거 설정을 그대로 물려주므로 별도 설정 없이 콘솔에 찍힌다.
 # 청크를 건너뛴 이유를 남기는 용도다 — 안 남기면 "4개 요청했는데 3개 나온" 이유를 알 수 없다.
@@ -111,7 +123,10 @@ def make_question(content: str) -> QuestionPair | None:
 
     try:
         resp = _gemini().models.generate_content(
-            model=s.chat_model,
+            # ⚠️ chat_model 이 아니라 <질문 생성 전용 모델>이다.
+            #    무료 한도가 모델별로 잡혀서, 답변 생성과 나눠야 서로의 한도를 안 깎는다.
+            #    (config.py 의 eval_question_model 주석 참고)
+            model=s.eval_question_model,
             contents=f"<내용>\n{content}\n</내용>",
             config=types.GenerateContentConfig(
                 system_instruction=GENERATION_PROMPT,
@@ -120,21 +135,25 @@ def make_question(content: str) -> QuestionPair | None:
                 # response_schema 까지 줘야 필드 이름·타입이 고정된다.
                 response_mime_type="application/json",
                 response_schema=QuestionPair,
-                # ⚠️ 사고(thinking)를 끈다. 성능 튜닝이 아니라 <버그 수정>이다.
+                # ⚠️ 사고(thinking) 설정을 <여기서 주지 않는다>. 모델이 알아서 꺼져 있다.
                 #
-                # gemini-3.5-flash 는 답을 내기 전에 "생각"을 하는데, 그 사고 토큰이
-                # max_output_tokens 를 <함께> 소모한다. 그래서 JSON 자체는 50토큰도 안 되는데
-                # 사고에 1024를 다 써버리고 본문이 중간에 잘린다(finish_reason=MAX_TOKENS).
-                # 잘린 JSON 은 파싱이 안 되므로 그 청크는 조용히 버려진다.
+                # 배경: gemini-3.5-flash 는 답을 내기 전에 "생각"을 하는데, 그 사고 토큰이
+                # max_output_tokens 를 <함께> 소모한다. JSON 자체는 50토큰도 안 되는데
+                # 사고에 1024를 다 써버리고 본문이 중간에 잘렸다(finish_reason=MAX_TOKENS).
+                # 잘린 JSON 은 파싱이 안 되므로 그 청크가 조용히 버려졌다.
+                #   실측(2026-08-02, 같은 청크 5회씩, gemini-3.5-flash):
+                #     사고 켬 → 잘림 3회, 평균 3768ms  /  thinking_budget=0 → 잘림 0회, 평균 1164ms
                 #
-                # 실측(2026-08-02, 같은 청크 5회씩):
-                #   사고 켬 → 성공 2/5, MAX_TOKENS 로 잘림 3회, 평균 3768ms
-                #   사고 끔 → 성공 2/5, 잘림 0회,             평균 1164ms  (나머지는 429 쿼터)
-                # 즉 잘림이 사라지고 3배 빨라진다.
+                # 그래서 한동안 `thinking_config=ThinkingConfig(thinking_budget=0)` 을 넣어뒀는데,
+                # <그 파라미터를 지웠다.> 이유 두 가지 (둘 다 2026-08-02 실측):
+                #   ① gemini-3.5-flash-lite 는 그 인자를 아예 거부한다 — HTTP 400 invalid argument.
+                #      즉 남겨두면 모델을 바꾸는 순간 질문 생성이 통째로 죽는다.
+                #   ② 그리고 애초에 필요가 없다. flash-lite 는 같은 요청에서
+                #      thoughtsTokenCount=0 으로 응답한다(사고를 안 한다). 껄 것이 없다.
                 #
-                # 끄는 게 안전한 이유: 이 작업은 "주어진 문단에서 사실 하나를 뽑아 문제로 만들기"라
-                # 추론이 필요 없다. 반대로 <채팅 답변 생성은 사고를 켜둔다> — 거기선 필요하다.
-                thinking_config=types.ThinkingConfig(thinking_budget=0),
+                # ⚠️ 모델을 <사고하는 모델>로 되돌리면 잘림이 재발한다. 그때는 이 줄을 되살리지 말고
+                #    현행 파라미터인 thinking_level 을 쓸 것 — thinking_budget 은 구버전 이름이라
+                #    모델에 따라 400 이 난다.
             ),
         )
     except Exception as e:  # noqa: BLE001 - 어떤 실패든 이 청크만 건너뛰면 된다

@@ -67,3 +67,37 @@ class EvalQuestionOut(BaseModel):
     source_chunk_id: UUID | None = None
     is_active: bool
     created_at: datetime
+
+
+class EvalRunOut(BaseModel):
+    """평가 실행 1건.
+
+    점수가 전부 `| None` 인 이유:
+      · status='running' 이면 아직 안 나왔다
+      · 채점에 전부 실패했거나 답변이 전부 fallback 이면 평균을 낼 대상이 없다
+    0.0 으로 채우면 "점수가 0점"과 "아직 없음"이 구분되지 않는다.
+    """
+
+    id: UUID
+    status: str
+    config: dict | None = None
+    avg_faithfulness: float | None = None
+    avg_relevancy: float | None = None
+    answered_rate: float | None = None
+    created_at: datetime
+
+
+class EvalResultOut(BaseModel):
+    """질문 1건의 채점 결과.
+
+    faithfulness / relevancy 가 None 이면 <채점하지 못했다>는 뜻이다. 0점이 아니다.
+    (fallback 이라 채점 대상이 아니었거나, 채점 호출이 실패했거나)
+    """
+
+    question_id: UUID
+    question: str
+    ground_truth: str
+    generated_answer: str | None = None
+    retrieved_chunks: list[dict] = []
+    faithfulness: float | None = None
+    relevancy: float | None = None
