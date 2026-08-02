@@ -44,6 +44,7 @@ from pydantic import BaseModel
 
 from . import cf
 from .config import get_settings
+from .retriever import fetch_contents
 from .schemas import Source
 
 _log = logging.getLogger(__name__)
@@ -122,8 +123,22 @@ def score(question: str, ground_truth: str, sources: list[Source], answer: str) 
     """
     s = get_settings()
 
+    # ⚠️ preview(앞 200자)가 아니라 <전체 본문>을 준다.
+    #
+    # 🐛 여기서 실제로 심각한 버그를 냈다(2026-08-02).
+    #    생성 모델은 fetch_contents 로 <전체 본문>을 보고 답하는데(generator._build_context),
+    #    채점자는 preview 만 봤다. 그래서 청크 250번째 글자에 있던 "HR-310" 을
+    #    생성 모델은 읽고 정확히 답했는데 채점자는 못 보고
+    #    <"근거에 없는 내용을 지어냈다"며 0점>을 줬다.
+    #
+    #    답변은 "양식 HR-310을 사용해야 합니다"로 완벽했다. 채점만 틀린 것이다.
+    #    청크가 500자 단위라 <절반 이상이 채점자에게 안 보였다>.
+    #
+    # 교훈: <채점자는 생성 모델이 본 것과 정확히 같은 것을 봐야 한다.>
+    #       하나라도 덜 보면 "근거에 없다"는 판정이 거짓이 된다.
+    contents = fetch_contents([src.chunk_id for src in sources])
     context = "\n\n".join(
-        f"[근거 {i}] (출처: {src.filename})\n{src.preview}"
+        f"[근거 {i}] (출처: {src.filename})\n{contents.get(src.chunk_id, src.preview)}"
         for i, src in enumerate(sources, 1)
     )
     user = (
