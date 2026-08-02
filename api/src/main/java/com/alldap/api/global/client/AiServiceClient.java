@@ -3,11 +3,15 @@ package com.alldap.api.global.client;
 import com.alldap.api.global.client.dto.AiChatRequest;
 import com.alldap.api.global.client.dto.AiChatResponse;
 import com.alldap.api.global.client.dto.AiDocumentResponse;
+import com.alldap.api.global.client.dto.AiEvalQuestionResponse;
+import com.alldap.api.global.client.dto.AiEvalRunResponse;
+import com.alldap.api.global.client.dto.AiGenerateQuestionsRequest;
 import com.alldap.api.global.config.AiServiceProperties;
 import com.alldap.api.global.exception.ApiException;
 import com.alldap.api.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
@@ -46,6 +50,10 @@ import java.util.function.Supplier;
  * GET    /internal/bots/{bot_id}/documents   -> DocumentOut[]
  * DELETE /internal/documents/{doc_id}        -> 204 (본문 없음)
  * POST   /internal/chat                      {bot_id, message, session_id} -> ChatResponse
+ * POST   /internal/bots/{bot_id}/eval/questions/generate  {count} -> EvalQuestionOut[]  (동기)
+ * POST   /internal/bots/{bot_id}/eval/runs   -> 202 + EvalRunOut(status=running)
+ * GET    /internal/bots/{bot_id}/eval/questions           -> EvalQuestionOut[]  (Spring 은 DB 직접 조회)
+ * GET    /internal/bots/{bot_id}/eval/runs                -> EvalRunOut[]       (Spring 은 DB 직접 조회)
  * </pre>
  *
  * <p><b>주의:</b> {@code /internal/*} 에는 인증이 없다. Spring 이 앞단에서 막아준다는 전제다.
@@ -326,6 +334,73 @@ public class AiServiceClient {
                 .body(request)
                 .retrieve()
                 .body(AiChatResponse.class));
+    }
+
+    // ── 품질 평가 (W3) ──────────────────────────────────────────────────
+
+    /**
+     * 문서 청크에서 테스트 질문·정답 쌍을 자동 생성한다. <b>동기</b> 호출이다.
+     *
+     * <p>업로드·평가실행과 달리 202 가 아닌 이유는 Python 쪽 사정이다 —
+     * {@code eval_questions} 에 상태 컬럼이 없어 202 를 줘도 프론트가 폴링할 대상이 없다.
+     * 대신 Python 이 {@code count} 상한(기본 20)으로 응답 시간을 통제한다.
+     *
+     * <p>청크 1개당 LLM 을 1번 부르므로 {@code count} 가 곧 비용이자 지연이다.
+     * 실측 기준 1건당 약 1.2초라 20건이면 25초 안팎 — 읽기 타임아웃(120초) 안이다.
+     *
+     * @param botId 호출 전에 <b>반드시 소유권을 검증</b>할 것. Python 에는 인증이 없다.
+     */
+    public List<AiEvalQuestionResponse> generateEvalQuestions(UUID botId, int count) {
+        return call("평가 질문 생성", () -> aiServiceRestClient.post()
+                        .uri("/internal/bots/{botId}/eval/questions/generate", botId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body(new AiGenerateQuestionsRequest(count))
+                        .retrieve()
+                        .body(new ParameterizedTypeReference<List<AiEvalQuestionResponse>>() {}),
+                this::translateEvalClientError);
+    }
+
+    /**
+     * 평가 실행 시작. Python 이 {@code running} 상태의 실행을 즉시 돌려주고 채점은 백그라운드로 돈다.
+     *
+     * <p>여기는 202 가 성립한다 — {@code eval_runs.status} 라는 <b>폴링할 대상</b>이 있기 때문이다.
+     * 질문 수만큼 (검색 + 생성 + 채점)이 돌아 반드시 수십 초를 넘기므로 동기로 둘 수 없다.
+     */
+    public AiEvalRunResponse startEvalRun(UUID botId) {
+        return call("평가 실행 시작", () -> aiServiceRestClient.post()
+                        .uri("/internal/bots/{botId}/eval/runs", botId)
+                        .retrieve()
+                        .body(AiEvalRunResponse.class),
+                this::translateEvalClientError);
+    }
+
+    /**
+     * <b>평가 전용</b> 4xx 변환. 업로드용({@link #translateUploadClientError})을 재사용하지 말 것.
+     *
+     * <p>재사용하면 어떻게 되는가 — 업로드 매퍼는 400 을 {@code UNSUPPORTED_FILE_TYPE} 으로 바꾼다.
+     * 그러면 <b>"질문을 만들 문서가 없습니다" 상황에 "지원하지 않는 파일 형식입니다"가 나간다.</b>
+     * 사용자는 멀쩡한 파일을 의심하며 엉뚱한 곳을 고치게 된다.
+     *
+     * <p>평가의 400 은 전부 <b>사용자가 고칠 수 있는</b> 상태다. Python 이 이미
+     * "무엇을 어떻게 하면 되는지"까지 담은 한국어로 답한다:
+     * <ul>
+     *   <li>"처리가 끝난 문서가 없습니다. 문서를 올린 뒤 상태가 '준비됨'이 되면…"</li>
+     *   <li>"이미 모든 문서 조각으로 질문을 만들었습니다. 새 문서를 올리거나…"</li>
+     *   <li>"평가할 테스트 질문이 없습니다. 먼저 문서에서 질문을 생성한 뒤…"</li>
+     *   <li>"한 번에 만들 수 있는 질문은 최대 20개입니다…"</li>
+     * </ul>
+     * 그래서 문구를 뭉개지 않고 <b>그대로 내려보낸다</b>(AGENTS.md 작업 규칙 4).
+     * 상태 코드만 400 으로 맞추면 프론트가 "사용자가 고칠 수 있는 문제"로 읽는다.
+     */
+    private ApiException translateEvalClientError(RestClientResponseException e) {
+        if (e.getStatusCode().isSameCodeAs(HttpStatus.BAD_REQUEST)) {
+            return new ApiException(ErrorCode.EVAL_NOT_READY, extractDetail(e));
+        }
+
+        // 422 는 FastAPI 의 요청 검증 실패다 — Spring 이 스키마에 안 맞는 요청을 보낸 것이므로
+        // 사용자 잘못이 아니다. 502 로 답하고 내부 사정을 설명하지 않는다.
+        // 502(=AI_SERVICE_ERROR)는 Python 이 5xx 를 준 503 과 다르다: 여기는 "우리가 잘못 불렀다"이다.
+        return new ApiException(ErrorCode.AI_SERVICE_ERROR);
     }
 
     /**

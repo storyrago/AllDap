@@ -84,6 +84,13 @@ public enum ErrorCode {
     AI_SERVICE_ERROR(HttpStatus.BAD_GATEWAY, "AI_SERVICE_ERROR",
             "답변 처리 중 문제가 발생했습니다. 잠시 후 다시 시도해주세요."),
 
+    // 평가를 아직 돌릴 수 없는 상태. <사용자가 고칠 수 있는> 문제이므로 4xx 다.
+    // 기본 문구는 거의 쓰이지 않는다 — Python 이 상황별로 더 구체적인 한국어를 주고
+    // AiServiceClient 의 eval 매퍼가 그 문구를 그대로 실어 보내기 때문이다.
+    // ("처리가 끝난 문서가 없습니다…", "이미 모든 문서 조각으로 질문을 만들었습니다…" 등)
+    EVAL_NOT_READY(HttpStatus.BAD_REQUEST, "EVAL_NOT_READY",
+            "아직 평가를 실행할 수 없습니다. 문서와 테스트 질문을 먼저 준비해주세요."),
+
     // ── 그 외 ───────────────────────────────────────────────────────────
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_ERROR",
             "일시적인 오류가 발생했습니다. 잠시 후 다시 시도해주세요. 계속되면 문의해주세요."),
