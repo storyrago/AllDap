@@ -1,6 +1,7 @@
 """API 입출력 스키마."""
 from __future__ import annotations
 
+from datetime import datetime
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -35,3 +36,34 @@ class ChatResponse(BaseModel):
     sources: list[Source]
     is_fallback: bool
     latency_ms: int
+
+
+# ── 품질 평가 (W3) ────────────────────────────────────────────────────
+
+class GenerateQuestionsRequest(BaseModel):
+    """테스트 질문 자동 생성 요청.
+
+    count 에 상한을 두는 이유: 청크 1개당 LLM 을 1번 부르므로 이 숫자가 곧 비용이다.
+    상한 없이 받으면 요청 하나로 문서 전체를 태울 수 있고, Spring 의 읽기 타임아웃(120초)도 넘긴다.
+    실제 상한값은 설정(eval_max_questions)에 있고, 라우트에서 그 값과 대조한다.
+    여기 Field 의 le 에 설정값을 못 넣는 이유는 pydantic 모델이 <클래스 정의 시점>에
+    한 번 만들어지기 때문이다 — 그때는 .env 를 읽기 전일 수 있다.
+    """
+
+    count: int = Field(default=10, ge=1, description="만들 질문 수 (상한은 서버 설정)")
+
+
+class EvalQuestionOut(BaseModel):
+    """테스트 질문 1건.
+
+    필드 이름이 snake_case 인 이유: Python 은 snake_case 로 내보내고
+    Spring 이 DTO 로 받아 camelCase 로 바꿔 프론트에 준다 (AGENTS.md 작업 규칙 5).
+    프론트의 EvalQuestion(web/lib/types.ts)과 필드가 1:1 로 대응한다.
+    """
+
+    id: UUID
+    question: str
+    ground_truth: str
+    source_chunk_id: UUID | None = None
+    is_active: bool
+    created_at: datetime

@@ -13,13 +13,19 @@ from uuid import UUID
 
 from fastapi import BackgroundTasks, FastAPI, File, HTTPException, UploadFile
 
-from . import retriever
+from . import evaluator, retriever
 from .chunker import chunk_text
 from .config import get_settings
 from .db import close_pool, cursor
 from .generator import generate
 from .parsers import ParseError, extract_text
-from .schemas import ChatRequest, ChatResponse, DocumentOut
+from .schemas import (
+    ChatRequest,
+    ChatResponse,
+    DocumentOut,
+    EvalQuestionOut,
+    GenerateQuestionsRequest,
+)
 
 
 @asynccontextmanager
@@ -169,3 +175,85 @@ def chat(req: ChatRequest) -> ChatResponse:
         is_fallback=is_fallback,
         latency_ms=latency_ms,
     )
+
+
+# ── 품질 평가 (W3) ───────────────────────────────────────────────────
+
+@app.post(
+    "/internal/bots/{bot_id}/eval/questions/generate",
+    response_model=list[EvalQuestionOut],
+)
+def generate_eval_questions(
+    bot_id: UUID, req: GenerateQuestionsRequest
+) -> list[EvalQuestionOut]:
+    """문서 청크에서 테스트 질문·정답 쌍을 만들어 저장한다.
+
+    왜 <동기>인가 (업로드는 202 인데)
+    ─────────────────────────────────────────────────────────────────────
+    업로드가 202 로 즉시 답하고 백그라운드로 도는 건 `documents.status` 라는
+    <폴링할 행>이 있기 때문이다. 화면이 pending → ready 를 지켜볼 수 있다.
+    그런데 `eval_questions` 에는 상태 컬럼이 없다. 202 를 돌려줘도
+    프론트가 무엇을 폴링해야 할지가 없고, 그걸 만들려면 V2 마이그레이션이 필요하다.
+    게다가 BackgroundTasks 는 프로세스가 죽으면 작업이 유실되는데(위 _process_document 주석),
+    여기엔 "유실됐다"를 적어둘 자리조차 없다.
+    → 대신 count 상한으로 응답 시간을 통제한다. Spring 의 읽기 타임아웃은 120초다.
+    TODO(W3): 실측 지연이 상한에 가까워지면 그때 상태 컬럼(V2)과 함께 비동기로 바꾼다.
+
+    def 이지 async def 가 아닌 이유
+    ─────────────────────────────────────────────────────────────────────
+    Gemini SDK 호출이 <블로킹>이라 async def 안에 두면 이벤트 루프를 통째로 막는다.
+    그러면 이 요청 하나가 도는 동안 다른 채팅·업로드 요청이 전부 멈춘다.
+    일반 def 로 두면 FastAPI(Starlette)가 알아서 스레드풀에서 돌려준다.
+    `/internal/chat` 이 같은 이유로 def 다.
+    """
+    s = get_settings()
+
+    # 상한 검사를 여기서 하는 이유는 GenerateQuestionsRequest 주석 참고(설정값을 늦게 읽는다).
+    if req.count > s.eval_max_questions:
+        raise HTTPException(
+            400,
+            f"한 번에 만들 수 있는 질문은 최대 {s.eval_max_questions}개입니다. "
+            f"개수를 줄여서 다시 시도해주세요.",
+        )
+
+    chunks = evaluator.sample_chunks(bot_id, req.count)
+
+    if not chunks:
+        # 0건인 이유가 둘이고, 관리자가 해야 할 일이 서로 다르다. 갈라서 안내한다.
+        if evaluator.count_ready_chunks(bot_id) == 0:
+            raise HTTPException(
+                400,
+                "처리가 끝난 문서가 없습니다. 문서를 올린 뒤 상태가 '준비됨'이 되면 다시 시도해주세요.",
+            )
+        raise HTTPException(
+            400,
+            "이미 모든 문서 조각으로 질문을 만들었습니다. "
+            "새 문서를 올리거나, 기존 질문을 수정해서 쓰세요.",
+        )
+
+    # ⚠️ LLM 호출은 반드시 cursor() 블록 <밖>이다.
+    #    커넥션 풀이 10개뿐이라(db.py) 수십 초짜리 외부 호출을 트랜잭션 안에 두면
+    #    풀이 말라 이 요청과 무관한 채팅·업로드까지 전부 멈춘다.
+    #    업로드가 `상태 UPDATE → (밖) 임베딩 → INSERT` 로 쪼개져 있는 것과 같은 이유다.
+    pairs = []
+    for chunk_id, content in chunks:
+        pair = evaluator.make_question(content)
+        # None 은 실패가 아니라 "이 청크로는 문제를 못 냈다"이다. 건너뛰고 계속한다.
+        if pair is not None:
+            pairs.append((chunk_id, pair))
+
+    if not pairs:
+        # 청크는 뽑았는데 한 건도 못 만들었다 = 우리 쪽(LLM) 문제다.
+        # 사용자가 입력으로 고칠 수 있는 게 없으므로 4xx 가 아니라 5xx 로 알린다.
+        raise HTTPException(
+            502, "질문을 만들지 못했습니다. 잠시 후 다시 시도해주세요."
+        )
+
+    rows = evaluator.save_questions(bot_id, pairs)
+    return [
+        EvalQuestionOut(
+            id=r[0], question=r[1], ground_truth=r[2],
+            source_chunk_id=r[3], is_active=r[4], created_at=r[5],
+        )
+        for r in rows
+    ]

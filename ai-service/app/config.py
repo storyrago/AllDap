@@ -39,6 +39,16 @@ class Settings(BaseSettings):
 
     upload_max_bytes: int = 20 * 1024 * 1024   # 20MB
 
+    # 평가 (W3)
+    # 한 번 호출에 만들 수 있는 질문 수의 상한. 청크 1개당 LLM 을 1번 부르므로
+    # 이 값이 곧 <비용 상한>이자 <응답 시간 상한>이다.
+    # 20 으로 둔 근거: Spring 의 read-timeout 이 120초(application.yaml)인데
+    # 호출 1건이 수 초 걸리므로 그 안에 들어와야 한다. 실측값은 docs/decisions.md 참고.
+    eval_max_questions: int = 20
+    # 이보다 짧은 청크는 표본에서 뺀다. "1. 총칙" 같은 목차 조각으로는 문제를 낼 수 없고
+    # LLM 호출 비용만 나간다. 청크가 500자 단위라 100자면 "내용이 있다"고 보기에 충분하다.
+    eval_min_chunk_chars: int = 100
+
     class Config:
         env_file = ".env"
         extra = "ignore"
