@@ -74,6 +74,17 @@ class Settings(BaseSettings):
     # 20 으로 둔 근거: Spring 의 read-timeout 이 120초(application.yaml)인데
     # 호출 1건이 수 초 걸리므로 그 안에 들어와야 한다. 실측값은 docs/decisions.md 참고.
     eval_max_questions: int = 20
+
+    # 채점(LLM-as-Judge) 모델. Cloudflare Workers AI 라 임베딩과 같은 계정·토큰을 쓴다.
+    #
+    # ⚠️ <답변 생성 모델(chat_model)과 반드시 달라야 한다.> 같은 모델이 자기 답변을
+    #    채점하면 자기 실수를 그대로 통과시킨다. 자세한 근거는 judge.py 첫 주석 참고.
+    #    지금은 생성 Google Gemini / 채점 Cloudflare Mistral 로 제공자까지 갈라져 있다.
+    #
+    # 이 모델을 고른 근거(2026-08-02 실측): 정답이 정해진 한국어 3케이스
+    # (충실한 답 / 지어낸 답 / 절반만 맞는 답)에서 1 / 0 / 0.5 를 정확히 매겼고 가장 빨랐다.
+    # 후보 비교표는 judge.py 주석에 있다.
+    judge_model: str = "@cf/mistralai/mistral-small-3.1-24b-instruct"
     # 이보다 짧은 청크는 표본에서 뺀다. "1. 총칙" 같은 목차 조각으로는 문제를 낼 수 없고
     # LLM 호출 비용만 나간다. 청크가 500자 단위라 100자면 "내용이 있다"고 보기에 충분하다.
     eval_min_chunk_chars: int = 100

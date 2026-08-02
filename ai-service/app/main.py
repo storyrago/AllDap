@@ -13,7 +13,7 @@ from uuid import UUID
 
 from fastapi import BackgroundTasks, FastAPI, File, HTTPException, UploadFile
 
-from . import evaluator, retriever
+from . import evaluator, evalrun, retriever
 from .chunker import chunk_text
 from .config import get_settings
 from .db import close_pool, cursor
@@ -24,6 +24,8 @@ from .schemas import (
     ChatResponse,
     DocumentOut,
     EvalQuestionOut,
+    EvalResultOut,
+    EvalRunOut,
     GenerateQuestionsRequest,
 )
 
@@ -254,6 +256,118 @@ def generate_eval_questions(
         EvalQuestionOut(
             id=r[0], question=r[1], ground_truth=r[2],
             source_chunk_id=r[3], is_active=r[4], created_at=r[5],
+        )
+        for r in rows
+    ]
+
+
+@app.get("/internal/bots/{bot_id}/eval/questions", response_model=list[EvalQuestionOut])
+def list_eval_questions(bot_id: UUID) -> list[EvalQuestionOut]:
+    """테스트 질문 목록. 비활성(is_active=false) 도 함께 준다 — 화면에서 켜고 꺼야 하기 때문."""
+    with cursor() as cur:
+        cur.execute(
+            """SELECT id, question, ground_truth, source_chunk_id, is_active, created_at
+                 FROM eval_questions WHERE bot_id=%s ORDER BY created_at""",
+            (bot_id,),
+        )
+        rows = cur.fetchall()
+    return [
+        EvalQuestionOut(
+            id=r[0], question=r[1], ground_truth=r[2],
+            source_chunk_id=r[3], is_active=r[4], created_at=r[5],
+        )
+        for r in rows
+    ]
+
+
+@app.post("/internal/bots/{bot_id}/eval/runs", response_model=EvalRunOut, status_code=202)
+def start_eval_run(bot_id: UUID, background: BackgroundTasks) -> EvalRunOut:
+    """평가를 시작한다. 즉시 running 상태의 실행을 돌려주고 채점은 백그라운드에서 진행한다.
+
+    왜 <비동기>인가 — 질문 생성(/eval/questions/generate)은 동기인데
+    ─────────────────────────────────────────────────────────────────────
+    차이는 딱 하나다: **폴링할 대상이 있는가.**
+      · eval_questions 에는 상태 컬럼이 없다 → 202 를 줘도 화면이 볼 게 없다 → 동기
+      · eval_runs 에는 status('running'/'completed'/'failed') 가 있다 → 202 가 성립한다
+    그리고 여기는 질문 수만큼 (검색 + 생성 + 채점)이 돌아 <반드시> 수십 초를 넘긴다.
+    질문 20개면 호출이 40번이다. 동기로 두면 Spring 의 읽기 타임아웃(120초)에 걸린다.
+
+    ⚠️ BackgroundTasks 는 프로세스가 죽으면 작업이 유실된다(업로드와 같은 한계).
+       다만 여기는 유실돼도 status 가 'running' 으로 남아 <흔적이 보인다>.
+       TODO(W4): 오래 running 인 실행을 failed 로 정리하는 절차가 필요하다.
+    """
+    run_id, total = evalrun.create_run(bot_id)
+
+    if total == 0:
+        # 질문이 없으면 돌릴 게 없다. 만들어둔 실행 행은 지워서 빈 실행이 목록에 쌓이지 않게 한다.
+        with cursor(commit=True) as cur:
+            cur.execute("DELETE FROM eval_runs WHERE id=%s", (run_id,))
+        raise HTTPException(
+            400,
+            "평가할 테스트 질문이 없습니다. 먼저 문서에서 질문을 생성한 뒤 다시 시도해주세요.",
+        )
+
+    background.add_task(evalrun.execute, run_id, bot_id)
+
+    with cursor() as cur:
+        cur.execute(
+            "SELECT id, status, config, created_at FROM eval_runs WHERE id=%s", (run_id,)
+        )
+        r = cur.fetchone()
+    return EvalRunOut(id=r[0], status=r[1], config=r[2], created_at=r[3])
+
+
+@app.get("/internal/bots/{bot_id}/eval/runs", response_model=list[EvalRunOut])
+def list_eval_runs(bot_id: UUID) -> list[EvalRunOut]:
+    """실행 이력. 최신순.
+
+    화면은 이 목록을 폴링해 status 가 completed 로 바뀌는 걸 본다.
+    W4 의 before/after 비교표도 이 목록에서 두 실행을 골라 만든다 — config 가 그 축이다.
+    """
+    with cursor() as cur:
+        cur.execute(
+            """SELECT id, status, config, avg_faithfulness, avg_relevancy, answered_rate, created_at
+                 FROM eval_runs WHERE bot_id=%s ORDER BY created_at DESC""",
+            (bot_id,),
+        )
+        rows = cur.fetchall()
+    return [
+        EvalRunOut(
+            id=r[0], status=r[1], config=r[2],
+            # NUMERIC 은 psycopg 가 Decimal 로 준다. float 로 바꿔야 JSON 으로 나간다.
+            avg_faithfulness=float(r[3]) if r[3] is not None else None,
+            avg_relevancy=float(r[4]) if r[4] is not None else None,
+            answered_rate=float(r[5]) if r[5] is not None else None,
+            created_at=r[6],
+        )
+        for r in rows
+    ]
+
+
+@app.get("/internal/eval/runs/{run_id}/results", response_model=list[EvalResultOut])
+def list_eval_results(run_id: UUID) -> list[EvalResultOut]:
+    """질문별 채점 결과. <점수 낮은 순>이 기본 정렬이다.
+
+    잘된 답을 구경하는 화면이 아니라 <못한 답을 찾아 고치는 화면>이기 때문이다.
+    NULL(채점 못 함)을 먼저 보여준다 — 그것도 들여다봐야 할 대상이다.
+    """
+    with cursor() as cur:
+        cur.execute(
+            """SELECT r.question_id, q.question, q.ground_truth,
+                      r.generated_answer, r.retrieved_chunks, r.faithfulness, r.relevancy
+                 FROM eval_results r
+                 JOIN eval_questions q ON q.id = r.question_id
+                WHERE r.run_id = %s
+                ORDER BY r.faithfulness ASC NULLS FIRST, r.relevancy ASC NULLS FIRST""",
+            (run_id,),
+        )
+        rows = cur.fetchall()
+    return [
+        EvalResultOut(
+            question_id=r[0], question=r[1], ground_truth=r[2],
+            generated_answer=r[3], retrieved_chunks=r[4] or [],
+            faithfulness=float(r[5]) if r[5] is not None else None,
+            relevancy=float(r[6]) if r[6] is not None else None,
         )
         for r in rows
     ]
