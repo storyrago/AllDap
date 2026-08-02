@@ -3,6 +3,7 @@ package com.alldap.api.domain.eval.dto;
 import com.alldap.api.domain.eval.entity.EvalResult;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -20,8 +21,12 @@ import java.util.UUID;
  * <p>{@code retrievedChunks} 를 함께 주는 이유: 점수가 낮을 때 원인이
  * "검색이 엉뚱한 걸 가져왔다"인지 "근거는 맞는데 생성이 틀렸다"인지 구분해야 하기 때문이다.
  * 이 구분이 W4 에서 <b>무엇을 고칠지</b>를 결정한다.
- * JSON 원문 그대로 내보낸다 — 구조가 Python 소관이라 Spring 이 record 로 못박으면
- * Python 이 필드를 하나 추가할 때마다 값을 잃는다.
+ *
+ * <p>JSON 문자열이 아니라 <b>파싱된 목록</b>으로 내려보낸다.
+ * {@code MessageResponse.sources} 와 같은 방식이다 — 프론트가 문자열을 다시 파싱하게 만들면
+ * 그 파싱 규칙이 두 벌(서버·클라이언트)이 되고, 언젠가 어긋난다.
+ * 파싱은 서비스가 하고 <b>실패해도 예외를 던지지 않는다</b>:
+ * 결과 한 건의 JSON 이 깨졌다고 리포트 전체가 500 이 되면 안 된다.
  */
 public record EvalResultResponse(
         UUID id,
@@ -29,20 +34,20 @@ public record EvalResultResponse(
         String question,
         String groundTruth,
         String generatedAnswer,
-        /** 이 답변이 참고한 청크 스냅샷 (JSON 원문) */
-        String retrievedChunks,
+        /** 이 답변이 참고한 청크 스냅샷. 파싱 실패 시 빈 목록. */
+        List<EvalRetrievedChunkResponse> retrievedChunks,
         BigDecimal faithfulness,
         BigDecimal relevancy
 ) {
 
-    public static EvalResultResponse from(EvalResult result) {
+    public static EvalResultResponse from(EvalResult result, List<EvalRetrievedChunkResponse> chunks) {
         return new EvalResultResponse(
                 result.getId(),
                 result.getQuestion().getId(),
                 result.getQuestion().getQuestion(),
                 result.getQuestion().getGroundTruth(),
                 result.getGeneratedAnswer(),
-                result.getRetrievedChunks(),
+                chunks,
                 result.getFaithfulness(),
                 result.getRelevancy()
         );

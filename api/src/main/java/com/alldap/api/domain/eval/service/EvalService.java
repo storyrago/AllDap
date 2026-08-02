@@ -3,8 +3,10 @@ package com.alldap.api.domain.eval.service;
 import com.alldap.api.domain.bot.repository.BotRepository;
 import com.alldap.api.domain.eval.dto.EvalQuestionResponse;
 import com.alldap.api.domain.eval.dto.EvalResultResponse;
+import com.alldap.api.domain.eval.dto.EvalRetrievedChunkResponse;
 import com.alldap.api.domain.eval.dto.EvalRunResponse;
 import com.alldap.api.domain.eval.repository.EvalQuestionRepository;
+import com.alldap.api.domain.eval.entity.EvalResult;
 import com.alldap.api.domain.eval.repository.EvalResultRepository;
 import com.alldap.api.domain.eval.repository.EvalRunRepository;
 import com.alldap.api.global.client.AiServiceClient;
@@ -15,6 +17,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.ObjectMapper;
 
 import java.util.List;
@@ -138,8 +141,31 @@ public class EvalService {
                         "해당 평가 실행을 찾을 수 없습니다."));
 
         return evalResultRepository.findAllByRunIdOrderByCreatedAtAsc(runId).stream()
-                .map(EvalResultResponse::from)
+                .map(r -> EvalResultResponse.from(r, parseChunks(r)))
                 .toList();
+    }
+
+    /**
+     * {@code eval_results.retrieved_chunks}(JSONB 문자열) → DTO 목록.
+     *
+     * <p><b>실패해도 예외를 던지지 않는다.</b> 결과 한 건의 JSON 이 깨졌다고
+     * 리포트 전체가 500 이 되면 안 된다 — 점수는 멀쩡히 있는데 화면이 통째로 안 뜨는 게 더 나쁘다.
+     * 빈 목록을 돌려주면 "근거를 못 보여줄 뿐" 나머지는 다 보인다.
+     * ({@code ConversationLogService.parseSources} 와 같은 판단)
+     */
+    private List<EvalRetrievedChunkResponse> parseChunks(EvalResult result) {
+        String json = result.getRetrievedChunks();
+        if (json == null || json.isBlank()) {
+            return List.of();
+        }
+        try {
+            return objectMapper.readValue(json, new TypeReference<List<EvalRetrievedChunkResponse>>() {
+            });
+        } catch (RuntimeException e) {
+            log.warn("[eval] retrieved_chunks JSON 파싱 실패 — resultId={} 는 근거 없이 내려보낸다.",
+                    result.getId(), e);
+            return List.of();
+        }
     }
 
     /**

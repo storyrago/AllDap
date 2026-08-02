@@ -349,11 +349,8 @@ export const api = {
   /**
    * 품질 평가 (F-05, W3)
    *
-   * ⚠️ 이 블록은 전부 아직 존재하지 않는 API 다.
-   *    Python 의 /internal/eval/* 이 W3에서 만들어지고,
-   *    그 앞단에 Spring 의 /api/bots/{botId}/eval/* 이 붙는 순서다.
-   *    경로 이름은 PRD §10.1 의 "POST/GET /api/bots/{botId}/eval/*" 에서 추정한 것이므로
-   *    W3에서 실제 구현과 대조해 고칠 것.
+   * ✅ 2026-08-02: 아래 경로들은 <실제로 구현되어 동작한다>. 추정이 아니다.
+   *    (예외: updateQuestion 과 listUnanswered 는 아직 미구현 — 각 주석 참고)
    */
   evaluation: {
     /** 테스트 질문 목록 */
@@ -365,7 +362,7 @@ export const api = {
         method: "POST",
         body: { count },
       }),
-    /** 질문 비활성화/수정 */
+    /** ⚠️ 미구현 — Spring 에 PATCH 엔드포인트가 아직 없다. 화면에서 부르지 말 것. */
     updateQuestion: (
       botId: Uuid,
       questionId: Uuid,
@@ -384,7 +381,7 @@ export const api = {
     /** 실행 1건의 질문별 상세 채점 결과 */
     getRunResults: (botId: Uuid, runId: Uuid) =>
       request<EvalResult[]>(`/api/bots/${botId}/eval/runs/${runId}/results`),
-    /** 실사용 중 fallback 된 질문 집계 (messages 를 Spring 이 집계) */
+    /** ⚠️ 미구현 — Spring 에 아직 없다(messages 집계가 필요하다). 화면에서 부르지 말 것. */
     listUnanswered: (botId: Uuid) =>
       request<UnansweredQuestion[]>(`/api/bots/${botId}/eval/unanswered`),
   },
