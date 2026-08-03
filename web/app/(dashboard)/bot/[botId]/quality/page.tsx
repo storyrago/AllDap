@@ -58,6 +58,11 @@ export default function QualityPage() {
   const [results, setResults] = useState<EvalResult[]>([]);
   const [resultsLoading, setResultsLoading] = useState(false);
 
+  /* 맨 위 문항 스트립이 쓰는 <최신 실행>의 질문별 결과.
+     아코디언용 results 와 <일부러 분리했다> — 이력에서 옛 실행을 펼치면
+     results 가 그걸로 바뀌는데, 그때 위쪽 스트립까지 옛 실행으로 바뀌면 안 된다. */
+  const [latestResults, setLatestResults] = useState<EvalResult[]>([]);
+
   const load = useCallback(async () => {
     try {
       // 두 요청은 서로를 기다릴 이유가 없다. Promise.all 로 동시에 보낸다.
@@ -68,6 +73,16 @@ export default function QualityPage() {
       setQuestions(q);
       setRuns(r);
       setError(null);
+
+      /* 최신 <완료된> 실행의 문항별 결과를 미리 받아둔다.
+         스트립이 이 화면의 핵심 정보라 펼치기 전에도 보여야 한다.
+         running 인 실행은 아직 결과가 없으므로 건너뛴다. */
+      const newest = r.find((x) => x.status === "completed");
+      if (newest) {
+        setLatestResults(await api.evaluation.getRunResults(botId, newest.id));
+      } else {
+        setLatestResults([]);
+      }
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "평가 정보를 불러오지 못했습니다.");
     } finally {
@@ -184,7 +199,7 @@ export default function QualityPage() {
         <p className="mt-6 text-sm text-muted">불러오는 중…</p>
       ) : (
         <>
-          <ScoreCards run={latest} />
+          <MeasurementBand run={latest} results={latestResults} />
           <QuestionSection
             questions={questions}
             activeCount={activeCount}
@@ -215,85 +230,217 @@ function fmt(v: number | null | undefined): string {
   return v === null || v === undefined ? "—" : v.toFixed(3);
 }
 
-/** ① 점수 카드 — 최근 실행의 세 숫자 */
-function ScoreCards({ run }: { run: EvalRun | null }) {
-  /*
-   * ★ 전체 충실성을 <맨 앞>에 둔다. 설정을 비교할 때 봐야 하는 값이 이것이기 때문이다.
-   *
-   * "충실성"(avgFaithfulness)은 답한 것들만의 평균이라 <답을 덜 할수록 올라간다>.
-   * 리랭커 비교에서 실제로 0.714 → 0.789 로 "개선"돼 보였는데, 0점짜리 2건이
-   * fallback 되어 채점에서 빠진 결과였다. 전체 충실성으로 보면 0.714 → 0.714, 변화 없음이었다.
-   * 큰 글씨로 먼저 보이는 숫자가 속이는 숫자면 안 된다.
-   */
-  const cards = [
-    {
-      label: "전체 충실성",
-      hint: "전체 질문 대비 · 설정 비교는 이 값으로",
-      value: run?.overallFaithfulness,
-      primary: true,
-    },
-    { label: "충실성", hint: "답한 것들 중 · 답을 덜 하면 올라간다", value: run?.avgFaithfulness },
-    { label: "관련성", hint: "답한 것들 중 · 질문에 맞는 답인가", value: run?.avgRelevancy },
-    { label: "응답률", hint: "fallback 하지 않고 답한 비율", value: run?.answeredRate },
-  ];
+/* ─────────────────────────────────────────────────────────────────────────────
+ * ① 계측 밴드 — 이 화면의 뼈대
+ * ─────────────────────────────────────────────────────────────────────────────
+ * 흔한 대시보드는 지표 4개를 <같은 크기 카드 4장>으로 늘어놓는다. 여기서는
+ * 일부러 그러지 않았다. 이 화면의 지표 넷 중 <셋은 혼자 보면 속는 값>이기 때문이다:
+ *   · 충실성  — 답을 덜 할수록 저절로 올라간다(생존 편향)
+ *   · 응답률  — 근거 없이 마구 답해도 올라간다
+ *   · 관련성  — 위 둘과 같은 분모를 쓴다
+ * 넷을 같은 크기로 그리면 "아무거나 봐도 된다"는 <설계상의 거짓말>이 된다.
+ * 그래서 믿을 수 있는 하나만 크게 두고 나머지는 한 줄로 낮췄다.
+ *
+ * 그리고 큰 숫자 옆에는 <항상 분모 막대>가 붙는다. 이 프로젝트가 낸 버그 셋 중
+ * 둘이 "분모를 안 보고 평균을 읽은 것"이었다. 숫자만 크게 그리면 같은 실수를 부른다.
+ */
+function MeasurementBand({ run, results }: { run: EvalRun | null; results: EvalResult[] }) {
+  const scored = run?.scoredCount ?? null;
+  const total = run?.questionCount ?? null;
+  const ratio = scored !== null && total ? scored / total : null;
 
   return (
-    <section className="mb-8 mt-6">
-      <h2 className="mb-2 text-sm font-semibold">최근 평가 점수</h2>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {/*
-          ★ 카드는 <한눈에 달라 보여야 한다.> 이 화면의 존재 이유가
-          "속기 쉬운 충실성 대신 전체 충실성을 봐라"이기 때문이다.
-          예전엔 accent 5% 틴트였는데 따뜻한 배경 위에서 거의 안 보였다 —
-          강조를 의도했는데 강조가 안 되면 없는 것만 못하다.
-          그래서 <반전>시켰다. 어두운 카드 하나가 흰 카드 셋 사이에 있으면
-          설명 없이도 "이게 기준값"으로 읽힌다. 히어로의 프라이머리 버튼과 같은 처리다.
-        */}
-        {cards.map((c) => (
-          <div
-            key={c.label}
-            className={`rounded-lg border px-4 py-3 ${
-              c.primary
-                ? "border-foreground bg-foreground text-surface"
-                : "border-subtle bg-surface"
-            }`}
-          >
-            {/* 어두운 카드 위에서는 text-muted(#7C716E)가 거의 안 읽힌다.
-                같은 "보조 글자" 역할을 흰색의 투명도로 낸다. */}
-            <p className={`text-xs ${c.primary ? "text-surface/70" : "text-muted"}`}>
-              {c.primary && "★ "}
-              {c.label}
+    <section className="mb-10 mt-6">
+      <p className="text-[11px] font-medium tracking-[0.01em] text-muted">측정 기준값</p>
+
+      <div className="mt-3 rounded-2xl bg-foreground px-6 py-7 text-surface sm:px-8">
+        <div className="flex flex-wrap items-end gap-x-10 gap-y-6">
+          <div>
+            <p className="text-[11px] font-medium tracking-[0.01em] text-surface/60">
+              전체 충실성
             </p>
-            <p className="mt-1 text-2xl font-semibold tabular-nums">{fmt(c.value)}</p>
-            <p className={`mt-1 text-xs ${c.primary ? "text-surface/70" : "text-muted"}`}>
-              {c.hint}
+            {/* Pretendard 는 100~900 가변이다. 굵기 대비를 크게 벌려 <숫자가 주인공>이 되게 한다. */}
+            <p className="mt-1 text-6xl font-extrabold leading-none tracking-tight tabular-nums sm:text-7xl">
+              {fmt(run?.overallFaithfulness)}
             </p>
           </div>
-        ))}
+
+          {/* 분모 막대. 이 화면의 규칙: <숫자는 분모 없이 읽지 않는다.> */}
+          <div className="min-w-[200px] flex-1 pb-1">
+            <div className="flex items-baseline justify-between text-[11px] text-surface/60">
+              <span className="tracking-[0.01em]">채점된 문항</span>
+              <span className="tabular-nums">
+                {scored ?? "—"} / {total ?? "—"}
+              </span>
+            </div>
+            <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-surface/15">
+              <div
+                className="h-full rounded-full bg-accent transition-[width] duration-500"
+                style={{ width: ratio !== null ? `${ratio * 100}%` : "0%" }}
+              />
+            </div>
+            <p className="mt-2 text-[11px] leading-relaxed text-surface/55">
+              막대가 덜 차 있으면 그만큼 표본이 줄어든 것입니다. 점수가 정직해도 표본이 줄었다는
+              사실은 따로 봐야 합니다.
+            </p>
+          </div>
+        </div>
+
+        {/* 보조 지표 — 카드로 나란히 놓지 않는다. 위 주석 참고. */}
+        <dl className="mt-7 flex flex-wrap gap-x-10 gap-y-4 border-t border-surface/15 pt-5">
+          <SecondaryMetric
+            label="충실성"
+            value={run?.avgFaithfulness}
+            caution="답을 덜 하면 올라갑니다"
+          />
+          <SecondaryMetric label="관련성" value={run?.avgRelevancy} />
+          <SecondaryMetric
+            label="응답률"
+            value={run?.answeredRate}
+            caution="높다고 좋은 게 아닙니다"
+          />
+        </dl>
       </div>
 
       {run ? (
-        <p className="mt-2 text-xs text-muted">
+        <p className="mt-3 text-xs text-muted">
           {new Date(run.createdAt).toLocaleString("ko-KR")} 실행 · 상태 {run.status}
-          {run.questionCount !== null && (
-            <> · 질문 {run.questionCount}건 중 {run.scoredCount}건 채점</>
-          )}
         </p>
       ) : (
-        <p className="mt-2 text-xs text-muted">아직 실행한 평가가 없습니다.</p>
+        <p className="mt-3 text-xs text-muted">아직 실행한 평가가 없습니다.</p>
       )}
 
-      <p className="mt-2 text-xs text-muted">
-        ⚠️ 응답률은 높다고 무조건 좋은 게 아닙니다. 근거 없이 답하면 응답률은 올라가고 충실성은
-        떨어집니다.
-      </p>
-      <p className="mt-1 text-xs text-muted">
-        ⚠️ <strong>반대 방향이 더 위험합니다.</strong> &ldquo;충실성&rdquo;은 답한 것들만의
-        평균이라 <strong>답을 덜 할수록 저절로 올라갑니다.</strong> 그래서 설정을 비교할 때는
-        분모를 전체 질문으로 되돌린 <strong>&ldquo;전체 충실성&rdquo;</strong>을 봐야 합니다.
-        (리랭커 실험에서 충실성은 0.714→0.789 로 올랐지만 전체 충실성은 0.714 로 변화가 없었습니다)
-      </p>
+      <QuestionStrip results={results} />
+
+      {/* ⚠️ 아래 두 문단은 <제품의 핵심 경고>다. 디자인을 이유로 줄이지 말 것. */}
+      <div className="mt-6 space-y-1.5 border-l-2 border-warning pl-4 text-xs leading-relaxed text-muted">
+        <p>
+          <strong className="text-warning">응답률이 높다고 좋은 게 아닙니다.</strong> 근거 없이
+          답하면 응답률은 올라가고 충실성은 떨어집니다.
+        </p>
+        <p>
+          <strong className="text-warning">반대 방향이 더 위험합니다.</strong>{" "}
+          &ldquo;충실성&rdquo;은 답한 것들만의 평균이라{" "}
+          <strong>답을 덜 할수록 저절로 올라갑니다.</strong> 그래서 설정을 비교할 때는 분모를
+          전체 질문으로 되돌린 <strong>&ldquo;전체 충실성&rdquo;</strong>을 봐야 합니다.
+          (리랭커 실험에서 충실성은 0.714→0.789 로 올랐지만 전체 충실성은 0.714 로 변화가
+          없었습니다)
+        </p>
+      </div>
     </section>
+  );
+}
+
+function SecondaryMetric({
+  label,
+  value,
+  caution,
+}: {
+  label: string;
+  value: number | null | undefined;
+  caution?: string;
+}) {
+  return (
+    <div>
+      <dt className="text-[11px] tracking-[0.01em] text-surface/50">{label}</dt>
+      <dd className="mt-0.5 text-xl font-semibold tabular-nums">{fmt(value)}</dd>
+      {caution && <p className="mt-0.5 text-[11px] text-surface/45">⚠ {caution}</p>}
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+ * 문항 스트립 — 이 화면의 시그니처
+ * ─────────────────────────────────────────────────────────────────────────────
+ * 평가 한 번은 <시험 한 회차>다. 평균 하나로 뭉개면 "어디가 약한가"가 사라진다.
+ * 그래서 문항을 하나씩 칸으로 세워 <한눈에> 보게 했다. 칸을 누르면 그 문항이 아래 뜬다.
+ *
+ * 🔴 네 상태를 <반드시> 구분한다. 특히 뒤 둘을 섞으면 안 된다:
+ *      거절(fallback) = 근거가 없어 답하지 않은 것 → <제품이 제대로 동작한 것이다>
+ *      측정 실패      = 호출 자체가 실패한 것       → 우리 인프라 문제이지 품질이 아니다
+ *    이 둘을 같은 색으로 칠하면 "쿼터가 모자란 날"이 "품질이 나쁜 날"로 읽힌다.
+ *    실제로 그 구분을 놓쳐 응답률이 거짓말을 한 적이 있다(docs/decisions.md).
+ */
+type Outcome = "ok" | "weak" | "declined" | "unmeasured";
+
+function classify(r: EvalResult): Outcome {
+  if (r.generatedAnswer === null) return "unmeasured";
+  if (r.faithfulness === null) return "declined";
+  return r.faithfulness >= 0.8 ? "ok" : "weak";
+}
+
+const OUTCOME: Record<Outcome, { cell: string; dot: string; label: string }> = {
+  ok: { cell: "bg-foreground", dot: "bg-foreground", label: "근거대로 답함" },
+  weak: { cell: "bg-warning", dot: "bg-warning", label: "근거에서 벗어남" },
+  declined: {
+    cell: "border border-subtle bg-surface",
+    dot: "border border-subtle bg-surface",
+    label: "거절 — 근거 없음(정상 동작)",
+  },
+  unmeasured: {
+    cell: "border border-dashed border-danger/60 bg-danger-surface",
+    dot: "border border-dashed border-danger/60 bg-danger-surface",
+    label: "측정 실패 — 품질과 무관",
+  },
+};
+
+function QuestionStrip({ results }: { results: EvalResult[] }) {
+  const [picked, setPicked] = useState<number | null>(null);
+  if (results.length === 0) return null;
+
+  const shown = picked !== null ? results[picked] : null;
+
+  return (
+    <div className="mt-7">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <p className="text-[11px] font-medium tracking-[0.01em] text-muted">문항별 결과</p>
+        <p className="text-[11px] text-muted">칸을 누르면 그 문항이 아래에 나옵니다</p>
+      </div>
+
+      {/* 칸 하나 = 문항 하나. 순서는 테스트셋의 실제 순서다(장식용 번호가 아니다). */}
+      <div className="mt-2 flex flex-wrap gap-1.5">
+        {results.map((r, i) => {
+          const o = OUTCOME[classify(r)];
+          const on = picked === i;
+          return (
+            <button
+              key={r.id}
+              type="button"
+              onClick={() => setPicked(on ? null : i)}
+              title={`${i + 1}. ${r.question}`}
+              aria-label={`${i + 1}번 문항 — ${o.label}`}
+              aria-pressed={on}
+              className={`h-8 w-6 rounded-[3px] transition ${o.cell} ${
+                on ? "ring-2 ring-accent ring-offset-2 ring-offset-background" : "hover:opacity-70"
+              }`}
+            />
+          );
+        })}
+      </div>
+
+      <ul className="mt-3 flex flex-wrap gap-x-5 gap-y-1.5 text-[11px] text-muted">
+        {(Object.keys(OUTCOME) as Outcome[]).map((k) => (
+          <li key={k} className="flex items-center gap-1.5">
+            <span className={`h-2.5 w-2 rounded-[2px] ${OUTCOME[k].dot}`} />
+            {OUTCOME[k].label}
+          </li>
+        ))}
+      </ul>
+
+      {shown && (
+        <div className="mt-3 rounded-lg border border-subtle bg-surface px-4 py-3">
+          <p className="text-sm font-medium">
+            <span className="mr-2 tabular-nums text-muted">{(picked ?? 0) + 1}</span>
+            {shown.question}
+          </p>
+          <p className="mt-1.5 text-xs text-muted">기대: {shown.groundTruth}</p>
+          <p className="mt-1 text-xs">실제: {shown.generatedAnswer ?? "(답변 없음)"}</p>
+          <p className="mt-2 text-xs tabular-nums text-muted">
+            충실성 {fmt(shown.faithfulness)} · 관련성 {fmt(shown.relevancy)}
+          </p>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -330,16 +477,21 @@ function QuestionSection({
           아직 테스트 질문이 없습니다. 문서를 올린 뒤 &ldquo;문서에서 질문 생성&rdquo;을 눌러주세요.
         </p>
       ) : (
-        <ul className="divide-y divide-subtle rounded-lg border border-subtle bg-surface">
-          {questions.map((q) => (
-            <li key={q.id} className="px-4 py-3">
-              <p className="text-sm">{q.question}</p>
-              <p className="mt-1 text-xs text-muted">기대 답변: {q.groundTruth}</p>
-              {!q.isActive && (
-                <span className="mt-1 inline-block rounded-full bg-foreground/10 px-2 py-0.5 text-xs text-muted">
-                  비활성 — 평가에서 제외됨
-                </span>
-              )}
+        <ul className="divide-y divide-subtle overflow-hidden rounded-lg border border-subtle bg-surface">
+          {questions.map((q, i) => (
+            <li key={q.id} className="flex gap-3 px-4 py-3">
+              {/* 번호는 장식이 아니다 — 위 문항 스트립의 <같은 번호 칸>과 같은 문항이다.
+                  스트립에서 못 맞힌 칸을 보고 여기서 그 번호를 찾는 흐름을 위해 붙였다. */}
+              <span className="w-5 shrink-0 pt-0.5 text-xs tabular-nums text-muted">{i + 1}</span>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm">{q.question}</p>
+                <p className="mt-1 text-xs text-muted">기대 답변: {q.groundTruth}</p>
+                {!q.isActive && (
+                  <span className="mt-1 inline-block rounded-full bg-foreground/10 px-2 py-0.5 text-xs text-muted">
+                    비활성 — 평가에서 제외됨
+                  </span>
+                )}
+              </div>
             </li>
           ))}
         </ul>
@@ -385,26 +537,37 @@ function RunSection({
                 className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-foreground/5"
               >
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm tabular-nums">
-                    <strong>전체 충실성 {fmt(run.overallFaithfulness)}</strong>
-                    <span className="text-muted">
-                      {" "}· 충실성 {fmt(run.avgFaithfulness)} · 관련성 {fmt(run.avgRelevancy)} ·
-                      응답률 {fmt(run.answeredRate)}
+                  <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                    {/* 비교의 기준값을 크게. 나머지 셋은 같은 줄에 작게 —
+                        위 계측 밴드와 <같은 위계>를 유지해야 화면이 한 가지 말을 한다. */}
+                    <span className="text-lg font-semibold tabular-nums">
+                      {fmt(run.overallFaithfulness)}
                     </span>
-                  </p>
-                  <p className="mt-0.5 text-xs text-muted">
-                    {new Date(run.createdAt).toLocaleString("ko-KR")}
+                    <span className="text-xs tabular-nums text-muted">
+                      충실성 {fmt(run.avgFaithfulness)} · 관련성 {fmt(run.avgRelevancy)} · 응답률{" "}
+                      {fmt(run.answeredRate)}
+                    </span>
                     {run.questionCount !== null && (
-                      <> · {run.scoredCount}/{run.questionCount} 채점</>
+                      <span className="text-xs tabular-nums text-muted">
+                        {run.scoredCount}/{run.questionCount} 채점
+                      </span>
                     )}
+                  </div>
+                  {/* 설정을 칩으로 떼어놓는다. W4 비교는 <어느 설정이 달랐나>를 눈으로
+                      훑는 일이라, 문장 안에 섞여 있으면 두 실행을 비교할 수가 없다. */}
+                  <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                    <span className="text-xs text-muted">
+                      {new Date(run.createdAt).toLocaleString("ko-KR")}
+                    </span>
                     {run.config && (
                       <>
-                        {" · "}topK {run.config.topK} · maxDistance {run.config.maxDistance}
-                        {run.config.hybrid ? " · 하이브리드" : ""}
-                        {run.config.reranker ? " · 리랭커" : ""}
+                        <ConfigChip label={`topK ${run.config.topK}`} />
+                        <ConfigChip label={`거리 ${run.config.maxDistance}`} />
+                        {run.config.hybrid && <ConfigChip label="하이브리드" on />}
+                        {run.config.reranker && <ConfigChip label="리랭커" on />}
                       </>
                     )}
-                  </p>
+                  </div>
                 </div>
                 <StatusBadge status={run.status} />
               </button>
@@ -434,6 +597,19 @@ function RunSection({
         TODO(W4): 두 실행을 체크박스로 골라 좌우로 나란히 놓고 점수 차이를 +/- 로 표시할 것.
       </p>
     </section>
+  );
+}
+
+/** 실행 설정 칩. 켜진 것(하이브리드·리랭커)은 강조해서 <무엇이 달랐는지>가 먼저 보이게 한다. */
+function ConfigChip({ label, on }: { label: string; on?: boolean }) {
+  return (
+    <span
+      className={`rounded px-1.5 py-0.5 text-[11px] tabular-nums ${
+        on ? "bg-foreground text-surface" : "bg-foreground/8 text-muted"
+      }`}
+    >
+      {label}
+    </span>
   );
 }
 
