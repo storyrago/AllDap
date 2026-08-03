@@ -108,7 +108,7 @@ export default function AuthPage() {
             onClick={() => switchMode(value)}
             className={`flex-1 rounded-md px-3 py-2 text-sm transition ${
               mode === value
-                ? "bg-accent text-white"
+                ? "bg-foreground text-surface"
                 : "text-muted hover:text-foreground"
             }`}
           >
@@ -162,7 +162,7 @@ export default function AuthPage() {
           <p
             /* role="alert" 를 붙이면 스크린리더가 이 문구를 즉시 읽는다. 에러는 놓치면 안 되는 정보다. */
             role="alert"
-            className="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300"
+            className="rounded-md border border-danger bg-danger-surface px-3 py-2 text-sm text-danger"
           >
             {error}
           </p>
@@ -171,7 +171,7 @@ export default function AuthPage() {
         <button
           type="submit"
           disabled={submitting}
-          className="w-full rounded-md bg-accent px-4 py-2.5 text-sm font-medium text-white disabled:opacity-50"
+          className="w-full rounded-md bg-foreground px-4 py-2.5 text-sm font-medium text-surface disabled:opacity-50"
         >
           {submitting ? "처리 중…" : isSignup ? "가입하고 시작하기" : "로그인"}
         </button>

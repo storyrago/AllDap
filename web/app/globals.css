@@ -42,24 +42,37 @@ U+2600-26FF,U+3000-303F,U+1100-11FF,U+3130-318F,U+FF01-FF60" \
      (ks.txt = U+AC00..U+D7A3 중 iso2022_kr 로 인코딩되는 음절 = KS X 1001 2,350자)
 */
 
-:root {
-  --background: #f8fafc; /* 대시보드 바탕 (아주 옅은 회색) */
-  --foreground: #0f172a; /* 본문 글자 */
-  --surface: #ffffff; /* 카드 배경 */
-  --border-subtle: rgba(15, 23, 42, 0.12);
-  --muted: rgba(15, 23, 42, 0.55);
-  --accent: #2563eb; /* 브랜드 포인트 색 */
-}
+/* ─────────────────────────────────────────────────────────────────────────────
+   색 토큰 — Claude Design 의 AllDap 디자인 시스템 값
+   ─────────────────────────────────────────────────────────────────────────────
+   ⚠️ `--accent` 는 <프라이머리 버튼 색이 아니다.> 민트(#7ED0C0)는 밝아서
+      그 위에 흰 글자를 올리면 읽을 수 없다. 디자인의 프라이머리 버튼은
+      `--foreground`(거의 검정) 배경에 흰 글자다. 화면 코드에서도 그렇게 쓴다:
+          ✅ bg-foreground text-surface      ❌ bg-accent text-white
+      accent 는 <작은 강조>에만 쓴다 — 상태 점, 포커스 링, 선택된 항목 표시.
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0b1120;
-    --foreground: #e2e8f0;
-    --surface: #111827;
-    --border-subtle: rgba(226, 232, 240, 0.16);
-    --muted: rgba(226, 232, 240, 0.6);
-    --accent: #60a5fa;
-  }
+   ⚠️ 다크 모드는 <일부러 없앴다.> 예전에는 prefers-color-scheme 블록이 있었는데,
+      화면 12개를 라이트 기준으로만 다듬어놓고 다크를 자동 적용하면 아무도 안 본
+      색 조합이 사용자에게 그대로 나간다. 필요해지면 그때 화면과 함께 설계한다.
+*/
+:root {
+  --background: #eae0de; /* 페이지 바탕 (따뜻한 점토빛) */
+  --foreground: #171514; /* 본문 글자 · 프라이머리 버튼 배경 */
+  --surface: #ffffff; /* 카드 배경 */
+  --border-subtle: #e2d8d6; /* 테두리 */
+  --muted: #7c716e; /* 보조 글자 */
+  --accent: #7ed0c0; /* 강조(민트) — 배경으로 쓰되 그 위 글자는 어둡게 */
+  --accent-ink: #b4635a; /* 링크 hover */
+
+  /* 상태색. 예전에는 화면마다 red-600 / green-100 처럼 Tailwind 기본 팔레트를
+     직접 박아 썼는데, 그 색들은 파란기가 돌아 이 따뜻한 배경 위에서 겉돈다.
+     토큰으로 모으면 색이 통일되고 다크 변형을 화면마다 적을 일도 없다. */
+  --danger: #b4443c;
+  --danger-surface: #fbeae8;
+  --warning: #8a5a2b;
+  --warning-surface: #fbf1e4;
+  --success: #2f7d68;
+  --success-surface: #e7f4f0;
 }
 
 /* Tailwind v4 는 @theme 에 선언한 값을 그대로 유틸리티 클래스로 만들어준다.
@@ -71,6 +84,13 @@ U+2600-26FF,U+3000-303F,U+1100-11FF,U+3130-318F,U+FF01-FF60" \
   --color-subtle: var(--border-subtle);
   --color-muted: var(--muted);
   --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-danger: var(--danger);
+  --color-danger-surface: var(--danger-surface);
+  --color-warning: var(--warning);
+  --color-warning-surface: var(--warning-surface);
+  --color-success: var(--success);
+  --color-success-surface: var(--success-surface);
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -80,10 +100,8 @@ U+2600-26FF,U+3000-303F,U+1100-11FF,U+3130-318F,U+FF01-FF60" \
    그 둘만 여기에 둔다. 클래스 이름에 `alldap-` 을 붙인 이유는 Tailwind 유틸리티와
    섞이지 않게 하려는 것이다.
 
-   ⚠️ 위 토큰(--accent 등)은 <일부러 안 건드렸다>. 히어로의 accent 는 민트(#7ED0C0)
-      인데 그 값을 --accent 에 넣으면 대시보드의 `bg-accent text-white` 버튼들이
-      민트 배경 + 흰 글자가 되어 읽을 수 없다. 토큰 이관은 화면 전체를 함께 고치는
-      별도 슬라이스로 한다. TODO(디자인 이관 슬라이스). */
+   (2026-08-03: 토큰 이관 완료. 히어로의 색이 이제 위 :root 의 값이고,
+    프라이머리 버튼은 화면 전체에서 `bg-foreground text-surface` 로 통일됐다) */
 @keyframes adCaret {
   0%, 48% { opacity: 1; }
   49%, 100% { opacity: 0; }

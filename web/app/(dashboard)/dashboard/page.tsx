@@ -111,7 +111,7 @@ export default function DashboardPage() {
           type="submit"
           /* 이름이 비었으면 눌러도 서버가 400 을 줄 뿐이다. 미리 막아 왕복을 아낀다. */
           disabled={creating || !newName.trim()}
-          className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+          className="rounded-md bg-foreground px-4 py-2 text-sm font-medium text-surface disabled:opacity-50"
         >
           {creating ? "만드는 중…" : "봇 만들기"}
         </button>
@@ -120,7 +120,7 @@ export default function DashboardPage() {
       {error && (
         <p
           role="alert"
-          className="mt-4 rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300"
+          className="mt-4 rounded-md border border-danger bg-danger-surface px-3 py-2 text-sm text-danger"
         >
           {error}
         </p>

@@ -145,7 +145,7 @@ export default function ChatPage() {
             <div key={index}>
               {bubble.role === "user" ? (
                 <div className="flex justify-end">
-                  <p className="max-w-[80%] rounded-lg bg-accent px-3 py-2 text-sm text-white">
+                  <p className="max-w-[80%] rounded-lg bg-foreground px-3 py-2 text-sm text-surface">
                     {bubble.content}
                   </p>
                 </div>
@@ -234,7 +234,7 @@ export default function ChatPage() {
         {error && (
           <p
             role="alert"
-            className="border-t border-subtle px-4 py-2 text-sm text-red-600 dark:text-red-400"
+            className="border-t border-subtle px-4 py-2 text-sm text-danger"
           >
             {error}
           </p>
@@ -252,7 +252,7 @@ export default function ChatPage() {
           <button
             type="submit"
             disabled={sending || !input.trim()}
-            className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+            className="rounded-md bg-foreground px-4 py-2 text-sm font-medium text-surface disabled:opacity-50"
           >
             보내기
           </button>
