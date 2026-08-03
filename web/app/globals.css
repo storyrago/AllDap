@@ -3,13 +3,43 @@
 /*
   AllDap 프론트엔드 전역 스타일.
 
-  [폰트에 대한 메모]
-  create-next-app 기본 템플릿은 next/font/google 로 Geist 를 불러왔지만 제거했다.
-  이유 두 가지:
-   1) Geist 에는 한글 글리프가 없다. 이 서비스의 UI 는 전부 한국어다.
-   2) next/font/google 은 빌드 시점에 구글 폰트 서버로 네트워크 요청을 보낸다.
-      오프라인/사내망에서 `npm run build` 가 실패하는 원인이 된다.
-  그래서 OS 기본 한글 폰트 스택(Apple SD 산돌고딕 / 맑은 고딕 / 노토)을 쓴다.
+  ─────────────────────────────────────────────────────────────────────────────
+  [폰트] Pretendard Variable — 직접 호스팅
+  ─────────────────────────────────────────────────────────────────────────────
+  원래는 OS 기본 한글 스택(Apple SD 산돌고딕 / 맑은 고딕 / 노토)만 썼는데,
+  <윈도우에서 무너진다>. 윈도우는 맑은 고딕으로 잡히는데 이 폰트는 굵기가
+  400·700 <둘뿐>이다. 랜딩 H1 이 font-weight 800 이라 브라우저가 700 을 억지로
+  뚱뚱하게 만든 <가짜 굵게>가 나온다. 화면에서 제일 큰 글자라 그대로 티가 난다.
+  Pretendard 는 100~900 전 굵기를 가진 가변 폰트라 이 문제가 사라지고, OS 와
+  무관하게 같은 화면이 된다.
+
+  ⚠️ next/font/google 을 안 쓴 기존 이유는 그대로 유효하다 —
+     그건 <빌드 시점에 구글 서버로 요청>을 보내서 오프라인/사내망 빌드를 깨뜨린다.
+     여기서는 폰트 파일을 public/ 에 넣고 @font-face 로 부르므로
+     빌드에도 런타임에도 외부 요청이 없다. (CDN 링크를 쓰지 않은 이유이기도 하다)
+
+  [왜 2,350자만 담았나 — 실측]
+     전체 가변 폰트          2,009 KB
+     한글 11,172자 서브셋    1,713 KB   ← 한글이 용량의 대부분이라 잘라도 그대로다
+     KS X 1001 (2,350자)       451 KB   ← 채택
+  이 프로젝트 UI 의 한글을 세어보니 623자 종류 / 15,541자가 쓰이는데
+  <KS X 1001 밖은 0자>, 커버리지 100% 였다. 밖의 글자(사용자가 올린 문서의 희귀
+  음절 등)는 아래 폴백 스택으로 떨어질 뿐 깨지지 않는다.
+
+  [어떻게 불러오나] @font-face 를 손으로 쓰지 않고 next/font/local 을 쓴다
+     (app/layout.tsx 참고). 손으로 쓰는 것보다 세 가지를 더 해준다:
+       · 폰트를 자동으로 preload 한다 (H1 이 LCP 라 체감 차이가 크다)
+       · 폴백 폰트의 메트릭을 원본에 맞춰 조정해 <교체 순간의 레이아웃 밀림>을 줄인다
+       · 파일을 빌드 산출물로 옮겨 해시된 경로로 캐시시킨다
+     그래서 이 파일에는 @font-face 가 없고, 아래 body 는 변수만 참조한다.
+
+  [재생성 방법] fonttools 필요:
+     python3 -m fontTools.subset PretendardVariable.ttf \
+       --output-file=Pretendard-KSX1001.woff2 --flavor=woff2 --text-file=ks.txt \
+       --unicodes="U+0020-007E,U+00A0-00FF,U+2000-206F,U+20A0-20BF,U+2190-21FF,\
+U+2600-26FF,U+3000-303F,U+1100-11FF,U+3130-318F,U+FF01-FF60" \
+       --drop-tables+=DSIG --no-hinting
+     (ks.txt = U+AC00..U+D7A3 중 iso2022_kr 로 인코딩되는 음절 = KS X 1001 2,350자)
 */
 
 :root {
@@ -121,13 +151,8 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family:
-    -apple-system,
-    BlinkMacSystemFont,
-    "Apple SD Gothic Neo",
-    "Malgun Gothic",
-    "Noto Sans KR",
-    system-ui,
-    sans-serif;
+  /* --font-pretendard 안에 <폴백 스택까지 함께> 들어 있다(app/layout.tsx 에서 지정).
+     폴백은 폰트가 아직 안 왔을 때와 KS X 1001 밖 글자를 받는다 — 둘 다 실제로 쓰인다. */
+  font-family: var(--font-pretendard), sans-serif;
   word-break: keep-all; /* 한국어는 단어 중간에서 줄바꿈되면 읽기 나쁘다 */
 }

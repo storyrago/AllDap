@@ -1,5 +1,37 @@
 import type { Metadata } from "next";
+import localFont from "next/font/local";
 import "./globals.css";
+
+/**
+ * Pretendard Variable — 직접 호스팅하는 한글 가변 폰트.
+ *
+ * ⚠️ `next/font/google` 을 피한 기존 이유(빌드 시점에 구글 서버로 요청 → 오프라인·
+ *    사내망 빌드가 깨진다)는 여기 해당하지 않는다. `next/font/local` 은 저장소 안의
+ *    파일만 읽는다. 그래서 빌드에도 런타임에도 외부 요청이 0 이다.
+ *
+ * 왜 OS 기본 폰트로 안 되나: 윈도우는 한글이 맑은 고딕으로 잡히는데 굵기가
+ * 400·700 둘뿐이다. 랜딩 H1 이 800 이라 <가짜 굵게>가 나온다.
+ * Pretendard 는 100~900 가변이라 이 문제가 사라진다.
+ * (2,350자만 담은 근거와 재생성 방법은 globals.css 상단 주석 참고)
+ */
+const pretendard = localFont({
+  src: "./fonts/Pretendard-KSX1001.woff2",
+  // 가변 폰트라 <범위>로 준다. 이래야 브라우저가 800 을 진짜 굵기로 만든다.
+  weight: "100 900",
+  display: "swap", // 폰트를 기다리며 글자가 안 보이는 구간을 만들지 않는다
+  variable: "--font-pretendard",
+  // 폰트가 오기 전과, KS X 1001 밖 글자를 받는 스택. 여기 적어두면 next 가
+  // 이 폴백의 메트릭을 원본에 맞춰 조정해 교체 순간의 레이아웃 밀림을 줄인다.
+  fallback: [
+    "-apple-system",
+    "BlinkMacSystemFont",
+    "Apple SD Gothic Neo",
+    "Malgun Gothic",
+    "Noto Sans KR",
+    "system-ui",
+    "sans-serif",
+  ],
+});
 
 export const metadata: Metadata = {
   /*
@@ -35,7 +67,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ko" className="h-full antialiased">
+    <html lang="ko" className={`h-full antialiased ${pretendard.variable}`}>
       <body className="flex min-h-full flex-col">{children}</body>
     </html>
   );
