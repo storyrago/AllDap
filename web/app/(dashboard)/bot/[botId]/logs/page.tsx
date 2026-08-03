@@ -132,7 +132,7 @@ export default function LogsPage() {
       </div>
 
       {error && (
-        <p role="alert" className="mt-4 text-sm text-red-600 dark:text-red-400">
+        <p role="alert" className="mt-4 text-sm text-danger">
           {error}
         </p>
       )}
@@ -173,7 +173,7 @@ export default function LogsPage() {
                       {conversation.channel === "test" ? "테스트" : "위젯"}
                     </span>
                     {conversation.hasFallback && (
-                      <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                      <span className="shrink-0 rounded-full bg-warning-surface px-2 py-0.5 text-xs text-warning">
                         미답변 포함
                       </span>
                     )}
@@ -233,7 +233,7 @@ function MessageRow({ message }: { message: ChatMessage }) {
         <p
           className={`rounded-lg px-3 py-2 text-sm ${
             isUser
-              ? "bg-accent text-white"
+              ? "bg-foreground text-surface"
               : message.isFallback
                 ? "border border-dashed border-subtle text-muted"
                 : "bg-foreground/5"

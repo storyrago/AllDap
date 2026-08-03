@@ -136,7 +136,7 @@ export default function SettingsPage() {
   if (loading) return <p className="text-sm text-muted">불러오는 중…</p>;
   if (!bot) {
     return (
-      <p role="alert" className="text-sm text-red-600">
+      <p role="alert" className="text-sm text-danger">
         {error ?? "봇을 찾을 수 없습니다."}
       </p>
     );
@@ -177,7 +177,7 @@ export default function SettingsPage() {
             Python 의 /internal/chat 요청 스키마에 자리가 없어서다.
             화면에 적어두지 않으면 사용자는 값을 넣고 "왜 안 먹지?" 하게 된다.
           */}
-          <p className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-300">
+          <p className="rounded-md border border-warning bg-warning-surface px-3 py-2 text-xs text-warning">
             ⚠️ 지금은 <b>저장만 되고 답변에는 반영되지 않습니다.</b> AI 서비스가 이 값을 받도록 고친
             뒤에 동작합니다.
           </p>
@@ -200,7 +200,7 @@ export default function SettingsPage() {
           />
           {/* 빈 목록 = 전부 차단이 서버의 규칙이다. 그 사실을 화면에서 먼저 알려준다. */}
           {bot.allowedOrigins.length === 0 && (
-            <p className="text-xs text-amber-700 dark:text-amber-400">
+            <p className="text-xs text-warning">
               아직 허용 도메인이 없어 <b>위젯이 어느 사이트에서도 뜨지 않습니다.</b> 설치할 주소를
               먼저 등록해주세요.
             </p>
@@ -211,17 +211,17 @@ export default function SettingsPage() {
           <button
             type="submit"
             disabled={saving}
-            className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+            className="rounded-md bg-foreground px-4 py-2 text-sm font-medium text-surface disabled:opacity-50"
           >
             {saving ? "저장 중…" : "저장"}
           </button>
           {error && (
-            <span role="alert" className="text-sm text-red-600 dark:text-red-400">
+            <span role="alert" className="text-sm text-danger">
               {error}
             </span>
           )}
           {saved && (
-            <span className="text-sm text-green-700 dark:text-green-400">저장했습니다.</span>
+            <span className="text-sm text-success">저장했습니다.</span>
           )}
         </div>
       </form>
@@ -249,7 +249,7 @@ export default function SettingsPage() {
         <button
           type="button"
           onClick={handleDelete}
-          className="rounded-md border border-red-300 px-3 py-1.5 text-sm text-red-600 dark:border-red-900 dark:text-red-400"
+          className="rounded-md border border-danger px-3 py-1.5 text-sm text-danger"
         >
           이 봇 삭제
         </button>

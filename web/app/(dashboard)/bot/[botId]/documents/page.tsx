@@ -147,7 +147,7 @@ export default function DocumentsPage() {
           onChange={handleUpload}
           disabled={uploading}
           accept=".pdf,.docx,.hwpx,.txt,.md"
-          className="block w-full text-sm file:mr-3 file:rounded-md file:border-0 file:bg-accent file:px-4 file:py-2 file:text-sm file:font-medium file:text-white"
+          className="block w-full text-sm file:mr-3 file:rounded-md file:border-0 file:bg-foreground file:px-4 file:py-2 file:text-sm file:font-medium file:text-surface"
         />
         <p className="mt-3 text-xs text-muted">
           pdf · docx · hwpx · txt · md (20MB 이하) — 구버전 .hwp 는 .hwpx 로 저장한 뒤 올려주세요.
@@ -158,7 +158,7 @@ export default function DocumentsPage() {
       {error && (
         <p
           role="alert"
-          className="mt-4 rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300"
+          className="mt-4 rounded-md border border-danger bg-danger-surface px-3 py-2 text-sm text-danger"
         >
           {error}
         </p>
@@ -190,7 +190,7 @@ export default function DocumentsPage() {
                 <button
                   type="button"
                   onClick={() => handleDelete(doc.id, doc.filename)}
-                  className="shrink-0 text-xs text-muted hover:text-red-600"
+                  className="shrink-0 text-xs text-muted hover:text-danger"
                 >
                   삭제
                 </button>
@@ -218,8 +218,8 @@ function StatusBadge({ status }: { status: string }) {
     failed: "실패",
   };
   const tone: Record<string, string> = {
-    ready: "bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300",
-    failed: "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300",
+    ready: "bg-success-surface text-success",
+    failed: "bg-danger-surface text-danger",
   };
 
   return (

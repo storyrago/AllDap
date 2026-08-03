@@ -180,7 +180,7 @@ export default function WidgetChatPage() {
           <div key={index}>
             {bubble.role === "user" ? (
               <div className="flex justify-end">
-                <p className="max-w-[85%] rounded-lg bg-accent px-3 py-2 text-sm text-white">
+                <p className="max-w-[85%] rounded-lg bg-foreground px-3 py-2 text-sm text-surface">
                   {bubble.content}
                 </p>
               </div>
@@ -194,7 +194,7 @@ export default function WidgetChatPage() {
 
         {sending && <p className="text-xs text-muted">답변을 찾는 중…</p>}
         {error && (
-          <p role="alert" className="text-xs text-red-600 dark:text-red-400">
+          <p role="alert" className="text-xs text-danger">
             {error}
           </p>
         )}
@@ -214,7 +214,7 @@ export default function WidgetChatPage() {
         <button
           type="submit"
           disabled={sending || !input.trim()}
-          className="rounded-md bg-accent px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
+          className="rounded-md bg-foreground px-3 py-2 text-sm font-medium text-surface disabled:opacity-50"
         >
           전송
         </button>

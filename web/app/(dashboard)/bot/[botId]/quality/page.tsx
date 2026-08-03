@@ -164,7 +164,7 @@ export default function QualityPage() {
             type="button"
             onClick={handleStartRun}
             disabled={starting || activeCount === 0}
-            className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50"
+            className="rounded-md bg-foreground px-3 py-1.5 text-sm font-medium text-surface disabled:opacity-50"
           >
             {starting ? "시작하는 중…" : "평가 실행"}
           </button>
@@ -174,7 +174,7 @@ export default function QualityPage() {
       {error && (
         <p
           role="alert"
-          className="mt-4 rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300"
+          className="mt-4 rounded-md border border-danger bg-danger-surface px-3 py-2 text-sm text-danger"
         >
           {error}
         </p>
@@ -241,19 +241,33 @@ function ScoreCards({ run }: { run: EvalRun | null }) {
     <section className="mb-8 mt-6">
       <h2 className="mb-2 text-sm font-semibold">최근 평가 점수</h2>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {/*
+          ★ 카드는 <한눈에 달라 보여야 한다.> 이 화면의 존재 이유가
+          "속기 쉬운 충실성 대신 전체 충실성을 봐라"이기 때문이다.
+          예전엔 accent 5% 틴트였는데 따뜻한 배경 위에서 거의 안 보였다 —
+          강조를 의도했는데 강조가 안 되면 없는 것만 못하다.
+          그래서 <반전>시켰다. 어두운 카드 하나가 흰 카드 셋 사이에 있으면
+          설명 없이도 "이게 기준값"으로 읽힌다. 히어로의 프라이머리 버튼과 같은 처리다.
+        */}
         {cards.map((c) => (
           <div
             key={c.label}
             className={`rounded-lg border px-4 py-3 ${
-              c.primary ? "border-accent bg-accent/5" : "border-subtle bg-surface"
+              c.primary
+                ? "border-foreground bg-foreground text-surface"
+                : "border-subtle bg-surface"
             }`}
           >
-            <p className="text-xs text-muted">
+            {/* 어두운 카드 위에서는 text-muted(#7C716E)가 거의 안 읽힌다.
+                같은 "보조 글자" 역할을 흰색의 투명도로 낸다. */}
+            <p className={`text-xs ${c.primary ? "text-surface/70" : "text-muted"}`}>
               {c.primary && "★ "}
               {c.label}
             </p>
             <p className="mt-1 text-2xl font-semibold tabular-nums">{fmt(c.value)}</p>
-            <p className="mt-1 text-xs text-muted">{c.hint}</p>
+            <p className={`mt-1 text-xs ${c.primary ? "text-surface/70" : "text-muted"}`}>
+              {c.hint}
+            </p>
           </div>
         ))}
       </div>
@@ -430,8 +444,8 @@ function StatusBadge({ status }: { status: string }) {
     failed: "실패",
   };
   const tone: Record<string, string> = {
-    completed: "bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300",
-    failed: "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300",
+    completed: "bg-success-surface text-success",
+    failed: "bg-danger-surface text-danger",
   };
   return (
     <span
@@ -465,7 +479,7 @@ function RunSummary({ results }: { results: EvalResult[] }) {
       질문 {total}건 · 채점됨 {total - notMeasured - notScored}건
       {notScored > 0 && <> · 미채점 {notScored}건</>}
       {notMeasured > 0 && (
-        <span className="text-amber-700 dark:text-amber-400">
+        <span className="text-warning">
           {" "}
           · <strong>측정 실패 {notMeasured}건</strong> (점수 계산에서 제외됨)
         </span>
@@ -530,7 +544,7 @@ function ResultTable({ results }: { results: EvalResult[] }) {
           */}
           {r.faithfulness === null &&
             (r.generatedAnswer === null ? (
-              <p className="mt-2 text-xs text-amber-700 dark:text-amber-400">
+              <p className="mt-2 text-xs text-warning">
                 ⚠️ 측정하지 못했습니다 — 검색·생성 호출이 실패했습니다(쿼터 초과 등).
                 <strong> 챗봇 품질과 무관하며 응답률 계산에서도 제외됩니다.</strong>
               </p>
