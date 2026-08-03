@@ -77,6 +77,13 @@ def create_run(bot_id: UUID) -> tuple[UUID, int]:
         # 하이브리드(키워드+벡터)는 아직 구현 전이다. 항상 false 지만 키를 남겨야
         # 나중 실행과 <같은 모양으로> 비교된다.
         "hybrid": False,
+        # 🔴 청킹도 박제한다. 청킹은 <질의 시점>이 아니라 업로드 때 정해지는 값이라
+        #    이 config 에 없으면 "이 점수가 어느 청킹이었는지"를 알 방법이 없다.
+        #    2026-08-03 청킹 전후를 비교하다가 그 사실을 깨달아 추가했다 —
+        #    분모를 안 적어 avg_faithfulness 를 해석하지 못했던 것과 같은 실수다.
+        "chunk_size": s.chunk_size,
+        "chunk_overlap": s.chunk_overlap,
+        "chunk_split_headings": s.chunk_split_headings,
     }
 
     with cursor(commit=True) as cur:

@@ -55,6 +55,8 @@ def _process_document(doc_id: UUID, bot_id: UUID, filename: str, data: bytes) ->
     ※ MVP 한정. 프로세스가 죽으면 작업이 유실되므로,
        트래픽이 붙으면 Redis + RQ 같은 큐로 옮겨야 한다.
     """
+    s = get_settings()
+
     def _fail(reason: str) -> None:
         with cursor(commit=True) as cur:
             cur.execute(
@@ -72,7 +74,12 @@ def _process_document(doc_id: UUID, bot_id: UUID, filename: str, data: bytes) ->
             _fail(str(e))
             return
 
-        chunks = chunk_text(text)
+        chunks = chunk_text(
+            text,
+            size=s.chunk_size,
+            overlap=s.chunk_overlap,
+            split_headings=s.chunk_split_headings,
+        )
         if not chunks:
             _fail("문서에서 유효한 내용을 찾지 못했습니다.")
             return

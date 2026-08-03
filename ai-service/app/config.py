@@ -129,6 +129,16 @@ class Settings(BaseSettings):
     judge_model: str = "@cf/mistralai/mistral-small-3.1-24b-instruct"
     # 이보다 짧은 청크는 표본에서 뺀다. "1. 총칙" 같은 목차 조각으로는 문제를 낼 수 없고
     # LLM 호출 비용만 나간다. 청크가 500자 단위라 100자면 "내용이 있다"고 보기에 충분하다.
+    # ── 청킹 (W4 에서 바꿔가며 비교한다) ──────────────────────────────
+    # 🔴 split_headings 는 실측으로 필요해진 값이다 (2026-08-03).
+    #    False 였을 때 478자 청크 하나에 조항 4개가 들어갔고, 그 임베딩이
+    #    네 주제의 평균이 되어 "노트북 교체 주기" 질문에 안 걸렸다.
+    #    답이 문서에 있는데도 검색 5위 안에 그 문서가 안 들어와 fallback 이 났다.
+    #    False 로 두면 그때 동작을 그대로 재현한다(before/after 비교용).
+    chunk_size: int = 500
+    chunk_overlap: int = 50
+    chunk_split_headings: bool = True
+
     eval_min_chunk_chars: int = 100
 
     class Config:
