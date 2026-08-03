@@ -43,6 +43,81 @@
   --color-accent: var(--accent);
 }
 
+/* ─────────────────────────────────────────────────────────────────────────────
+   랜딩 히어로(components/ReceptionHero.tsx) 전용
+   ─────────────────────────────────────────────────────────────────────────────
+   씬은 인라인 style 로 그리는데, <키프레임과 :hover 는 인라인으로 못 쓴다>.
+   그 둘만 여기에 둔다. 클래스 이름에 `alldap-` 을 붙인 이유는 Tailwind 유틸리티와
+   섞이지 않게 하려는 것이다.
+
+   ⚠️ 위 토큰(--accent 등)은 <일부러 안 건드렸다>. 히어로의 accent 는 민트(#7ED0C0)
+      인데 그 값을 --accent 에 넣으면 대시보드의 `bg-accent text-white` 버튼들이
+      민트 배경 + 흰 글자가 되어 읽을 수 없다. 토큰 이관은 화면 전체를 함께 고치는
+      별도 슬라이스로 한다. TODO(디자인 이관 슬라이스). */
+@keyframes adCaret {
+  0%, 48% { opacity: 1; }
+  49%, 100% { opacity: 0; }
+}
+/* 마우스 아이콘 안에서 굴러 내려가는 휠. 아이콘을 키운 만큼 이동 거리도 함께 키운다
+   (8px 그대로 두면 커진 아이콘 안에서 절반만 굴러가다 만다). */
+@keyframes adWheel {
+  0% { transform: translateY(0); opacity: 0; }
+  25% { opacity: 1; }
+  100% { transform: translateY(11px); opacity: 0; }
+}
+@keyframes adRise {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: none; }
+}
+
+.alldap-caret { animation: adCaret 1.05s step-end infinite; }
+.alldap-wheel { animation: adWheel 1.6s ease-in-out infinite; }
+.alldap-rise { animation: adRise 0.34s cubic-bezier(0.2, 0.8, 0.3, 1) both; }
+
+.alldap-cta { transition: transform 0.18s ease, background 0.18s ease; }
+.alldap-cta:hover { background: #332d2b; transform: translateY(-2px); }
+.alldap-nav a { color: #171514; text-decoration: none; }
+.alldap-nav a:hover { color: #b4635a; }
+.alldap-nav-cta { color: #ffffff !important; }
+.alldap-nav-cta:hover { background: #332d2b; color: #ffffff !important; }
+.alldap-chip:hover { background: rgba(255, 255, 255, 0.12); color: #fbf7f6; }
+.alldap-send:hover { background: #96ded0; }
+
+/* 좁은 화면에서는 내비 링크가 화면 밖으로 밀려난다(원본 프로토타입도 미구현이었다).
+   햄버거 메뉴는 열 패널이 따로 필요해 지금 범위가 아니다. 링크만 감추고
+   실제로 눌러야 하는 "도입 문의"만 남긴다. 랜딩의 목적은 CTA 지 내비가 아니다.
+   TODO(W4 이후): 마케팅 페이지(기능·요금제·고객사례)가 실제로 생기면 그때 햄버거를 붙일 것. */
+/* 좁은 데스크톱(노트북)에서 내비가 넘치지 않게 한 단계 줄인다.
+   1024px 폭에서 내비는 536px 이고 오른쪽 여유가 45px 뿐이다 — <폰트가 10%만 넓어져도 넘친다.>
+   윈도우는 한글이 맑은 고딕으로 잡히는데 Apple SD Gothic Neo 보다 넓어서 실제로 그럴 수 있다.
+   ⚠️ !important 가 필요한 이유: 이 요소들의 크기는 인라인 style 로 박혀 있어서
+      (디자인 스펙을 픽셀 그대로 옮긴 것) 클래스 규칙이 그냥은 못 이긴다. */
+@media (max-width: 1100px) {
+  .alldap-nav a {
+    padding: 10px 13px !important;
+    font-size: 15px !important;
+  }
+  .alldap-nav-cta {
+    padding: 12px 22px !important;
+  }
+}
+
+@media (max-width: 720px) {
+  .alldap-nav a:not(.alldap-nav-cta) {
+    display: none;
+  }
+}
+
+/* 흔들림·깜빡임을 싫어하는 사용자 설정을 존중한다.
+   (카메라 흔들림 진폭 0 은 ReceptionHero 의 rAF 루프가 따로 처리한다) */
+@media (prefers-reduced-motion: reduce) {
+  .alldap-caret,
+  .alldap-wheel,
+  .alldap-rise {
+    animation: none;
+  }
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
