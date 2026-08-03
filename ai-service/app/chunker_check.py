@@ -75,6 +75,42 @@ def check_index_is_sequential() -> None:
     assert [c.index for c in chunks] == list(range(len(chunks))), [c.index for c in chunks]
 
 
+def check_idempotent() -> None:
+    """청킹은 <몇 번을 돌려도 같은 결과>여야 한다.
+
+    🔴 이게 깨져서 실제로 코퍼스가 망가졌다 (2026-08-03).
+       예전 _split_long 이 개행을 공백으로 바꿔, 두 번째 청킹 때 제목을 못 찾아
+       조항이 도로 뭉쳤다. 재청킹이 <조용히 반쪽만> 동작했다.
+       청크를 이어 붙여 다시 자르는 rechunk 가 있는 한 이 성질이 필수다.
+    """
+    once = chunk_text(REGULATION, size=500, overlap=50, split_headings=True)
+    restored = "\n".join(c.content for c in once)
+    twice = chunk_text(restored, size=500, overlap=50, split_headings=True)
+    assert [c.content for c in once] == [c.content for c in twice], (
+        [c.content for c in once],
+        [c.content for c in twice],
+    )
+
+
+def check_inline_heading_is_recovered() -> None:
+    """줄 중간으로 밀려난 제목도 절 경계로 인정한다.
+
+    옛 청커가 개행을 지워버린 텍스트가 DB 에 남아 있어서, 그걸 다시 자를 때
+    필요하다. 이게 없으면 이미 저장된 문서는 영원히 안 쪼개진다.
+    """
+    damaged = "## 제4조 식대 식대는 월 15만원이다. ## 제5조 교육비 도서는 연 50만원이다."
+    chunks = chunk_text(damaged, size=500, overlap=50, split_headings=True)
+    assert len(chunks) == 2, [c.content for c in chunks]
+    assert chunks[1].content.startswith("## 제5조"), chunks[1].content
+
+
+def check_newlines_survive_long_paragraph() -> None:
+    """긴 문단을 쪼개도 줄 구조가 살아남아야 한다 (위 멱등성의 뿌리)."""
+    long_doc = "## 긴 절\n" + ("가나다라마바사아자차카타파하. " * 40) + "\n## 다음 절\n짧다."
+    chunks = chunk_text(long_doc, size=200, overlap=20, split_headings=True)
+    assert any(c.content.startswith("## 다음 절") for c in chunks), [c.content for c in chunks]
+
+
 def main() -> None:
     checks = [
         check_heading_split,
@@ -82,6 +118,9 @@ def main() -> None:
         check_long_section_still_splits,
         check_no_heading_document,
         check_index_is_sequential,
+        check_idempotent,
+        check_inline_heading_is_recovered,
+        check_newlines_survive_long_paragraph,
     ]
     for fn in checks:
         fn()
