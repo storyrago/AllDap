@@ -1,3 +1,4 @@
+import { BotName } from "@/components/BotName";
 import { BotNav } from "@/components/BotNav";
 
 /**
@@ -23,11 +24,10 @@ export default async function BotLayout({
   return (
     <div className="flex flex-col gap-6 sm:flex-row">
       <aside>
-        {/* TODO(W2): GET /api/bots/{botId} 로 봇 이름을 가져와 여기에 표시할 것.
-            없는 botId 면 notFound() 를 호출해 404 를 띄운다. */}
-        <p className="mb-2 truncate px-3 text-xs text-muted" title={botId}>
-          봇 {botId.slice(0, 8)}…
-        </p>
+        {/* 이름만 클라이언트에서 가져온다 — 토큰이 브라우저에만 있어서다(BotName 주석 참고).
+            TODO(W2): 없는 botId 일 때 notFound() 로 404 를 띄우는 처리는 아직 없다.
+            지금은 각 화면이 자기 데이터를 부를 때 오류로 드러난다. */}
+        <BotName botId={botId} />
         <BotNav botId={botId} />
       </aside>
 

@@ -159,7 +159,7 @@ export default function ChatPage() {
                         : "bg-foreground/5"
                     }`}
                   >
-                    {bubble.content}
+                    <RichText text={bubble.content} />
                   </p>
 
                   {bubble.isFallback && (
@@ -181,22 +181,7 @@ export default function ChatPage() {
                    * <저장의 목적과 표시의 목적이 다르다> — 화면에서만 감춘다.
                    */}
                   {!bubble.isFallback && bubble.sources && bubble.sources.length > 0 && (
-                    <ul className="mt-2 space-y-1">
-                      {bubble.sources.map((source) => (
-                        <li
-                          key={source.chunkId}
-                          className="rounded-md border border-subtle px-2 py-1.5 text-xs"
-                        >
-                          <span className="font-medium">{source.filename}</span>
-                          <span className="ml-2 text-muted">
-                            관련도 {Math.round(source.score * 100)}%
-                          </span>
-                          <p className="mt-0.5 line-clamp-2 text-muted">
-                            {source.preview}
-                          </p>
-                        </li>
-                      ))}
-                    </ul>
+                    <Sources sources={bubble.sources} />
                   )}
 
                   <div className="mt-1.5 flex items-center gap-2 text-xs text-muted">
@@ -259,6 +244,113 @@ export default function ChatPage() {
         </form>
       </div>
     </>
+  );
+}
+
+/**
+ * 답변의 최소 서식(굵게·줄바꿈)만 그린다.
+ *
+ * 왜 마크다운 라이브러리를 안 쓰나: 답변에 실제로 오는 서식은 `**굵게**` 와 줄바꿈뿐이다.
+ * 그걸 위해 파서를 통째로 얹는 건 과하다.
+ *
+ * ⚠️ 왜 dangerouslySetInnerHTML 을 안 쓰나: 이건 <LLM 이 만든 문자열>이다.
+ *    HTML 로 주입하면 문서 안에 섞여 들어온 것이 그대로 실행될 여지가 생긴다.
+ *    React 요소로 만들면 텍스트는 항상 텍스트로만 들어간다.
+ *
+ * ⚠️ <사용자가 친 말풍선에는 쓰지 않는다.> 그 사람이 친 `**` 는 글자 그대로여야 한다.
+ *
+ * (대안은 "프롬프트에서 마크다운을 쓰지 말라고 지시하기"였다. 안 택한 이유는
+ *  모델이 지시를 어기면 `**` 가 화면에 그대로 새어 나오고 그건 우리가 못 막기 때문이다.
+ *  받는 쪽에서 처리하는 게 확실하다.)
+ */
+function RichText({ text }: { text: string }) {
+  return (
+    <>
+      {text.split("\n").map((line, li) => (
+        <span key={li}>
+          {li > 0 && <br />}
+          {line.split(/(\*\*[^*]+\*\*)/g).map((part, pi) =>
+            /^\*\*[^*]+\*\*$/.test(part) ? (
+              <strong key={pi}>{part.slice(2, -2)}</strong>
+            ) : (
+              part
+            ),
+          )}
+        </span>
+      ))}
+    </>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+ * 출처 — 이 제품의 핵심 주장("근거를 보여준다")이 증명되는 자리
+ * ─────────────────────────────────────────────────────────────────────────────
+ * 예전에는 근거 5건을 각각 본문 2줄까지 펼쳐 놨는데, 답변이 한 줄인 화면에서
+ * 근거 블록이 <화면 대부분을 먹었다>. 읽어야 할 것(답변)보다 훑어야 할 것(근거)이
+ * 더 크게 놓인 셈이다.
+ *
+ * 그래서 접었다. 다만 <파일명은 접지 않는다> — 그게 이 제품의 주장 자체다.
+ * 기본은 "어디서 왔나"(제목 + 관련도), 누르면 "정말 그렇게 쓰여 있나"(본문).
+ *
+ * 🔴 라벨에 파일명 대신 <조항 제목>을 쓴다.
+ *    2026-08-03 청킹 변경으로 모든 청크가 `## 조항 제목` 으로 시작하게 됐다.
+ *    "취업규칙.md" 다섯 줄보다 "제8조 경조사 지원 / 수습 기간 / 결혼" 이 훨씬 읽힌다.
+ *    (제목이 없는 문서 — pdf 등 — 는 파일명으로 떨어진다)
+ */
+function splitSource(preview: string): { section: string | null; body: string } {
+  const lines = preview.split("\n");
+  const m = /^#{1,6}\s+(.+)$/.exec(lines[0]?.trim() ?? "");
+  return m
+    ? { section: m[1].trim(), body: lines.slice(1).join("\n").trim() }
+    : { section: null, body: preview };
+}
+
+function Sources({ sources }: { sources: Source[] }) {
+  // 펼침 상태를 이 컴포넌트 안에 둔다. 메시지마다 독립이라 바깥에서 관리할 이유가 없다.
+  const [open, setOpen] = useState<number | null>(null);
+  const shown = open !== null ? sources[open] : null;
+  const parsed = shown ? splitSource(shown.preview) : null;
+
+  return (
+    <div className="mt-2">
+      <p className="text-xs text-muted">근거 {sources.length}곳 · 누르면 원문이 보입니다</p>
+      <ul className="mt-1 flex flex-wrap gap-1">
+        {sources.map((source, i) => {
+          const { section } = splitSource(source.preview);
+          const on = open === i;
+          return (
+            <li key={source.chunkId}>
+              <button
+                type="button"
+                onClick={() => setOpen(on ? null : i)}
+                aria-expanded={on}
+                className={`flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs transition ${
+                  on
+                    ? "border-foreground bg-foreground text-surface"
+                    : "border-subtle bg-surface hover:border-foreground/30"
+                }`}
+              >
+                <span className="tabular-nums opacity-50">{i + 1}</span>
+                <span className="max-w-[16rem] truncate">{section ?? source.filename}</span>
+                <span className="tabular-nums opacity-60">
+                  {Math.round(source.score * 100)}%
+                </span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+
+      {shown && parsed && (
+        <div className="mt-1.5 rounded-md border border-subtle bg-surface px-3 py-2 text-xs">
+          <p className="text-muted">
+            {shown.filename}
+            {parsed.section && <> · {parsed.section}</>}
+          </p>
+          <p className="mt-1 leading-relaxed">{parsed.body}</p>
+        </div>
+      )}
+    </div>
   );
 }
 
