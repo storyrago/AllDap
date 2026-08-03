@@ -65,6 +65,9 @@ def generate(
             {"role": "user", "content": user_content},
         ],
         "max_tokens": s.max_tokens,
+        # 0 = 매번 같은 답. 이 제품은 문서에 있는 사실을 그대로 전달하는 것이 일이라
+        # 표현을 바꿔 말하는 것은 기능이 아니라 위험이다. 평가도 이래야 재현된다.
+        "temperature": s.chat_temperature,
     })
 
     answer = cf.text_of(result).strip()

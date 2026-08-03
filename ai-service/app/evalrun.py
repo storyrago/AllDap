@@ -84,6 +84,10 @@ def create_run(bot_id: UUID) -> tuple[UUID, int]:
         "chunk_size": s.chunk_size,
         "chunk_overlap": s.chunk_overlap,
         "chunk_split_headings": s.chunk_split_headings,
+        # 🔴 온도도 박제한다. 0 이 아니면 <같은 설정으로도 점수가 달라지므로>,
+        #    이 값을 모르면 두 실행의 차이가 설정 때문인지 운 때문인지 구분할 수 없다.
+        "chat_temperature": s.chat_temperature,
+        "judge_temperature": s.judge_temperature,
     }
 
     with cursor(commit=True) as cur:

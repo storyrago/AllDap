@@ -157,6 +157,9 @@ def score(question: str, ground_truth: str, sources: list[Source], answer: str) 
             # 결과 JSON 은 100토큰이면 충분한데 넉넉히 준다.
             # 모자라면 JSON 이 중간에 끊겨 파싱에 실패하고, 그 질문은 점수 없이 날아간다.
             "max_tokens": 1024,
+            # 🔴 채점자는 무조건 0 이다. 같은 답변에 매번 다른 점수를 주는 자를
+            #    기준으로 삼을 수는 없다. 여기서 흔들리면 <모든 비교가 무의미해진다.>
+            "temperature": s.judge_temperature,
         })
     except Exception as e:  # noqa: BLE001 - 한 건 실패가 실행 전체를 죽이면 안 된다
         _log.warning("채점 호출 실패: %s: %s", type(e).__name__, e)
