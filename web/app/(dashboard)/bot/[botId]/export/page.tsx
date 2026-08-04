@@ -44,6 +44,10 @@ export default function ExportPage() {
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [copied, setCopied] = useState(false);
+  /* 서버에 저장하지 않는다 — 스니펫을 어떻게 <만들어 줄지>만 정하는 값이고,
+     실제 동작은 고객이 붙여넣은 HTML 의 data-launcher 속성이 결정한다.
+     DB 에 넣으면 "화면 설정과 실제 설치 코드가 다른" 상태가 생긴다. */
+  const [customLauncher, setCustomLauncher] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -133,7 +137,19 @@ export default function ExportPage() {
   const snippet =
     `<script src="${API_BASE_URL}/widget/alldap-widget.js"` +
     ` data-public-key="${bot.publicKey}"` +
-    ` data-app-base="${appBase}"></script>`;
+    ` data-app-base="${appBase}"` +
+    (customLauncher ? ` data-launcher="none"` : "") +
+    `></script>`;
+
+  /* 커스텀 런처를 켰을 때 함께 붙여야 하는 코드. 스니펫만 주면 버튼이 아예 안 생겨
+     "설치했는데 아무것도 안 뜬다" 가 된다 — 두 조각을 반드시 같이 보여준다. */
+  const launcherSample =
+    `<button id="alldap-open">문의하기</button>\n` +
+    `<!-- ⚠️ 위 <script> 보다 아래에 둘 것 -->\n` +
+    `<script>\n` +
+    `  document.getElementById("alldap-open")\n` +
+    `    .addEventListener("click", function () { AllDap.open(); });\n` +
+    `</script>`;
 
   const hasDocs = (readyDocs ?? 0) > 0;
   const hasOrigins = bot.allowedOrigins.length > 0;
@@ -208,24 +224,58 @@ export default function ExportPage() {
       </form>
 
       <Section title="붙여넣을 코드">
+        <label className="flex items-start gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={customLauncher}
+            onChange={(e) => setCustomLauncher(e.target.checked)}
+            className="mt-0.5"
+          />
+          <span>
+            <b>내 사이트 버튼으로 열기</b>
+            <span className="mt-0.5 block text-xs text-muted">
+              기본 상담 버튼을 끄고, 내 사이트에 이미 있는 버튼으로 채팅창을 엽니다. 사이트에
+              보이는 버튼이 100% 내 디자인이 됩니다. (채팅창 자체는 보안상 바꿀 수 없습니다)
+            </span>
+          </span>
+        </label>
+
         <p className="text-xs text-muted">
-          내 사이트의 <code>&lt;/body&gt;</code> 바로 앞에 이 한 줄을 붙이면 오른쪽 아래에 상담
-          버튼이 생깁니다.
+          {customLauncher ? (
+            <>
+              내 사이트의 <code>&lt;/body&gt;</code> 바로 앞에 아래 <b>두 조각을 순서대로</b>{" "}
+              붙여주세요.
+            </>
+          ) : (
+            <>
+              내 사이트의 <code>&lt;/body&gt;</code> 바로 앞에 이 한 줄을 붙이면 오른쪽 아래에 상담
+              버튼이 생깁니다.
+            </>
+          )}
         </p>
         <pre className="overflow-x-auto rounded-md border border-subtle bg-background p-3 text-xs">
           {snippet}
         </pre>
+        {customLauncher && (
+          <pre className="overflow-x-auto rounded-md border border-subtle bg-background p-3 text-xs">
+            {launcherSample}
+          </pre>
+        )}
         <button
           type="button"
           onClick={() => {
-            void navigator.clipboard.writeText(snippet);
+            // 커스텀 런처면 두 조각을 <한 번에> 복사한다. 따로 복사하게 하면
+            // 스크립트만 붙이고 버튼 코드를 빠뜨려 "아무것도 안 뜬다" 가 된다.
+            void navigator.clipboard.writeText(
+              customLauncher ? `${snippet}\n\n${launcherSample}` : snippet,
+            );
             // 눌렀는데 화면이 그대로면 복사가 됐는지 알 수 없다. 잠깐 문구를 바꿔 알려준다.
             setCopied(true);
             setTimeout(() => setCopied(false), 2000);
           }}
           className="rounded-md border border-subtle px-3 py-1.5 text-sm"
         >
-          {copied ? "복사했습니다" : "복사"}
+          {copied ? "복사했습니다" : customLauncher ? "두 조각 모두 복사" : "복사"}
         </button>
       </Section>
     </>

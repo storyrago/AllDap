@@ -143,6 +143,51 @@ api/src/main/resources/static/widget/alldap-widget.js
 | `data-api-base` | — | Spring API 주소. 기본값은 **스크립트를 내려받은 origin** |
 | `data-app-base` | — | 채팅 페이지(Next.js) 주소. 기본값은 `data-api-base` 와 동일 |
 | `data-primary-color` | — | 버튼·헤더 색. config 응답에 색이 있으면 그쪽이 이긴다 |
+| `data-launcher` | `default` | `none` 이면 **기본 플로팅 버튼을 그리지 않는다.** 아래 "커스텀 런처" 참고 |
+
+### 커스텀 런처 — "위젯이 우리 사이트랑 안 어울려요" 에 대한 답
+
+가장 흔한 반대다. 채팅창 자체는 **iframe 이라 우리 것일 수밖에 없다** — 대화 내용이
+고객사 사내 문서 기반이라, 고객 페이지와 같은 문서에 두면 그 페이지에 박힌
+서드파티 스크립트(광고·애널리틱스·태그매니저)가 대화를 읽을 수 있다.
+Shadow DOM 은 CSS 만 격리하고 JS 접근은 막지 않는다. iframe 은 브라우저가 원천 차단한다.
+
+**하지만 버튼은 페이지 위에 있으므로 고객이 만들 수 있다.**
+
+```html
+<!-- 고객이 자기 디자인으로 만든 버튼 -->
+<button id="help" class="내-사이트-버튼">문의하기</button>
+
+<script src="https://.../widget/alldap-widget.js"
+        data-public-key="pk_xxx"
+        data-launcher="none"></script>
+
+<!-- ⚠️ 위젯 스크립트보다 <아래에> 둘 것. 위에 두면 window.AllDap 이 아직 없다. -->
+<script>
+  document.getElementById('help').addEventListener('click', function () {
+    AllDap.open();
+  });
+</script>
+```
+
+이러면 **사이트에 보이는 것은 100% 고객 디자인**이고, 우리 UI 는 눌렀을 때만 등장한다.
+
+#### 공개 API (`window.AllDap`)
+
+| 함수 | 설명 |
+|---|---|
+| `AllDap.open()` | 채팅창을 연다. 이미 열려 있으면 아무 일도 안 한다 |
+| `AllDap.close()` | 닫는다 |
+| `AllDap.toggle()` | 열려 있으면 닫고, 닫혀 있으면 연다 |
+| `AllDap.isOpen()` | 열려 있는지 `true`/`false` |
+
+- **상태를 값이 아니라 함수로 준다.** `isOpen` 을 변수로 노출하면 고객이 그걸 바꿔
+  우리 내부 상태와 화면이 어긋난다.
+- **닫으면 포커스를 "열기를 누른 요소" 로 돌려준다.** 기본 런처를 감춘 상태에서
+  우리 버튼에 focus() 를 하면 아무 일도 안 일어나 키보드 사용자가 페이지 맨 앞으로 튕긴다.
+- 로더는 `async`/`defer` 없이 문서 순서대로 실행되므로, **이 스크립트 태그보다 아래에 있는**
+  고객 코드에서는 `window.AllDap` 이 항상 존재한다. 위에 두면 `ReferenceError` 다.
+  (그 경우까지 받아주는 큐 스텁은 아직 넣지 않았다 — 필요해지면 그때)
 
 ### `data-app-base` 가 왜 필요한가 (로컬 개발에서 헷갈리는 지점)
 
