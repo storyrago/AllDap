@@ -88,3 +88,23 @@ def text_of(result: dict) -> str:
             return content
 
     return ""
+
+
+def finish_reason(result: dict) -> str | None:
+    """생성이 <왜> 끝났는지 돌려준다. `"length"` 면 max_tokens 에 걸려 잘린 것이다.
+
+    ⚠️ 이 값을 왜 봐야 하나: 잘린 답변은 <내용이 비어 보일 수 있다.> 그걸 그냥
+       "빈 답변"으로 다루면 "문서에 답이 없다"와 구분이 안 된다. 원인이 정반대인
+       두 사실이 같은 결과로 뭉개지는 것이다 (generator.generate 주석 참고).
+
+    ⚠️ `None` 은 "잘리지 않았다"가 아니라 <모른다>는 뜻이다. Workers AI 고유 형식
+       (`result["response"]`)만 오는 응답에는 이 값이 없다. text_of 가 응답 모양이
+       두 가지라고 말하는 것과 같은 이유이며, 그래서 이 함수도 여기 있다 —
+       응답의 모양을 아는 것은 이 파일의 일이다.
+    """
+    choices = result.get("choices")
+    if isinstance(choices, list) and choices:
+        reason = choices[0].get("finish_reason")
+        if isinstance(reason, str):
+            return reason
+    return None
