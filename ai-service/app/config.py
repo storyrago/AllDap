@@ -165,11 +165,62 @@ class Settings(BaseSettings):
 
     eval_min_chunk_chars: int = 100
 
+    # ── 실행 환경 ─────────────────────────────────────────────────────
+    # "prod" 로 두면 아래 _check_prod 가 켜진다. 기본은 local 이라 개발이 안 불편하다.
+    # Spring 의 SPRING_PROFILES_ACTIVE=prod 와 짝을 이룬다.
+    app_env: str = "local"
+
     class Config:
         env_file = ".env"
         extra = "ignore"
 
 
+# 개발 편의를 위한 기본값이지만 <운영에 남아 있으면 사고>인 값들.
+# 키는 설정 이름, 값은 "그 값이면 안 되는 것".
+_LOCAL_DEFAULTS = {
+    "database_url": "postgresql://alldap:alldap@localhost:5432/alldap",
+}
+# 비어 있으면 안 되는 값들. 없으면 기동은 되고 <첫 요청에서> 터진다 — 그게 더 나쁘다.
+_REQUIRED_IN_PROD = ("database_url", "cf_account_id", "cf_api_token")
+
+
+def _check_prod(s: Settings) -> None:
+    """운영에서 설정이 빠졌으면 <시끄럽게 죽는다>.
+
+    왜 이게 필요한가
+    ─────────────────────────────────────────────────────────────────────────
+    Spring 쪽 `application-prod.yaml` 은 이미 이 원칙으로 짜여 있다 —
+    "환경변수가 없으면 기동 자체가 실패해야 한다. 차라리 시끄럽게 죽는 편이 안전하다."
+    그런데 이 파일은 <전부 기본값이 있어> 정반대였다. 두 서비스가 같은 배포에
+    올라가는데 한쪽만 fail-closed 면, 사고는 항상 느슨한 쪽에서 난다.
+
+    구체적으로 무엇이 위험했나:
+      · DATABASE_URL 을 빼먹으면 <운영 컨테이너가 localhost 의 DB> 를 찾는다.
+      · CF_API_TOKEN 을 빼먹으면 기동은 멀쩡히 되고 <사용자의 첫 질문에서> 터진다.
+        기동 실패는 배포하다 바로 보이지만, 첫 질문 실패는 사용자가 먼저 본다.
+    """
+    if s.app_env != "prod":
+        return
+
+    problems = []
+    for name in _REQUIRED_IN_PROD:
+        if not getattr(s, name):
+            problems.append(f"{name.upper()} 가 비어 있습니다")
+    for name, local_value in _LOCAL_DEFAULTS.items():
+        if getattr(s, name) == local_value:
+            problems.append(f"{name.upper()} 가 로컬 개발용 기본값 그대로입니다")
+
+    if problems:
+        raise RuntimeError(
+            "운영 설정이 올바르지 않아 기동을 중단합니다 (APP_ENV=prod):\n  - "
+            + "\n  - ".join(problems)
+            + "\n환경변수를 확인해주세요. 항목은 ai-service/.env.example 에 있습니다."
+        )
+
+
 @lru_cache
 def get_settings() -> Settings:
-    return Settings()
+    s = Settings()
+    # lru_cache 라 프로세스당 한 번만 돈다. 어느 코드가 먼저 설정을 읽든 여기서 걸린다.
+    _check_prod(s)
+    return s

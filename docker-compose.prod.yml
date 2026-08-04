@@ -1,0 +1,95 @@
+# 운영 배포용 compose. (로컬 개발은 docker-compose.yml — 거긴 DB 만 띄운다)
+#
+#   docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
+#
+# 🔴 이 파일의 가장 중요한 성질: <ports: 를 여는 서비스가 caddy 하나뿐이다.>
+#    api·ai-service·db 는 compose 내부 네트워크에서만 서로를 부른다.
+#    특히 ai-service 의 /internal/* 에는 인증이 없어서, 포트가 하나라도 열리면
+#    누구나 남의 봇 문서를 읽는다. "방화벽으로 막는다" 가 아니라
+#    <애초에 호스트에 뜨지 않게> 하는 것이 훨씬 안전하다.
+
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+      TZ: Asia/Seoul
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME} -d ${DB_NAME}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    # ports 없음 — 의도적이다. 백업·점검은 `docker compose exec db psql` 로 한다.
+
+  api:
+    build:
+      # ⚠️ 컨텍스트가 루트다. api/build.gradle 이 ../widget 을 읽는다.
+      context: .
+      dockerfile: api/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_URL: jdbc:postgresql://db:5432/${DB_NAME}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      # Python 은 같은 네트워크 안에서만 부른다. 이 주소는 인터넷에서 닿지 않는다.
+      AI_SERVICE_BASE_URL: http://ai-service:8001
+      # Vercel 배포 주소. application-prod.yaml 이 기본값을 안 두므로 없으면 기동 실패한다.
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS}
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      # JVM 기동이 느리다. start_period 안의 실패는 재시도 횟수로 세지 않는다.
+      start_period: 60s
+
+  ai-service:
+    build:
+      context: .
+      dockerfile: ai-service/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      # 🔴 순서가 중요하다. 스키마는 <Spring 이 기동하면서 Flyway 로> 만든다.
+      #    Python 을 먼저 띄우면 테이블이 없는 DB 를 보게 된다.
+      api:
+        condition: service_healthy
+    environment:
+      APP_ENV: prod
+      DATABASE_URL: postgresql://${DB_USERNAME}:${DB_PASSWORD}@db:5432/${DB_NAME}
+      CF_ACCOUNT_ID: ${CF_ACCOUNT_ID}
+      CF_API_TOKEN: ${CF_API_TOKEN}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY}
+    # ports 없음 — 이 서비스는 인터넷에서 보이면 안 된다.
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      # 80 은 Let's Encrypt 의 HTTP-01 인증에 필요하다. 닫으면 인증서 발급이 안 된다.
+      - "80:80"
+      - "443:443"
+    environment:
+      API_DOMAIN: ${API_DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # 발급받은 인증서를 남긴다. 안 남기면 재시작마다 재발급을 시도해
+      # Let's Encrypt 발급 한도에 걸린다.
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:
