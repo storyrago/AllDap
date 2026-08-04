@@ -111,8 +111,29 @@ export default function ExportPage() {
     );
   }
 
-  /* 고객이 자기 사이트에 붙일 한 줄. publicKey 가 그대로 노출되는 게 정상이다. */
-  const snippet = `<script src="${API_BASE_URL}/widget/alldap-widget.js" data-public-key="${bot.publicKey}"></script>`;
+  /*
+   * 고객이 자기 사이트에 붙일 한 줄. publicKey 가 그대로 노출되는 게 정상이다.
+   *
+   * 🔴 data-app-base 가 왜 필요한가 (2026-08-05 PoC 에서 잡은 버그)
+   * ───────────────────────────────────────────────────────────────────────
+   * 위젯 JS 는 <Spring(:8080)> 이 서빙하고, 로더는 스크립트 src 의 origin 을
+   * API 주소로 삼는다. 그런데 정작 iframe 에 띄울 채팅 화면(`/w/[publicKey]`)은
+   * <Next.js(:3000)> 에 있다. 이 속성이 없으면 로더가 iframe 도 :8080 으로 열어
+   * `GET :8080/w/{key}?embed=1 → 401` 로 <채팅 화면을 불러오는 중입니다…> 에서 멎는다.
+   * (버튼과 인사말까지는 정상이라 더 헷갈린다 — config 는 Spring 이 맞게 주기 때문이다)
+   *
+   * window.location.origin 을 쓰는 이유: `/w/[publicKey]` 는 <바로 이 앱>이 서빙한다.
+   * 그래서 이 화면이 떠 있는 주소가 곧 정답이고, 로컬이든 운영이든 자동으로 맞는다.
+   * (환경변수로 따로 받으면 배포할 때 하나 더 틀릴 자리가 생긴다)
+   *
+   * typeof window 검사는 서버 렌더 대비다. 이 줄까지 오려면 loading 이 false 여야 하고
+   * 그건 브라우저에서만 일어나지만, 규칙을 코드에 남겨두는 편이 안전하다.
+   */
+  const appBase = typeof window === "undefined" ? "" : window.location.origin;
+  const snippet =
+    `<script src="${API_BASE_URL}/widget/alldap-widget.js"` +
+    ` data-public-key="${bot.publicKey}"` +
+    ` data-app-base="${appBase}"></script>`;
 
   const hasDocs = (readyDocs ?? 0) > 0;
   const hasOrigins = bot.allowedOrigins.length > 0;
