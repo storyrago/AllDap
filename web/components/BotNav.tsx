@@ -13,9 +13,20 @@ import { usePathname } from "next/navigation";
  */
 
 /** PRD §7 사이트맵의 /bot/[botId] 하위 5개 화면 */
+/*
+ * 순서는 <사용자가 실제로 밟는 순서>다. 기능을 종류별로 묶은 목록이 아니다.
+ *
+ *   문서를 먹인다 → 잘 답하는지 본다 → 내 사이트에 내보낸다
+ *   ─────────── 여기까지가 처음 온 사람이 끝내야 할 일 ───────────
+ *   품질·로그는 <내보낸 뒤에> 보는 화면이고, 설정은 다 되고 나서 손보는 곳이다.
+ *
+ * 예전에는 임베드 코드가 "설정" 안에 있었다. PRD §8 이 "코드 복사가 전환 포인트" 라고
+ * 못박은 자리가, 보통 맨 나중에 한 번 들어가는 메뉴에 묻혀 있었던 셈이다.
+ */
 const NAV_ITEMS = [
   { slug: "documents", label: "문서 관리" },
   { slug: "chat", label: "테스트 채팅" },
+  { slug: "export", label: "내보내기" },
   { slug: "quality", label: "품질 대시보드" },
   { slug: "logs", label: "대화 로그" },
   { slug: "settings", label: "설정" },

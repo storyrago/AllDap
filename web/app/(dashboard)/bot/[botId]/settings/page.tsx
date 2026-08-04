@@ -1,10 +1,14 @@
 "use client";
 
 /*
- * `/bot/[botId]/settings` — 봇 문구 · 허용 도메인 · 임베드 코드 · 삭제.
+ * `/bot/[botId]/settings` — 봇 문구 · 시스템 프롬프트 · 삭제.
  *
- * PRD §8 이 "코드 복사가 전환 포인트" 라고 적어둔 화면이다.
- * 여기서 허용 도메인을 넣고 스니펫을 복사해 붙이면 위젯이 실제로 뜬다.
+ * ⚠️ 허용 도메인과 임베드 코드는 <내보내기>(`/bot/[botId]/export`) 로 옮겼다.
+ *    PRD §8 이 "코드 복사가 전환 포인트" 라고 못박은 자리가 설정 안에 묻혀 있었기 때문이다.
+ *    자세한 근거는 export/page.tsx 상단 주석 참고.
+ *
+ * 두 화면이 같은 PATCH 를 부르지만 서로 덮어쓰지 않는다 — 서버가 <보낸 필드만> 고치고
+ * (`Bot.updateSettings` 가 null 을 건너뛴다), 두 화면의 저장 범위가 겹치지 않는다.
  *
  * 호출하는 Spring API:
  *   GET    /api/bots/{botId}   → Bot
@@ -14,9 +18,11 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { API_BASE_URL, ApiError, api } from "@/lib/api";
+import Link from "next/link";
+import { ApiError, api } from "@/lib/api";
 import type { Bot } from "@/lib/types";
 import { PageHeader } from "@/components/PageHeader";
+import { Section, TextArea, TextField } from "@/components/Form";
 
 export default function SettingsPage() {
   const { botId } = useParams<{ botId: string }>();
@@ -40,8 +46,6 @@ export default function SettingsPage() {
     welcomeMessage: "",
     fallbackMessage: "",
     systemPrompt: "",
-    /* 허용 도메인은 배열이지만 입력은 줄바꿈으로 받는다. 한 줄에 하나가 가장 편집하기 쉽다. */
-    allowedOrigins: "",
   });
 
   const loadBot = useCallback(async () => {
@@ -55,7 +59,6 @@ export default function SettingsPage() {
         // 서버는 null 을 줄 수 있는데 <input value> 에 null 을 넣으면 React 가 경고한다
         // ("제어 컴포넌트가 비제어로 바뀐다"). "값 없음"을 빈 문자열로 바꿔 규칙을 지킨다.
         systemPrompt: loaded.systemPrompt ?? "",
-        allowedOrigins: loaded.allowedOrigins.join("\n"),
       });
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "봇 정보를 불러오지 못했습니다.");
@@ -96,15 +99,8 @@ export default function SettingsPage() {
         welcomeMessage: form.welcomeMessage,
         fallbackMessage: form.fallbackMessage,
         systemPrompt: form.systemPrompt,
-        /*
-         * 줄바꿈으로 나눈 뒤 빈 줄을 걸러낸다.
-         * 빈 문자열이 배열에 들어가면 서버는 "허용 도메인이 있다"고 판정하는데
-         * 실제로는 아무 도메인도 못 맞춰서, 원인을 찾기 어려운 상태가 된다.
-         */
-        allowedOrigins: form.allowedOrigins
-          .split("\n")
-          .map((line) => line.trim())
-          .filter((line) => line.length > 0),
+        // allowedOrigins 는 <일부러 안 보낸다>. 내보내기 화면의 몫이며,
+        // 서버가 null 인 필드를 건너뛰므로 여기서 저장해도 그 값은 그대로 남는다.
       });
       setBot(updated);
       setSaved(true);
@@ -142,12 +138,9 @@ export default function SettingsPage() {
     );
   }
 
-  /* 고객이 자기 사이트에 붙일 한 줄. publicKey 가 그대로 노출되는 게 정상이다. */
-  const snippet = `<script src="${API_BASE_URL}/widget/alldap-widget.js" data-public-key="${bot.publicKey}"></script>`;
-
   return (
     <>
-      <PageHeader title="봇 설정" description="봇 문구와 임베드 코드를 관리합니다." />
+      <PageHeader title="봇 설정" description="봇 이름과 사용자에게 보이는 문구를 관리합니다." />
 
       <form onSubmit={handleSave}>
         <Section title="기본 정보">
@@ -189,24 +182,6 @@ export default function SettingsPage() {
           />
         </Section>
 
-        <Section title="허용 도메인">
-          <TextArea
-            label="위젯을 설치할 주소 (한 줄에 하나)"
-            hint="예: https://example.com — 프로토콜과 포트까지 정확히 일치해야 합니다."
-            rows={3}
-            value={form.allowedOrigins}
-            onChange={(v) => setForm({ ...form, allowedOrigins: v })}
-            placeholder={"https://example.com\nhttps://www.example.com"}
-          />
-          {/* 빈 목록 = 전부 차단이 서버의 규칙이다. 그 사실을 화면에서 먼저 알려준다. */}
-          {bot.allowedOrigins.length === 0 && (
-            <p className="text-xs text-warning">
-              아직 허용 도메인이 없어 <b>위젯이 어느 사이트에서도 뜨지 않습니다.</b> 설치할 주소를
-              먼저 등록해주세요.
-            </p>
-          )}
-        </Section>
-
         <div className="mt-4 flex items-center gap-3">
           <button
             type="submit"
@@ -226,20 +201,15 @@ export default function SettingsPage() {
         </div>
       </form>
 
-      <Section title="임베드 코드">
+      {/* 여기 있던 "임베드 코드" 는 내보내기 화면으로 옮겼다. 찾으러 온 사람을 위해 길만 남긴다. */}
+      <Section title="내 사이트에 붙이려면">
         <p className="text-xs text-muted">
-          고객 사이트의 <code>&lt;/body&gt;</code> 바로 앞에 이 한 줄을 붙이면 위젯이 뜹니다.
+          설치 코드와 허용 도메인은{" "}
+          <Link href={`/bot/${botId}/export`} className="underline">
+            내보내기
+          </Link>
+          에서 관리합니다.
         </p>
-        <pre className="overflow-x-auto rounded-md border border-subtle bg-background p-3 text-xs">
-          {snippet}
-        </pre>
-        <button
-          type="button"
-          onClick={() => void navigator.clipboard.writeText(snippet)}
-          className="rounded-md border border-subtle px-3 py-1.5 text-sm"
-        >
-          복사
-        </button>
       </Section>
 
       <Section title="위험 구역">
@@ -255,78 +225,5 @@ export default function SettingsPage() {
         </button>
       </Section>
     </>
-  );
-}
-
-/* ── 아래는 이 화면에서만 쓰는 작은 조각들 ────────────────────────────────
- * 별도 파일로 빼지 않은 이유: 다른 화면에서 쓸 일이 아직 없다.
- * 두 번째 사용처가 생기면 그때 components/ 로 옮긴다.
- */
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section className="mt-6 space-y-3 rounded-lg border border-subtle bg-surface p-4">
-      <h2 className="text-sm font-semibold">{title}</h2>
-      {children}
-    </section>
-  );
-}
-
-function TextField({
-  label,
-  hint,
-  value,
-  onChange,
-  maxLength,
-}: {
-  label: string;
-  hint?: string;
-  value: string;
-  /* 이벤트가 아니라 <값>을 넘기는 시그니처로 둔다 — 호출부가 e.target.value 를 몰라도 된다. */
-  onChange: (value: string) => void;
-  maxLength?: number;
-}) {
-  return (
-    <label className="block">
-      <span className="mb-1 block text-sm font-medium">{label}</span>
-      {hint && <span className="mb-1 block text-xs text-muted">{hint}</span>}
-      <input
-        type="text"
-        value={value}
-        maxLength={maxLength}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full rounded-md border border-subtle bg-background px-3 py-2 text-sm outline-none focus:border-accent"
-      />
-    </label>
-  );
-}
-
-function TextArea({
-  label,
-  hint,
-  value,
-  onChange,
-  rows,
-  placeholder,
-}: {
-  label: string;
-  hint?: string;
-  value: string;
-  onChange: (value: string) => void;
-  rows: number;
-  placeholder?: string;
-}) {
-  return (
-    <label className="block">
-      <span className="mb-1 block text-sm font-medium">{label}</span>
-      {hint && <span className="mb-1 block text-xs text-muted">{hint}</span>}
-      <textarea
-        value={value}
-        rows={rows}
-        placeholder={placeholder}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full rounded-md border border-subtle bg-background px-3 py-2 text-sm outline-none focus:border-accent"
-      />
-    </label>
   );
 }
