@@ -7,6 +7,7 @@ AI 관련 작업만 이 서비스로 위임(REST)한다.
 """
 from __future__ import annotations
 
+import logging
 import time
 from contextlib import asynccontextmanager
 from uuid import UUID
@@ -17,7 +18,7 @@ from . import evaluator, evalrun, retriever
 from .chunker import chunk_text
 from .config import get_settings
 from .db import close_pool, cursor
-from .generator import generate
+from .generator import GenerationFailed, generate
 from .parsers import ParseError, extract_text
 from .schemas import (
     ChatRequest,
@@ -28,6 +29,8 @@ from .schemas import (
     EvalRunOut,
     GenerateQuestionsRequest,
 )
+
+_log = logging.getLogger(__name__)
 
 
 @asynccontextmanager
@@ -175,7 +178,21 @@ def chat(req: ChatRequest) -> ChatResponse:
     started = time.perf_counter()
 
     sources = retriever.search(req.bot_id, req.message)
-    answer, is_fallback = generate(req.message, sources)
+    try:
+        answer, is_fallback = generate(req.message, sources)
+    except GenerationFailed as e:
+        # 🔴 fallback 으로 뭉개지 않는다. 근거는 찾았는데 <답변을 못 받은> 것이라
+        #    "문서에서 답을 찾지 못했어요" 로 내보내면 제품이 거짓말을 한다.
+        #    오류로 올려야 대화 로그에도 답변 행이 남지 않는다 — 그게 사실이다.
+        #
+        # ⚠️ 왜 로그를 남기나: 아래 detail 은 사용자에게 닿지 않는다. Spring 이 Python 5xx 를
+        #    AI_SERVICE_UNAVAILABLE 로 바꿔 자기 문구를 내보내기 때문이다. 원인(잘림인지
+        #    빈 응답인지, max_tokens 가 얼마였는지)은 여기서만 볼 수 있다.
+        _log.warning("답변 생성 실패 bot_id=%s: %s", req.bot_id, e)
+        raise HTTPException(
+            503,
+            "답변을 완성하지 못했습니다. 질문을 더 좁혀서 다시 물어봐 주세요.",
+        ) from e
 
     latency_ms = int((time.perf_counter() - started) * 1000)
     return ChatResponse(

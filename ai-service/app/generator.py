@@ -31,6 +31,22 @@ SYSTEM_PROMPT = """당신은 조직의 내부 문서를 근거로 질문에 답�
 FALLBACK_TOKEN = "NO_ANSWER"
 
 
+class GenerationFailed(RuntimeError):
+    """답변을 <받지 못했다>. 근거가 없어 못 답한 것(fallback)과 완전히 다른 사실이다.
+
+    왜 예외인가 — 돌려주지 않고 던지는 이유
+    ─────────────────────────────────────────────────────────────────────────
+    `(답변, is_fallback)` 로는 이 상태를 표현할 수 없다. 셋 중 어느 쪽으로 뭉개도
+    거짓말이 된다:
+      · `(fallback_message, True)`  → 근거를 찾고도 "문서에 답이 없다"고 말한다.
+                                      제품의 핵심 주장이 무너진다. **이게 고치려는 버그다.**
+      · `(잘린 답변, False)`         → 반쪽짜리 답을 완성된 답으로 내보내고, 평가가
+                                      그걸 채점한다(측정이 오염된다).
+    던지면 부르는 쪽이 <자기 맥락에 맞게> 다룬다. 실제로 이미 그렇게 돼 있다 —
+    `evalrun` 은 이 질문을 응답률 분모에서 빼고(측정 실패), `main.chat` 은 오류로 안내한다.
+    """
+
+
 def _build_context(sources: list[Source]) -> str:
     contents = fetch_contents([s.chunk_id for s in sources])
     blocks = []
@@ -71,24 +87,38 @@ def generate(
     })
 
     answer = cf.text_of(result).strip()
+    reason = cf.finish_reason(result)
 
-    # ⚠️ 여기서 <잘린 답변이 fallback 으로 둔갑>할 수 있다. 지금은 위험이 낮지만 사라진 건 아니다.
-    #
-    # 어떻게 둔갑하나: 사고(thinking) 토큰이 max_output_tokens 를 함께 쓰는 모델이면
-    # 사고가 길어질 때 답변 본문이 시작도 못 하고 잘린다(finish_reason=MAX_TOKENS).
-    # 그러면 resp.text 가 비어 아래 `not answer` 에 걸려 "문서에서 답을 찾지 못했어요" 가 나간다.
-    # 실제로는 근거를 찾았는데 <모른다고 답하는> 것이다.
-    # 근거: 질문 생성에서 같은 원인으로 5회 중 3회가 잘렸다 (evaluator.py 주석의 실측).
-    #
-    # 지금 위험이 낮은 이유: 2026-08-02 에 chat_model 을 gemini-3.5-flash-lite 로 바꿨고,
-    # 이 모델은 thoughtsTokenCount=0 으로 응답한다 — 사고가 없으니 잠식할 것도 없다.
-    #
-    # 그래도 남겨두는 이유: <모델을 바꾸면 즉시 되살아난다.> 그리고 사고를 안 하더라도
-    # 답변이 정말 길면 여전히 잘릴 수 있다(max_tokens=1024).
-    # TODO(W3): finish_reason 이 MAX_TOKENS 면 fallback 이 아니라 <실패>로 구분해
-    #           "답변이 길어 완성하지 못했습니다" 처럼 안내할 것.
-    #           지금 안 고치는 건 이 분기를 건드리면 fallback 판정 기준이 달라져
-    #           방금 재측정한 10/10 기준선을 또 다시 재야 하기 때문이다.
-    if FALLBACK_TOKEN in answer or not answer:
+    # 🔴 순서가 중요하다. 모델이 명시적으로 거절했으면 그건 <완결된 신호>다.
+    #    뒤가 잘렸든 아니든 "문서에 답이 없다"는 사실은 이미 전달됐으므로 fallback 이 맞다.
+    #    이 검사를 아래로 내리면, 거절해놓고 잘린 응답이 <오류>로 둔갑한다.
+    if FALLBACK_TOKEN in answer:
         return fallback_message, True
+
+    # ⚠️ 예전에 여기가 `if FALLBACK_TOKEN in answer or not answer` 한 줄이었다.
+    #    그 `or not answer` 가 <우리가 토큰을 덜 줘서 빈 응답>을 <문서에 답이 없다>로
+    #    둔갑시켰다. 근거를 찾고도 "문서에서 답을 찾지 못했어요" 를 내보내는 것이다.
+    #
+    #    어떻게 비나: 사고(thinking) 토큰이 max_tokens 를 함께 쓰는 모델은 사고가 길어지면
+    #    본문이 <시작도 못 하고> 잘린다. 실측 둘 —
+    #      · 질문 생성에서 같은 원인으로 5회 중 3회가 잘렸다 (evaluator.py 주석)
+    #      · K-EXAONE 은 max_tokens=8192 를 줘도 2000 에서 잘렸다 (2026-08-04, decisions.md)
+    #
+    #    잘렸는데 <본문이 있는> 경우도 실패로 친다. 반쪽짜리 답을 완성된 답으로 내보내면
+    #    사용자는 잘린 줄 모르고, 평가는 그걸 정상 답변으로 채점한다(측정이 오염된다).
+    #
+    #    ⚠️ reason 이 None 이면 <모른다>는 뜻이라 잘림으로 단정하지 않는다(cf.finish_reason 참고).
+    #       그래도 답변이 비어 있으면 실패다 — 빈 문자열이 정답인 경우는 없다.
+    if reason == "length":
+        raise GenerationFailed(
+            f"답변이 max_tokens({s.max_tokens})에 걸려 잘렸습니다. "
+            f"질문을 더 좁히거나 max_tokens 를 늘리세요. "
+            f"받은 길이={len(answer)}자"
+        )
+    if not answer:
+        raise GenerationFailed(
+            f"모델이 빈 응답을 돌려줬습니다 (finish_reason={reason!r}). "
+            f"모델·프롬프트를 확인하세요."
+        )
+
     return answer, False
