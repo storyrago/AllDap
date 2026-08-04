@@ -127,9 +127,22 @@
 
   var publicKey = selfScript.getAttribute('data-public-key');
   if (!publicKey) {
-    console.error('[AllDap] data-public-key 가 없습니다. 봇 설정 화면에서 임베드 코드를 다시 복사해 붙여넣어주세요.');
+    console.error('[AllDap] data-public-key 가 없습니다. 봇의 [내보내기] 화면에서 설치 코드를 다시 복사해 붙여넣어주세요.');
     return;
   }
+
+  /**
+   * data-launcher="none" 이면 <우리 플로팅 버튼을 그리지 않는다.>
+   *
+   * 왜 필요한가 — "위젯이 우리 사이트 디자인과 안 맞는다" 에 대한 답이다.
+   * 채팅창은 iframe 이라 우리 것일 수밖에 없지만(대화 내용이 고객사 사내 문서라
+   * 남의 스크립트에서 읽히면 안 된다), <버튼은 페이지 위에 있으므로 고객이 만들 수 있다.>
+   * 고객이 자기 HTML·CSS 로 버튼을 만들고 window.AllDap.open() 을 부르면
+   * 사이트에 보이는 것은 100% 고객 디자인이 된다. (파일 맨 아래 공개 API 참고)
+   *
+   * 기본값은 'default' 다 — 개발자가 없는 고객은 한 줄만 붙이고 끝나야 한다.
+   */
+  var launcherMode = selfScript.getAttribute('data-launcher') === 'none' ? 'none' : 'default';
 
   function trimSlash(u) { return String(u).replace(/\/+$/, ''); }
 
@@ -429,6 +442,12 @@
   shadow.appendChild(panel);
   shadow.appendChild(launcher);
 
+  /* 감출 때 <제거>하지 않고 인라인 style 로 숨기는 이유:
+     아래 열고 닫기 코드가 launcher 의 className·aria 속성을 계속 만진다.
+     지워버리면 그 코드가 전부 null 검사를 달아야 하는데, 얻는 게 없다.
+     인라인 style 은 시트의 어떤 규칙보다 세서 미디어쿼리(.launcher.is-open)에도 안 진다. */
+  if (launcherMode === 'none') { launcher.style.display = 'none'; }
+
   function mount() { document.body.appendChild(host); }
   if (document.body) {
     mount();
@@ -686,7 +705,15 @@
 
   var isOpen = false;
 
+  /* 열기 직전에 포커스가 어디 있었는지 기억한다.
+     기본 런처를 쓸 때는 닫으면서 그 버튼으로 돌려주면 되지만, 고객이 자기 버튼을 쓰면
+     우리 런처는 숨겨져 있어 focus() 가 아무 일도 안 한다 — 키보드 사용자가 페이지 맨 앞으로
+     튕겨나간다. 그래서 <열기를 누른 그 요소>로 돌려준다. */
+  var lastFocused = null;
+
   function openPanel() {
+    if (isOpen) { return; }
+    lastFocused = document.activeElement;
     isOpen = true;
     panel.className = 'panel is-open';
     launcher.className = 'launcher is-open';
@@ -700,6 +727,7 @@
   }
 
   function closePanel() {
+    if (!isOpen) { return; }
     isOpen = false;
     panel.className = 'panel';
     launcher.className = 'launcher';
@@ -711,8 +739,10 @@
        지우면 다시 열 때마다 페이지가 새로 로드되어 대화 내용이 사라진다.
        (닫을 때마다 대화가 날아가면 사용자가 다시 묻지 않는다) */
 
-    // 닫으면 포커스를 버튼으로 돌려준다. 키보드 사용자가 길을 잃지 않게.
-    launcher.focus();
+    // 닫으면 포커스를 돌려준다. 키보드 사용자가 길을 잃지 않게.
+    // 고객이 자기 버튼을 쓰는 경우엔 우리 런처가 숨겨져 있으므로 <열기를 누른 요소>로 보낸다.
+    var back = launcherMode === 'none' ? lastFocused : launcher;
+    if (back && typeof back.focus === 'function') { back.focus(); }
   }
 
   launcher.addEventListener('click', function () {
@@ -724,4 +754,41 @@
   document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape' && isOpen) { closePanel(); }
   });
+
+  // ===========================================================================
+  // 8. 공개 API — 고객 페이지가 위젯을 직접 여닫을 수 있게 한다
+  // ===========================================================================
+  /*
+   * 왜 필요한가
+   * ─────────────────────────────────────────────────────────────────────────
+   * "위젯이 우리 사이트 디자인과 안 맞는다" 가 가장 흔한 반대다.
+   * 채팅창 자체는 iframe 이라 우리 것일 수밖에 없다 — 대화 내용이 고객사 사내 문서라
+   * 같은 문서에 두면 그 페이지의 서드파티 스크립트(광고·애널리틱스)가 읽을 수 있다.
+   * 하지만 <버튼은 페이지 위에 있으니 고객이 만들 수 있다.>
+   *
+   *   <button class="내-사이트-버튼">문의하기</button>
+   *   <script>
+   *     document.querySelector('.내-사이트-버튼')
+   *             .addEventListener('click', function () { AllDap.open(); });
+   *   </script>
+   *
+   * 여기에 data-launcher="none" 을 더하면 <사이트에 보이는 것은 100% 고객 디자인>이 되고,
+   * 우리 UI 는 눌렀을 때만 등장한다.
+   *
+   * 설계 메모
+   * ─────────────────────────────────────────────────────────────────────────
+   * · 내부 상태를 그대로 노출하지 않고 <함수만> 준다. isOpen 을 변수로 내보내면
+   *   고객이 그 값을 바꿔 우리 상태와 화면이 어긋난다. 읽기 전용 함수로 준다.
+   * · 이미 열려 있는데 open() 을 또 부르는 경우는 openPanel 앞에서 막았다.
+   *   안 막으면 lastFocused 가 우리 iframe 으로 덮여, 닫을 때 포커스가 사라진 요소로 간다.
+   * · 이 스크립트는 async/defer 없이 문서 순서대로 실행되므로, <이 태그보다 아래에 있는>
+   *   고객 스크립트에서는 window.AllDap 이 항상 존재한다. 위에 두면 없다.
+   *   (그 경우까지 받아주는 큐 스텁은 지금 필요하지 않다 — 필요해지면 그때 넣는다)
+   */
+  window.AllDap = {
+    open: function () { openPanel(); },
+    close: function () { closePanel(); },
+    toggle: function () { if (isOpen) { closePanel(); } else { openPanel(); } },
+    isOpen: function () { return isOpen; }
+  };
 })();
