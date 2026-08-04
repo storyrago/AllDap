@@ -70,7 +70,9 @@ public enum ErrorCode {
 
     // ── 위젯(공개 API) ───────────────────────────────────────────────────
     ORIGIN_NOT_ALLOWED(HttpStatus.FORBIDDEN, "ORIGIN_NOT_ALLOWED",
-            "이 도메인에서는 위젯을 사용할 수 없습니다. 봇 설정의 허용 도메인에 현재 주소를 추가해주세요."),
+            // ⚠️ 화면 이름을 바꾸면 이 문구도 같이 고쳐야 한다. 2026-08-05 에 허용 도메인이
+            //    <설정> 에서 <내보내기> 로 옮겨가면서 이 안내가 없는 곳을 가리키고 있었다.
+            "이 도메인에서는 위젯을 사용할 수 없습니다. 봇의 [내보내기] 화면에서 '설치할 주소'에 현재 주소를 추가해주세요."),
     RATE_LIMIT_EXCEEDED(HttpStatus.TOO_MANY_REQUESTS, "RATE_LIMIT_EXCEEDED",
             "요청이 너무 많습니다. 잠시 후 다시 시도해주세요."),
 
