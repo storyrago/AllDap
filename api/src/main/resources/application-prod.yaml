@@ -28,11 +28,25 @@ spring:
 
   servlet:
     multipart:
-      max-file-size: 20MB
-      max-request-size: 20MB
+      # 환경변수로 뺀 이유: 작은 서버에서 이게 <OOM 방아쇠>다.
+      # Python 이 PDF 를 파싱할 때 pymupdf 가 파일을 통째로 메모리에 올려서,
+      # 1GB 머신이면 20MB 짜리 하나에 수백 MB 가 순간적으로 뛴다.
+      # 문제가 났을 때 이미지를 다시 빌드하지 않고 값만 낮출 수 있어야 한다.
+      # ⚠️ 낮출 때는 ai-service 의 UPLOAD_MAX_BYTES 도 <함께> 낮출 것.
+      #    한쪽만 낮추면 Spring 은 통과시키고 Python 이 413 을 주는 엇갈림이 난다.
+      max-file-size: ${UPLOAD_MAX_SIZE:20MB}
+      max-request-size: ${UPLOAD_MAX_SIZE:20MB}
 
 server:
   port: ${SERVER_PORT:8080}
+  # 리버스 프록시(Caddy) 뒤에서 돈다. X-Forwarded-* 를 신뢰하지 않으면
+  # 요청자 IP 가 전부 <프록시의 IP> 로 보인다.
+  # 위젯 채팅의 rate limit 이 IP 기준이라, 그대로 두면 전 세계가
+  # 한 바구니에서 한도를 나눠 쓰게 된다.
+  # ⚠️ 프록시를 반드시 거친다는 전제에서만 안전하다. Spring 을 직접 노출하면
+  #    클라이언트가 이 헤더를 위조해 rate limit 을 우회할 수 있다.
+  #    우리 구성은 Caddy 만 포트를 열므로 그 전제가 성립한다.
+  forward-headers-strategy: framework
 
 management:
   endpoints:
