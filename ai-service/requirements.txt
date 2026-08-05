@@ -1,7 +1,12 @@
 fastapi==0.115.6
 uvicorn[standard]==0.34.0
 python-multipart==0.0.20
-pydantic==2.10.4
+# ⚠️ 2.10.4 로 적혀 있었는데 <실제로 설치되는 건 2.13.4> 였다.
+#    google-genai 2.16.0 이 더 높은 pydantic 을 요구해 pip 이 올려버렸고,
+#    이 파일만 옛 값으로 남아 있었다. 로컬 venv 는 여러 번에 걸쳐 설치돼서
+#    돌아갔지만, <깨끗한 환경에서는 resolve 자체가 안 됐다>(2026-08-05 이미지 빌드에서 발견).
+#    지금 값은 실측으로 돌아가는 버전이다.
+pydantic==2.13.4
 pydantic-settings==2.7.0
 
 psycopg[binary,pool]==3.2.3

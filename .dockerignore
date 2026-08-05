@@ -1,0 +1,29 @@
+# 빌드 컨텍스트가 <저장소 루트>라(api/Dockerfile 주석 참고) 여기서 한 번에 걸러낸다.
+# 이걸 안 하면 node_modules·.venv·build 가 통째로 도커 데몬에 전송되어
+# 빌드가 몇 배로 느려지고, .env 같은 비밀 파일이 이미지 레이어에 섞일 수 있다.
+
+.git
+.github
+
+# 프론트는 Vercel 이 빌드한다. 이미지에 들어갈 이유가 없다.
+web
+
+# 언어별 산출물
+**/node_modules
+**/.next
+**/build
+**/.gradle
+**/.venv
+**/__pycache__
+**/*.pyc
+
+# 🔴 비밀. 이미지 안에 들어가면 이미지를 받는 누구나 읽는다.
+**/.env
+**/.env.*
+!**/.env.example
+
+# 로컬 개발용
+docker-compose.yml
+**/*.md
+!widget/README.md
+.claude
