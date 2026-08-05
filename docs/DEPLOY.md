@@ -13,6 +13,43 @@
 [RDS db.t3.micro]  Postgres 16 + pgvector   ← 퍼블릭 액세스 비활성
 ```
 
+---
+
+## 📋 진행 체크리스트
+
+각 단계에 **확인법**이 붙어 있다. 중간에 끊겨도 확인법을 위에서부터 돌려보면
+어디까지 됐는지 알 수 있다. 상세는 아래 각 절을 볼 것.
+
+| # | 할 일 | 됐는지 확인 |
+|---|---|---|
+| 0 | PR 머지 → Actions 초록불 → GHCR 패키지 public 전환 | GitHub → Packages 에 `api`·`ai-service` 가 보인다 |
+| 1 | **RDS 생성** (PostgreSQL 16, `db.t3.micro`, 퍼블릭 액세스 **끔**, 초기 DB `alldap`) | 콘솔에 "사용 가능", 엔드포인트 주소가 나온다 |
+| 2 | **EC2 생성** (Ubuntu 24.04 **x86_64**, `t3.micro`) + **탄력적 IP 할당** | `ssh -i key.pem ubuntu@<탄력적IP>` 접속됨 |
+| 3 | **보안 그룹**: EC2 ← 22(내 IP)·80·443 / RDS ← 5432(**EC2 의 SG**) | 4번에서 드러난다 |
+| 4 | **swap 2GB** + **Docker 설치** | `free -h` 에 Swap 2.0Gi · `docker ps` 됨 |
+| 5 | EC2 에서 **RDS 연결 확인** | `nc -zv <RDS엔드포인트> 5432` → succeeded |
+| 6 | **DuckDNS** 서브도메인 → 탄력적 IP | `dig +short <도메인>` 이 탄력적 IP 를 뱉음 |
+| 7 | `git clone` → `.env.prod` 채우기 | `DB_HOST`·`JWT_SECRET`·`CF_*` 가 비어 있지 않음 |
+| 8 | **`docker compose … up -d`** | `docker compose … ps` 에서 api 가 `healthy` (2~3분 걸림) |
+| 9 | **HTTPS 확인** | `curl https://<도메인>/actuator/health` → `{"status":"UP"}` |
+| 10 | 🔴 **격리 확인** | `curl http://<탄력적IP>:8001/health` → **연결 실패해야 정상** |
+| 11 | **Vercel** 배포 (Root `web`, `NEXT_PUBLIC_API_BASE_URL`) | Vercel 주소로 로그인 화면이 뜸 |
+| 12 | `CORS_ALLOWED_ORIGINS` 에 Vercel 주소 넣고 api 재시작 | 브라우저에서 가입이 됨 |
+| 13 | **종단 테스트** — 문서 업로드 → 채팅 → 내보내기 → 다른 사이트에 설치 | 남의 사이트에서 근거 붙은 답변이 나옴 |
+
+**막혔을 때 먼저 볼 곳**
+
+```bash
+docker compose -f docker-compose.prod.yml --env-file .env.prod ps       # 누가 안 떴나
+docker compose -f docker-compose.prod.yml --env-file .env.prod logs api # 왜 안 떴나
+free -h                                                                  # 메모리가 말랐나
+```
+
+Spring 이 기동 실패하면 **로그 첫 줄에 무엇이 빠졌는지 나온다**(fail-closed).
+Python 도 마찬가지다 — 빠진 환경변수 이름을 대며 죽는다.
+
+---
+
 ## 왜 이 구조인가
 
 **🔴 배포의 1순위 제약은 Python 을 인터넷에서 보이지 않게 하는 것이다.**
