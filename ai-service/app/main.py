@@ -14,7 +14,7 @@ from uuid import UUID
 
 from fastapi import BackgroundTasks, FastAPI, File, HTTPException, UploadFile
 
-from . import evaluator, evalrun, retriever
+from . import conflicts, evaluator, evalrun, retriever
 from .chunker import chunk_text
 from .config import get_settings
 from .db import close_pool, cursor
@@ -23,6 +23,9 @@ from .parsers import ParseError, extract_text
 from .schemas import (
     ChatRequest,
     ChatResponse,
+    ConflictOut,
+    ConflictScanOut,
+    ConflictStatusRequest,
     DocumentOut,
     EvalQuestionOut,
     EvalResultOut,
@@ -395,3 +398,99 @@ def list_eval_results(run_id: UUID) -> list[EvalResultOut]:
         )
         for r in rows
     ]
+
+
+# ── 문서 간 모순 (진단) ───────────────────────────────────────────────
+
+@app.post("/internal/bots/{bot_id}/conflicts/scan", response_model=ConflictScanOut)
+def scan_conflicts(bot_id: UUID) -> ConflictScanOut:
+    """문서끼리 어긋나는 곳을 훑는다.
+
+    왜 <동기>인가 (평가 실행은 202 인데)
+    ─────────────────────────────────────────────────────────────────────
+    기준은 하나다: **폴링할 대상이 있는가.**
+      · eval_runs 에는 status 가 있다 → 202 를 주면 화면이 그걸 본다
+      · doc_conflicts 에는 "스캔 한 번" 을 가리키는 행이 없다 → 202 를 줘도 볼 게 없다
+    그래서 질문 생성(/eval/questions/generate)과 같은 선택을 한다 —
+    <상한(conflict_max_pairs)으로 응답 시간을 통제하는 동기 API>.
+
+    ⚠️ 후보가 상한보다 많으면 가까운 쌍부터 처리하고 나머지는 남는다.
+       판정 결과를 'clear' 로도 저장하므로 다시 부르면 남은 것부터 이어서 한다.
+       응답의 candidates 가 상한과 같으면 "아직 남았을 수 있다"는 신호다.
+
+    def 이지 async def 가 아닌 이유는 /internal/chat 과 같다 —
+    LLM 호출이 블로킹이라 async 에 두면 이벤트 루프를 통째로 막는다.
+    """
+    return ConflictScanOut(**conflicts.scan(bot_id).model_dump())
+
+
+@app.get("/internal/bots/{bot_id}/conflicts", response_model=list[ConflictOut])
+def list_conflicts(bot_id: UUID, status: str = "open") -> list[ConflictOut]:
+    """충돌 목록. 기본은 관리자가 아직 안 본 것(open)만.
+
+    ⚠️ bot_id 로 반드시 좁힌다. /internal/* 에는 인증이 없어서
+       이 조건 하나가 봇 간 격리의 전부다.
+
+    청크 원문을 함께 준다 — 관리자가 판정을 <검증>할 수 있어야 하기 때문이다.
+    요약(topic/a_says/b_says)만 주면 "정말 그렇게 쓰여 있나"를 확인할 방법이 없고,
+    확인할 수 없는 지적은 무시당한다.
+    """
+    with cursor() as cur:
+        cur.execute(
+            """SELECT k.id, k.topic, k.a_says, k.b_says,
+                      da.filename, db.filename,
+                      ca.content,  cb.content,
+                      k.distance, k.status, k.created_at
+                 FROM doc_conflicts k
+                 JOIN chunks ca    ON ca.id = k.chunk_a_id
+                 JOIN documents da ON da.id = ca.document_id
+                 JOIN chunks cb    ON cb.id = k.chunk_b_id
+                 JOIN documents db ON db.id = cb.document_id
+                WHERE k.bot_id = %s AND k.status = %s
+                ORDER BY k.distance NULLS LAST, k.created_at""",
+            (bot_id, status),
+        )
+        rows = cur.fetchall()
+
+    return [
+        ConflictOut(
+            id=r[0], topic=r[1], a_says=r[2], b_says=r[3],
+            a_filename=r[4], b_filename=r[5],
+            a_content=r[6], b_content=r[7],
+            distance=r[8], status=r[9], created_at=r[10],
+        )
+        for r in rows
+    ]
+
+
+@app.patch("/internal/bots/{bot_id}/conflicts/{conflict_id}", response_model=ConflictOut)
+def update_conflict_status(
+    bot_id: UUID, conflict_id: UUID, req: ConflictStatusRequest
+) -> ConflictOut:
+    """충돌 1건의 상태를 바꾼다 (주로 오탐을 'ignored' 로 치우는 용도).
+
+    🔴 경로에 bot_id 가 <반드시> 있어야 한다.
+       conflict_id 만 받으면 Spring 이 "이게 누구 봇의 것인지" 를 알 수 없어
+       소유권 확인(findOwnedBot)을 할 수가 없다. 그러면 남의 봇 충돌을
+       id 만 알아내 치워버릴 수 있다. 아래 UPDATE 도 두 값으로 함께 좁힌다.
+
+    ⚠️ 'ignored' 는 재스캔에서 되살아나면 안 된다 —
+       conflicts.py 의 후보 질의가 NOT EXISTS 로 이미 걸러준다.
+    """
+    with cursor(commit=True) as cur:
+        cur.execute(
+            "UPDATE doc_conflicts SET status=%s WHERE id=%s AND bot_id=%s RETURNING id",
+            (req.status, conflict_id, bot_id),
+        )
+        if cur.fetchone() is None:
+            # 없는 id 와 <남의 봇 것>을 같은 404 로 답한다. 구분해주면
+            # id 를 무작위로 던져 남의 충돌이 존재하는지 훑을 수 있다.
+            # (BotService 가 남의 봇을 403 이 아니라 404 로 답하는 것과 같은 이유다)
+            raise HTTPException(404, "해당 항목을 찾을 수 없습니다.")
+
+    found = list_conflicts(bot_id, status=req.status)
+    for c in found:
+        if c.id == conflict_id:
+            return c
+    # UPDATE 는 됐는데 조회가 안 되는 경우 = 청크가 그 사이에 지워졌다(문서 삭제·재청킹).
+    raise HTTPException(404, "해당 항목을 찾을 수 없습니다.")

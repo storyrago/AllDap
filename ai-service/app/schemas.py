@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -101,3 +102,47 @@ class EvalResultOut(BaseModel):
     retrieved_chunks: list[dict] = []
     faithfulness: float | None = None
     relevancy: float | None = None
+
+
+class ConflictOut(BaseModel):
+    """문서 간 사실 충돌 1건.
+
+    화면이 <두 청크 원문을 다 읽지 않고도> 무엇이 문제인지 알 수 있어야 한다.
+    그래서 판정 요약(topic/a_says/b_says)과 원문(a_content/b_content)을 함께 준다 —
+    요약만 주면 관리자가 판정을 검증할 수 없고, 원문만 주면 매번 다 읽어야 한다.
+    """
+
+    id: UUID
+    topic: str
+    a_says: str
+    b_says: str
+    a_filename: str
+    b_filename: str
+    a_content: str
+    b_content: str
+    distance: float | None = None
+    status: str
+    created_at: datetime
+
+
+class ConflictScanOut(BaseModel):
+    """스캔 한 번의 결과.
+
+    네 숫자를 <따로> 준다. "깨끗해서 0건"과 "못 재서 0건"은 다른 사실인데,
+    합쳐 놓으면 구분이 안 된다 — 이 프로젝트가 그 부류의 버그를 네 번 냈다.
+    """
+
+    candidates: int
+    judged: int
+    conflicts: int
+    failed: int
+
+
+class ConflictStatusRequest(BaseModel):
+    """충돌 1건의 상태 변경.
+
+    ignored 는 <오탐 표시>다. 이걸 못 하면 헛짚은 항목이 목록에 영원히 남고,
+    관리자는 화면 자체를 안 보게 된다 — 기능이 없는 것과 같아진다.
+    """
+
+    status: Literal["open", "ignored", "resolved"]
