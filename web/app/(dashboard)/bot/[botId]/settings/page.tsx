@@ -33,6 +33,10 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  /* 삭제 확인 패널이 열렸는가. window.confirm 을 대신한다(handleDelete 주석 참고). */
+  const [armed, setArmed] = useState(false);
+  /* 삭제 요청이 도는 중. 버튼을 잠가 연타로 같은 요청이 두 번 나가는 것을 막는다. */
+  const [deleting, setDeleting] = useState(false);
 
   /*
    * 폼 입력값을 봇 객체와 <따로> 들고 있는 이유.
@@ -111,21 +115,35 @@ export default function SettingsPage() {
     }
   }
 
+  /*
+   * 봇을 지우면 문서·청크·대화 로그가 DB 의 CASCADE 로 전부 사라진다. 되돌릴 수 없다.
+   *
+   * 🔴 window.confirm 을 쓰지 않는 이유 (2026-08-10, 문서 삭제에서 먼저 겪었다)
+   * ─────────────────────────────────────────────────────────────────────────
+   * 크롬은 같은 페이지에서 대화상자가 반복되면 "추가 대화상자를 만들지 않도록 차단"
+   * 체크박스를 띄운다. 켜지면 confirm() 은 <항상 false> 를 돌려주고,
+   * 이 함수는 조용히 return 하고, 요청조차 안 나가고, 오류도 안 뜬다.
+   * 밖에서 보면 "버튼이 고장났다" 와 구별할 수 없다 — 실제로 그렇게 보였다.
+   *
+   * 즉 <파괴적 작업일수록 안전장치가 브라우저 설정 하나로 사라지면 안 된다.>
+   * 문서 삭제보다 여기가 더 위험하다: 문서는 다시 올릴 수 있지만 대화 기록은 못 되살린다.
+   *
+   * 문서 삭제는 버튼 라벨만 바꾸는 2단계인데 여기는 <패널>인 이유:
+   * confirm 이 보여주던 정보(봇 이름 + 무엇이 사라지는지)를 잃지 않으려면 자리가 필요하고,
+   * 취소 버튼이 따로 있어야 오클릭으로 지워지지 않는다. 위험이 다르면 마찰도 달라야 한다.
+   */
   async function handleDelete() {
     if (!bot) return;
-    // 봇을 지우면 문서·청크·대화 로그가 DB 의 CASCADE 로 전부 사라진다. 되돌릴 수 없다.
-    if (
-      !window.confirm(
-        `"${bot.name}" 봇을 삭제할까요?\n올린 문서와 대화 기록이 모두 사라지며 되돌릴 수 없습니다.`,
-      )
-    ) {
-      return;
-    }
+    setDeleting(true);
+    setError(null);
     try {
       await api.bots.remove(botId);
+      // 성공하면 화면을 떠나므로 deleting 을 되돌리지 않는다(되돌리면 잠깐 깜빡인다).
       router.replace("/dashboard");
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "삭제하지 못했습니다.");
+      setDeleting(false);
+      setArmed(false);
     }
   }
 
@@ -216,13 +234,49 @@ export default function SettingsPage() {
         <p className="text-xs text-muted">
           봇을 지우면 올린 문서와 대화 기록이 <b>모두</b> 사라집니다. 되돌릴 수 없습니다.
         </p>
-        <button
-          type="button"
-          onClick={handleDelete}
-          className="rounded-md border border-danger px-3 py-1.5 text-sm text-danger"
-        >
-          이 봇 삭제
-        </button>
+
+        {!armed ? (
+          <button
+            type="button"
+            onClick={() => setArmed(true)}
+            className="rounded-md border border-danger px-3 py-1.5 text-sm text-danger"
+          >
+            이 봇 삭제
+          </button>
+        ) : (
+          /*
+            confirm 이 보여주던 것을 그대로 화면에 옮겼다 — <봇 이름>과 <무엇이 사라지는지>.
+            이름을 다시 적는 이유: 봇을 여러 개 쓰면 "지금 어느 봇 설정 화면인지"를
+            착각하기 쉽다. 지우기 직전에 한 번 더 눈으로 확인시킨다.
+          */
+          <div className="rounded-md border border-danger bg-danger-surface p-3">
+            <p className="text-sm">
+              <b>{bot.name}</b> 을(를) 정말 삭제할까요?
+            </p>
+            <p className="mt-1 text-xs">
+              올린 문서와 대화 기록이 함께 사라지며 <b>되돌릴 수 없습니다.</b>
+            </p>
+            <div className="mt-3 flex gap-2">
+              {/* 취소를 <먼저> 둔다. 습관적으로 왼쪽을 누르는 사람이 실수로 지우지 않도록. */}
+              <button
+                type="button"
+                onClick={() => setArmed(false)}
+                disabled={deleting}
+                className="rounded-md border border-subtle bg-surface px-3 py-1.5 text-sm disabled:opacity-50"
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleDelete()}
+                disabled={deleting}
+                className="rounded-md bg-danger px-3 py-1.5 text-sm font-medium text-surface disabled:opacity-50"
+              >
+                {deleting ? "삭제 중…" : "삭제합니다"}
+              </button>
+            </div>
+          </div>
+        )}
       </Section>
     </>
   );
