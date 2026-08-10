@@ -4,6 +4,7 @@ import com.alldap.api.domain.eval.dto.EvalQuestionResponse;
 import com.alldap.api.domain.eval.dto.EvalResultResponse;
 import com.alldap.api.domain.eval.dto.EvalRunResponse;
 import com.alldap.api.domain.eval.dto.GenerateQuestionsRequest;
+import com.alldap.api.domain.eval.dto.UnansweredSummaryResponse;
 import com.alldap.api.domain.eval.service.EvalService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -115,4 +117,24 @@ public class EvalController {
     // TODO(W3): 미답변(fallback) 집계 API 경로를 확정할 것. 후보: GET /api/bots/{botId}/eval/unanswered
     //   ⚠️ 이 데이터는 eval_* 테이블에 없다. 실사용 로그(messages.is_fallback)를 집계해야 한다.
     //      즉 Python 이 아니라 Spring 이 만드는 값이다(MessageRepository TODO 참고).
+
+    /**
+     * GET /api/bots/{botId}/eval/unanswered — 봇이 거절한 질문 모음.
+     *
+     * <p>경로가 {@code /eval} 아래인 이유: 프론트({@code web/lib/api.ts})와 PRD 가 이미 이 주소를
+     * 약속해뒀다. <b>화면은 "진단" 이지만 API 는 여기 산다</b> — 화면 배치와 API 경로가
+     * 꼭 같아야 하는 것은 아니고, 굳이 옮기면 약속된 경로만 하나 깨진다.
+     *
+     * <p>LLM 을 부르지 않으므로 비용이 0 이고, 그래서 화면이 마음껏 다시 불러도 된다.
+     *
+     * @param limit 상한. 미답변이 수백 건이어도 관리자가 위에서부터 처리하므로
+     *              전부 내려줄 이유가 없다. 응답 크기와 화면 렌더링을 함께 묶어둔다.
+     */
+    @GetMapping("/unanswered")
+    public ResponseEntity<UnansweredSummaryResponse> getUnanswered(
+            @AuthenticationPrincipal UUID userId,
+            @PathVariable UUID botId,
+            @RequestParam(defaultValue = "50") int limit) {
+        return ResponseEntity.ok(evalService.findUnanswered(userId, botId, Math.clamp(limit, 1, 200)));
+    }
 }

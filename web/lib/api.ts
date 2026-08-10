@@ -31,7 +31,7 @@ import type {
   EvalRun,
   LogsQuery,
   Paged,
-  UnansweredQuestion,
+  UnansweredSummary,
   UpdateBotRequest,
   Uuid,
   WidgetConfig,
@@ -383,9 +383,14 @@ export const api = {
     /** 실행 1건의 질문별 상세 채점 결과 */
     getRunResults: (botId: Uuid, runId: Uuid) =>
       request<EvalResult[]>(`/api/bots/${botId}/eval/runs/${runId}/results`),
-    /** ⚠️ 미구현 — Spring 에 아직 없다(messages 집계가 필요하다). 화면에서 부르지 말 것. */
-    listUnanswered: (botId: Uuid) =>
-      request<UnansweredQuestion[]>(`/api/bots/${botId}/eval/unanswered`),
+    /**
+     * 봇이 근거를 못 찾아 거절한 질문 모음 (자주 물어본 순).
+     *
+     * LLM 을 부르지 않고 messages 집계만 하므로 <비용이 0>이다 — 마음껏 다시 불러도 된다.
+     * 응답이 배열이 아니라 객체인 이유는 UnansweredSummary 주석 참고.
+     */
+    listUnanswered: (botId: Uuid, limit = 50) =>
+      request<UnansweredSummary>(`/api/bots/${botId}/eval/unanswered?limit=${limit}`),
   },
 
   /**

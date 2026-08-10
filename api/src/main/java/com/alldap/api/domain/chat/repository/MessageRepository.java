@@ -59,6 +59,92 @@ public interface MessageRepository extends JpaRepository<Message, UUID> {
             @Param("conversationIds") Collection<UUID> conversationIds);
 
     /**
+     * <b>미답변 질문 집계</b> — 사용자가 물었는데 봇이 근거를 못 찾아 거절한 질문들.
+     *
+     * <p>관리자에게 <b>"이 내용을 문서에 추가하세요"</b> 를 알려주는 것이 목적이다.
+     * 품질 대시보드가 "지금 얼마나 좋은가"라면 이건 "무엇이 비어 있나"다.
+     *
+     * <h2>🔴 fallback 과 "답변 행이 아예 없음" 을 반드시 갈라야 한다</h2>
+     * AGENTS.md 가 이 집계를 위해 미리 남긴 경고다:
+     * <blockquote>Python 호출이 실패하면 <b>질문만 남고 답변 행이 없다.</b>
+     * 이건 fallback 과 다른 상태다 — 미답변을 집계할 때 섞지 말 것.</blockquote>
+     *
+     * <ul>
+     *   <li><b>fallback</b> = 물어봤고 답했는데 "문서에 없다" 였다 → <b>진짜 미답변.</b> 여기서 센다</li>
+     *   <li><b>답변 행 없음</b> = 우리 인프라가 실패해 <b>물어보지도 못했다</b> → 다른 사실. 따로 센다
+     *       ({@link #countFailedTurns})</li>
+     * </ul>
+     * 둘을 합치면 "우리 서버가 죽은 날"이 "문서가 부실한 날"로 둔갑한다.
+     *
+     * <p>같은 문장을 GROUP BY 로 묶어 횟수를 센다. <b>비슷한 질문</b>(표현만 다른 것)을 묶으려면
+     * 임베딩이 필요하고 그건 Python 의 일이 된다 — 지금은 <b>정확히 같은 문장만</b> 묶는다.
+     *
+     * <p>⚠️ 관리자 테스트 채팅({@code channel='test'})도 함께 집계한다.
+     * 거기서 난 fallback 도 "문서에 없다"는 신호는 맞기 때문이다. 화면이 그 사실을 안내한다.
+     */
+    @Query(value = """
+            WITH turns AS (
+                SELECT m.content,
+                       m.created_at,
+                       -- 같은 대화에서 이 질문 <다음>에 온 첫 assistant 메시지의 fallback 여부.
+                       -- 행이 없으면 NULL 이고, 그건 "답변을 못 받았다"는 뜻이다(아래 WHERE 참고).
+                       (SELECT a.is_fallback
+                          FROM messages a
+                         WHERE a.conversation_id = m.conversation_id
+                           AND a.role = 'assistant'
+                           AND a.created_at > m.created_at
+                         ORDER BY a.created_at
+                         LIMIT 1) AS answered_with_fallback
+                  FROM messages m
+                  JOIN conversations c ON c.id = m.conversation_id
+                 WHERE c.bot_id = :botId
+                   AND m.role = 'user'
+            )
+            SELECT content                 AS "question",
+                   count(*)                AS "count",
+                   max(created_at)         AS "lastAskedAt"
+              FROM turns
+             -- IS TRUE 를 쓴다. `= true` 로 두면 NULL(답변 행 없음)이 조용히 빠지는 것은 같지만,
+             -- <의도가 코드에 안 드러난다.> 여기서 NULL 을 빼는 것은 실수가 아니라 결정이다.
+             WHERE answered_with_fallback IS TRUE
+             GROUP BY content
+             -- 자주 물어본 것부터. 같으면 최근 것부터 — 관리자가 위에서부터 처리하면 된다.
+             ORDER BY count(*) DESC, max(created_at) DESC
+             LIMIT :limit
+            """, nativeQuery = true)
+    List<UnansweredAggregate> aggregateUnanswered(@Param("botId") UUID botId,
+                                                  @Param("limit") int limit);
+
+    /** {@link #aggregateUnanswered} 의 결과 한 줄. */
+    interface UnansweredAggregate {
+        String getQuestion();
+        long getCount();
+        java.time.Instant getLastAskedAt();
+    }
+
+    /**
+     * <b>답변 행이 아예 없는 질문 수</b> — 미답변이 아니라 <b>처리 실패</b>다.
+     *
+     * <p>Python 이 죽었거나 타임아웃이라 <b>물어보지도 못한</b> 경우다.
+     * 이걸 미답변에 섞으면 "우리 서버가 죽은 날"이 "문서가 부실한 날"로 둔갑한다.
+     * 그래서 따로 세서 화면이 별도로 안내한다.
+     */
+    @Query(value = """
+            SELECT count(*)
+              FROM messages m
+              JOIN conversations c ON c.id = m.conversation_id
+             WHERE c.bot_id = :botId
+               AND m.role = 'user'
+               AND NOT EXISTS (
+                   SELECT 1 FROM messages a
+                    WHERE a.conversation_id = m.conversation_id
+                      AND a.role = 'assistant'
+                      AND a.created_at > m.created_at
+               )
+            """, nativeQuery = true)
+    long countFailedTurns(@Param("botId") UUID botId);
+
+    /**
      * 위 집계 쿼리의 결과 한 줄.
      *
      * <p>인터페이스로 두면 스프링 데이터가 구현체를 만들어준다(프로젝션).

@@ -369,13 +369,33 @@ export interface EvalResult {
  * TODO(W3): 집계 API 경로를 확정할 것. 후보: GET /api/bots/{botId}/eval/unanswered
  */
 export interface UnansweredQuestion {
-  /** 비슷한 질문을 묶은 대표 문장 */
+  /** 같은 문장끼리 묶은 대표 질문 */
   question: string;
-  /** 같은 취지의 질문이 몇 번 들어왔는지 */
+  /** 같은 문장이 몇 번 들어왔는지 */
   count: number;
   lastAskedAt: IsoDateTime;
-  /** "이 내용을 문서에 추가하세요" 류의 한국어 제안. 미구현이면 null. */
+  /**
+   * "이 내용을 문서에 추가하세요" 류의 한국어 제안.
+   * ⚠️ 지금은 항상 null 이다 — 만들려면 LLM 을 불러야 하는데,
+   *    목록을 여는 것만으로 비용이 나가면 안 된다.
+   */
   suggestion: string | null;
+}
+
+/**
+ * 미답변 집계 결과.
+ *
+ * 🔴 왜 배열이 아니라 객체인가 — `failedTurns` 를 함께 받아야 하기 때문이다.
+ *
+ * `fallback`(물어봤는데 문서에 없었다)과 `답변 행 없음`(우리 인프라가 실패해
+ * 물어보지도 못했다)은 <다른 사실>이다. 섞지 않는 것만으로는 부족하고
+ * <따로 보여줘야> 한다 — 목록만 주면 화면이 "미답변 0건 = 문서가 충분하다"로 읽는데,
+ * 실제로는 "그날 서버가 죽어서 아무것도 못 물어봤다" 일 수 있다.
+ */
+export interface UnansweredSummary {
+  items: UnansweredQuestion[];
+  /** 답변 행이 아예 없는 질문 수. 미답변이 아니라 <처리 실패>다. */
+  failedTurns: number;
 }
 
 /* ───────────────────────── 위젯 (F-04, 공개) ───────────────────────── */
