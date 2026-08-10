@@ -396,3 +396,47 @@ export interface WidgetConfig {
    */
   themeColor?: string;
 }
+
+/* ───────────────────── 문서 간 사실 충돌 (진단) ───────────────────── */
+
+/**
+ * 서로 어긋나는 문서 두 조각.
+ *
+ * 왜 요약(topic/aSays/bSays)과 원문(aContent/bContent)을 <둘 다> 받는가:
+ * 요약만 있으면 관리자가 "정말 그렇게 쓰여 있나"를 확인할 수 없고,
+ * 확인할 수 없는 지적은 무시당한다. 원문만 있으면 매번 두 청크를 다 읽어야 한다.
+ *
+ * `distance` 가 optional 인 이유: 판정 근거가 아니라 임계값 튜닝용 기록이라
+ * 없어도 화면이 성립한다. 서버가 null 을 줄 수 있다.
+ */
+export interface Conflict {
+  id: Uuid;
+  /** 무엇에 대한 충돌인가 — 예: "노트북 교체 주기" */
+  topic: string;
+  /** 문서 A 의 주장 — 예: "3년" */
+  aSays: string;
+  bSays: string;
+  aFilename: string;
+  bFilename: string;
+  aContent: string;
+  bContent: string;
+  distance?: number | null;
+  /** open = 아직 안 봄 · ignored = 오탐 표시 · resolved = 문서를 고침 · clear = 판정 결과 모순 아님 */
+  status: "open" | "ignored" | "resolved" | "clear";
+  createdAt: string;
+}
+
+/**
+ * 스캔 한 번의 결과.
+ *
+ * 네 숫자가 <따로> 오는 이유: "깨끗해서 0건"과 "못 재서 0건"은 다른 사실이다.
+ * failed 가 있으면 화면이 "일부는 판정하지 못했다"를 반드시 말해줘야 한다 —
+ * 안 그러면 사용자는 문서가 깨끗하다고 믿는다.
+ */
+export interface ConflictScan {
+  /** 판정 대상으로 고른 쌍. 서버 상한(30)과 같으면 아직 남았을 수 있다 */
+  candidates: number;
+  judged: number;
+  conflicts: number;
+  failed: number;
+}

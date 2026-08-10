@@ -2,10 +2,13 @@ package com.alldap.api.global.client;
 
 import com.alldap.api.global.client.dto.AiChatRequest;
 import com.alldap.api.global.client.dto.AiChatResponse;
+import com.alldap.api.global.client.dto.AiConflictResponse;
+import com.alldap.api.global.client.dto.AiConflictScanResponse;
 import com.alldap.api.global.client.dto.AiDocumentResponse;
 import com.alldap.api.global.client.dto.AiEvalQuestionResponse;
 import com.alldap.api.global.client.dto.AiEvalRunResponse;
 import com.alldap.api.global.client.dto.AiGenerateQuestionsRequest;
+import com.alldap.api.global.client.dto.AiUpdateConflictStatusRequest;
 import com.alldap.api.global.config.AiServiceProperties;
 import com.alldap.api.global.exception.ApiException;
 import com.alldap.api.global.exception.ErrorCode;
@@ -371,6 +374,65 @@ public class AiServiceClient {
                         .uri("/internal/bots/{botId}/eval/runs", botId)
                         .retrieve()
                         .body(AiEvalRunResponse.class),
+                this::translateEvalClientError);
+    }
+
+    // ── 문서 간 모순 진단 ────────────────────────────────────────────────
+
+    /**
+     * 문서끼리 어긋나는 곳을 훑는다. <b>동기</b> 호출이다.
+     *
+     * <p>평가 실행(202)과 다른 이유는 Python 쪽 사정이다 — {@code doc_conflicts} 에는
+     * "스캔 한 번"을 가리키는 행이 없어 202 를 줘도 프론트가 폴링할 대상이 없다.
+     * 대신 Python 이 판정할 쌍 수를 상한(기본 30)으로 묶어 응답 시간을 통제한다.
+     * 판정 1건이 1~2초라 30쌍이면 읽기 타임아웃(120초) 안에 들어온다.
+     *
+     * <p>후보가 상한보다 많으면 가까운 쌍부터 처리하고 나머지는 남는다.
+     * Python 이 "모순 아님"도 기록하므로 다시 부르면 <b>남은 것부터 이어서</b> 한다.
+     *
+     * @param botId 호출 전에 <b>반드시 소유권을 검증</b>할 것. Python 에는 인증이 없다.
+     */
+    public AiConflictScanResponse scanConflicts(UUID botId) {
+        return call("문서 모순 스캔", () -> aiServiceRestClient.post()
+                        .uri("/internal/bots/{botId}/conflicts/scan", botId)
+                        .retrieve()
+                        .body(AiConflictScanResponse.class),
+                this::translateEvalClientError);
+    }
+
+    /**
+     * 충돌 목록. {@code status} 기본값은 Python 쪽에서 {@code open} 이다.
+     *
+     * <p>Spring 이 DB 를 직접 읽지 않고 Python 을 부르는 이유: 이 목록은 단순 조회가 아니라
+     * <b>청크 원문 4중 JOIN</b> 이다(충돌 → 청크A/B → 문서A/B). {@code chunks} 는
+     * AGENTS.md 테이블 소유권상 <b>Spring 이 아예 건드리지 않는</b> 테이블이라,
+     * 여기서 조인하면 그 규칙이 무너진다.
+     */
+    public List<AiConflictResponse> listConflicts(UUID botId, String status) {
+        return call("문서 모순 목록", () -> aiServiceRestClient.get()
+                        .uri(uriBuilder -> uriBuilder
+                                .path("/internal/bots/{botId}/conflicts")
+                                .queryParam("status", status)
+                                .build(botId))
+                        .retrieve()
+                        .body(new ParameterizedTypeReference<List<AiConflictResponse>>() {}),
+                this::translateEvalClientError);
+    }
+
+    /**
+     * 충돌 1건의 상태 변경 (주로 오탐을 {@code ignored} 로 치우는 용도).
+     *
+     * <p><b>경로에 botId 가 반드시 들어간다.</b> conflictId 만 보내면 Python 의 UPDATE 가
+     * 봇으로 좁혀지지 않아, id 만 알아내면 남의 봇 충돌을 치울 수 있다.
+     * Python 쪽도 {@code WHERE id=? AND bot_id=?} 로 함께 좁힌다 — 두 겹이다.
+     */
+    public AiConflictResponse updateConflictStatus(UUID botId, UUID conflictId, String status) {
+        return call("문서 모순 상태 변경", () -> aiServiceRestClient.patch()
+                        .uri("/internal/bots/{botId}/conflicts/{conflictId}", botId, conflictId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body(new AiUpdateConflictStatusRequest(status))
+                        .retrieve()
+                        .body(AiConflictResponse.class),
                 this::translateEvalClientError);
     }
 
