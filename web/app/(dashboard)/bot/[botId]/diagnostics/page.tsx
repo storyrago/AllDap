@@ -154,7 +154,17 @@ export default function DiagnosticsPage() {
       </Section>
 
       <Section title={`어긋나는 곳 ${conflicts ? `${conflicts.length}건` : ""}`}>
-        {conflicts === null ? (
+        {/*
+          🐛 여기서 실제로 버그를 냈다(2026-08-10 브라우저 확인).
+             목록 조회가 실패해도 conflicts 가 null 로 남아 <"불러오는 중…" 에서 영원히 멈췄다.>
+             없는 봇 주소로 들어갔을 때 드러났는데, 사용자는 "느린 건가" 하며 계속 기다리게 된다.
+             "아직 안 왔다" 와 "못 가져왔다" 는 다른 상태다 — 같은 화면으로 뭉개면 안 된다.
+        */}
+        {conflicts === null && error ? (
+          <p role="alert" className="text-sm text-danger">
+            {error}
+          </p>
+        ) : conflicts === null ? (
           <p className="text-sm text-muted">불러오는 중…</p>
         ) : conflicts.length === 0 ? (
           <p className="text-sm text-muted">
