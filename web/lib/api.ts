@@ -21,6 +21,8 @@ import type {
   ChatMessage,
   ChatRequest,
   ChatResponse,
+  Conflict,
+  ConflictScan,
   ConversationSummary,
   CreateBotRequest,
   DocumentItem,
@@ -384,6 +386,30 @@ export const api = {
     /** ⚠️ 미구현 — Spring 에 아직 없다(messages 집계가 필요하다). 화면에서 부르지 말 것. */
     listUnanswered: (botId: Uuid) =>
       request<UnansweredQuestion[]>(`/api/bots/${botId}/eval/unanswered`),
+  },
+
+  /**
+   * 문서 간 사실 충돌 진단
+   *
+   * 환각 억제는 "문서에 없는 것"을 막지만 "문서에 <둘 다> 있는 것"은 못 막는다.
+   * 구버전·신버전이 같이 올라가 있으면 챗봇은 둘 중 하나를 골라 자신 있게 답한다.
+   */
+  conflicts: {
+    /** 목록. 기본은 아직 안 본 것(open)만 — ignored·clear 까지 섞으면 노이즈로 덮인다. */
+    list: (botId: Uuid, status: "open" | "ignored" | "resolved" | "clear" = "open") =>
+      request<Conflict[]>(`/api/bots/${botId}/conflicts?status=${status}`),
+    /**
+     * 스캔. 동기라 수십 초 걸린다(판정 1건에 1~2초).
+     * 서버가 판정 쌍 수를 상한으로 묶으므로, candidates 가 상한과 같으면 다시 눌러야 한다.
+     */
+    scan: (botId: Uuid) =>
+      request<ConflictScan>(`/api/bots/${botId}/conflicts/scan`, { method: "POST" }),
+    /** 오탐을 치운다. 이게 없으면 헛짚은 항목이 영원히 남아 화면 자체를 안 보게 된다. */
+    updateStatus: (botId: Uuid, conflictId: Uuid, status: "open" | "ignored" | "resolved") =>
+      request<Conflict>(`/api/bots/${botId}/conflicts/${conflictId}`, {
+        method: "PATCH",
+        body: { status },
+      }),
   },
 
   /** 임베드 위젯 (F-04) — 인증 없음. public_key + Origin 검증 + rate limit 으로 보호된다. */
