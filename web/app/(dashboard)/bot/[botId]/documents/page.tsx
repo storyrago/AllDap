@@ -35,6 +35,11 @@ export default function DocumentsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  /* 삭제 확인을 기다리는 항목. window.confirm 을 대신한다(handleDelete 주석 참고). */
+  const [armedId, setArmedId] = useState<string | null>(null);
+  /* 지금 지우는 중인 항목. 버튼을 잠가 <같은 문서를 두 번 지우는 요청>을 막는다.
+     이게 없어서 실제로 1초 간격 중복 DELETE 가 서버 로그에 찍혔다. */
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   /*
    * useRef 로 <input type="file"> 을 직접 붙잡는 이유.
@@ -120,16 +125,39 @@ export default function DocumentsPage() {
     }
   }
 
-  async function handleDelete(documentId: string, filename: string) {
-    // 되돌릴 수 없는 작업이라 확인을 받는다(문서를 지우면 청크도 함께 사라진다).
-    if (!window.confirm(`"${filename}" 을(를) 삭제할까요? 되돌릴 수 없습니다.`)) return;
+  /*
+   * 되돌릴 수 없는 작업이라 확인을 받는다(문서를 지우면 청크도 함께 사라진다).
+   *
+   * 🔴 왜 window.confirm 을 걷어냈나 (2026-08-10 실사용에서 드러났다)
+   * ─────────────────────────────────────────────────────────────────────────
+   * 크롬은 같은 페이지에서 대화상자가 반복되면 "추가 대화상자를 만들지 않도록 차단"
+   * 체크박스를 띄운다. 그걸 한 번 켜면 이후 confirm() 은 <항상 false> 를 돌려준다.
+   * 그러면 이 함수는 조용히 return 하고, 요청조차 나가지 않고, 오류도 안 뜬다.
+   * 밖에서 보면 <"삭제 버튼이 고장났다"> 와 구별할 방법이 없다 — 실제로 그렇게 보였다.
+   *
+   * 즉 파괴적 작업의 안전장치가 <브라우저 설정 하나로 조용히 사라진다.>
+   * 그래서 확인을 화면 안으로 가져왔다. 브라우저가 막을 수 없고, 상태가 눈에 보인다.
+   *
+   * 두 번 눌러야 지워진다:
+   *   1번째 → armed(이 항목만) · 버튼이 "정말 삭제"로 바뀐다
+   *   2번째 → 실제 삭제 · 버튼이 "삭제 중…" 으로 잠긴다
+   */
+  async function handleDelete(documentId: string) {
+    if (armedId !== documentId) {
+      setArmedId(documentId);
+      return;
+    }
 
+    setArmedId(null);
+    setDeletingId(documentId);
     setError(null);
     try {
       await api.documents.remove(documentId);
       setDocuments((prev) => prev.filter((d) => d.id !== documentId));
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "삭제하지 못했습니다.");
+    } finally {
+      setDeletingId(null);
     }
   }
 
@@ -187,12 +215,29 @@ export default function DocumentsPage() {
 
                 <StatusBadge status={doc.status} />
 
+                {/*
+                  세 상태를 <글자로> 구분한다. 색만 바꾸면 색각 이상인 사용자가 못 읽고,
+                  무엇보다 "눌렸는지" 자체가 안 보여서 또 누르게 된다(그래서 대화상자가 차단됐다).
+                */}
                 <button
                   type="button"
-                  onClick={() => handleDelete(doc.id, doc.filename)}
-                  className="shrink-0 text-xs text-muted hover:text-danger"
+                  onClick={() => void handleDelete(doc.id)}
+                  disabled={deletingId === doc.id}
+                  /* 목록 밖을 누르면 무장이 풀리도록 — 실수로 켜둔 채 두지 않는다 */
+                  onBlur={() => armedId === doc.id && setArmedId(null)}
+                  className={
+                    deletingId === doc.id
+                      ? "shrink-0 text-xs text-muted"
+                      : armedId === doc.id
+                        ? "shrink-0 rounded-md border border-danger px-2 py-0.5 text-xs font-medium text-danger"
+                        : "shrink-0 text-xs text-muted hover:text-danger"
+                  }
                 >
-                  삭제
+                  {deletingId === doc.id
+                    ? "삭제 중…"
+                    : armedId === doc.id
+                      ? "정말 삭제"
+                      : "삭제"}
                 </button>
               </li>
             ))}
