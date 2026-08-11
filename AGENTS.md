@@ -398,6 +398,31 @@ cd ai-service && .venv/bin/uvicorn app.main:app --port 8001
 curl -X POST localhost:8001/internal/bots/628d2785-a128-486c-a1ac-556f19f06de3/eval/runs
 ```
 
+**⏳ 한도가 풀리면 먼저 할 것 (2026-08-12 에 밀린 측정 2건)**
+
+2026-08-12 에 평가를 19회 돌려 Cloudflare 하루 한도(10k 뉴런)를 소진했다.
+임베딩까지 429 였다. **약 24시간 뒤에 풀린다**(대시보드 카운터로는 예측 못 한다 —
+실제로 한 번 호출해보는 것이 유일하게 믿을 수 있는 방법이다).
+
+```
+# ① 한도가 풀렸는지 확인 — 이것부터. 200 이 아니면 아래를 하지 말 것
+curl -s -o /dev/null -w '%{http_code}\n' -X POST localhost:8001/internal/chat \
+  -H 'Content-Type: application/json' \
+  -d '{"bot_id":"628d2785-a128-486c-a1ac-556f19f06de3","message":"연차 며칠?","session_id":"probe"}'
+
+# ② W1 fallback 종단 측정  (~0.5k 뉴런 — 채점을 안 해서 싸다. 먼저 돌릴 것)
+cd ai-service && .venv/bin/python -m app.fallback_e2e_check
+
+# ③ 리랭커 융합 재측정  (~7.1k 뉴런 — 설정 2개 × 3회)
+#    2026-08-12 에 설정당 1회밖에 못 쟀다. 그 1회는 부정적이었다(둘다 0.875 → 0.782).
+RERANKER_ENABLED=true RERANK_FUSION=true .venv/bin/uvicorn app.main:app --port 8005 &
+HYBRID_ENABLED=true RERANKER_ENABLED=true RERANK_FUSION=true .venv/bin/uvicorn app.main:app --port 8006 &
+#    각 포트로 POST /internal/bots/628d2785.../eval/runs 를 3회씩 (순차로 — 동시에 돌리면 429 를 앞당긴다)
+```
+
+**②를 ③보다 먼저 돌릴 것.** ②가 0.5k 로 싸고, W1 완료 조건이라 더 중요하다.
+둘 다 합쳐 ~7.6k 라 하루 한도 안에 들어가지만, ③을 먼저 돌리면 ②가 밀린다.
+
 **바로 할 일 — 순서대로**
 
 1. ✅ **코퍼스 확장은 2026-08-11 에 끝났다** (위 "코퍼스 확장" 절).
