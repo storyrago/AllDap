@@ -74,9 +74,9 @@ def create_run(bot_id: UUID) -> tuple[UUID, int]:
         "reranker": s.reranker_enabled,
         "reranker_model": s.reranker_model if s.reranker_enabled else None,
         "rerank_candidates": s.rerank_candidates if s.reranker_enabled else None,
-        # 하이브리드(키워드+벡터)는 아직 구현 전이다. 항상 false 지만 키를 남겨야
-        # 나중 실행과 <같은 모양으로> 비교된다.
-        "hybrid": False,
+        "hybrid": s.hybrid_enabled,
+        "hybrid_candidates": s.hybrid_candidates if s.hybrid_enabled else None,
+        "hybrid_rrf_k": s.hybrid_rrf_k if s.hybrid_enabled else None,
         # 🔴 청킹도 박제한다. 청킹은 <질의 시점>이 아니라 업로드 때 정해지는 값이라
         #    이 config 에 없으면 "이 점수가 어느 청킹이었는지"를 알 방법이 없다.
         #    2026-08-03 청킹 전후를 비교하다가 그 사실을 깨달아 추가했다 —

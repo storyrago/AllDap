@@ -10,9 +10,9 @@ W4에서 여기에 키워드(BM25) 검색과 리랭커를 추가하고,
 """
 from __future__ import annotations
 
-from uuid import UUID
-
 import logging
+import re
+from uuid import UUID
 
 from . import cf
 from .config import get_settings
@@ -72,12 +72,17 @@ def search(
     top_k: int | None = None,
     max_distance: float | None = None,
     reranker: bool | None = None,
+    hybrid: bool | None = None,
 ) -> list[Source]:
     """질문과 가까운 청크를 찾는다. 관련도 낮은 건 잘라낸다.
 
     리랭커를 켜면 <벡터가 가져온 후보 안에서 순서만 바꾼다.>
     후보에 없는 청크는 살릴 수 없으므로 top_k 보다 넉넉히 뽑아(rerank_candidates)
     재정렬한 뒤 top_k 만 남긴다.
+
+    하이브리드를 켜면 <후보 자체가 늘어난다.> 벡터가 못 데려온 청크를 키워드가
+    데려올 수 있기 때문이다 — 리랭커와 결정적으로 다른 점이다.
+    두 랭킹은 RRF 로 합친다(_rrf_reorder 주석 참고).
 
     ⚠️ max_distance 컷은 <리랭커와 무관하게 벡터 거리로> 그대로 적용한다.
        리랭커 점수로 자르지 않는 이유 둘:
@@ -89,10 +94,15 @@ def search(
     top_k = top_k or s.top_k
     max_distance = s.max_distance if max_distance is None else max_distance
     reranker = s.reranker_enabled if reranker is None else reranker
+    hybrid = s.hybrid_enabled if hybrid is None else hybrid
 
     qvec = embed_one(query)
-    # 리랭커를 쓸 때만 후보를 넉넉히 가져온다. 안 쓸 때 더 가져오면 DB 부담만 는다.
-    limit = max(top_k, s.rerank_candidates) if reranker else top_k
+    # 리랭커·하이브리드를 쓸 때만 후보를 넉넉히 가져온다. 안 쓸 때 더 가져오면 DB 부담만 는다.
+    limit = top_k
+    if reranker:
+        limit = max(limit, s.rerank_candidates)
+    if hybrid:
+        limit = max(limit, s.hybrid_candidates)
 
     # <=> 는 pgvector의 코사인 거리 연산자 (0에 가까울수록 유사)
     sql = """
@@ -106,10 +116,21 @@ def search(
     """
     with cursor() as cur:
         cur.execute(sql, (qvec, bot_id, limit))
-        rows = cur.fetchall()
+        rows = list(cur.fetchall())
+
+    if hybrid:
+        # 키워드가 데려온 청크를 <벡터 후보 뒤에> 덧붙인다. 순서는 아래 RRF 가 다시 매긴다.
+        vec_order = [r[0] for r in rows]
+        kw_rows = _keyword_rows(bot_id, query, qvec, s.hybrid_candidates)
+        seen = set(vec_order)
+        rows += [r for r in kw_rows if r[0] not in seen]
+        rows = _rrf_reorder(rows, vec_order, [r[0] for r in kw_rows], s.hybrid_rrf_k)
 
     sources: list[Source] = []
     for chunk_id, doc_id, filename, content, distance in rows:
+        # ⚠️ 키워드로 올라온 청크에도 <벡터 거리> 컷을 그대로 적용한다.
+        #    여기를 풀면 "질문의 단어가 우연히 들어 있을 뿐 관련 없는 청크"가 근거가 되고,
+        #    환각 억제 1차 방어선이 뚫린다. 성능을 이유로 완화하지 않는다.
         if distance > max_distance:
             continue
         sources.append(
@@ -126,6 +147,86 @@ def search(
         sources = _rerank(query, sources)
 
     return sources[:top_k]
+
+
+# 한국어 조사. 토큰 끝에 붙어 있으면 떼어낸다.
+# 긴 것부터 나열해야 "에서" 가 "에" 로 먼저 잘리지 않는다(정규식 교대는 앞에서부터 시도한다).
+_JOSA = re.compile(r"(에서|에게|한테|부터|까지|으로|이나|라도|은|는|이|가|을|를|의|에|로|와|과|도|만|나)$")
+
+
+def _keywords(query: str) -> list[str]:
+    """질문에서 검색에 쓸 낱말을 뽑는다. 2글자 미만은 버린다.
+
+    ⚠️ 형태소 분석기(mecab-ko 등)를 쓰지 않는 이유:
+       PostgreSQL 의 `to_tsvector` 는 한국어를 모른다 — 조사가 붙어
+       "정규직은" 과 "정규직의" 가 <다른 토큰>이 되어 매칭이 안 된다.
+       제대로 하려면 형태소 분석기를 붙여야 하는데, 우리가 필요한 것은
+       "질문의 핵심 낱말이 이 청크에 있는가" 뿐이다. <조사만 떼면> 부분 문자열
+       매칭으로 충분하다. 활용형("일하는", "가능한가요")은 조사 제거로 안 잡히지만,
+       그런 말은 청크에 그대로 있을 일이 적어 점수에 기여하지 않는다 = 무해하다.
+
+    # ponytail: 조사 목록이 전부는 아니다. 형태소 분석기가 필요해지면 그때 붙인다.
+    """
+    out: list[str] = []
+    for tok in re.findall(r"[가-힣]{2,}|[A-Za-z0-9]{2,}", query):
+        # 🐛 조사를 뗀 결과가 한 글자면 <떼지 않는다.>
+        #    "휴가" 의 끝 글자가 조사 '가' 와 같아서 "휴" 가 되고, 한 글자라 버려졌다.
+        #    이 도메인의 핵심 낱말("휴가"·"평가"·"결과")이 통째로 사라지는 버그였다.
+        #    retriever_check 가 잡았다.
+        stripped = _JOSA.sub("", tok)
+        tok = stripped if len(stripped) >= 2 else tok
+        if len(tok) >= 2:
+            out.append(tok)
+    return list(dict.fromkeys(out))  # 중복 제거 + 등장 순서 유지
+
+
+def _keyword_rows(bot_id: UUID, query: str, qvec: list[float], limit: int) -> list[tuple]:
+    """질문의 낱말을 <많이 담고 있는> 청크 순으로 가져온다.
+
+    벡터 거리도 함께 뽑는 이유: 키워드로만 올라온 청크에도 `max_distance` 컷을
+    적용해야 하는데, 거리를 여기서 안 가져오면 호출부가 또 한 번 질의해야 한다.
+
+    # ponytail: LIKE 전체 스캔이다. 지금 봇 하나가 306청크라 무시할 수준이고,
+    #   수만 청크가 되면 tsvector + GIN 인덱스(또는 pg_bigm)로 바꿀 것.
+    """
+    keys = _keywords(query)
+    if not keys:
+        return []
+    sql = """
+        SELECT id, document_id, filename, content, distance FROM (
+            SELECT c.id, c.document_id, d.filename, c.content,
+                   c.embedding <=> %s::vector AS distance,
+                   (SELECT count(*) FROM unnest(%s::text[]) k
+                     WHERE c.content LIKE '%%' || k || '%%') AS hits
+            FROM chunks c
+            JOIN documents d ON d.id = c.document_id
+            WHERE c.bot_id = %s AND c.embedding IS NOT NULL
+        ) t
+        WHERE hits > 0
+        -- 같은 낱말 수면 벡터로 가까운 쪽을 위로. 키워드만으로는 동점이 흔하다.
+        ORDER BY hits DESC, distance
+        LIMIT %s
+    """
+    with cursor() as cur:
+        cur.execute(sql, (qvec, keys, bot_id, limit))
+        return list(cur.fetchall())
+
+
+def _rrf_reorder(rows: list[tuple], vec_order: list, kw_order: list, k: int) -> list[tuple]:
+    """두 랭킹을 RRF(Reciprocal Rank Fusion)로 합쳐 행을 다시 정렬한다.
+
+    각 목록에서 r 위인 문서에 1/(k+r) 을 주고 더한다. 양쪽에 다 있으면 두 번 받는다.
+
+    ⚠️ 왜 점수를 정규화해 가중합하지 않는가:
+       벡터 거리(0~2)와 낱말 일치 수(0~N)는 <단위가 다르다.> 섞으려면 정규화하고
+       가중치를 정해야 하는데, 그 가중치의 근거가 우리에게 없다 — 결국 손으로 맞추게 되고
+       그건 테스트셋에 과적합된다. RRF 는 <순위만> 쓰므로 그 문제가 아예 생기지 않는다.
+    """
+    score: dict = {}
+    for order in (vec_order, kw_order):
+        for rank, cid in enumerate(order, 1):
+            score[cid] = score.get(cid, 0.0) + 1.0 / (k + rank)
+    return sorted(rows, key=lambda r: score.get(r[0], 0.0), reverse=True)
 
 
 def _rerank(query: str, sources: list[Source]) -> list[Source]:
