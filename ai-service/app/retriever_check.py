@@ -66,10 +66,35 @@ def _check_rrf() -> None:
     assert [r[0] for r in out][:2] == ["a", "b"], out
 
 
+def _check_rerank_fusion() -> None:
+    """리랭커 융합이 <밀어내기를 실제로 완화하는가.>
+
+    시나리오: 벡터가 1위로 올린 청크 a 를 리랭커가 꼴찌로 민다.
+    융합하면 a 는 중간에 남아야 한다 — 그게 이 기능의 존재 이유다.
+    """
+    ids = list("abcdef")
+    prev = ids                      # 벡터/하이브리드가 준 순서
+    reranked = list(reversed(ids))  # 리랭커가 정반대로 뒤집었다
+
+    fused = _rrf_reorder(ids, prev, reranked, k=60, key=lambda x: x)
+
+    # ① 모두 대칭이라 아무도 사라지지 않는다.
+    assert set(fused) == set(ids), fused
+
+    # ② 🔴 핵심: 벡터 1위였던 a 가 top3 안에 살아남는다.
+    #    융합 없이 리랭커 순서를 그대로 쓰면 a 는 꼴찌(6위)라 top5 컷에 잘렸을 것이다.
+    assert fused.index("a") < 3, f"밀어내기가 완화되지 않았다: {fused}"
+
+    # ③ 양쪽이 같은 순서면 융합해도 그 순서 그대로다 (합의가 있으면 흔들지 않는다).
+    same = _rrf_reorder(ids, prev, prev, k=60, key=lambda x: x)
+    assert same == ids, same
+
+
 def main() -> None:
     _check_keywords()
     _check_rrf()
-    print("OK — 낱말 추출 8가지 · RRF 4가지 통과")
+    _check_rerank_fusion()
+    print("OK — 낱말 추출 8가지 · RRF 4가지 · 리랭커 융합 3가지 통과")
 
 
 if __name__ == "__main__":

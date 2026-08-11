@@ -74,6 +74,9 @@ def create_run(bot_id: UUID) -> tuple[UUID, int]:
         "reranker": s.reranker_enabled,
         "reranker_model": s.reranker_model if s.reranker_enabled else None,
         "rerank_candidates": s.rerank_candidates if s.reranker_enabled else None,
+        # 🔴 융합 여부도 박제한다. 이 값이 다르면 <같은 reranker=true 라도 다른 실험>이다.
+        #    안 적으면 "0.844 는 어느 방식이었지?" 를 나중에 알 수 없다.
+        "rerank_fusion": s.rerank_fusion if s.reranker_enabled else None,
         "hybrid": s.hybrid_enabled,
         "hybrid_candidates": s.hybrid_candidates if s.hybrid_enabled else None,
         "hybrid_rrf_k": s.hybrid_rrf_k if s.hybrid_enabled else None,
@@ -207,6 +210,18 @@ def _execute(run_id: UUID, bot_id: UUID) -> None:
     # generated_answer=NULL 인 행으로 남으므로 화면이 세어 보여줄 수 있다.
     answered_rate = answered / processed if processed else None
 
+    # 🔴 <한 문항도 처리하지 못했으면 그건 "완료"가 아니라 "전멸"이다.>
+    #
+    # 2026-08-12 에 실제로 겪었다. Cloudflare 하루 한도를 소진해 16문항이 전부 429 로
+    # 죽었는데, 실행은 status='completed' 로 남고 지표만 NULL 이었다.
+    # 목록에서 "완료"로 보이니 <설정을 비교하다 그 실행을 유효한 측정으로 착각한다.>
+    #
+    # 이 저장소가 반복해 낸 부류의 버그다 — 원인이 다른 두 사실을 같은 값으로 뭉개는 것.
+    # 여기서 뭉개지는 둘: "돌렸고 끝났다" vs "돌리다 전부 실패했다".
+    # 일부만 실패한 경우는 completed 로 둔다. 그건 measure 가 된 실행이고,
+    # 몇 개가 빠졌는지는 question_count 와 generated_answer=NULL 행으로 읽을 수 있다.
+    status = "completed" if processed else "failed"
+
     with cursor(commit=True) as cur:
         cur.executemany(
             """INSERT INTO eval_results
@@ -217,9 +232,9 @@ def _execute(run_id: UUID, bot_id: UUID) -> None:
         cur.execute(
             """UPDATE eval_runs
                   SET avg_faithfulness=%s, avg_relevancy=%s, answered_rate=%s,
-                      question_count=%s, scored_count=%s, status='completed'
+                      question_count=%s, scored_count=%s, status=%s
                 WHERE id=%s""",
-            (avg_f, avg_r, answered_rate, total, len(faiths), run_id),
+            (avg_f, avg_r, answered_rate, total, len(faiths), status, run_id),
         )
 
     _log.info(

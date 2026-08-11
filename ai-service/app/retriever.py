@@ -212,8 +212,8 @@ def _keyword_rows(bot_id: UUID, query: str, qvec: list[float], limit: int) -> li
         return list(cur.fetchall())
 
 
-def _rrf_reorder(rows: list[tuple], vec_order: list, kw_order: list, k: int) -> list[tuple]:
-    """두 랭킹을 RRF(Reciprocal Rank Fusion)로 합쳐 행을 다시 정렬한다.
+def _rrf_reorder(items: list, order_a: list, order_b: list, k: int, *, key=lambda r: r[0]) -> list:
+    """두 랭킹을 RRF(Reciprocal Rank Fusion)로 합쳐 다시 정렬한다.
 
     각 목록에서 r 위인 문서에 1/(k+r) 을 주고 더한다. 양쪽에 다 있으면 두 번 받는다.
 
@@ -221,12 +221,16 @@ def _rrf_reorder(rows: list[tuple], vec_order: list, kw_order: list, k: int) -> 
        벡터 거리(0~2)와 낱말 일치 수(0~N)는 <단위가 다르다.> 섞으려면 정규화하고
        가중치를 정해야 하는데, 그 가중치의 근거가 우리에게 없다 — 결국 손으로 맞추게 되고
        그건 테스트셋에 과적합된다. RRF 는 <순위만> 쓰므로 그 문제가 아예 생기지 않는다.
+
+    쓰는 곳이 둘이라 key 를 받는다:
+      ① 하이브리드 — 벡터 순위 + 키워드 순위 (items 는 DB 행 튜플)
+      ② 리랭커 융합 — 이전 순위 + 리랭커 순위 (items 는 Source)
     """
     score: dict = {}
-    for order in (vec_order, kw_order):
+    for order in (order_a, order_b):
         for rank, cid in enumerate(order, 1):
             score[cid] = score.get(cid, 0.0) + 1.0 / (k + rank)
-    return sorted(rows, key=lambda r: score.get(r[0], 0.0), reverse=True)
+    return sorted(items, key=lambda r: score.get(key(r), 0.0), reverse=True)
 
 
 def _rerank(query: str, sources: list[Source]) -> list[Source]:
@@ -238,6 +242,17 @@ def _rerank(query: str, sources: list[Source]) -> list[Source]:
 
     Cloudflare 응답은 {"response": [{"id": <입력 인덱스>, "score": ...}, ...]} 이고
     점수 내림차순으로 온다. id 는 우리가 보낸 contexts 배열의 인덱스다.
+
+    ── `rerank_fusion` 이 켜져 있으면 리랭커 순서를 <그대로 쓰지 않는다> ──
+
+    2026-08-11 측정에서 리랭커가 **정답 청크를 top5 밖으로 밀어내** 새 fallback 을
+    2건 만들었다(재택 주2회 · 기간제 연차). 둘 다 벡터에서는 1~2위였다.
+    리랭커 순서를 그대로 쓰면 <리랭커가 틀렸을 때 되돌릴 방법이 없다.>
+
+    그래서 들어온 순서(벡터 또는 하이브리드 RRF 결과)와 리랭커 순서를 다시 RRF 로 합친다.
+    벡터 1위 + 리랭커 15위 → 중간. 리랭커 1위 + 벡터 15위 → 중간. 둘 다 상위 → 최상위.
+    **한쪽이 크게 틀려도 다른 쪽이 받쳐준다** = 밀어내기가 완화된다.
+    대신 리랭커가 <옳게> 크게 끌어올린 것도 덜 올라간다. 그 값을 재는 것이 이 슬라이스다.
     """
     s = get_settings()
     # ⚠️ preview(앞 200자)가 아니라 <전체 본문>을 넘긴다.
@@ -264,9 +279,20 @@ def _rerank(query: str, sources: list[Source]) -> list[Source]:
 
     # 응답에 빠진 인덱스가 있어도 잃지 않도록, 재정렬된 것 뒤에 나머지를 붙인다.
     seen = set(order)
-    return [sources[i] for i in order if 0 <= i < len(sources)] + [
+    reranked = [sources[i] for i in order if 0 <= i < len(sources)] + [
         src for i, src in enumerate(sources) if i not in seen
     ]
+    if not s.rerank_fusion:
+        return reranked
+
+    # 들어온 순서(벡터 또는 하이브리드 RRF)와 리랭커 순서를 RRF 로 합친다.
+    return _rrf_reorder(
+        sources,
+        [src.chunk_id for src in sources],
+        [src.chunk_id for src in reranked],
+        s.rerank_fusion_k,
+        key=lambda src: src.chunk_id,
+    )
 
 
 def fetch_contents(chunk_ids: list[UUID]) -> dict[UUID, str]:
