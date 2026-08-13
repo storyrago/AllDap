@@ -210,17 +210,26 @@ def _execute(run_id: UUID, bot_id: UUID) -> None:
     # generated_answer=NULL 인 행으로 남으므로 화면이 세어 보여줄 수 있다.
     answered_rate = answered / processed if processed else None
 
-    # 🔴 <한 문항도 처리하지 못했으면 그건 "완료"가 아니라 "전멸"이다.>
+    # 🔴 처리하지 못한 질문이 있으면 <그 실행은 다른 설정과 비교할 수 없다.>
     #
-    # 2026-08-12 에 실제로 겪었다. Cloudflare 하루 한도를 소진해 16문항이 전부 429 로
-    # 죽었는데, 실행은 status='completed' 로 남고 지표만 NULL 이었다.
-    # 목록에서 "완료"로 보이니 <설정을 비교하다 그 실행을 유효한 측정으로 착각한다.>
+    #   completed  전 질문을 처리했다 = 설정 비교에 쓸 수 있다
+    #   partial    일부가 처리 실패했다(429·타임아웃) = <분모가 달라> 비교하면 안 된다
+    #   failed     한 문항도 처리하지 못했다 = 측정 자체가 없다
     #
-    # 이 저장소가 반복해 낸 부류의 버그다 — 원인이 다른 두 사실을 같은 값으로 뭉개는 것.
-    # 여기서 뭉개지는 둘: "돌렸고 끝났다" vs "돌리다 전부 실패했다".
-    # 일부만 실패한 경우는 completed 로 둔다. 그건 measure 가 된 실행이고,
-    # 몇 개가 빠졌는지는 question_count 와 generated_answer=NULL 행으로 읽을 수 있다.
-    status = "completed" if processed else "failed"
+    # 2026-08-12 에 전멸(failed)을 먼저 겪어 고쳤는데, **그때 partial 을 안 만든 것이
+    # 바로 다음 날 나를 물었다.** 16문항 중 13개만 처리된 실행이 completed 로 남았고,
+    # 그 실행의 0.782 를 유효한 측정으로 읽어 "리랭커 융합은 손해다"라고 결론냈다.
+    # 한도가 풀린 뒤 온전히 3회 재보니 0.844·0.875·0.875 로 <차이가 없었다.>
+    # 즉 결론이 통째로 틀렸고, 원인은 <덜 잰 실행과 다 잰 실행을 같은 값으로 뭉갠 것>이다.
+    #
+    # 그때 커밋 메시지에 "일부만 실패한 실행은 그대로 completed 다(그건 측정이 됐다)"
+    # 라고 적었는데 그 판단이 틀렸다. 측정은 됐지만 <비교>는 안 된다. 분모가 다르다.
+    if not processed:
+        status = "failed"
+    elif processed < total:
+        status = "partial"
+    else:
+        status = "completed"
 
     with cursor(commit=True) as cur:
         cur.executemany(

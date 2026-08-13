@@ -617,10 +617,14 @@ function StatusBadge({ status }: { status: string }) {
   const label: Record<string, string> = {
     running: "실행 중",
     completed: "완료",
+    // 🔴 "일부 실패"는 <완료>도 <실패>도 아니다. 점수는 나왔지만 분모가 달라
+    //    다른 실행과 비교하면 안 된다. 그래서 색도 따로 준다(경고 톤).
+    partial: "일부 실패",
     failed: "실패",
   };
   const tone: Record<string, string> = {
     completed: "bg-success-surface text-success",
+    partial: "bg-warning-surface text-warning",
     failed: "bg-danger-surface text-danger",
   };
   return (

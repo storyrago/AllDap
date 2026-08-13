@@ -291,7 +291,15 @@ export interface EvalConfig {
   model?: string;
 }
 
-export type EvalRunStatus = "running" | "completed" | "failed";
+/**
+ * 평가 실행의 상태.
+ *
+ * 🔴 `partial` 이 왜 따로 있는가 — <덜 잰 실행과 다 잰 실행은 다른 사실>이기 때문이다.
+ *    일부 질문이 처리 실패(429·타임아웃)하면 분모가 달라져 <다른 설정과 비교할 수 없다.>
+ *    실제로 2026-08-12 에 16문항 중 13개만 처리된 실행을 유효한 측정으로 읽어
+ *    잘못된 결론을 냈다. 그래서 화면의 대표 수치는 `completed` 만 고른다.
+ */
+export type EvalRunStatus = "running" | "completed" | "partial" | "failed";
 
 /** 평가 실행 1회 (eval_runs) */
 export interface EvalRun {
