@@ -186,6 +186,12 @@ def _keyword_rows(bot_id: UUID, query: str, qvec: list[float], limit: int) -> li
     벡터 거리도 함께 뽑는 이유: 키워드로만 올라온 청크에도 `max_distance` 컷을
     적용해야 하는데, 거리를 여기서 안 가져오면 호출부가 또 한 번 질의해야 한다.
 
+    실패하면 <빈 목록을 돌려주고 벡터 결과만으로 진행한다.> `_rerank` 와 같은 원칙이다 —
+    키워드는 후보를 <넓히는> 부가 기능이지 검색의 필수 단계가 아니다.
+    여기서 예외를 위로 던지면 **키워드 질의 하나가 죽을 때 채팅이 통째로 죽는다.**
+    ⚠️ LIKE 전체 스캔이라 청크가 늘면 타임아웃이 현실적인 실패 모드다.
+       기본값으로 켜는 순간 이 경로를 <모든 채팅이> 지나므로 반드시 막아둬야 한다.
+
     # ponytail: LIKE 전체 스캔이다. 지금 봇 하나가 306청크라 무시할 수준이고,
     #   수만 청크가 되면 tsvector + GIN 인덱스(또는 pg_bigm)로 바꿀 것.
     """
@@ -207,9 +213,13 @@ def _keyword_rows(bot_id: UUID, query: str, qvec: list[float], limit: int) -> li
         ORDER BY hits DESC, distance
         LIMIT %s
     """
-    with cursor() as cur:
-        cur.execute(sql, (qvec, keys, bot_id, limit))
-        return list(cur.fetchall())
+    try:
+        with cursor() as cur:
+            cur.execute(sql, (qvec, keys, bot_id, limit))
+            return list(cur.fetchall())
+    except Exception as e:  # noqa: BLE001 - 후보 확장 실패가 검색 실패가 되면 안 된다
+        _log.warning("키워드 검색 실패(벡터 결과만 사용): %s: %s", type(e).__name__, e)
+        return []
 
 
 def _rrf_reorder(items: list, order_a: list, order_b: list, k: int, *, key=lambda r: r[0]) -> list:
