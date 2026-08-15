@@ -33,6 +33,17 @@ from .schemas import (
     GenerateQuestionsRequest,
 )
 
+# 🔴 로깅 설정이 <없었다>. 루트 로거에 핸들러가 없으면 파이썬의 lastResort 가
+#    WARNING 이상만 stderr 로 내보낸다 — 즉 `_log.info` 가 <한 번도 안 보였다>.
+#    "평가 실행 완료 …" 도, 그 안의 비용 집계도 전부 조용히 사라지고 있었다.
+#    2026-08-13 에 뉴런 로그를 붙이다 발견했다.
+#    ⚠️ uvicorn 은 자기 로거를 따로 설정하고 propagate=False 라 중복 출력은 안 난다.
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+    datefmt="%H:%M:%S",
+)
+
 _log = logging.getLogger(__name__)
 
 

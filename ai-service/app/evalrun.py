@@ -48,7 +48,7 @@ import json
 import logging
 from uuid import UUID
 
-from . import judge, retriever
+from . import cf, judge, retriever
 from .config import get_settings
 from .db import cursor
 from .generator import generate
@@ -128,6 +128,9 @@ def execute(run_id: UUID, bot_id: UUID) -> None:
 
 
 def _execute(run_id: UUID, bot_id: UUID) -> None:
+    # 💰 이 실행이 쓴 뉴런을 센다. 응답이 호출당 정확한 값을 주므로 추정할 필요가 없다.
+    #    ⚠️ 전역 누적이라 평가를 <동시에> 두 개 돌리면 섞인다. 보통 하나씩 돈다.
+    cf.reset_neurons()
     with cursor() as cur:
         cur.execute(
             """SELECT id, question, ground_truth
@@ -246,7 +249,11 @@ def _execute(run_id: UUID, bot_id: UUID) -> None:
             (avg_f, avg_r, answered_rate, total, len(faiths), status, run_id),
         )
 
+    used = cf.neurons_used()
     _log.info(
-        "평가 실행 완료 run_id=%s 질문 %d개 · 처리 %d개(실패 %d) · 답변 %d개 · 채점 %d개",
+        "평가 실행 완료 run_id=%s 질문 %d개 · 처리 %d개(실패 %d) · 답변 %d개 · 채점 %d개 "
+        "· 💰 %.1f 뉴런 (%s)",
         run_id, total, processed, total - processed, answered, len(faiths),
+        sum(used.values()),
+        " / ".join(f"{m.rsplit('/', 1)[-1]} {n:.1f}" for m, n in sorted(used.items(), key=lambda x: -x[1])),
     )
