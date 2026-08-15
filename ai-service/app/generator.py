@@ -14,6 +14,7 @@ from uuid import UUID
 
 from . import cf
 from .config import get_settings
+from .db import cursor
 from .retriever import fetch_contents
 from .schemas import Source
 
@@ -29,6 +30,51 @@ SYSTEM_PROMPT = """당신은 조직의 내부 문서를 근거로 질문에 답�
 5. 확실하지 않은 부분은 "문서상으로는 ~까지만 확인됩니다"처럼 한계를 밝히세요."""
 
 FALLBACK_TOKEN = "NO_ANSWER"
+
+
+def fetch_bot_prompt(bot_id: UUID) -> str | None:
+    """봇에 설정된 `system_prompt` 를 읽는다. 없으면 None.
+
+    ⚠️ 왜 Spring 이 요청에 실어 보내지 않고 <Python 이 직접 읽는가.>
+       `bots` 는 Spring 소유 테이블이지만 Python 의 <읽기>는 허용돼 있다(AGENTS.md 소유권 표).
+       그런데도 굳이 읽는 이유는 성능이 아니라 **평가 때문**이다 —
+       `evalrun` 은 Spring 을 <거치지 않는다.> Spring 이 보내는 방식이면 평가만 기본
+       프롬프트로 돌아, "평가에서는 좋았는데 실사용은 다르다"가 된다.
+       평가가 실제 파이프라인을 그대로 태워야 한다는 원칙(evalrun 모듈 주석)이 여기서 갈린다.
+       부수 효과로 Spring 은 한 줄도 안 고쳐도 된다.
+    """
+    with cursor() as cur:
+        cur.execute("SELECT system_prompt FROM bots WHERE id = %s", (bot_id,))
+        row = cur.fetchone()
+    return row[0] if row else None
+
+
+def build_system_prompt(bot_prompt: str | None) -> str:
+    """기본 규칙 <뒤에> 봇별 지침을 덧붙인다. **대체하지 않는다.**
+
+    🔴 대체하면 안 되는 이유: 기본 규칙 2번이 `NO_ANSWER` 를 강제하는 자리다.
+       봇 운영자가 "무조건 친절하게 답해줘" 같은 프롬프트를 넣었을 때 그것이 규칙을
+       덮어쓰면 <환각 억제가 설정 하나로 뚫린다.> 이 제품의 핵심 가치라 값을 매길 수 없다.
+
+    그래서 ① 기본 규칙을 먼저 두고 ② 봇 지침을 뒤에 붙이되
+    ③ "충돌하면 위가 우선"임을 <명시>한다. 셋 다 필요하다 —
+    순서만으로는 모델이 나중 지시를 더 따르는 경향이 있다.
+
+    ⚠️ 이건 <방어이지 보장이 아니다.> 프롬프트로 프롬프트를 막는 것이라 100% 가 없다.
+       그래서 2차 방어선이 프롬프트 밖에도 있다: `generate` 가 응답에서 NO_ANSWER 토큰을
+       찾아 fallback 으로 판정하는 것은 모델의 협조와 무관하게 동작한다.
+       봇 프롬프트를 넣은 뒤 `noanswer_check` 로 준수 여부를 다시 재는 것이 운영 절차다.
+    """
+    if not bot_prompt or not bot_prompt.strip():
+        return SYSTEM_PROMPT
+    return (
+        f"{SYSTEM_PROMPT}\n\n"
+        "---\n"
+        "아래는 이 봇 운영자가 추가한 지침입니다. 말투나 범위를 정하는 데 쓰세요.\n"
+        "위 규칙 1~5 와 충돌하면 **위 규칙이 우선**합니다. 특히 근거가 없을 때 "
+        f'"{FALLBACK_TOKEN}" 으로만 답하는 규칙은 아래 지침으로 바꿀 수 없습니다.\n\n'
+        f"{bot_prompt.strip()}"
+    )
 
 
 class GenerationFailed(RuntimeError):
@@ -60,9 +106,16 @@ def generate(
     question: str,
     sources: list[Source],
     *,
+    system_prompt: str | None = None,
     fallback_message: str = "문서에서 답을 찾지 못했어요. 담당자에게 문의해주세요.",
 ) -> tuple[str, bool]:
-    """(답변, is_fallback) 반환."""
+    """(답변, is_fallback) 반환.
+
+    system_prompt 는 <이미 결합된> 최종 프롬프트다(`build_system_prompt` 의 결과).
+    이 함수가 직접 DB 를 읽지 않는 이유: 그러면 `generator_check` 와 `noanswer_check` 가
+    DB 없이 돌 수 없게 된다. 두 검사는 <모델이 규칙을 지키는가>만 보는 도구라
+    DB·검색과 분리돼 있어야 한다.
+    """
     # 검색 단계에서 이미 걸러졌다면 LLM을 부를 필요도 없다 (비용 절감)
     if not sources:
         return fallback_message, True
@@ -77,7 +130,7 @@ def generate(
         "messages": [
             # Cloudflare 는 system instruction 을 별도 인자가 아니라 messages 의
             # role="system" 으로 받는다. Gemini 의 system_instruction 과 같은 자리다.
-            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "system", "content": system_prompt or SYSTEM_PROMPT},
             {"role": "user", "content": user_content},
         ],
         "max_tokens": s.max_tokens,

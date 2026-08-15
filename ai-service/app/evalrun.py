@@ -51,7 +51,7 @@ from uuid import UUID
 from . import cf, judge, retriever
 from .config import get_settings
 from .db import cursor
-from .generator import generate
+from .generator import build_system_prompt, fetch_bot_prompt, generate
 
 _log = logging.getLogger(__name__)
 
@@ -141,6 +141,10 @@ def _execute(run_id: UUID, bot_id: UUID) -> None:
         )
         questions = cur.fetchall()
 
+    # 봇별 지침을 <루프 밖에서 한 번만> 읽는다. 질문마다 읽을 이유가 없고,
+    # 실행 도중 바뀌면 앞뒤 질문이 다른 프롬프트로 채점돼 <측정이 섞인다.>
+    system_prompt = build_system_prompt(fetch_bot_prompt(bot_id))
+
     # 집계용. 채점에 성공한 것만 담는다.
     faiths: list[float] = []
     rels: list[float] = []
@@ -156,7 +160,7 @@ def _execute(run_id: UUID, bot_id: UUID) -> None:
         #    커넥션 풀(10개)이 말라 채팅·업로드까지 멈춘다.
         try:
             sources = retriever.search(bot_id, question)
-            answer, is_fallback = generate(question, sources)
+            answer, is_fallback = generate(question, sources, system_prompt=system_prompt)
         except Exception as e:  # noqa: BLE001
             # 한 질문이 실패했다고 실행 전체를 죽이지 않는다(429 쿼터 등).
             # 점수 없이 행만 남겨 "이 질문은 못 쟀다"를 보이게 한다.

@@ -18,7 +18,7 @@ from . import conflicts, evaluator, evalrun, retriever
 from .chunker import chunk_text
 from .config import get_settings
 from .db import close_pool, cursor
-from .generator import GenerationFailed, generate
+from .generator import GenerationFailed, build_system_prompt, fetch_bot_prompt, generate
 from .parsers import ParseError, extract_text
 from .schemas import (
     ChatRequest,
@@ -193,7 +193,13 @@ def chat(req: ChatRequest) -> ChatResponse:
 
     sources = retriever.search(req.bot_id, req.message)
     try:
-        answer, is_fallback = generate(req.message, sources)
+        # 봇별 지침(PRD F-06). 없으면 기본 규칙만 쓴다.
+        # ⚠️ 대체가 아니라 <덧붙임>이다 — build_system_prompt 주석 참고.
+        answer, is_fallback = generate(
+            req.message,
+            sources,
+            system_prompt=build_system_prompt(fetch_bot_prompt(req.bot_id)),
+        )
     except GenerationFailed as e:
         # 🔴 fallback 으로 뭉개지 않는다. 근거는 찾았는데 <답변을 못 받은> 것이라
         #    "문서에서 답을 찾지 못했어요" 로 내보내면 제품이 거짓말을 한다.
