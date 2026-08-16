@@ -75,6 +75,7 @@ public class AiServiceClient {
 
     /** 실패 로그에 "어디로 못 붙었는지"를 남기기 위해 주입한다. 주소를 모르면 로그만 보고 원인을 못 좁힌다. */
     private final AiServiceProperties aiServiceProperties;
+    private final AiServiceCircuitBreaker circuitBreaker;
 
     /**
      * 문서 업로드. Python 은 documents 행만 만들고 202 로 즉시 응답한 뒤
@@ -204,22 +205,37 @@ public class AiServiceClient {
      */
     private <T> T call(String what, Supplier<T> action,
                        Function<RestClientResponseException, ApiException> on4xx) {
+        // ── 서킷: 이미 죽은 걸 알면 두드리지 않는다 ──────────────────────
+        // 열려 있으면 연결 타임아웃(3초)만큼도 기다리지 않고 즉시 안내한다.
+        // 이게 없으면 Python 이 죽은 동안 매 요청이 3초씩 톰캣 스레드를 붙잡아
+        // <Python 장애가 Spring 장애로 번진다.>
+        if (!circuitBreaker.allowRequest()) {
+            log.warn("[AI 호출] {} — 서킷이 열려 있어 호출하지 않는다.", what);
+            throw new ApiException(ErrorCode.AI_SERVICE_UNAVAILABLE);
+        }
+
         try {
-            return action.get();
+            T result = attemptWithRetry(what, action);
+            circuitBreaker.recordSuccess();
+            return result;
 
         } catch (RestClientResponseException e) {
             // Python 이 HTTP 응답은 돌려준 경우 (4xx / 5xx)
             HttpStatusCode status = e.getStatusCode();
             if (status.is4xxClientError()) {
+                // 🔴 서킷 실패로 세지 <않는다>. Python 은 멀쩡히 판단해서 거절한 것이고,
+                //    잘못은 우리 호출에 있다. 이걸 세면 <우리 버그로 멀쩡한 Python 을 차단>하게 된다.
                 log.warn("[AI 호출] {} — Python 이 {} 로 거절. body={}",
                         what, status, e.getResponseBodyAsString());
                 throw on4xx.apply(e);
             }
+            circuitBreaker.recordFailure();   // 5xx = Python 이 아프다
             log.error("[AI 호출] {} 실패 — Python 이 {} 응답. body={}", what, status, e.getResponseBodyAsString());
             throw new ApiException(ErrorCode.AI_SERVICE_UNAVAILABLE);
 
         } catch (ResourceAccessException e) {
-            // 아예 응답을 받지 못한 경우 (연결 거부·타임아웃·중간 끊김)
+            // 아예 응답을 받지 못한 경우 (연결 거부·타임아웃·중간 끊김) — 전부 Python 장애다
+            circuitBreaker.recordFailure();
             throw translateIoFailure(what, e);
 
         } catch (RestClientException e) {
@@ -231,9 +247,13 @@ public class AiServiceClient {
             // DefaultRestClient 가 본문을 읽다 만난 IOException 을 여기로 감싸 던지기 때문이다.
             // 즉 위의 catch(ResourceAccessException) 는 "헤더도 못 받은" 실패만 잡는다.
             if (e.getCause() instanceof IOException io) {
+                circuitBreaker.recordFailure();   // 처리 도중 Python 이 죽은 것이다
                 log.error("[AI 호출] {} 실패 — 응답을 받는 도중 Python 과의 통신이 끊겼다.", what, io);
                 throw new ApiException(ErrorCode.AI_SERVICE_UNAVAILABLE);
             }
+
+            // 🔴 아래는 서킷 실패로 세지 <않는다>. 응답은 멀쩡히 받았고 우리 DTO 가 낡은 것이다.
+            //    세면 우리 코드 문제가 "AI 서비스 점검 중" 으로 둔갑해 조사가 엉뚱한 데로 간다.
 
             // 진짜로 응답은 멀쩡히 받았는데 해석에 실패한 경우 — JSON 구조가 DTO 와 안 맞는다.
             // Python 컨트랙트가 바뀌었는데 우리 DTO 를 안 고친 상황이라
@@ -303,6 +323,64 @@ public class AiServiceClient {
      * 이 클래스가 {@code HttpTimeoutException} 을 상속하므로 순서를 바꾸면
      * <b>연결 실패가 읽기 타임아웃으로 잘못 분류된다.</b>
      */
+    /**
+     * 연결 실패일 때만 다시 시도한다.
+     *
+     * <p>🔴 <b>왜 "연결 실패만" 인가 — 여기가 이 기능의 전부다.</b>
+     * 재시도의 전제는 "직전 시도가 <b>아무 일도 하지 않았다</b>"는 것이다. 그게 보장되는 실패는
+     * <b>연결 자체가 안 된 경우뿐</b>이다. 요청이 Python 에 닿지 않았으니 부작용이 남을 수 없다.
+     *
+     * <p>그래서 나머지는 재시도하지 않는다:
+     * <ul>
+     *   <li><b>읽기 타임아웃</b> — 요청은 <b>도달했다.</b> Python 이 아직 처리 중일 수 있다.
+     *       다시 보내면 같은 작업이 두 번 돈다.</li>
+     *   <li><b>5xx</b> — Python 이 응답했다 = 요청이 도달했다. 문서 행을 만들고 임베딩 중에
+     *       죽었다면 재시도가 행을 하나 더 만든다.</li>
+     *   <li><b>4xx</b> — 같은 요청은 같은 이유로 또 거절된다. 재시도가 무의미하다.</li>
+     * </ul>
+     *
+     * <p>⚠️ <b>RestClientConfig 의 TODO 를 정정한 것이다.</b> 거기엔 "연결 실패/5xx 처럼 요청이
+     * 처리되지 않은 게 확실한 경우만" 이라고 적혀 있었는데, <b>5xx 는 요청이 도달했다는 증거</b>라
+     * 그 분류가 틀렸다. 같은 TODO 가 "업로드는 재시도에서 제외" 라고도 했지만,
+     * 연결 실패로 좁히면 <b>업로드도 안전해진다</b> — 요청이 안 갔으니 중복될 행도 없다.
+     * 오히려 업로드야말로 재시도가 고마운 경로다(실패하면 사용자가 파일을 다시 올려야 한다).
+     * 그래서 호출부마다 켜고 끄지 않고 {@code call()} 안에서 일괄 처리한다.
+     */
+    private <T> T attemptWithRetry(String what, Supplier<T> action) {
+        int maxAttempts = Math.max(1, aiServiceProperties.retryMaxAttempts());
+        for (int attempt = 1; ; attempt++) {
+            try {
+                return action.get();
+            } catch (ResourceAccessException e) {
+                boolean canRetry = attempt < maxAttempts && isConnectFailure(e);
+                if (!canRetry) {
+                    throw e;
+                }
+                log.warn("[AI 호출] {} — Python 에 연결하지 못했다. {} 뒤 재시도 ({}/{})",
+                        what, aiServiceProperties.retryDelay(), attempt + 1, maxAttempts);
+                sleep(aiServiceProperties.retryDelay());
+            }
+        }
+    }
+
+    /** 요청이 Python 에 <b>도달하지 않은 것이 확실한</b> 실패인가. */
+    private boolean isConnectFailure(ResourceAccessException e) {
+        Throwable cause = e.getCause();
+        // ⚠️ HttpConnectTimeoutException 은 HttpTimeoutException 의 하위 타입이다.
+        //    순서를 바꿔 HttpTimeoutException 을 먼저 보면 <읽기 타임아웃까지 재시도>하게 된다.
+        return cause instanceof ConnectException || cause instanceof HttpConnectTimeoutException;
+    }
+
+    private void sleep(java.time.Duration duration) {
+        try {
+            Thread.sleep(duration.toMillis());
+        } catch (InterruptedException ie) {
+            // 인터럽트를 삼키면 상위(요청 취소·종료)가 신호를 잃는다. 복원하고 즉시 포기한다.
+            Thread.currentThread().interrupt();
+            throw new ApiException(ErrorCode.AI_SERVICE_UNAVAILABLE);
+        }
+    }
+
     private ApiException translateIoFailure(String what, ResourceAccessException e) {
         Throwable cause = e.getCause();
 

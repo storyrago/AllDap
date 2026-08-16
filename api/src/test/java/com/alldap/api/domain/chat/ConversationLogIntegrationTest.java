@@ -1,5 +1,6 @@
 package com.alldap.api.domain.chat;
 
+import com.alldap.api.global.client.AiServiceCircuitBreaker;
 import com.alldap.api.domain.auth.dto.SignupRequest;
 import com.alldap.api.domain.bot.dto.CreateBotRequest;
 import com.alldap.api.domain.chat.dto.ChatRequest;
@@ -67,6 +68,12 @@ class ConversationLogIntegrationTest {
     @Autowired
     private AiServiceStub aiService;
 
+    // 🔴 서킷브레이커는 <상태를 가진 싱글턴>이다. 리셋하지 않으면 5xx 를 내는
+    //    테스트가 누적돼 서킷이 열리고, 이후 테스트가 전부 503 으로 깨진다.
+    //    그것도 <실행 순서에 따라> 나타났다 사라진다 (AiServiceStub 의 executor 함정과 같은 부류).
+    @Autowired
+    AiServiceCircuitBreaker circuitBreaker;
+
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
@@ -91,6 +98,7 @@ class ConversationLogIntegrationTest {
         client = RestTestClient.bindToServer().baseUrl("http://localhost:" + port).build();
         userRepository.deleteAll();
         aiService.reset();
+        circuitBreaker.reset();
 
         ownerToken = signup("owner@example.com");
         intruderToken = signup("intruder@example.com");

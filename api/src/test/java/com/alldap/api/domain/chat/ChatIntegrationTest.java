@@ -1,5 +1,6 @@
 package com.alldap.api.domain.chat;
 
+import com.alldap.api.global.client.AiServiceCircuitBreaker;
 import com.alldap.api.domain.auth.dto.SignupRequest;
 import com.alldap.api.domain.bot.dto.CreateBotRequest;
 import com.alldap.api.domain.bot.dto.UpdateBotRequest;
@@ -72,6 +73,12 @@ class ChatIntegrationTest {
     @Autowired
     private AiServiceStub aiService;
 
+    // 🔴 서킷브레이커는 <상태를 가진 싱글턴>이다. 리셋하지 않으면 5xx 를 내는
+    //    테스트가 누적돼 서킷이 열리고, 이후 테스트가 전부 503 으로 깨진다.
+    //    그것도 <실행 순서에 따라> 나타났다 사라진다 (AiServiceStub 의 executor 함정과 같은 부류).
+    @Autowired
+    AiServiceCircuitBreaker circuitBreaker;
+
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
@@ -85,6 +92,7 @@ class ChatIntegrationTest {
         client = RestTestClient.bindToServer().baseUrl("http://localhost:" + port).build();
         userRepository.deleteAll();   // bots → conversations → messages 가 CASCADE 로 함께 사라진다
         aiService.reset();
+        circuitBreaker.reset();
 
         ownerToken = signup("owner@example.com");
         intruderToken = signup("intruder@example.com");
@@ -225,6 +233,41 @@ class ChatIntegrationTest {
         String sources = jdbcTemplate.queryForObject(
                 "SELECT sources::text FROM messages WHERE role = 'assistant'", String.class);
         assertThat(sources).isNotNull().contains("학사규정.pdf");
+    }
+
+    // ── 재시도 · 서킷브레이커 ────────────────────────────────────────────
+
+    @Test
+    @DisplayName("[재시도] 🔴 Python 5xx 는 재시도하지 않는다 — 요청이 이미 도달했기 때문이다")
+    void 오류응답은_재시도하지_않는다() {
+        // 5xx 는 Python 이 <응답을 준> 것이다 = 요청이 도달했다 = 부작용이 남았을 수 있다.
+        // 재시도하면 같은 작업이 두 번 돈다(LLM 이 두 번 과금되거나 행이 중복된다).
+        // 요청을 1건만 큐에 넣고, 스텁이 <정확히 1건만> 받았는지로 확인한다.
+        aiService.enqueue(500, "{\"detail\":\"boom\"}");
+
+        Response response = chat(ownerToken, botId, "질문");
+
+        assertThat(response.status()).isEqualTo(503);
+        assertThat(aiService.received()).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("[서킷] 연속 실패가 임계치를 넘으면 Python 을 호출하지 않고 즉시 안내한다")
+    void 서킷이_열리면_호출하지_않는다() {
+        // 임계치(5)만큼 실패시킨다. 매번 스텁이 요청을 받는다.
+        for (int i = 0; i < 5; i++) {
+            aiService.enqueue(500, "{}");
+            chat(ownerToken, botId, "질문 " + i);
+        }
+        int callsBeforeOpen = aiService.received().size();
+
+        Response response = chat(ownerToken, botId, "서킷이 열린 뒤의 질문");
+
+        assertThat(response.status()).isEqualTo(503);
+        assertThat(response.json().path("error").path("code").asString()).isEqualTo("AI_SERVICE_UNAVAILABLE");
+        // 🔴 핵심: 요청 수가 <늘지 않았다> = 아예 호출하지 않았다.
+        //    이게 스레드를 지키는 방식이다 — 연결 타임아웃 3초를 기다리지도 않는다.
+        assertThat(aiService.received()).hasSize(callsBeforeOpen);
     }
 
     // ── 트랜잭션 경계 ────────────────────────────────────────────────────

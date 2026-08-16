@@ -61,6 +61,20 @@ app:
     # 타임아웃 근거는 RestClientConfig 의 주석 참고.
     connect-timeout: 3s
     read-timeout: 120s
+    # ── 재시도 · 서킷브레이커 ────────────────────────────────────────
+    # ⚠️ 재시도는 <연결 실패에만> 적용된다. 요청이 도달하지 않은 것이 확실한 유일한 경우라
+    #    부작용(문서 행 중복·LLM 중복 과금)이 없다. 자세한 근거는 AiServiceClient 주석.
+    #
+    # 값의 근거는 얕다 — 실측이 아니라 판단이다:
+    #   retry-max-attempts 2   Python 재시작 중이면 1회 더로 대개 붙는다. 더 늘리면
+    #                          사용자 대기(연결 타임아웃 3초 × 시도 수)가 그만큼 길어진다.
+    #   retry-delay 200ms      프로세스가 포트를 잡는 데 걸리는 시간 정도. 사용자가 체감하지 않는다.
+    #   circuit-failure-threshold 5   일시적 흔들림 몇 번으로 열리면 안 된다.
+    #   circuit-open-duration 30s     Python 재시작이 대개 그 안에 끝난다.
+    retry-max-attempts: 2
+    retry-delay: 200ms
+    circuit-failure-threshold: 5
+    circuit-open-duration: 30s
   jwt:
     # ⚠️ 아래 기본값은 로컬 전용이다. 운영에서는 반드시 JWT_SECRET 을 주입할 것.
     #    (application-prod.yaml 은 기본값 없이 환경변수를 강제한다)
