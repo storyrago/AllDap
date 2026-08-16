@@ -1,10 +1,13 @@
 package com.alldap.api.domain.eval.service;
 
 import com.alldap.api.domain.bot.repository.BotRepository;
+import com.alldap.api.domain.chat.repository.MessageRepository;
 import com.alldap.api.domain.eval.dto.EvalQuestionResponse;
 import com.alldap.api.domain.eval.dto.EvalResultResponse;
 import com.alldap.api.domain.eval.dto.EvalRetrievedChunkResponse;
 import com.alldap.api.domain.eval.dto.EvalRunResponse;
+import com.alldap.api.domain.eval.dto.UnansweredQuestionResponse;
+import com.alldap.api.domain.eval.dto.UnansweredSummaryResponse;
 import com.alldap.api.domain.eval.repository.EvalQuestionRepository;
 import com.alldap.api.domain.eval.entity.EvalResult;
 import com.alldap.api.domain.eval.repository.EvalResultRepository;
@@ -52,6 +55,7 @@ public class EvalService {
 
     private final AiServiceClient aiServiceClient;
     private final BotRepository botRepository;
+    private final MessageRepository messageRepository;
     private final EvalQuestionRepository evalQuestionRepository;
     private final EvalRunRepository evalRunRepository;
     private final EvalResultRepository evalResultRepository;
@@ -166,6 +170,29 @@ public class EvalService {
                     result.getId(), e);
             return List.of();
         }
+    }
+
+    /**
+     * <b>미답변 질문 집계.</b> 봇이 근거를 못 찾아 거절한 질문들을 자주 물어본 순으로 준다.
+     *
+     * <p>Python 을 부르지 않는다 — {@code conversations}·{@code messages} 는
+     * <b>Spring 소유</b> 테이블이다(AGENTS.md 테이블 소유권). 문서 모순 진단이 Python 을
+     * 거치는 것과 정반대인데, 이유도 정반대다: 거기는 {@code chunks} 가 Python 소유였다.
+     *
+     * <p>🔴 <b>fallback 과 "답변 행 없음" 을 갈라서 센다.</b>
+     * 전자는 "물어봤는데 문서에 없었다"(진짜 미답변), 후자는 "우리 인프라가 실패해
+     * 물어보지도 못했다" 이다. 합치면 <b>서버가 죽은 날이 문서가 부실한 날로 둔갑한다.</b>
+     *
+     * <p>LLM 을 부르지 않으므로 <b>비용이 0</b> 이다. 목록을 여는 것만으로 돈이 나가면 안 된다.
+     * ({@code suggestion} 이 항상 null 인 이유이기도 하다)
+     */
+    public UnansweredSummaryResponse findUnanswered(UUID userId, UUID botId, int limit) {
+        requireOwnedBot(userId, botId);
+        List<UnansweredQuestionResponse> items = messageRepository.aggregateUnanswered(botId, limit)
+                .stream()
+                .map(UnansweredQuestionResponse::from)
+                .toList();
+        return new UnansweredSummaryResponse(items, messageRepository.countFailedTurns(botId));
     }
 
     /**

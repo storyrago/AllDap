@@ -1,7 +1,12 @@
 "use client";
 
 /*
- * `/bot/[botId]/diagnostics` — 진단. 문서끼리 어긋나는 곳을 보여준다.
+ * `/bot/[botId]/diagnostics` — 진단. 두 가지를 보여준다.
+ *   ① 문서끼리 어긋나는 곳 (문서 모순)
+ *   ② 사용자가 물었는데 답하지 못한 질문 (미답변)
+ *
+ * 둘 다 <같은 질문>에 답한다: "이 봇을 좋게 만들려면 뭘 해야 하나?"
+ * 앞은 <문서가 서로 틀렸다>, 뒤는 <문서가 비어 있다> 이다.
  *
  * 품질 대시보드와 짝이다:
  *   품질 = 지금 얼마나 좋은가 (측정)
@@ -21,12 +26,17 @@
  *   GET   /api/bots/{botId}/conflicts?status=open
  *   POST  /api/bots/{botId}/conflicts/scan
  *   PATCH /api/bots/{botId}/conflicts/{conflictId}
+ *   GET   /api/bots/{botId}/eval/unanswered
+ *
+ * ⚠️ 미답변은 Python 을 거치지 않는다 — conversations·messages 가 Spring 소유라
+ *    Spring 이 직접 집계한다. 문서 모순이 Python 을 거치는 것과 정반대인데,
+ *    이유도 정반대다: 거기는 chunks 가 Python 소유였다.
  */
 
 import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { ApiError, api } from "@/lib/api";
-import type { Conflict, ConflictScan } from "@/lib/types";
+import type { Conflict, ConflictScan, UnansweredSummary } from "@/lib/types";
 import { PageHeader } from "@/components/PageHeader";
 import { Section } from "@/components/Form";
 
@@ -42,10 +52,29 @@ export default function DiagnosticsPage() {
   const [error, setError] = useState<string | null>(null);
   /* 어떤 항목이 펼쳐져 있는지. 기본은 전부 접힘 — 원문까지 펼치면 목록을 훑을 수가 없다. */
   const [opened, setOpened] = useState<Set<string>>(new Set());
+  /* 미답변 집계. 서버가 LLM 을 안 부르므로 화면 진입 때 그냥 같이 불러온다(비용 0). */
+  const [unanswered, setUnanswered] = useState<UnansweredSummary | null>(null);
 
   const load = useCallback(async () => {
     try {
-      setConflicts(await api.conflicts.list(botId));
+      /*
+       * 두 요청이 서로를 기다릴 이유가 없어 동시에 보낸다.
+       * allSettled 를 쓰는 이유: 하나가 실패해도 <나머지는 보여줘야> 한다.
+       * all 이면 미답변 조회가 실패했을 때 모순 목록까지 통째로 사라진다 —
+       * 두 섹션은 독립된 진단이므로 함께 죽을 이유가 없다.
+       */
+      const [c, u] = await Promise.allSettled([
+        api.conflicts.list(botId),
+        api.evaluation.listUnanswered(botId),
+      ]);
+      if (c.status === "fulfilled") setConflicts(c.value);
+      if (u.status === "fulfilled") setUnanswered(u.value);
+
+      const failed = [c, u].find((r) => r.status === "rejected");
+      if (failed && failed.status === "rejected") {
+        const e = failed.reason;
+        setError(e instanceof ApiError ? e.message : "일부 항목을 불러오지 못했습니다.");
+      }
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "목록을 불러오지 못했습니다.");
     }
@@ -103,7 +132,7 @@ export default function DiagnosticsPage() {
     <>
       <PageHeader
         title="진단"
-        description="문서끼리 서로 다른 말을 하는 곳을 찾습니다. 챗봇은 그중 하나를 골라 자신 있게 답하므로, 관리자가 먼저 알아야 합니다."
+        description="봇을 좋게 만들려면 뭘 고쳐야 하는지 알려줍니다. 문서끼리 어긋나는 곳과, 사용자가 물었는데 답하지 못한 질문을 모읍니다."
       />
 
       <Section title="문서 모순 검사">
@@ -226,6 +255,64 @@ export default function DiagnosticsPage() {
                     </pre>
                   </div>
                 )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </Section>
+
+      {/*
+        ── 미답변 ───────────────────────────────────────────────────────────
+        문서 모순이 "문서가 서로 틀렸다" 라면 이건 "문서가 비어 있다" 이다.
+        LLM 을 안 부르므로(서버가 messages 집계만 한다) 화면 진입 때 그냥 불러온다.
+      */}
+      <Section title={`답하지 못한 질문 ${unanswered ? `${unanswered.items.length}건` : ""}`}>
+        <p className="text-xs text-muted">
+          사용자가 물었는데 봇이 <b>문서에서 근거를 찾지 못해 거절한</b> 질문입니다. 자주 물어본
+          순서로 보여줍니다 — 위에서부터 문서를 채우면 됩니다.
+          <br />
+          관리자 <b>테스트 채팅</b>에서 나온 것도 함께 집계합니다(거기서 난 거절도 &ldquo;문서에
+          없다&rdquo;는 신호는 같습니다).
+        </p>
+
+        {/*
+          🔴 "처리 실패"를 <따로> 보여준다.
+             fallback(물어봤는데 문서에 없었다)과 답변 행 없음(우리 인프라가 실패해
+             물어보지도 못했다)은 다른 사실이다. 섞지 않는 것만으로는 부족하고
+             보여줘야 한다 — 목록이 비었을 때 "문서가 충분하다"로 읽히면 안 되기 때문이다.
+        */}
+        {unanswered && unanswered.failedTurns > 0 && (
+          <p className="rounded-md border border-warning bg-warning-surface px-3 py-2 text-xs text-warning">
+            ⚠️ 이와 별개로 <b>{unanswered.failedTurns}건</b>은 답변 자체를 받지 못했습니다(서버
+            오류·시간 초과). <b>거절과는 다른 문제</b>라 아래 목록에 넣지 않았습니다 — 문서를
+            채워도 해결되지 않습니다.
+          </p>
+        )}
+
+        {unanswered === null && error ? (
+          <p role="alert" className="text-sm text-danger">
+            {error}
+          </p>
+        ) : unanswered === null ? (
+          <p className="text-sm text-muted">불러오는 중…</p>
+        ) : unanswered.items.length === 0 ? (
+          <p className="text-sm text-muted">
+            거절한 질문이 없습니다. 아직 대화가 없거나, 물어본 것에 전부 답할 수 있었다는 뜻입니다.
+          </p>
+        ) : (
+          <ul className="divide-y divide-subtle rounded-md border border-subtle bg-background">
+            {unanswered.items.map((q) => (
+              /* key 로 question 을 쓴다 — 서버가 같은 문장끼리 GROUP BY 로 묶어 주므로 고유하다. */
+              <li key={q.question} className="flex items-start gap-3 px-3 py-2">
+                <span className="shrink-0 rounded-md bg-surface px-2 py-0.5 text-xs font-medium">
+                  {q.count}회
+                </span>
+                <div className="min-w-0">
+                  <p className="text-sm">{q.question}</p>
+                  <p className="mt-0.5 text-xs text-muted">
+                    마지막 질문 {new Date(q.lastAskedAt).toLocaleString("ko-KR")}
+                  </p>
+                </div>
               </li>
             ))}
           </ul>
