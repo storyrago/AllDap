@@ -48,10 +48,10 @@ import json
 import logging
 from uuid import UUID
 
-from . import judge, retriever
+from . import cf, judge, retriever
 from .config import get_settings
 from .db import cursor
-from .generator import generate
+from .generator import build_system_prompt, fetch_bot_prompt, generate
 
 _log = logging.getLogger(__name__)
 
@@ -74,9 +74,12 @@ def create_run(bot_id: UUID) -> tuple[UUID, int]:
         "reranker": s.reranker_enabled,
         "reranker_model": s.reranker_model if s.reranker_enabled else None,
         "rerank_candidates": s.rerank_candidates if s.reranker_enabled else None,
-        # 하이브리드(키워드+벡터)는 아직 구현 전이다. 항상 false 지만 키를 남겨야
-        # 나중 실행과 <같은 모양으로> 비교된다.
-        "hybrid": False,
+        # 🔴 융합 여부도 박제한다. 이 값이 다르면 <같은 reranker=true 라도 다른 실험>이다.
+        #    안 적으면 "0.844 는 어느 방식이었지?" 를 나중에 알 수 없다.
+        "rerank_fusion": s.rerank_fusion if s.reranker_enabled else None,
+        "hybrid": s.hybrid_enabled,
+        "hybrid_candidates": s.hybrid_candidates if s.hybrid_enabled else None,
+        "hybrid_rrf_k": s.hybrid_rrf_k if s.hybrid_enabled else None,
         # 🔴 청킹도 박제한다. 청킹은 <질의 시점>이 아니라 업로드 때 정해지는 값이라
         #    이 config 에 없으면 "이 점수가 어느 청킹이었는지"를 알 방법이 없다.
         #    2026-08-03 청킹 전후를 비교하다가 그 사실을 깨달아 추가했다 —
@@ -125,6 +128,9 @@ def execute(run_id: UUID, bot_id: UUID) -> None:
 
 
 def _execute(run_id: UUID, bot_id: UUID) -> None:
+    # 💰 이 실행이 쓴 뉴런을 센다. 응답이 호출당 정확한 값을 주므로 추정할 필요가 없다.
+    #    ⚠️ 전역 누적이라 평가를 <동시에> 두 개 돌리면 섞인다. 보통 하나씩 돈다.
+    cf.reset_neurons()
     with cursor() as cur:
         cur.execute(
             """SELECT id, question, ground_truth
@@ -134,6 +140,10 @@ def _execute(run_id: UUID, bot_id: UUID) -> None:
             (bot_id,),
         )
         questions = cur.fetchall()
+
+    # 봇별 지침을 <루프 밖에서 한 번만> 읽는다. 질문마다 읽을 이유가 없고,
+    # 실행 도중 바뀌면 앞뒤 질문이 다른 프롬프트로 채점돼 <측정이 섞인다.>
+    system_prompt = build_system_prompt(fetch_bot_prompt(bot_id))
 
     # 집계용. 채점에 성공한 것만 담는다.
     faiths: list[float] = []
@@ -150,7 +160,7 @@ def _execute(run_id: UUID, bot_id: UUID) -> None:
         #    커넥션 풀(10개)이 말라 채팅·업로드까지 멈춘다.
         try:
             sources = retriever.search(bot_id, question)
-            answer, is_fallback = generate(question, sources)
+            answer, is_fallback = generate(question, sources, system_prompt=system_prompt)
         except Exception as e:  # noqa: BLE001
             # 한 질문이 실패했다고 실행 전체를 죽이지 않는다(429 쿼터 등).
             # 점수 없이 행만 남겨 "이 질문은 못 쟀다"를 보이게 한다.
@@ -207,6 +217,27 @@ def _execute(run_id: UUID, bot_id: UUID) -> None:
     # generated_answer=NULL 인 행으로 남으므로 화면이 세어 보여줄 수 있다.
     answered_rate = answered / processed if processed else None
 
+    # 🔴 처리하지 못한 질문이 있으면 <그 실행은 다른 설정과 비교할 수 없다.>
+    #
+    #   completed  전 질문을 처리했다 = 설정 비교에 쓸 수 있다
+    #   partial    일부가 처리 실패했다(429·타임아웃) = <분모가 달라> 비교하면 안 된다
+    #   failed     한 문항도 처리하지 못했다 = 측정 자체가 없다
+    #
+    # 2026-08-12 에 전멸(failed)을 먼저 겪어 고쳤는데, **그때 partial 을 안 만든 것이
+    # 바로 다음 날 나를 물었다.** 16문항 중 13개만 처리된 실행이 completed 로 남았고,
+    # 그 실행의 0.782 를 유효한 측정으로 읽어 "리랭커 융합은 손해다"라고 결론냈다.
+    # 한도가 풀린 뒤 온전히 3회 재보니 0.844·0.875·0.875 로 <차이가 없었다.>
+    # 즉 결론이 통째로 틀렸고, 원인은 <덜 잰 실행과 다 잰 실행을 같은 값으로 뭉갠 것>이다.
+    #
+    # 그때 커밋 메시지에 "일부만 실패한 실행은 그대로 completed 다(그건 측정이 됐다)"
+    # 라고 적었는데 그 판단이 틀렸다. 측정은 됐지만 <비교>는 안 된다. 분모가 다르다.
+    if not processed:
+        status = "failed"
+    elif processed < total:
+        status = "partial"
+    else:
+        status = "completed"
+
     with cursor(commit=True) as cur:
         cur.executemany(
             """INSERT INTO eval_results
@@ -217,12 +248,16 @@ def _execute(run_id: UUID, bot_id: UUID) -> None:
         cur.execute(
             """UPDATE eval_runs
                   SET avg_faithfulness=%s, avg_relevancy=%s, answered_rate=%s,
-                      question_count=%s, scored_count=%s, status='completed'
+                      question_count=%s, scored_count=%s, status=%s
                 WHERE id=%s""",
-            (avg_f, avg_r, answered_rate, total, len(faiths), run_id),
+            (avg_f, avg_r, answered_rate, total, len(faiths), status, run_id),
         )
 
+    used = cf.neurons_used()
     _log.info(
-        "평가 실행 완료 run_id=%s 질문 %d개 · 처리 %d개(실패 %d) · 답변 %d개 · 채점 %d개",
+        "평가 실행 완료 run_id=%s 질문 %d개 · 처리 %d개(실패 %d) · 답변 %d개 · 채점 %d개 "
+        "· 💰 %.1f 뉴런 (%s)",
         run_id, total, processed, total - processed, answered, len(faiths),
+        sum(used.values()),
+        " / ".join(f"{m.rsplit('/', 1)[-1]} {n:.1f}" for m, n in sorted(used.items(), key=lambda x: -x[1])),
     )

@@ -61,7 +61,60 @@ def run(model: str, payload: dict) -> dict:
     body = resp.json()
     if not body.get("success", False):
         raise RuntimeError(f"Cloudflare 호출 실패 ({model}): {body.get('errors')}")
-    return body.get("result") or {}
+    result = body.get("result") or {}
+    _record_neurons(model, result, resp)
+    return result
+
+
+# ── 뉴런(비용) 집계 ────────────────────────────────────────────────────
+#
+# 🔴 응답이 <호출당 정확한 뉴런>을 준다: result.usage.neurons (헤더 cf-ai-neurons 도 같다).
+#    2026-08-13 에 발견했다. 그전까지 AGENTS.md 는 "대시보드를 사람이 읽어야 한다"고
+#    적어놨고, 실제로 그것 때문에 비용을 <추정으로만> 남긴 결정이 여럿 있었다.
+#    (리랭커를 "수십 뉴런일 것"으로 추정해 켰는데 실측은 11 뉴런, 평가 1회의 0.94% 였다)
+#
+# ⚠️ 하루 한도(10,000 뉴런)를 이 값으로 <예측할 수는 없다.> 이 프로세스가 쓴 것만 세기
+#    때문이다. 다른 프로세스·다른 날의 사용량은 모른다. 여기서 아는 것은
+#    "이 실행이 얼마를 썼는가" 하나이고, 그것만으로도 설정 비교에는 충분하다.
+#
+# ⚠️ 스레드 안전하지 않다. FastAPI 가 스레드풀에서 돌리므로 동시 호출이 겹치면
+#    합계가 조금 틀릴 수 있다. <로깅 용도>라 근사치로 충분하다 —
+#    정확한 청구액이 필요하면 대시보드를 봐야 한다.
+_neurons: dict[str, float] = {}
+
+
+def _record_neurons(model: str, result: dict, resp=None) -> None:
+    """⚠️ 응답 <모양이 모델 계열마다 다르다> (2026-08-13 실측).
+
+        생성·채점·리랭커  result.usage.neurons
+        임베딩            result.meta.neurons   ← usage 가 아예 없다
+        전부 공통         헤더 cf-ai-neurons    ← 단 소수점 2자리로 <반올림>된다
+
+    본문을 먼저 보는 이유는 정밀도다. 임베딩 1회가 0.0236 인데 헤더는 0.02 로 오므로,
+    수백 번 누적하면 오차가 눈에 띄게 쌓인다.
+    헤더는 <새 모델이 또 다른 모양을 줄 때>를 위한 마지막 그물이다 —
+    한쪽만 보다가 임베딩이 통째로 빠진 것을 이미 한 번 겪었다.
+    """
+    n = (result.get("usage") or {}).get("neurons")
+    if n is None:
+        n = (result.get("meta") or {}).get("neurons")
+    if n is None and resp is not None:
+        try:
+            n = float(resp.headers.get("cf-ai-neurons", ""))
+        except (TypeError, ValueError):
+            n = None
+    if isinstance(n, (int, float)):
+        _neurons[model] = _neurons.get(model, 0.0) + float(n)
+
+
+def neurons_used() -> dict[str, float]:
+    """모델별 누적 뉴런. reset_neurons() 이후의 값이다."""
+    return dict(_neurons)
+
+
+def reset_neurons() -> None:
+    """누적을 0 으로. 측정 구간의 <시작>에 부른다."""
+    _neurons.clear()
 
 
 def text_of(result: dict) -> str:

@@ -74,12 +74,15 @@ public class RestClientConfig {
                 .requestFactory(requestFactory)
                 .build();
 
-        // TODO(W2): 재시도(retry). 다만 무조건 재시도하면 안 된다.
-        //   - 연결 실패/5xx 처럼 "요청이 처리되지 않은 게 확실한" 경우만 재시도한다.
-        //   - POST /internal/bots/{id}/documents 는 재시도하면 문서 행이 중복 생성되므로 제외한다.
-        //   - POST /internal/chat 재시도는 LLM 비용이 두 배로 나가므로 신중히 결정할 것.
-        // TODO(W2): 서킷브레이커(resilience4j). 연속 실패가 임계치를 넘으면 일정 시간 호출을 끊고
-        //   AI_SERVICE_UNAVAILABLE 을 즉시 반환해, 죽은 Python 을 계속 두드리다 스레드가 마르는 걸 막는다.
-        //   (PRD §10.3 "Spring→Python 호출에는 타임아웃과 재시도를 반드시 설정한다"의 나머지 절반)
+        // ✅ 재시도·서킷브레이커는 2026-08-17 에 붙였다. 둘 다 AiServiceClient.call() 안에 있다.
+        //
+        // ⚠️ 여기 있던 TODO 의 분류가 <틀렸었다>. "연결 실패/5xx 처럼 요청이 처리되지 않은 게
+        //    확실한 경우만 재시도" 라고 적혀 있었는데, **5xx 는 Python 이 응답했다는 뜻 =
+        //    요청이 도달했다는 뜻**이다. 도달한 요청은 이미 문서 행을 만들었거나 LLM 을
+        //    호출했을 수 있다. 재시도가 안전한 것은 <연결 자체가 안 된 경우>뿐이다.
+        //
+        //    그리고 그렇게 좁히면 "업로드는 제외" 라던 예외도 필요 없어진다 —
+        //    요청이 안 갔으니 중복될 행이 없다. 그래서 호출부마다 켜고 끄지 않고
+        //    call() 안에서 일괄 처리한다. 자세한 근거는 AiServiceClient.attemptWithRetry 주석.
     }
 }

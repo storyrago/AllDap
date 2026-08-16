@@ -18,7 +18,7 @@ from . import conflicts, evaluator, evalrun, retriever
 from .chunker import chunk_text
 from .config import get_settings
 from .db import close_pool, cursor
-from .generator import GenerationFailed, generate
+from .generator import GenerationFailed, build_system_prompt, fetch_bot_prompt, generate
 from .parsers import ParseError, extract_text
 from .schemas import (
     ChatRequest,
@@ -31,6 +31,17 @@ from .schemas import (
     EvalResultOut,
     EvalRunOut,
     GenerateQuestionsRequest,
+)
+
+# 🔴 로깅 설정이 <없었다>. 루트 로거에 핸들러가 없으면 파이썬의 lastResort 가
+#    WARNING 이상만 stderr 로 내보낸다 — 즉 `_log.info` 가 <한 번도 안 보였다>.
+#    "평가 실행 완료 …" 도, 그 안의 비용 집계도 전부 조용히 사라지고 있었다.
+#    2026-08-13 에 뉴런 로그를 붙이다 발견했다.
+#    ⚠️ uvicorn 은 자기 로거를 따로 설정하고 propagate=False 라 중복 출력은 안 난다.
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+    datefmt="%H:%M:%S",
 )
 
 _log = logging.getLogger(__name__)
@@ -182,7 +193,13 @@ def chat(req: ChatRequest) -> ChatResponse:
 
     sources = retriever.search(req.bot_id, req.message)
     try:
-        answer, is_fallback = generate(req.message, sources)
+        # 봇별 지침(PRD F-06). 없으면 기본 규칙만 쓴다.
+        # ⚠️ 대체가 아니라 <덧붙임>이다 — build_system_prompt 주석 참고.
+        answer, is_fallback = generate(
+            req.message,
+            sources,
+            system_prompt=build_system_prompt(fetch_bot_prompt(req.bot_id)),
+        )
     except GenerationFailed as e:
         # 🔴 fallback 으로 뭉개지 않는다. 근거는 찾았는데 <답변을 못 받은> 것이라
         #    "문서에서 답을 찾지 못했어요" 로 내보내면 제품이 거짓말을 한다.
