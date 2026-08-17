@@ -59,6 +59,14 @@ const ZOOM_DURATION_MS = 2600;
 
 const ACCENT = "#7ED0C0";
 
+/** 히어로 헤더의 메뉴. "홈" 은 지금 이 화면이라 맨 위로 되돌리는 앵커다. */
+const NAV = [
+  { label: "홈", href: "#top" },
+  { label: "기능", href: "/features" },
+  { label: "요금제", href: "/pricing" },
+  { label: "FAQ", href: "/faq" },
+] as const;
+
 type Msg = { role: "bot" | "me"; text: string; source?: string };
 
 /** 0~1 로 자른 뒤 부드럽게 만드는 보간. 스크롤 매핑은 전부 이걸 쓴다. */
@@ -639,10 +647,32 @@ export function ReceptionHero() {
               <div style={{ position: "absolute", bottom: 0, right: 0, width: 20, height: 20, borderBottom: "1.5px solid rgba(23,21,20,.35)", borderRight: "1.5px solid rgba(23,21,20,.35)" }} />
               {/* 원본 스펙(14px / 5·12 패딩)보다 한 단계 키웠다. 히어로가 전체 화면을
                   쓰는 큰 무대라 스펙 크기로는 구석에서 눈에 안 들어온다. */}
+              {/* ⚠️ 이 메뉴는 전부 href="#" 였다 — 눌러도 아무 일이 없었다.
+                  그리고 "고객사례" 는 <제거했다>: 실제 고객이 없으므로 페이지를 만들면
+                  없는 사실을 지어내는 것이 된다. 링크를 죽은 채로 두는 것도 같은 문제다.
+                  섹션 앵커가 아니라 별도 페이지로 보내는 이유는 이 히어로가 wheel 을
+                  preventDefault 로 가로채 자기 줌 연출에 쓰기 때문이다 — 아래로 스크롤될
+                  페이지가 애초에 없다. */}
               <nav className="alldap-nav" style={{ display: "flex", alignItems: "center", gap: 5, background: "rgba(255,255,255,.42)", backdropFilter: "blur(10px)", borderRadius: 10, padding: "6px 6px 6px 16px" }}>
-                {["홈", "기능", "요금제", "고객사례", "FAQ"].map((label) => (
-                  <a key={label} href="#" style={{ padding: "12px 18px", fontSize: 17, fontWeight: 500 }}>{label}</a>
+                {NAV.map(({ label, href }) => (
+                  <a key={label} href={href} style={{ padding: "12px 18px", fontSize: 17, fontWeight: 500 }}>{label}</a>
                 ))}
+                {/* 🔴 좁은 화면에서는 위 링크들이 감춰진다(globals.css 720px 미디어쿼리).
+                    그러면 모바일 사용자는 기능·요금제·FAQ 로 갈 길이 없어지므로 햄버거를 둔다.
+                    <details> 를 쓴 이유: 펼침 상태·키보드 조작(Enter·Space)·스크린리더 전달을
+                    브라우저가 이미 한다. 직접 만들면 aria-expanded 와 포커스를 손으로 맞춰야 하고
+                    대개 한 군데를 빠뜨린다. 그리고 열 패널이 공짜다 —
+                    "패널이 따로 필요해서 범위가 아니다" 라던 옛 판단이 이걸로 뒤집혔다. */}
+                <details className="alldap-burger">
+                  <summary aria-label="메뉴 열기">
+                    <span aria-hidden>메뉴</span>
+                  </summary>
+                  <div className="alldap-burger-panel">
+                    {NAV.map(({ label, href }) => (
+                      <a key={label} href={href}>{label}</a>
+                    ))}
+                  </div>
+                </details>
                 <a href="/auth" className="alldap-nav-cta" style={{ marginLeft: 7, padding: "15px 30px", borderRadius: 9, background: "#171514", color: "#FFFFFF", fontSize: 17, fontWeight: 600 }}>도입 문의</a>
               </nav>
             </div>
