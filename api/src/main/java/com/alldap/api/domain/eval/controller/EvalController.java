@@ -5,7 +5,10 @@ import com.alldap.api.domain.eval.dto.EvalResultResponse;
 import com.alldap.api.domain.eval.dto.EvalRunResponse;
 import com.alldap.api.domain.eval.dto.GenerateQuestionsRequest;
 import com.alldap.api.domain.eval.dto.UnansweredSummaryResponse;
+import com.alldap.api.domain.eval.dto.UpdateEvalQuestionRequest;
 import com.alldap.api.domain.eval.service.EvalService;
+import com.alldap.api.global.exception.ApiException;
+import com.alldap.api.global.exception.ErrorCode;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -13,6 +16,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -117,6 +121,30 @@ public class EvalController {
     // TODO(W3): 미답변(fallback) 집계 API 경로를 확정할 것. 후보: GET /api/bots/{botId}/eval/unanswered
     //   ⚠️ 이 데이터는 eval_* 테이블에 없다. 실사용 로그(messages.is_fallback)를 집계해야 한다.
     //      즉 Python 이 아니라 Spring 이 만드는 값이다(MessageRepository TODO 참고).
+
+    /**
+     * PATCH /api/bots/{botId}/eval/questions/{questionId} — 테스트 질문 수정.
+     *
+     * <p><b>왜 PUT 이 아니라 PATCH 인가.</b> PUT 은 "이 자원을 통째로 이 값으로 바꿔라" 라
+     * 안 보낸 필드를 비우는 것이 맞는 해석이다. 여기서 필요한 것은 <b>부분 수정</b>이다 —
+     * 질문 문장만 다듬고 정답은 그대로 두는 것이 가장 흔한 사용이다.
+     *
+     * <p>🔴 {@code groundTruth} 를 고치면 <b>과거 실행과 비교할 수 없게 된다</b>
+     * (UpdateEvalQuestionRequest 주석 참고). 문항을 빼려면 {@code isActive=false} 가 안전하다.
+     */
+    @PatchMapping("/questions/{questionId}")
+    public ResponseEntity<EvalQuestionResponse> updateQuestion(
+            @AuthenticationPrincipal UUID userId,
+            @PathVariable UUID botId,
+            @PathVariable UUID questionId,
+            @Valid @RequestBody UpdateEvalQuestionRequest request) {
+        if (request.isEmpty()) {
+            // 빈 요청을 200 으로 답하면 "고쳤다"는 오해를 준다.
+            throw new ApiException(ErrorCode.INVALID_INPUT,
+                    "고칠 항목을 하나 이상 보내주세요 (question, groundTruth, isActive).");
+        }
+        return ResponseEntity.ok(evalService.updateQuestion(userId, botId, questionId, request));
+    }
 
     /**
      * GET /api/bots/{botId}/eval/unanswered — 봇이 거절한 질문 모음.

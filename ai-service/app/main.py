@@ -31,6 +31,7 @@ from .schemas import (
     EvalResultOut,
     EvalRunOut,
     GenerateQuestionsRequest,
+    UpdateEvalQuestionRequest,
 )
 
 # 🔴 로깅 설정이 <없었다>. 루트 로거에 핸들러가 없으면 파이썬의 lastResort 가
@@ -322,6 +323,56 @@ def list_eval_questions(bot_id: UUID) -> list[EvalQuestionOut]:
         )
         for r in rows
     ]
+
+
+@app.patch(
+    "/internal/bots/{bot_id}/eval/questions/{question_id}",
+    response_model=EvalQuestionOut,
+)
+def update_eval_question(
+    bot_id: UUID, question_id: UUID, req: UpdateEvalQuestionRequest
+) -> EvalQuestionOut:
+    """테스트 질문 1건을 고친다. 보낸 필드만 바꾼다.
+
+    <b>왜 Spring 이 직접 UPDATE 하지 않고 여기로 오는가.</b>
+    `eval_*` 는 <Python 소유> 테이블이다(AGENTS.md 소유권 표). 읽기는 Spring 이 직접 해도 되지만
+    쓰기를 양쪽에서 하면, 나중에 Python 이 이 테이블 스키마를 바꿀 때 Spring 이 조용히 깨진다.
+    (반대로 `messages` 는 Spring 소유라 미답변 집계를 Spring 이 직접 했다 — 방향만 반대다)
+
+    🔴 <b>`bot_id` 를 WHERE 에 반드시 넣는다.</b> `/internal/*` 에는 인증이 없어서,
+    `question_id` 만으로 UPDATE 하면 <b>남의 봇 질문을 고칠 수 있다.</b>
+    id 만으로 찾은 뒤 소유자를 검사하는 방식은 검사를 빠뜨려도 컴파일·테스트가 통과하므로,
+    조회 조건에 못박는다.
+    """
+    fields = req.model_dump(exclude_unset=True)
+    if not fields:
+        # 아무것도 안 보냈다. 성공으로 처리하면 "고쳤다"는 오해를 준다.
+        raise HTTPException(400, "고칠 항목을 하나 이상 보내주세요 (question, ground_truth, is_active).")
+
+    # 보낸 필드만 SET 한다. 컬럼명은 <우리가 정한 목록>에서만 나오므로 SQL 조립이 안전하다
+    # (요청 본문이 컬럼명이 되는 구조였다면 SQL 인젝션 경로가 된다).
+    allowed = ("question", "ground_truth", "is_active")
+    sets = [f"{name} = %s" for name in allowed if name in fields]
+    values = [fields[name] for name in allowed if name in fields]
+
+    with cursor(commit=True) as cur:
+        cur.execute(
+            f"""UPDATE eval_questions SET {", ".join(sets)}
+                 WHERE id = %s AND bot_id = %s
+             RETURNING id, question, ground_truth, source_chunk_id, is_active, created_at""",
+            (*values, question_id, bot_id),
+        )
+        row = cur.fetchone()
+
+    if row is None:
+        # 없는 질문이거나 <다른 봇의> 질문이다. 둘을 구분해 알려주지 않는다 —
+        # "그 질문은 존재하지만 당신 것이 아니다" 는 남의 데이터 존재를 알려주는 셈이다.
+        raise HTTPException(404, "질문을 찾을 수 없습니다.")
+
+    return EvalQuestionOut(
+        id=row[0], question=row[1], ground_truth=row[2],
+        source_chunk_id=row[3], is_active=row[4], created_at=row[5],
+    )
 
 
 @app.post("/internal/bots/{bot_id}/eval/runs", response_model=EvalRunOut, status_code=202)

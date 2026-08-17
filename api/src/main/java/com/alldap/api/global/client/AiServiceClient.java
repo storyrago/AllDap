@@ -9,6 +9,7 @@ import com.alldap.api.global.client.dto.AiEvalQuestionResponse;
 import com.alldap.api.global.client.dto.AiEvalRunResponse;
 import com.alldap.api.global.client.dto.AiGenerateQuestionsRequest;
 import com.alldap.api.global.client.dto.AiUpdateConflictStatusRequest;
+import com.alldap.api.global.client.dto.AiUpdateEvalQuestionRequest;
 import com.alldap.api.global.config.AiServiceProperties;
 import com.alldap.api.global.exception.ApiException;
 import com.alldap.api.global.exception.ErrorCode;
@@ -54,6 +55,7 @@ import java.util.function.Supplier;
  * DELETE /internal/documents/{doc_id}        -> 204 (본문 없음)
  * POST   /internal/chat                      {bot_id, message, session_id} -> ChatResponse
  * POST   /internal/bots/{bot_id}/eval/questions/generate  {count} -> EvalQuestionOut[]  (동기)
+ * PATCH  /internal/bots/{bot_id}/eval/questions/{question_id}     -> EvalQuestionOut    (부분 수정)
  * POST   /internal/bots/{bot_id}/eval/runs   -> 202 + EvalRunOut(status=running)
  * GET    /internal/bots/{bot_id}/eval/questions           -> EvalQuestionOut[]  (Spring 은 DB 직접 조회)
  * GET    /internal/bots/{bot_id}/eval/runs                -> EvalRunOut[]       (Spring 은 DB 직접 조회)
@@ -438,6 +440,23 @@ public class AiServiceClient {
                         .body(new AiGenerateQuestionsRequest(count))
                         .retrieve()
                         .body(new ParameterizedTypeReference<List<AiEvalQuestionResponse>>() {}),
+                this::translateEvalClientError);
+    }
+
+    /**
+     * 테스트 질문 1건을 고친다. {@code eval_*} 는 <b>Python 소유 테이블</b>이라 Spring 이 직접
+     * UPDATE 하지 않고 여기로 위임한다 — 양쪽에서 쓰면 Python 이 스키마를 바꿀 때 조용히 깨진다.
+     * (읽기는 Spring 이 직접 한다. 소유권 표에서 읽기는 허용돼 있다)
+     */
+    public AiEvalQuestionResponse updateEvalQuestion(UUID botId, UUID questionId,
+                                                     AiUpdateEvalQuestionRequest request) {
+        return call("평가 질문 수정",
+                () -> aiServiceRestClient.patch()
+                        .uri("/internal/bots/{botId}/eval/questions/{questionId}", botId, questionId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body(request)
+                        .retrieve()
+                        .body(AiEvalQuestionResponse.class),
                 this::translateEvalClientError);
     }
 
