@@ -6,6 +6,7 @@ import com.alldap.api.domain.eval.dto.EvalQuestionResponse;
 import com.alldap.api.domain.eval.dto.EvalResultResponse;
 import com.alldap.api.domain.eval.dto.EvalRetrievedChunkResponse;
 import com.alldap.api.domain.eval.dto.EvalRunResponse;
+import com.alldap.api.domain.eval.dto.UpdateEvalQuestionRequest;
 import com.alldap.api.domain.eval.dto.UnansweredQuestionResponse;
 import com.alldap.api.domain.eval.dto.UnansweredSummaryResponse;
 import com.alldap.api.domain.eval.repository.EvalQuestionRepository;
@@ -13,6 +14,7 @@ import com.alldap.api.domain.eval.entity.EvalResult;
 import com.alldap.api.domain.eval.repository.EvalResultRepository;
 import com.alldap.api.domain.eval.repository.EvalRunRepository;
 import com.alldap.api.global.client.AiServiceClient;
+import com.alldap.api.global.client.dto.AiUpdateEvalQuestionRequest;
 import com.alldap.api.global.client.dto.AiEvalRunResponse;
 import com.alldap.api.global.exception.ApiException;
 import com.alldap.api.global.exception.ErrorCode;
@@ -170,6 +172,30 @@ public class EvalService {
                     result.getId(), e);
             return List.of();
         }
+    }
+
+    /**
+     * 테스트 질문 1건 수정. 보낸 필드만 바뀐다.
+     *
+     * <p>Python 으로 위임한다 — {@code eval_*} 는 Python 소유 테이블이다(AiServiceClient 주석).
+     * 소유권 확인은 <b>Python 을 부르기 전에</b> 한다. {@code /internal/*} 에는 인증이 없어서,
+     * 요청이 거기 도달한 시점에 이미 샌 것이다.
+     */
+    public EvalQuestionResponse updateQuestion(UUID userId, UUID botId, UUID questionId,
+                                               UpdateEvalQuestionRequest request) {
+        requireOwnedBot(userId, botId);
+
+        EvalQuestionResponse updated = EvalQuestionResponse.from(
+                aiServiceClient.updateEvalQuestion(botId, questionId,
+                        new AiUpdateEvalQuestionRequest(
+                                request.question(), request.groundTruth(), request.isActive())));
+
+        log.info("[eval] 테스트 질문 수정 userId={} botId={} questionId={} 바꾼항목={}",
+                userId, botId, questionId,
+                (request.question() != null ? "question " : "")
+                        + (request.groundTruth() != null ? "ground_truth " : "")
+                        + (request.isActive() != null ? "is_active" : ""));
+        return updated;
     }
 
     /**

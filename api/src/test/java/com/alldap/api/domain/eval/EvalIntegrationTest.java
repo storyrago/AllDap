@@ -22,6 +22,7 @@ import tools.jackson.databind.ObjectMapper;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -484,6 +485,72 @@ class EvalIntegrationTest {
                 "INSERT INTO eval_questions (id, bot_id, question, ground_truth) VALUES (?, ?, ?, ?)",
                 id, botId, question, groundTruth);
         return id;
+    }
+
+    // ── 질문 수정 (PATCH) ────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("[질문수정] 보낸 필드만 바뀐다 — 안 보낸 정답은 그대로다")
+    void 질문수정_부분수정() {
+        UUID questionId = UUID.randomUUID();
+        aiService.enqueue(200, """
+                {"id":"%s","question":"고친 질문","ground_truth":"원래 정답",
+                 "source_chunk_id":null,"is_active":true,"created_at":"2026-08-17T00:00:00Z"}
+                """.formatted(questionId));
+
+        Response response = jsonRequest(HttpMethod.PATCH,
+                "/api/bots/" + botId + "/eval/questions/" + questionId, ownerToken,
+                Map.of("question", "고친 질문"));
+
+        assertThat(response.status()).isEqualTo(200);
+        assertThat(response.json().path("question").asString()).isEqualTo("고친 질문");
+        // 🔴 Python 으로 나간 본문에 groundTruth·isActive 가 <없어야> 한다.
+        //    null 을 실어 보내면 Python 이 "그 값으로 바꿔달라"로 읽는다.
+        String sent = aiService.received().getLast().body();
+        assertThat(sent).contains("question");
+        assertThat(sent).doesNotContain("ground_truth").doesNotContain("is_active");
+    }
+
+    @Test
+    @DisplayName("[질문수정] 🔴 isActive=false 는 <안 보냄>과 구분되어 전달된다")
+    void 질문수정_false를_보낸다() {
+        UUID questionId = UUID.randomUUID();
+        aiService.enqueue(200, """
+                {"id":"%s","question":"q","ground_truth":"a",
+                 "source_chunk_id":null,"is_active":false,"created_at":"2026-08-17T00:00:00Z"}
+                """.formatted(questionId));
+
+        jsonRequest(HttpMethod.PATCH,
+                "/api/bots/" + botId + "/eval/questions/" + questionId, ownerToken,
+                Map.of("isActive", false));
+
+        // DTO 가 원시 boolean 이었다면 "안 보냄"도 false 가 되어 이 검사가 무의미해진다.
+        assertThat(aiService.received().getLast().body()).contains("\"is_active\":false");
+    }
+
+    @Test
+    @DisplayName("[질문수정] 빈 요청은 400 — 아무것도 안 고쳤는데 200 을 주면 오해한다")
+    void 질문수정_빈요청은_400() {
+        Response response = jsonRequest(HttpMethod.PATCH,
+                "/api/bots/" + botId + "/eval/questions/" + UUID.randomUUID(), ownerToken,
+                Map.of());
+
+        assertThat(response.status()).isEqualTo(400);
+        // Python 까지 가지 않아야 한다.
+        assertThat(aiService.received()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("[질문수정] 🔴 남의 봇 질문은 404 이고, 요청이 Python 까지 가지 않는다")
+    void 질문수정_남의봇은_404() {
+        Response response = jsonRequest(HttpMethod.PATCH,
+                "/api/bots/" + botId + "/eval/questions/" + UUID.randomUUID(), intruderToken,
+                Map.of("question", "남의 질문을 고쳐본다"));
+
+        assertThat(response.status()).isEqualTo(404);
+        // 소유권 검사는 Python 을 부르기 <전에> 끝나야 한다.
+        // /internal/* 에는 인증이 없어서, 요청이 거기 도달한 시점에 이미 샌 것이다.
+        assertThat(aiService.received()).isEmpty();
     }
 
     private Response request(HttpMethod method, String uri, String token) {

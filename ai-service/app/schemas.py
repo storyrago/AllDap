@@ -54,6 +54,30 @@ class GenerateQuestionsRequest(BaseModel):
     count: int = Field(default=10, ge=1, description="만들 질문 수 (상한은 서버 설정)")
 
 
+class UpdateEvalQuestionRequest(BaseModel):
+    """테스트 질문 수정. <부분 수정>이라 셋 다 선택적이다 (PATCH).
+
+    왜 셋을 나눠 받는가 — 고치는 이유가 서로 다르기 때문이다:
+      · question      LLM 이 만든 문장이 어색하거나 모호할 때
+      · ground_truth  정답이 틀렸을 때. <채점 기준>이라 이게 틀리면 점수 전체가 거짓이 된다
+      · is_active     문항을 평가에서 <빼되 지우지는 않을> 때
+
+    🔴 **`ground_truth` 를 고치면 과거 실행과 비교할 수 없게 된다.**
+       `eval_results` 는 <그때의 정답>으로 채점된 값이다. 기준을 바꿔놓고 이전 숫자와
+       나란히 놓으면, 설정 때문에 달라진 것인지 채점 기준이 달라진 것인지 구분할 수 없다.
+       이 저장소가 반복해 낸 부류 — 원인이 다른 두 사실을 같은 값으로 뭉개는 것 — 그대로다.
+       문항이 마음에 안 들면 <고치기보다 `is_active=false` 로 빼는 편>이 안전하다.
+       그러면 과거 실행은 그대로 두고 앞으로만 달라진다.
+
+    ⚠️ None 과 "값을 안 보냄" 을 구분해야 한다. pydantic 기본값 None 은 후자를 뜻하고,
+       아래 update 구현이 <보낸 필드만> SET 한다. 셋 다 안 보내면 400 이다.
+    """
+
+    question: str | None = Field(default=None, min_length=1, max_length=500)
+    ground_truth: str | None = Field(default=None, min_length=1, max_length=2000)
+    is_active: bool | None = None
+
+
 class EvalQuestionOut(BaseModel):
     """테스트 질문 1건.
 
