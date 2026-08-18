@@ -131,10 +131,13 @@ U+2600-26FF,U+3000-303F,U+1100-11FF,U+3130-318F,U+FF01-FF60" \
 .alldap-chip:hover { background: rgba(255, 255, 255, 0.12); color: #fbf7f6; }
 .alldap-send:hover { background: #96ded0; }
 
-/* 좁은 화면에서는 내비 링크가 화면 밖으로 밀려난다(원본 프로토타입도 미구현이었다).
-   햄버거 메뉴는 열 패널이 따로 필요해 지금 범위가 아니다. 링크만 감추고
-   실제로 눌러야 하는 "도입 문의"만 남긴다. 랜딩의 목적은 CTA 지 내비가 아니다.
-   TODO(W4 이후): 마케팅 페이지(기능·요금제·고객사례)가 실제로 생기면 그때 햄버거를 붙일 것. */
+/* 좁은 화면에서는 내비 링크가 화면 밖으로 밀려나므로 감추고, 대신 햄버거를 띄운다.
+   ✅ 2026-08-17: 마케팅 페이지(/features · /pricing · /faq)가 실제로 생겨 TODO 를 해결했다.
+      그전까지는 링크가 href="#" 여서 감춰도 잃는 것이 없었지만, 이제는 감추면
+      <모바일 사용자가 그 페이지들에 갈 길이 없어진다.>
+   ⚠️ 옛 주석은 "햄버거는 열 패널이 따로 필요해 범위가 아니다" 라고 했는데,
+      <details>/<summary> 를 쓰면 패널·키보드 조작·스크린리더 전달이 전부 공짜다.
+      그 판단이 뒤집힌 것이다. */
 /* 좁은 데스크톱(노트북)에서 내비가 넘치지 않게 한 단계 줄인다.
    1024px 폭에서 내비는 536px 이고 오른쪽 여유가 45px 뿐이다 — <폰트가 10%만 넓어져도 넘친다.>
    윈도우는 한글이 맑은 고딕으로 잡히는데 Apple SD Gothic Neo 보다 넓어서 실제로 그럴 수 있다.
@@ -150,10 +153,50 @@ U+2600-26FF,U+3000-303F,U+1100-11FF,U+3130-318F,U+FF01-FF60" \
   }
 }
 
+/* 햄버거는 <좁은 화면에서만> 나타난다. 기본은 감춤 — 데스크톱에는 이미 링크가 다 보인다. */
+.alldap-burger { display: none; position: relative; }
+.alldap-burger > summary {
+  list-style: none;              /* Firefox 의 기본 삼각형 */
+  cursor: pointer;
+  padding: 12px 16px;
+  font-size: 15px;
+  font-weight: 500;
+  color: #171514;
+}
+.alldap-burger > summary::-webkit-details-marker { display: none; }  /* Safari·Chrome */
+.alldap-burger[open] > summary { color: #b4635a; }
+.alldap-burger-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  min-width: 148px;
+  padding: 6px;
+  border-radius: 10px;
+  /* 히어로 위에 뜨므로 반투명 배경만으로는 글자가 안 읽힌다. 불투명하게 둔다. */
+  background: #ffffff;
+  box-shadow: 0 10px 30px rgba(23, 21, 20, 0.16);
+}
+.alldap-burger-panel a {
+  padding: 11px 14px;
+  border-radius: 7px;
+  font-size: 15px;
+  font-weight: 500;
+  color: #171514;
+  text-decoration: none;
+}
+.alldap-burger-panel a:hover { background: rgba(23, 21, 20, 0.06); color: #b4635a; }
+
 @media (max-width: 720px) {
   .alldap-nav a:not(.alldap-nav-cta) {
     display: none;
   }
+  /* ⚠️ .alldap-nav a 규칙이 위에서 display:none 을 걸므로 패널 안 링크는 되살려야 한다.
+        선택자가 더 구체적이지만 같은 미디어쿼리 안이라 순서만으로는 안 이긴다. */
+  .alldap-burger { display: block; }
+  .alldap-burger-panel a { display: block !important; }
 }
 
 /* 흔들림·깜빡임을 싫어하는 사용자 설정을 존중한다.
