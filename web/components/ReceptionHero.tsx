@@ -582,6 +582,9 @@ export function ReceptionHero() {
             <Link
               ref={robotHitRef}
               href="/demo"
+              /* 이 화면은 문을 열고 들어온 곳이다. 나갈 때도 문이 열리며 도착해야
+                 앞뒤가 이어진다. 이름표만 붙이고 <모양은 globals.css 가> 정한다. */
+              transitionTypes={["door"]}
               aria-label="데모 페이지에서 직접 테스트해보기 — 이 봇이 학습한 문서를 전부 볼 수 있습니다"
               className="alldap-robot-hit"
               style={{ position: "absolute", left: 528, top: 272, width: 344, height: 396, cursor: "pointer", pointerEvents: "none" }}
@@ -845,7 +848,13 @@ export function ReceptionHero() {
                      "시작"이 아니라 "고용"이다.
                   ⚠️ button 이 아니라 Link 다 — 실제로 하는 일이 <이동>(로그인/가입)이라서다.
                      button 으로 두면 새 탭으로 열기·주소 복사가 안 되고 링크로 안 읽힌다. */}
-              <Link href="/auth" className="alldap-cta" style={{ display: "flex", alignItems: "center", gap: 14, cursor: "pointer", padding: "26px 48px", borderRadius: 14, background: "#171514", color: "#FFFFFF", fontSize: 21, fontWeight: 600, letterSpacing: "-0.015em", textDecoration: "none", boxShadow: "0 22px 54px rgba(74,50,46,.32)" }}>
+              <Link
+                href="/auth"
+                /* 위 로봇 링크와 같은 이유다. 랜딩에서 나가는 링크는 둘뿐이고 둘 다 문이다. */
+                transitionTypes={["door"]}
+                className="alldap-cta"
+                style={{ display: "flex", alignItems: "center", gap: 14, cursor: "pointer", padding: "26px 48px", borderRadius: 14, background: "#171514", color: "#FFFFFF", fontSize: 21, fontWeight: 600, letterSpacing: "-0.015em", textDecoration: "none", boxShadow: "0 22px 54px rgba(74,50,46,.32)" }}
+              >
                 <span style={{ display: "inline-block", width: 11, height: 11, borderRadius: "50%", background: ACCENT }} />
                 고용하기
               </Link>

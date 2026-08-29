@@ -51,7 +51,10 @@ export default function SiteLayout({
            대신 첫 로드에도 걸릴 수 있어서 Step 6 에서 그걸 눈으로 확인한다.
       */}
       <main className="flex-1">
-        <ViewTransition enter={{ default: "fade" }} exit={{ default: "fade" }}>
+        <ViewTransition
+          enter={{ door: "door", default: "fade" }}
+          exit={{ door: "none", default: "fade" }}
+        >
           {children}
         </ViewTransition>
       </main>
