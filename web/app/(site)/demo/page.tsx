@@ -69,8 +69,13 @@ async function loadCorpus(): Promise<CorpusDoc[]> {
         return { filename, title, body };
       }),
     );
-  } catch {
-    // 코퍼스를 못 읽어도 화면은 떠야 한다. 채팅은 문서 목록과 무관하게 동작한다.
+  } catch (err) {
+    // 코퍼스를 못 읽어도 화면은 떠야 한다(채팅은 문서 목록과 무관하게 동작한다) —
+    // 그래서 여기서 던지지 않고 빈 배열로 넘어간다. 다만 그냥 삼키면 "문서가 0개"와
+    // "코퍼스를 아예 못 읽었다"가 로그에 같은 값(빈 목록)으로 남는다. web/ 만 컨테이너로
+    // 복사해 배포하면 CORPUS_DIR 경로가 사라져 후자가 나는데, console.error 가 없으면
+    // 빌드·배포가 조용히 성공하고 화면만 빈 채로 나간다. 이 한 줄이 둘을 구분해준다.
+    console.error("[demo] 코퍼스 디렉터리를 읽지 못했습니다:", CORPUS_DIR, err);
     return [];
   }
 }

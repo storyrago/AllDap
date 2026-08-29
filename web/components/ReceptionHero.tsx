@@ -154,7 +154,7 @@ export function ReceptionHero() {
   /* 인사 팻말. 스크롤이 시작되면 팔이 걷어 올린다(모양은 CSS 가 정한다). */
   const greetRef = useRef<HTMLDivElement>(null);
   const ctaRef = useRef<HTMLDivElement>(null);
-  const hintRef = useRef<HTMLDivElement>(null);
+  const hintRef = useRef<HTMLButtonElement>(null);
   /* 문 레이어들. 매 프레임 DOM 을 직접 만지므로 배열 ref 로 모아 둔다.
      ⚠️ 아래 JSX 의 ref 콜백을 반드시 중괄호로 감쌀 것 —
         React 19 부터 ref 콜백이 <반환한 값을 정리(cleanup) 함수로 취급>한다.
@@ -217,6 +217,9 @@ export function ReceptionHero() {
      * passive:false 로 걸고 preventDefault 한다. 페이지가 실제로 스크롤되면
      * 화면이 밀려버려서, 이 히어로는 "스크롤"이 아니라 <스크롤 제스처>만 받는다. */
     const onWheel = (e: WheelEvent) => {
+      // Ctrl(트랙패드 핀치 포함) + 휠은 브라우저 확대다. 여기서 막으면 이 화면에서는
+      // 확대가 안 되고 문만 열린다 — 확대는 접근성 기능이라 가로채면 안 된다.
+      if (e.ctrlKey) return;
       e.preventDefault();
       if (Math.abs(e.deltaY) < 4) return; // 손 떨림 수준의 미세 입력 무시
       // 방향만 본다. 얼마나 세게 굴렸는지는 안 본다 — 연출 길이는 항상 같아야 한다.
@@ -347,6 +350,10 @@ export function ReceptionHero() {
       if (hit) {
         const live = p > REVEAL - 0.02;
         hit.style.pointerEvents = live ? "auto" : "none";
+        /* ⚠️ pointerEvents 만으로는 부족하다. 그건 <마우스·터치>만 막을 뿐,
+           키보드 Tab 은 화면에 안 보이는 링크도 그대로 찾아가 포커스를 준다.
+           레버와 같은 함정이다 — visibility 를 함께 꺼야 포커스도 함께 막힌다. */
+        hit.style.visibility = live ? "visible" : "hidden";
         /* 말풍선을 띄우는 것도 같은 조건이다. 클래스만 토글하고 <모양은 CSS 가> 정한다 —
            떠 있는 애니메이션까지 매 프레임 계산할 이유가 없다.
            (toggle 은 값이 그대로면 아무 일도 하지 않아 매 프레임 불러도 괜찮다) */
@@ -373,6 +380,11 @@ export function ReceptionHero() {
         const f = smoothstep(REVEAL - 0.12, REVEAL + 0.01, p);
         cta.style.opacity = String(f);
         cta.style.pointerEvents = f > 0.6 ? "auto" : "none";
+        /* ⚠️ pointerEvents 는 클릭만 막는다. opacity 0 인 동안에도 Tab 키는
+           이 링크를 그대로 찾아가 포커스를 주고 Enter 로 /auth 까지 이동한다 —
+           방문자에게는 아무것도 안 보이는 상태에서 일어나는 이동이라 혼란스럽다.
+           레버·로봇 링크와 같은 이유로 visibility 를 함께 토글한다. */
+        cta.style.visibility = f > 0.01 ? "visible" : "hidden";
         cta.style.transform = `translateX(-50%) translateY(${26 - f * 26}px)`;
       }
 
@@ -449,16 +461,17 @@ export function ReceptionHero() {
       const blink = cyc < 0.14 ? Math.max(0.08, Math.abs(cyc - 0.07) / 0.07) : 1;
       const ex = a.mx * 7 * gaze;
       const ey = a.my * 5 * gaze;
-      const hk = 0;
+      /* ⚠️ 예전에는 여기 채팅 모달의 "말하는 중" 표정(hk, 눈 반쯤 감기·입 벌리기)이
+         걸려 있었다. 모달을 걷어내며 hk 가 항상 0 으로 고정됐는데, 식만 남아 있으면
+         죽은 채로 남는다. hk=0 을 그대로 대입해 식을 접었다(결과는 이전과 같다). */
       [eyeLRef, eyeRRef].forEach((r) => {
         const n = r.current;
         if (!n) return;
-        n.style.transform = `translate(${ex * (1 - hk)}px,${ey * (1 - hk) + hk * 4}px) scaleY(${blink * (1 - hk * 0.58)})`;
-        n.style.borderRadius = hk > 0.15 ? `12px 12px ${12 - hk * 9}px ${12 - hk * 9}px` : "12px";
+        n.style.transform = `translate(${ex}px,${ey}px) scaleY(${blink})`;
+        n.style.borderRadius = "12px";
       });
       if (mouthRef.current) {
-        mouthRef.current.style.transform =
-          `translate(${ex * 0.5 * (1 - hk)}px,${ey * 0.4 + hk * 5}px) scale(${1 + hk * 1.35},${1 + hk * 1.7})`;
+        mouthRef.current.style.transform = `translate(${ex * 0.5}px,${ey * 0.4}px) scale(1,1)`;
       }
       if (bulbRef.current) {
         const g = 0.72 + Math.sin(t * 2.2) * 0.28;
@@ -587,7 +600,7 @@ export function ReceptionHero() {
               transitionTypes={["door"]}
               aria-label="데모 페이지에서 직접 테스트해보기 — 이 봇이 학습한 문서를 전부 볼 수 있습니다"
               className="alldap-robot-hit"
-              style={{ position: "absolute", left: 528, top: 272, width: 344, height: 396, cursor: "pointer", pointerEvents: "none" }}
+              style={{ position: "absolute", left: 528, top: 272, width: 344, height: 396, cursor: "pointer", pointerEvents: "none", visibility: "hidden" }}
             />
 
             {/* 안내 데스크 + 소품 */}
@@ -642,7 +655,13 @@ export function ReceptionHero() {
                   inset: 0,
                   // 먼저 열리는 문이 위에 온다
                   zIndex: DOOR_COUNT - i,
-                  // 뒤에 있는 문일수록 어둡다. 겹쳐 있는 깊이가 이것만으로 읽힌다.
+                  /* ⚠️ 실제로는 <먼저 열리는 문(위, i 가 작은 쪽)이 더 어둡고>, 나중에
+                     열리는 문(로봇에 가까운 쪽)은 brightness 가 1 로 그대로다 — "뒤로
+                     갈수록 어둡다"는 depth 의도와는 반대 방향이다. 굳이 바로잡지 않는
+                     이유: 문짝은 불투명해 한 번에 <하나만> 화면에 보이고(다음 문은
+                     이전 문이 완전히 열려야 드러난다), DOOR_COUNT=2 라 밝기 차이도
+                     최대 5.5%(0.945 vs 1.0)뿐이라 눈에 띄지 않는다. 보이지도 않는
+                     차이를 고치겠다고 굳이 손대 새 버그를 만들 이유가 없다. */
                   filter: `brightness(${1 - (DOOR_COUNT - 1 - i) * 0.055})`,
                   transformOrigin: "50% 50%",
                   willChange: "transform,opacity",
@@ -768,9 +787,12 @@ export function ReceptionHero() {
           <div
             className="alldap-arms"
             data-open={armsOpen}
-            /* aria-hidden: 접혀 있을 때 화면 밖 글자가 스크린리더에 읽히면
-               "어디에도 없는 목록" 이 읽힌다. 펼쳐졌을 때만 노출한다. */
-            aria-hidden={!armsOpen}
+            /* ⚠️ aria-hidden 이 아니라 inert 다. aria-hidden 은 <스크린리더에서만> 숨긴다 —
+               키보드 포커스는 막지 못해서, 카드에 tabIndex={0} 이 있으면 접혀 화면 밖에
+               있는 카드 5개를 Tab 이 그대로 지나간다(스크린리더는 아무것도 안 읽는데
+               포커스 링만 빈 화면에서 움직인다). inert 는 포커스·스크린리더·클릭을
+               한 번에 막는 네이티브 속성이라 이 한 줄로 둘 다 해결된다. */
+            inert={!armsOpen}
             style={{ position: "absolute", inset: 0, zIndex: 7, overflow: "hidden", pointerEvents: "none" }}
           >
             {FEATURES.map((f) => (
@@ -833,7 +855,7 @@ export function ReceptionHero() {
             </div>
           </div>
 
-          <div ref={ctaRef} style={{ position: "absolute", left: "50%", top: "64%", transform: "translateX(-50%)", zIndex: 6, opacity: 0, pointerEvents: "none", willChange: "transform,opacity" }}>
+          <div ref={ctaRef} style={{ position: "absolute", left: "50%", top: "64%", transform: "translateX(-50%)", zIndex: 6, opacity: 0, pointerEvents: "none", visibility: "hidden", willChange: "transform,opacity" }}>
             <div style={{ position: "relative", padding: 18 }}>
               <div style={{ position: "absolute", top: 0, left: 0, width: 28, height: 28, borderTop: "1.6px solid rgba(23,21,20,.4)", borderLeft: "1.6px solid rgba(23,21,20,.4)" }} />
               <div style={{ position: "absolute", top: 0, right: 0, width: 28, height: 28, borderTop: "1.6px solid rgba(23,21,20,.4)", borderRight: "1.6px solid rgba(23,21,20,.4)" }} />
@@ -862,13 +884,21 @@ export function ReceptionHero() {
           </div>
 
           {/* 이 화면을 어떻게 진행시키는지 알려주는 유일한 안내다. 스펙(21×33 / 13px)으로는
-              구석에서 안 읽혀서, 마우스 아이콘과 글자를 함께 키웠다. */}
-          <div ref={hintRef} onClick={() => stepBy(1)} style={{ position: "absolute", left: 34, bottom: 34, display: "flex", alignItems: "center", gap: 16, zIndex: 5, cursor: "pointer" }}>
+              구석에서 안 읽혀서, 마우스 아이콘과 글자를 함께 키웠다.
+              ⚠️ div 가 아니라 button 이다 — 화면을 진행시키는 유일한 <눈에 보이는> 안내인데
+                 div+onClick 은 마우스로만 눌린다. 시각 스타일은 그대로 두고 button 의
+                 기본 테두리·배경·폰트·정렬만 지워 겉모습을 이전과 같게 만든다. */}
+          <button
+            type="button"
+            ref={hintRef}
+            onClick={() => stepBy(1)}
+            style={{ position: "absolute", left: 34, bottom: 34, display: "flex", alignItems: "center", gap: 16, zIndex: 5, cursor: "pointer", border: "none", background: "transparent", font: "inherit", padding: 0, textAlign: "left" }}
+          >
             <div style={{ position: "relative", width: 27, height: 42, border: "2px solid rgba(23,21,20,.55)", borderRadius: 14, display: "flex", justifyContent: "center", paddingTop: 8, flex: "none" }}>
               <span className="alldap-wheel" style={{ display: "block", width: 3, height: 8, borderRadius: 2, background: "#171514" }} />
             </div>
             <p style={{ margin: 0, fontSize: 16, lineHeight: 1.4, fontWeight: 600, color: "#3A3230" }}>스크롤해서<br />안내 데스크로 들어가 보세요</p>
-          </div>
+          </button>
         </div>
       </div>
 

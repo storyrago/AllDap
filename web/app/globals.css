@@ -119,26 +119,6 @@ U+2600-26FF,U+3000-303F,U+1100-11FF,U+3130-318F,U+FF01-FF60" \
 
 .alldap-cta { transition: transform 0.18s ease, background 0.18s ease; }
 .alldap-cta:hover { background: #332d2b; transform: translateY(-2px); }
-.alldap-nav a { color: #171514; text-decoration: none; }
-.alldap-nav a:hover { color: #b4635a; }
-.alldap-nav-cta { color: #ffffff !important; }
-.alldap-nav-cta:hover { background: #332d2b; color: #ffffff !important; }
-
-/* 좁은 데스크톱(노트북)에서 헤더가 넘치지 않게 한 단계 줄인다.
-   ⚠️ 메뉴가 문으로 옮겨간 뒤로 여기 남은 것은 "도입 문의" 하나뿐이라 넘칠 일이 거의 없다.
-      그래도 규칙을 남기는 이유는 윈도우에서 한글이 맑은 고딕으로 잡혀 더 넓어지기 때문이다.
-   ⚠️ !important 가 필요한 이유: 이 요소들의 크기는 인라인 style 로 박혀 있어서
-      (디자인 스펙을 픽셀 그대로 옮긴 것) 클래스 규칙이 그냥은 못 이긴다. */
-@media (max-width: 1100px) {
-  .alldap-nav a {
-    padding: 10px 13px !important;
-    font-size: 15px !important;
-  }
-  .alldap-nav-cta {
-    padding: 12px 22px !important;
-  }
-}
-
 
 /* 흔들림·깜빡임을 싫어하는 사용자 설정을 존중한다.
    (카메라 흔들림 진폭 0 은 ReceptionHero 의 rAF 루프가 따로 처리한다) */
@@ -488,11 +468,12 @@ body {
   }
 }
 
-.alldap-cta-ghost { transition: background 0.18s ease, border-color 0.18s ease; }
-.alldap-cta-ghost:hover { background: #ffffff; border-color: rgba(23, 21, 20, 0.5); }
-
 /* ── 페이지 전환 ────────────────────────────────────────────────────────────
-   `(site)/layout.tsx` 의 <ViewTransition> 이 이름표를 이 클래스로 바꿔준다.
+   `app/layout.tsx`(루트) 의 <ViewTransition> 이 이름표를 이 클래스로 바꿔준다.
+   ⚠️ 처음에는 `(site)/layout.tsx` 에 있었는데 루트로 옮겼다 — 랜딩(`/`)이
+      (site) 그룹 밖에 있어, 경계가 (site) 안에만 있으면 "/" 에서 나가는 이동은
+      출발 쪽에 경계가 없어 전환이 아예 시작되지 않았다(실측 0회). 루트는 모든
+      라우트에 걸쳐 있어 이동의 양쪽 모두에 경계가 생긴다.
    ⚠️ 선택자가 `.fade` 인 것은 <클래스>라는 뜻이다(요소 이름이 아니라).
       view-transition-class 규칙이라 점을 빼면 매칭되지 않는다. */
 ::view-transition-old(.fade) {
