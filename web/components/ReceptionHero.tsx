@@ -19,55 +19,113 @@
  * 진행도 p 는 <매 프레임> 바뀐다. state 에 넣으면 초당 60번 리렌더가 돌아
  * 화면이 버벅인다. 그래서 p 는 ref 에 두고 `node.style.transform = ...` 으로
  * DOM 을 직접 쓴다. React 가 관여할 필요가 없는 값이다.
- * 반대로 chatOpen·msgs 는 <구조가 바뀌는> 상태라 state 가 맞다.
+ * 반대로 armsOpen 은 <구조가 바뀌는> 상태(버튼 글자까지 바뀐다)라 state 가 맞다.
  *
  * ── 왜 인라인 style 인가 (프로젝트는 Tailwind 인데) ─────────────────────────
  * 디오라마는 1440×900 좌표계 위에 픽셀 단위로 배치된 오브젝트 60여 개다.
  * 디자인 스펙이 이미 raw CSS 수치로 확정돼 있어서, Tailwind 클래스로 옮기면
  * `left-[594px] top-[472px]` 같은 임의값 클래스가 될 뿐 읽기만 나빠진다.
- * UI 레이어(헤더·CTA·모달)도 원본 수치를 그대로 유지하려고 같은 방식으로 뒀다.
+ * UI 레이어(헤더·CTA)도 원본 수치를 그대로 유지하려고 같은 방식으로 뒀다.
  */
 
+import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ApiError, api } from "@/lib/api";
-
-/**
- * 랜딩 데모가 물어보는 봇의 publicKey.
- *
- * 위젯 공개 API 를 그대로 쓴다(`POST /api/w/{publicKey}/chat`) — 로그인 없이 열려 있는
- * 유일한 채팅 경로이고, 랜딩 방문자는 로그인이 없기 때문이다.
- * 채팅은 Origin 검증 대상이 아니라(WidgetController 주석 참고) 여기서 불러도 막히지 않는다.
- * 실질 방어는 서버의 rate limit 이다.
- */
-const DEMO_PUBLIC_KEY = process.env.NEXT_PUBLIC_DEMO_PUBLIC_KEY ?? "pk_local_dev";
 
 /** 씬의 기준 좌표계. 모든 오브젝트 위치가 이 크기 안의 절대 좌표다. */
 const SCENE_W = 1440;
 const SCENE_H = 900;
 
 /* ── 진행 방식 ─────────────────────────────────────────────────────────────
- * 스크롤 <한 번>이 방아쇠다. 그 뒤로는 입력과 무관하게 정해진 시간 동안
- * 0 → 1(먼 뷰 → 로봇 얼굴)까지 알아서 흘러간다. 다 가면 CTA 가 떠 있다.
+ * 스크롤 한 번이 <문 하나>를 연다. 그 뒤로는 입력과 무관하게 정해진 시간 동안
+ * 그 문이 끝까지 열리고, 열린 문은 우리를 지나쳐 뒤로 사라진다.
+ * 문을 다 지나야 안내 데스크와 로봇이 드러나고, 거기서 CTA 가 떠 있다.
  *
  * 입력량에 비례해 쌓는 방식(굴린 만큼 들어감)도 만들어봤지만, 사용자가
- * <계속 굴려야> 장면이 진행돼서 구경이 아니라 작업이 됐다. 방아쇠 방식이면
- * 한 번 굴리고 손을 떼도 연출이 끝까지 재생된다.
+ * <계속 굴려야> 장면이 진행돼서 구경이 아니라 작업이 됐다. 단계 방식이면
+ * 한 번 굴리고 손을 떼도 그 문이 끝까지 열린다.
  */
 
-/** 0 → 1 까지 가는 데 걸리는 시간(ms). <키우면 더 느긋해진다.> */
-const ZOOM_DURATION_MS = 2600;
+/** 문 하나를 지나는 데 걸리는 시간(ms). <키우면 더 느긋해진다.> */
+const STEP_DURATION_MS = 1150;
 
 const ACCENT = "#7ED0C0";
 
-/** 히어로 헤더의 메뉴. "홈" 은 지금 이 화면이라 맨 위로 되돌리는 앵커다. */
-const NAV = [
-  { label: "홈", href: "#top" },
-  { label: "기능", href: "/features" },
-  { label: "요금제", href: "/pricing" },
-  { label: "FAQ", href: "/faq" },
+/**
+ * 지나는 문의 개수.
+ *
+ * 원래는 구석 메뉴 3개(기능·요금제·FAQ)가 각각 문이었다. 요금제·FAQ 를 빼면서
+ * 문도 하나가 됐고, 남은 <기능>은 페이지로 보내는 링크가 아니라 로봇 팔을
+ * 내렸다 올리는 버튼이 됐다(아래 FEATURES).
+ * 복도를 다시 길게 만들고 싶으면 이 숫자만 올리면 된다 — 문이 라벨을 들고 있지
+ * 않으므로 개수 말고는 정할 것이 없다.
+ *
+ * ⚠️ 랜딩에서 /pricing · /faq 로 가는 길은 이제 없다. 다만 완전히 고립된 것은
+ *    아니다 — (site) 레이아웃 헤더가 그 셋을 계속 링크한다(/auth · /features 등).
+ */
+const DOOR_COUNT = 2;
+
+/**
+ * 로봇 팔이 내려와 들고 있는 기능 목록.
+ *
+ * label 은 판에 <한 줄>로 걸린다(줄바꿈 없음). detail 은 마우스를 올렸을 때만 펼쳐진다.
+ * ⚠️ detail 문구는 `/features` 페이지의 설명을 <그대로> 옮겼다. 랜딩만 다른 말을 하면
+ *    같은 제품이 두 화면에서 다른 소개를 하게 된다. label 은 그 제목을 짧게 줄인 것이라
+ *    새로 지어낸 주장이 아니다.
+ * len 은 팔 길이(px) — 전부 같으면 팔이 아니라 <표>로 보인다.
+ */
+const FEATURES = [
+  {
+    x: 13,
+    len: 104,
+    label: "한글 문서 그대로",
+    detail:
+      "PDF · DOCX · HWPX · TXT · MD 를 지원합니다. 국내 규정과 안내문 상당수가 한글 문서인데, 비개발자용 챗봇 빌더 상당수가 이를 다루지 못합니다.",
+  },
+  {
+    x: 31.5,
+    len: 176,
+    label: "출처가 붙는 답변",
+    detail:
+      "질문과 가까운 문서 조각을 찾아 그것만 근거로 답합니다. 답변 아래에 출처가 표시되므로 관리자가 맞는지 바로 확인할 수 있습니다.",
+  },
+  {
+    x: 50,
+    len: 82,
+    label: "모르면 답하지 않음",
+    detail:
+      "근거를 못 찾으면 지어내는 대신 담당자에게 문의하라고 안내합니다. 검색 단계와 생성 단계에 방어선을 두 겹으로 두었습니다.",
+  },
+  {
+    x: 68.5,
+    len: 166,
+    label: "품질을 숫자로",
+    detail:
+      "문서에서 테스트 질문을 자동 생성하고, 답변을 다른 계열의 모델이 채점합니다. 검색 설정을 바꿔가며 같은 질문으로 재실행해 before/after 를 비교할 수 있습니다.",
+  },
+  {
+    // ⚠️ 오른쪽 끝만 팔이 길다. 짧게 두면 판이 오른쪽 위 "도입 문의" 와 겹친다.
+    x: 85,
+    len: 222,
+    label: "설치는 한 줄",
+    detail:
+      "고객 사이트에 한 줄을 붙여넣으면 우측 하단에 상담 버튼이 생깁니다. 허용한 도메인 밖에서는 열리지 않습니다.",
+  },
 ] as const;
 
-type Msg = { role: "bot" | "me"; text: string; source?: string };
+/**
+ * 단계 수 = 문 + 마지막 한 걸음.
+ * 마지막 한 걸음이 따로 필요한 이유: 문이 열린 <직후>에 로봇이 저 멀리 있으면
+ * "만났다"가 아니라 "보인다"에 그친다. 한 걸음을 더 남겨 다가가야 얼굴이 된다.
+ */
+const STEPS = DOOR_COUNT + 1;
+
+/**
+ * 문을 다 지나 안내 데스크가 드러나는 지점(진행도 0~1 기준).
+ * ⚠️ 이 값을 숫자로 박아두면 안 된다 — 문 개수를 3개에서 1개로 줄였을 때
+ *    CTA 가 영영 안 뜨는 버그가 실제로 났다(드러나는 지점이 0.75 → 0.5 로
+ *    옮겨졌는데 상수는 0.75 를 보고 있었다). 개수에서 계산한다.
+ */
+const REVEAL = DOOR_COUNT / STEPS;
 
 /** 0~1 로 자른 뒤 부드럽게 만드는 보간. 스크롤 매핑은 전부 이걸 쓴다. */
 function smoothstep(a: number, b: number, x: number) {
@@ -77,9 +135,9 @@ function smoothstep(a: number, b: number, x: number) {
 const mix = (a: number, b: number, k: number) => a + (b - a) * k;
 
 export function ReceptionHero() {
-  /* 구조가 바뀌는 것만 state. 나머지는 전부 ref다(위 주석 참고). */
-  const [chatOpen, setChatOpen] = useState(false);
-  const [msgs, setMsgs] = useState<Msg[]>([]);
+  /* 로봇 팔이 내려와 있는가. 구조가 바뀌는 상태라 ref 가 아니라 state 다
+     (버튼 글자도 이 값에 따라 바뀐다). */
+  const [armsOpen, setArmsOpen] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
@@ -93,36 +151,30 @@ export function ReceptionHero() {
   const eyeRRef = useRef<HTMLDivElement>(null);
   const mouthRef = useRef<HTMLDivElement>(null);
   const bulbRef = useRef<HTMLDivElement>(null);
-  const heroRef = useRef<HTMLDivElement>(null);
+  /* 인사 팻말. 스크롤이 시작되면 팔이 걷어 올린다(모양은 CSS 가 정한다). */
+  const greetRef = useRef<HTMLDivElement>(null);
   const ctaRef = useRef<HTMLDivElement>(null);
   const hintRef = useRef<HTMLDivElement>(null);
-  const navRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const listRef = useRef<HTMLDivElement>(null);
-  /* 모달 안 로봇 얼굴(표정이 따로 논다) */
-  const cHeadRef = useRef<HTMLDivElement>(null);
-  const cEyeLRef = useRef<HTMLDivElement>(null);
-  const cEyeRRef = useRef<HTMLDivElement>(null);
-  const cMouthRef = useRef<HTMLDivElement>(null);
-  const cDocRef = useRef<HTMLDivElement>(null);
-  const cScanRef = useRef<HTMLDivElement>(null);
-  const cBulbRef = useRef<HTMLDivElement>(null);
+  /* 문 레이어들. 매 프레임 DOM 을 직접 만지므로 배열 ref 로 모아 둔다.
+     ⚠️ 아래 JSX 의 ref 콜백을 반드시 중괄호로 감쌀 것 —
+        React 19 부터 ref 콜백이 <반환한 값을 정리(cleanup) 함수로 취급>한다.
+        `ref={(n) => (arr[i] = n)}` 처럼 화살표로 값을 반환하면 노드를 정리 함수로
+        오해해 런타임 에러가 난다. */
+  const doorRefs = useRef<(HTMLDivElement | null)[]>([]);
+  /* 로봇을 누르면 데모 화면으로 간다. 문 뒤에 있는 동안에는 눌리면 안 되므로
+     레버와 같은 이유로 클릭 가능 여부를 진행도에 따라 켜고 끈다. */
+  const robotHitRef = useRef<HTMLAnchorElement>(null);
+  /* 마지막 문에 붙은 레버. 문에 <타고> 있어서 문이 열리면 함께 밀려나간다. */
+  const leverRef = useRef<HTMLDivElement>(null);
 
   /* 매 프레임 읽고 쓰는 값들. state 로 두면 리렌더가 폭주한다. */
   const anim = useRef({
     p: 0,          // 현재 진행도(관성 적용된 값)
     target: 0,     // 스크롤이 알려준 목표 진행도
+    step: 0,       // 지금 몇 번째 문까지 지났나 (0 ~ STEPS). target = step / STEPS
     mx: 0, my: 0,  // 커서 현재값
     mtx: 0, mty: 0,// 커서 목표값
     fit: 1,        // 씬(1440×900)을 화면에 채우는 배율
-    blurK: 0,      // 모달 열림 정도(뒤 흐림)
-    happyK: 0,     // 로봇이 웃는 정도
-    docK: 0,       // 모달 얼굴이 "문서"로 바뀐 정도
-    typeK: 0,      // 모달 얼굴이 아래(입력창)를 보는 정도
-    typing: false,
-    thinking: false,
-    greetUntil: 0,
-    open: false,   // chatOpen 을 루프에서 읽기 위한 사본
     shake: 1,      // prefers-reduced-motion 이면 0
     touchY: 0,     // 터치 시작 y
     transFrom: 0,  // 이번 전환의 출발 진행도
@@ -131,85 +183,25 @@ export function ReceptionHero() {
     cloudSpan: 2800,
   });
 
-  /* 루프는 chatOpen 을 state 로 못 읽는다(클로저가 낡는다). ref 로 흘려준다. */
-  useEffect(() => {
-    anim.current.open = chatOpen;
-  }, [chatOpen]);
-
-  const scrollList = useCallback(() => {
-    const l = listRef.current;
-    if (l) l.scrollTop = l.scrollHeight;
-  }, []);
-
-  /* 같은 대화를 묶는 키. 서버가 conversations 행을 이걸로 이어 붙인다.
-     모달을 처음 열 때 한 번만 만들고 새로고침 전까지 유지한다. */
-  const sessionRef = useRef<string | null>(null);
-  const sessionId = () => (sessionRef.current ??= crypto.randomUUID());
-
-  const send = useCallback((preset?: string) => {
-    const i = inputRef.current;
-    const v = (preset ?? i?.value ?? "").trim();
-    // 답변을 기다리는 중이면 무시한다. 없으면 Enter 연타로 요청이 겹쳐
-    // 답변 순서가 뒤섞이고 rate limit 만 깎인다.
-    if (!v || anim.current.thinking) return;
-    if (i) i.value = "";
-    anim.current.typing = false;
-    anim.current.thinking = true;
-    setMsgs((s) => [...s, { role: "me", text: v }]);
-
-    api.widget
-      .chat(DEMO_PUBLIC_KEY, { message: v, sessionId: sessionId() })
-      .then((res) => {
-        setMsgs((s) => [
-          ...s,
-          {
-            role: "bot",
-            text: res.answer,
-            /* 같은 문서에서 청크를 여러 개 가져오면 파일명이 중복된다. Set 으로 접는다.
-               근거가 없으면(fallback) sources 가 비므로 출처 줄 자체를 안 그린다 —
-               "출처: (없음)" 이 뜨면 근거가 있는데 못 찾은 것처럼 읽힌다. */
-            source: res.sources.length
-              ? [...new Set(res.sources.map((x) => x.filename))].join(", ")
-              : undefined,
-          },
-        ]);
-      })
-      .catch((e) => {
-        /* 서버가 "무엇을 어떻게 하면 되는지"까지 담은 한국어를 준다. 그대로 보여준다.
-           ⚠️ 실패를 조용히 삼키면 안 된다. 답이 안 오는 것과 "모른다"는 답은 다른 상태인데,
-              화면에 아무것도 안 뜨면 방문자는 챗봇이 고장난 줄 안다. */
-        setMsgs((s) => [
-          ...s,
-          {
-            role: "bot",
-            text:
-              e instanceof ApiError
-                ? e.message
-                : "지금은 답변을 가져오지 못했습니다. 잠시 후 다시 시도해 주세요.",
-          },
-        ]);
-      })
-      .finally(() => {
-        anim.current.thinking = false;
-      });
-  }, []);
-
-  useEffect(() => {
-    scrollList();
-  }, [msgs, scrollList]);
-
   /**
-   * to(0 또는 1)까지 가는 전환을 <시작>시킨다. 여기서는 목적지와 시작 시각만 정하고,
-   * 실제 재생은 rAF 루프가 시간을 보며 한다.
+   * 문 하나만큼(한 단계) 앞뒤로 옮기는 전환을 <시작>시킨다. 여기서는 목적지와
+   * 시작 시각만 정하고, 실제 재생은 rAF 루프가 시간을 보며 한다.
    * 휠·스와이프·키·힌트 클릭이 전부 이 한 곳으로 모인다.
    */
-  const glideTo = useCallback((to: number) => {
+  const stepBy = useCallback((dir: 1 | -1) => {
     const a = anim.current;
-    if (a.open) return; // 모달이 열려 있으면 뒤 장면을 움직이지 않는다
-    if (a.target === to) return; // 이미 그리로 가는 중이면 다시 시작하지 않는다
+    // 문이 열리는 <중>에는 입력을 받지 않는다. 안 막으면 트랙패드 한 번에
+    // wheel 이벤트가 수십 개 날아와 문 세 개를 한 프레임에 지나쳐 버린다.
+    if (a.transStart > 0) return;
+    const next = Math.min(STEPS, Math.max(0, a.step + dir));
+    if (next === a.step) return; // 양 끝에서는 더 가지 않는다
+    a.step = next;
+    /* 화면이 움직이면 팔은 걷는다. 안 그러면 문이 닫히거나 로봇에게 다가가는
+       동안에도 팔이 천장에 매달린 채 따라다닌다. */
+    setArmsOpen(false);
     // <현재 위치>에서 출발한다. 전환 도중에 방향을 바꿔도 튀지 않는다.
     a.transFrom = a.p;
-    a.target = to;
+    a.target = next / STEPS;
     a.transStart = performance.now();
   }, []);
 
@@ -228,7 +220,7 @@ export function ReceptionHero() {
       e.preventDefault();
       if (Math.abs(e.deltaY) < 4) return; // 손 떨림 수준의 미세 입력 무시
       // 방향만 본다. 얼마나 세게 굴렸는지는 안 본다 — 연출 길이는 항상 같아야 한다.
-      glideTo(e.deltaY > 0 ? 1 : 0);
+      stepBy(e.deltaY > 0 ? 1 : -1);
     };
     const onTouchStart = (e: TouchEvent) => {
       anim.current.touchY = e.touches[0].clientY;
@@ -236,19 +228,18 @@ export function ReceptionHero() {
     const onTouchEnd = (e: TouchEvent) => {
       const dy = anim.current.touchY - e.changedTouches[0].clientY;
       if (Math.abs(dy) < 40) return; // 탭이나 손 떨림은 스와이프가 아니다
-      glideTo(dy > 0 ? 1 : 0);
+      stepBy(dy > 0 ? 1 : -1);
     };
     /* 네이티브 스크롤을 없앴으므로 키보드 이동도 우리가 직접 붙여야 한다.
        안 붙이면 마우스 없는 사용자는 이 화면을 진행시킬 방법이 없다. */
     const onKey = (e: KeyboardEvent) => {
-      // 모달이 열려 있거나 입력창에 포커스가 있으면 키는 <글자>다. 가로채면 안 된다.
-      if (anim.current.open) return;
+      // 입력창에 포커스가 있으면 키는 <글자>다. 가로채면 안 된다.
       if (document.activeElement instanceof HTMLInputElement) return;
       const down = e.key === "ArrowDown" || e.key === "PageDown" || e.key === " ";
       const up = e.key === "ArrowUp" || e.key === "PageUp";
       if (!down && !up) return;
       e.preventDefault();
-      glideTo(down ? 1 : 0);
+      stepBy(down ? 1 : -1);
     };
     const onMove = (e: MouseEvent) => {
       anim.current.mtx = (e.clientX / window.innerWidth) * 2 - 1;
@@ -294,7 +285,7 @@ export function ReceptionHero() {
           a.p = a.target;
           a.transStart = 0;
         } else {
-          const k = Math.min(1, (now - a.transStart) / ZOOM_DURATION_MS);
+          const k = Math.min(1, (now - a.transStart) / STEP_DURATION_MS);
           a.p = a.transFrom + (a.target - a.transFrom) * (k * k * (3 - 2 * k));
           if (k >= 1) a.transStart = 0;
         }
@@ -302,30 +293,85 @@ export function ReceptionHero() {
       const p = a.p;
       const t = now / 1000;
 
+      /* ── 씬의 진행도(pz)는 문의 진행도(p)와 <따로 간다> ──────────────────
+       * 문이 열리는 구간(p 0 → 0.75)에서는 씬이 거의 멈춰 있고, 마지막 문을
+       * 지난 뒤에야 다가간다. 하나로 묶으면 문이 반쯤 열렸을 때 이미 로봇이
+       * 코앞에 와 있어서 "마지막 문에서 만난다"가 성립하지 않는다.
+       * 아래에서 <문·카드는 p 를, 씬·카메라·시선은 pz 를> 쓴다. */
+      const pz = smoothstep(REVEAL, 1, p);
+
+      /* ── 문 ───────────────────────────────────────────────────────────────
+       * 문 i 는 p 가 [i/STEPS, (i+1)/STEPS] 인 동안 열린다. q 가 그 구간 안의 진행도다.
+       * 두 짝이 갈라지는 <동시에> 레이어 전체가 커지며 흐려진다. 옆으로 비켜나기만
+       * 하면 "문이 열렸다"에 그치는데, 커지면서 사라져야 <우리가 그 문을 통과했다>가 된다.
+       * 그래서 마지막 문이 열리고 나서야 안내 데스크가 드러난다. */
+      for (let i = 0; i < DOOR_COUNT; i++) {
+        const q = Math.min(1, Math.max(0, (p - i / STEPS) * STEPS));
+        const eq = q * q * (3 - 2 * q); // 살며시 열리고 살며시 멈춘다
+        const layer = doorRefs.current[i];
+        if (layer) {
+          // CSS 변수로 넘기는 이유: 문짝 두 짝 + 빛줄기까지 ref 를 세 개 더 두는 대신
+          // 부모에 값 하나만 쓰면 자식들이 각자 calc() 로 받아 쓴다.
+          layer.style.setProperty("--open", String(eq));
+          /* 빛의 <세기>. 틈이 좁을 때가 "새어 나온다" 이고, 활짝 열린 뒤에도 남아 있으면
+             빛이 아니라 문 사이에 낀 초록 판으로 보인다. 열릴수록 걷어낸다. */
+          layer.style.setProperty("--glow", String(1 - smoothstep(0.06, 0.4, q)));
+          layer.style.transform = `scale(${1 + eq * 1.25})`;
+          layer.style.opacity = String(1 - smoothstep(0.62, 1, q));
+          // 다 지난 문이 화면에 남아 클릭을 가로채면 안 된다
+          layer.style.visibility = q >= 1 ? "hidden" : "visible";
+        }
+      }
+
+      /* ── 레버 ── 마지막 문 앞에 <서 있을 때만> 보이고 당겨진다.
+       * ⚠️ 클릭 가능 여부를 따로 끄는 이유: 레버는 마지막 문에 붙어 있고 그 문은
+       *    처음에 앞 문 <뒤>에 가려 있다. 그런데 문짝은 pointerEvents 를 받지 않으므로,
+       *    끄지 않으면 <닫힌 첫 문을 통과해> 레버가 당겨진다. 보이지도 않는 것이 눌리는 셈이다. */
+      const lever = leverRef.current;
+      if (lever) {
+        const leverDoor = (DOOR_COUNT - 1) / STEPS;
+        const ql = Math.min(1, Math.max(0, (p - leverDoor) * STEPS));
+        const f =
+          smoothstep(leverDoor - 0.07, leverDoor + 0.01, p) *
+          (1 - smoothstep(0.05, 0.3, ql));
+        lever.style.opacity = String(f);
+        lever.style.pointerEvents = f > 0.8 ? "auto" : "none";
+        lever.style.visibility = f > 0.04 ? "visible" : "hidden";
+      }
+
+      /* 로봇은 <다 드러난 뒤에만> 눌린다. 문짝이 pointerEvents 를 받지 않으므로
+         끄지 않으면 닫힌 문을 통과해 눌린다(레버와 같은 함정이다). */
+      const hit = robotHitRef.current;
+      /* ⚠️ 기준은 pz 가 아니라 p 다. pz 는 <마지막 한 걸음>에서야 0 에서 오르기 시작해서,
+         pz 로 걸면 로봇이 화면에 뻔히 보이는데도 눌리지 않는 구간이 생긴다. */
+      if (hit) {
+        const live = p > REVEAL - 0.02;
+        hit.style.pointerEvents = live ? "auto" : "none";
+        /* 말풍선을 띄우는 것도 같은 조건이다. 클래스만 토글하고 <모양은 CSS 가> 정한다 —
+           떠 있는 애니메이션까지 매 프레임 계산할 이유가 없다.
+           (toggle 은 값이 그대로면 아무 일도 하지 않아 매 프레임 불러도 괜찮다) */
+        hit.classList.toggle("is-live", live);
+      }
+
       /* ── UI 레이어: 스크롤에 따라 사라지고 나타난다 ── */
-      const hero = heroRef.current;
-      if (hero) {
-        const f = 1 - smoothstep(0.02, 0.24, p);
-        hero.style.opacity = String(f);
-        hero.style.transform = `translateY(${-p * 90}px) scale(${1 + p * 0.16})`;
-      }
-      const nav = navRef.current;
-      if (nav) {
-        const f = (1 - smoothstep(0.04, 0.34, p)) * (1 - a.blurK);
-        nav.style.opacity = String(f);
-        nav.style.pointerEvents = f < 0.1 ? "none" : "auto";
-        nav.style.transform = `translateY(${-p * 14}px)`;
-      }
+      /* 스크롤이 시작되면 팻말을 걷어 올린다. 문이 열리는 것과 <동시에> 일어나야
+         "로봇이 인사를 거두고 문을 연다" 로 읽힌다. 올라가는 모양·속도는 CSS 가 갖는다. */
+      const greet = greetRef.current;
+      if (greet) greet.dataset.open = p < 0.02 ? "true" : "false";
+
       const hint = hintRef.current;
       if (hint) {
-        const f = (1 - smoothstep(0.01, 0.12, p)) * (1 - a.blurK);
+        const f = 1 - smoothstep(0.01, 0.12, p);
         hint.style.opacity = String(f);
         hint.style.pointerEvents = f < 0.1 ? "none" : "auto";
       }
       const cta = ctaRef.current;
       if (cta) {
-        const f = smoothstep(0.6, 0.78, p);
-        cta.style.opacity = String(f * (1 - a.blurK));
+        /* 마지막 문이 열려 로봇이 드러나는 순간(p ≈ 0.75)에 이미 떠 있어야 한다.
+           그전까지 화면을 진행시키던 힌트는 첫 문에서 사라졌으므로, 여기서
+           CTA 마저 늦게 뜨면 <누를 것도 없고 다음으로 갈 안내도 없는> 정지 화면이 된다. */
+        const f = smoothstep(REVEAL - 0.12, REVEAL + 0.01, p);
+        cta.style.opacity = String(f);
         cta.style.pointerEvents = f > 0.6 ? "auto" : "none";
         cta.style.transform = `translateX(-50%) translateY(${26 - f * 26}px)`;
       }
@@ -344,12 +390,12 @@ export function ReceptionHero() {
          원본 3D 는 카메라를 z 로 밀어넣었는데, 여기서는 scale + transform-origin
          이동으로 같은 인상을 만든다. origin 이 함께 움직여야 "다가간다"가 되고,
          고정하면 그냥 "커진다"로 보인다. */
-      const seg = p < 0.55 ? p / 0.55 : (p - 0.55) / 0.45;
+      const seg = pz < 0.55 ? pz / 0.55 : (pz - 0.55) / 0.45;
       const e = seg * seg * (3 - 2 * seg);
-      const zoom = p < 0.55 ? mix(0.72, 1.42, e) : mix(1.42, 2.15, e);
-      const ox = mix(50, 48.6, smoothstep(0, 1, p));
-      const oy = mix(58, 38, smoothstep(0, 1, p));
-      const panY = mix(9, -1, smoothstep(0, 0.7, p));
+      const zoom = pz < 0.55 ? mix(0.72, 1.42, e) : mix(1.42, 2.15, e);
+      const ox = mix(50, 48.6, smoothstep(0, 1, pz));
+      const oy = mix(58, 38, smoothstep(0, 1, pz));
+      const panY = mix(9, -1, smoothstep(0, 0.7, pz));
 
       const scene = sceneRef.current;
       if (scene) {
@@ -364,11 +410,11 @@ export function ReceptionHero() {
          한 장의 그림을 확대하는 것과 구분이 안 된다. */
       const far = (ref: React.RefObject<HTMLDivElement | null>, k: number) => {
         const n = ref.current;
-        if (n) n.style.transform = `translate(${-shX * k * 0.5}px,${-panY * k * 2.2}px) scale(${1 - k * 0.06 + p * k * 0.05})`;
+        if (n) n.style.transform = `translate(${-shX * k * 0.5}px,${-panY * k * 2.2}px) scale(${1 - k * 0.06 + pz * k * 0.05})`;
       };
       const near = (ref: React.RefObject<HTMLDivElement | null>, k: number) => {
         const n = ref.current;
-        if (n) n.style.transform = `translate(${shX * k * 0.35}px,0) scale(${1 + p * k * 0.045})`;
+        if (n) n.style.transform = `translate(${shX * k * 0.35}px,0) scale(${1 + pz * k * 0.045})`;
       };
       far(cloudsRef, 1.0);
       far(wallRef, 0.62);
@@ -388,34 +434,22 @@ export function ReceptionHero() {
         }
       }
 
-      /* ── 모달이 열릴 때의 감쇠 ──
-       * ⚠️ 어둡게 덮는 것(dim)·흐림·로봇 페이드는 <여기서 하지 않는다.> 아래 JSX 에서
-       *    chatOpen 에 따라 CSS transition 으로 처리한다.
-       *    이유: 모달의 글자가 밝은 색이라 <배경이 어두워지지 않으면 안 읽힌다.>
-       *    가독성을 rAF 루프에 의존하게 두면, 루프가 안 도는 상황(백그라운드 탭,
-       *    저사양 기기에서의 프레임 누락)에서 흰 글자가 밝은 배경 위에 남는다.
-       *    실제로 hidden 탭에서 그 상태를 확인했다. 장식은 루프에, <읽히는 것은 CSS 에.>
-       * blurK 는 이제 nav·hint·CTA 를 함께 숨기는 용도로만 쓴다(전부 장식). */
-      a.blurK += ((a.open ? 1 : 0) - a.blurK) * 0.13;
-      a.happyK += ((a.open ? 1 : 0) - a.happyK) * 0.11;
-
       /* ── 로봇: 몸은 고정, 시선만 커서를 따라간다 ──
          gaze 를 곱하는 이유: 멀리서(p 작을 때) 눈알이 굴러가면 소름끼친다.
          가까이 왔을 때만 반응하게 해야 "쳐다본다"가 애교로 읽힌다. */
       a.mx += (a.mtx - a.mx) * 0.09;
       a.my += (a.mty - a.my) * 0.09;
-      const gaze = smoothstep(0.3, 0.75, p);
-      const bob = a.happyK * Math.sin(t * 4.4) * 5;
+      const gaze = smoothstep(0.3, 0.75, pz);
       if (headRef.current) {
         headRef.current.style.transform =
           `translate(${a.mx * 7 * gaze}px,${a.my * 4 * gaze}px) ` +
-          `translateY(${bob - a.happyK * 6}px) rotate(${a.mx * 1.6 * gaze * (1 - a.happyK)}deg)`;
+          `rotate(${a.mx * 1.6 * gaze}deg)`;
       }
       const cyc = t % 4.6;
       const blink = cyc < 0.14 ? Math.max(0.08, Math.abs(cyc - 0.07) / 0.07) : 1;
       const ex = a.mx * 7 * gaze;
       const ey = a.my * 5 * gaze;
-      const hk = a.happyK;
+      const hk = 0;
       [eyeLRef, eyeRRef].forEach((r) => {
         const n = r.current;
         if (!n) return;
@@ -432,53 +466,6 @@ export function ReceptionHero() {
         bulbRef.current.style.boxShadow = `0 0 ${18 + g * 20}px rgba(126,208,192,.85)`;
       }
 
-      /* ── 모달 안 얼굴: 기본 → 입력 중(아래를 봄) → 생각 중(얼굴이 문서로 바뀜) ──
-         "생각 중"에 스피너 대신 문서를 스캔하게 한 이유: 이 제품이 하는 일이
-         <문서를 찾아 읽는 것>이라서다. 로딩 표시가 곧 기능 설명이 된다. */
-      const greeting = a.open && performance.now() < a.greetUntil;
-      a.docK += ((a.thinking ? 1 : 0) - a.docK) * 0.14;
-      a.typeK += ((a.typing && !a.thinking ? 1 : 0) - a.typeK) * 0.12;
-      const dk = a.docK;
-      const tk = a.typeK;
-      const gk = greeting ? 1 : 0;
-      /* ⚠️ "입력창을 내려다보는" 수치를 원본 스펙보다 <키웠다>.
-       *    스펙값(머리 1.6° · 눈 7px)으로는 실사용에서 <움직이는지 알아볼 수 없었다.>
-       *    입력창이 머리에서 한참 아래에 있어서, 그 정도로는 시선이 갔다고 안 읽힌다.
-       *    머리 5° + 4px 아래로, 눈 13px 아래로, 눈꺼풀도 더 내린다.
-       *    (원본은 three.js 3D 를 전제로 잡힌 값이라 2D 로 옮기면 체감이 다르다) */
-      /* 두둥실 — 모달이 열려 있는 <내내> 떠 있게 한다.
-       * 원래는 인사하는 1.7초 동안만 돌고 뚝 멈춰서, 그 뒤로는 로봇이 굳은 사진처럼 보였다.
-       * 대화가 이어지는 동안 계속 살아 있어야 "안내 데스크에 앉아 있는 사람"으로 읽힌다.
-       * ⚠️ shake 를 곱한다 — prefers-reduced-motion 이면 완전히 멈춘다.
-       *    끝없이 흔들리는 요소는 그 설정을 켠 사용자가 가장 피하고 싶은 것이다. */
-      const cBob = Math.sin(t * 5.2) * 3 * a.shake;
-      if (cHeadRef.current) {
-        cHeadRef.current.style.transform =
-          `translateY(${dk * -2 + tk * 4 + cBob}px) ` +
-          `rotate(${tk * 5 + dk * Math.sin(t * 1.1) * 1.2}deg)`;
-      }
-      const faceOn = 1 - dk;
-      [cEyeLRef, cEyeRRef].forEach((r) => {
-        const n = r.current;
-        if (!n) return;
-        n.style.opacity = String(faceOn);
-        n.style.transform = `translate(${tk * 1.5}px,${tk * 13}px) scaleY(${blink * (1 - gk * 0.5) * (1 - tk * 0.45)})`;
-        n.style.borderRadius = gk ? "7px 7px 2px 2px" : "7px";
-      });
-      if (cMouthRef.current) {
-        cMouthRef.current.style.opacity = String(faceOn);
-        cMouthRef.current.style.transform = `translateY(${tk * 9}px) scale(${1 + gk * 0.9 - tk * 0.35},${1 + gk * 1.2 - tk * 0.5})`;
-      }
-      if (cDocRef.current) {
-        cDocRef.current.style.opacity = String(dk);
-        cDocRef.current.style.transform = `translateY(${(1 - dk) * 8}px) rotate(${Math.sin(t * 1.6) * 3}deg)`;
-      }
-      if (cScanRef.current) {
-        cScanRef.current.style.transform = `translateY(${(Math.sin(t * 2.4) * 0.5 + 0.5) * 30}px)`;
-      }
-      if (cBulbRef.current) {
-        cBulbRef.current.style.opacity = String(0.6 + Math.sin(t * (a.thinking ? 6.2 : 2.2)) * 0.4);
-      }
     };
     raf = requestAnimationFrame(loop);
 
@@ -493,18 +480,9 @@ export function ReceptionHero() {
     };
     // 사실상 마운트 시 1회만 건다. 나머지 값들은 전부 ref 라 최신값을 알아서 읽는다 —
     // state 를 의존성에 넣으면 그때마다 리스너와 rAF 루프가 통째로 재생성된다.
-    // glideTo 는 useCallback([]) 이라 <절대 안 바뀌므로> 넣어도 재실행되지 않는다.
+    // stepBy 는 useCallback([]) 이라 <절대 안 바뀌므로> 넣어도 재실행되지 않는다.
     // (경고를 억누르는 대신 넣는다 — 억누르면 나중에 진짜 의존성이 빠져도 안 보인다)
-  }, [glideTo]);
-
-  const openChat = () => {
-    anim.current.greetUntil = performance.now() + 1700;
-    setChatOpen(true);
-    /* ⚠️ 입력창에 <자동 포커스를 주지 않는다.>
-     * 열자마자 커서가 깜빡이면 인사말과 제안 칩을 읽기 전에 "뭔가 쳐야 한다"는
-     * 압박이 생기고, 모바일에서는 키보드가 즉시 올라와 화면 절반을 먹는다.
-     * 방문자가 입력창을 누르거나 제안 칩을 고르는 순간부터 시작하게 둔다. */
-  };
+  }, [stepBy]);
 
   return (
     <div
@@ -540,14 +518,10 @@ export function ReceptionHero() {
               height: SCENE_H,
               marginLeft: -SCENE_W / 2,
               marginTop: -SCENE_H / 2,
-              // transform 은 매 프레임 rAF 가 덮어쓰지만 filter 는 별개 속성이라
-              // 여기서 React 가 관리해도 서로 안 싸운다.
-              filter: chatOpen ? "blur(13px) saturate(0.82)" : "none",
-              transition: "filter 0.32s ease",
             }}
           >
             {/* 구름 — box-shadow 를 여러 겹 써서 덩어리 하나로 뭉게구름을 만든다 */}
-            <div ref={cloudsRef} style={{ position: "absolute", left: -600, right: -600, top: 0, bottom: 0 }}>
+            <div ref={cloudsRef} style={{ position: "absolute", left: -600, right: -600, top: 0, bottom: 0, pointerEvents: "none" }}>
               <div style={{ position: "absolute", left: 60, top: 120, width: 230, height: 96, borderRadius: 48, background: "#FBF7F6", boxShadow: "70px -34px 0 -12px #FBF7F6, -54px -22px 0 -22px #FBF7F6, 150px -6px 0 -22px #FBF7F6" }} />
               <div style={{ position: "absolute", left: 1080, top: 70, width: 270, height: 110, borderRadius: 55, background: "#FBF7F6", boxShadow: "-84px -40px 0 -14px #FBF7F6, 78px -26px 0 -26px #FBF7F6" }} />
               <div style={{ position: "absolute", left: 470, top: 44, width: 180, height: 74, borderRadius: 37, background: "#FDFAFA", boxShadow: "56px -26px 0 -12px #FDFAFA, -46px -14px 0 -20px #FDFAFA" }} />
@@ -559,7 +533,7 @@ export function ReceptionHero() {
             </div>
 
             {/* 뒷벽 + 벽 장식(시계·액자·선반·책) */}
-            <div ref={wallRef} style={{ position: "absolute", inset: 0 }}>
+            <div ref={wallRef} style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
               <div style={{ position: "absolute", left: "50%", top: 34, width: 1180, height: 600, marginLeft: -590, borderRadius: "600px 600px 48px 48px", background: "linear-gradient(180deg,#F5EAE7 0%,#F0E2DF 46%,#E9D9D6 100%)", boxShadow: "inset 0 -30px 60px rgba(150,116,110,.14)" }} />
               <div style={{ position: "absolute", left: 246, top: 176, width: 132, height: 132, borderRadius: "50%", background: "#FFFFFF", border: "9px solid #F7F1EE", boxShadow: "0 10px 26px rgba(120,88,82,.12)" }} />
               <div style={{ position: "absolute", left: 308, top: 206, width: 5, height: 52, borderRadius: 3, background: "#2A2422", transformOrigin: "50% 100%", transform: "rotate(28deg)" }} />
@@ -576,7 +550,7 @@ export function ReceptionHero() {
             <div style={{ position: "absolute", left: "50%", top: 646, width: 1520, height: 300, marginLeft: -760, borderRadius: "50%", background: "radial-gradient(closest-side, rgba(150,112,106,.16), rgba(150,112,106,0))" }} />
 
             {/* 로봇 */}
-            <div style={{ position: "absolute", left: 0, top: 0, width: "100%", height: "100%", opacity: chatOpen ? 0 : 1, transition: "opacity 0.32s ease" }}>
+            <div style={{ position: "absolute", left: 0, top: 0, width: "100%", height: "100%" }}>
               <div style={{ position: "absolute", left: 560, top: 596, width: 280, height: 52, borderRadius: "50%", background: "radial-gradient(closest-side, rgba(140,102,96,.26), rgba(140,102,96,0))" }} />
               <div style={{ position: "absolute", left: 594, top: 472, width: 212, height: 186, borderRadius: 74, background: "linear-gradient(170deg,#FFFBF9 0%,#F7F1EE 52%,#EADFDA 100%)", boxShadow: "inset -12px -14px 22px rgba(160,128,120,.16)" }} />
               <div style={{ position: "absolute", left: 652, top: 512, width: 96, height: 62, borderRadius: 22, background: ACCENT, boxShadow: "inset 0 -6px 12px rgba(0,0,0,.08), 0 0 22px rgba(126,208,192,.5)" }} />
@@ -598,8 +572,28 @@ export function ReceptionHero() {
               </div>
             </div>
 
+            {/* 로봇을 누르면 데모 화면(`/demo`)으로 간다.
+                ⚠️ 예전에는 여기서 채팅 모달이 열렸다. 그런데 방문자가 이 봇이 무슨 문서를
+                   가졌는지 모르는 채로 답을 받으면 <맞는지 틀리는지 판단할 수가 없다.>
+                   그래서 문서를 전부 펼쳐놓고 대조할 수 있는 별도 화면으로 옮겼고,
+                   모달과 전송 로직은 이 파일에서 걷어냈다.
+                ⚠️ 그림 위에 투명한 링크를 얹는다. 그림 자체에 onClick 을 달면
+                   키보드로 닿을 수도, 스크린리더가 읽을 수도 없다. */}
+            <Link
+              ref={robotHitRef}
+              href="/demo"
+              aria-label="데모 페이지에서 직접 테스트해보기 — 이 봇이 학습한 문서를 전부 볼 수 있습니다"
+              className="alldap-robot-hit"
+              style={{ position: "absolute", left: 528, top: 272, width: 344, height: 396, cursor: "pointer", pointerEvents: "none" }}
+            />
+
             {/* 안내 데스크 + 소품 */}
-            <div ref={deskRef} style={{ position: "absolute", left: 0, top: 0, width: "100%", height: "100%" }}>
+            {/* 🐛 pointerEvents: "none" 이 <반드시> 필요하다.
+                이 레이어는 씬 전체를 덮는 <div> 이고 위 로봇 링크보다 나중에 그려진다.
+                그림이 투명해도 <상자는 마우스를 먹는다> — 없으면 로봇에 마우스를 올려도
+                이 레이어가 가로채서 "테스트해보시겠어요?" 가 영영 안 뜬다(실제로 그랬다).
+                디오라마는 전부 장식이라 마우스를 받을 이유가 없다. */}
+            <div ref={deskRef} style={{ position: "absolute", left: 0, top: 0, width: "100%", height: "100%", pointerEvents: "none" }}>
               <div style={{ position: "absolute", left: "50%", top: 604, width: 720, height: 200, marginLeft: -360, borderRadius: "20px 20px 10px 10px", background: "linear-gradient(180deg,#F3DEDB 0%,#EFD6D3 40%,#E3C6C3 100%)", boxShadow: "0 26px 50px rgba(140,102,96,.22)" }} />
               <div style={{ position: "absolute", left: "50%", top: 576, width: 812, height: 34, marginLeft: -406, borderRadius: 12, background: "linear-gradient(180deg,#FFFFFF 0%,#F6EEEC 100%)", boxShadow: "0 10px 22px rgba(140,102,96,.18)" }} />
               <div style={{ position: "absolute", left: "50%", top: 648, width: 250, height: 60, marginLeft: -125, borderRadius: 14, background: "#FFFFFF", boxShadow: "0 8px 18px rgba(140,102,96,.14)" }} />
@@ -619,7 +613,7 @@ export function ReceptionHero() {
             </div>
 
             {/* 전경(러그·의자) — 가장 많이 움직여서 깊이를 만든다 */}
-            <div ref={frontRef} style={{ position: "absolute", inset: 0 }}>
+            <div ref={frontRef} style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
               <div style={{ position: "absolute", left: 1046, top: 734, width: 400, height: 140, borderRadius: "50%", background: "#EBD7DA" }} />
               <div style={{ position: "absolute", left: 1136, top: 640, width: 170, height: 56, borderRadius: 16, background: "#E7C3C0", boxShadow: "0 14px 26px rgba(140,102,96,.2)" }} />
               <div style={{ position: "absolute", left: 1136, top: 566, width: 170, height: 86, borderRadius: "18px 18px 6px 6px", background: "#EFCFCC" }} />
@@ -628,64 +622,212 @@ export function ReceptionHero() {
             </div>
           </div>
 
+          {/* ── 문 ──────────────────────────────────────────────────────────
+              씬 <위>, 히어로 문구 <아래>. 문이 다 열릴 때까지 로봇을 가리는 것이
+              이 레이어의 유일한 일이다. 그래서 문짝은 반투명이 아니라 불투명이다 —
+              간유리처럼 보이게 하되 <실제로 비치게 하지는 않는다.> 비치면 마지막에
+              드러날 것이 처음부터 보여서 연출이 성립하지 않는다. */}
+          <div style={{ position: "absolute", inset: 0, zIndex: 3, overflow: "hidden", pointerEvents: "none" }}>
+            {Array.from({ length: DOOR_COUNT }, (_, i) => (
+              <div
+                key={i}
+                /* ⚠️ 중괄호로 감싼다 — React 19 는 ref 콜백의 <반환값을 정리 함수로>
+                   취급한다. `ref={(n) => (arr[i] = n)}` 는 노드를 함수로 오해해 터진다. */
+                ref={(n) => { doorRefs.current[i] = n; }}
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  // 먼저 열리는 문이 위에 온다
+                  zIndex: DOOR_COUNT - i,
+                  // 뒤에 있는 문일수록 어둡다. 겹쳐 있는 깊이가 이것만으로 읽힌다.
+                  filter: `brightness(${1 - (DOOR_COUNT - 1 - i) * 0.055})`,
+                  transformOrigin: "50% 50%",
+                  willChange: "transform,opacity",
+                }}
+              >
+{(["left", "right"] as const).map((side) => {
+                  const dir = side === "left" ? -1 : 1;
+                  return (
+                    <div
+                      key={side}
+                      style={{
+                        position: "absolute",
+                        top: 0,
+                        bottom: 0,
+                        left: side === "left" ? 0 : "auto",
+                        right: side === "right" ? 0 : "auto",
+                        // 50% 가 아니라 50.3% 인 이유: 딱 절반이면 소수점 반올림 때문에
+                        // 가운데에 배경이 비치는 1px 실선이 생긴다(문이 닫혔는데 틈이 보인다).
+                        width: "50.3%",
+                        transform: `translateX(calc(var(--open, 0) * ${dir * 100}%))`,
+                        background:
+                          side === "left"
+                            ? "linear-gradient(100deg,#FCF6F4 0%,#F2E5E1 56%,#E7D5D1 100%)"
+                            : "linear-gradient(260deg,#FCF6F4 0%,#F2E5E1 56%,#E7D5D1 100%)",
+                        boxShadow: `inset ${dir * -20}px 0 40px rgba(150,116,110,.16)`,
+                        overflow: "hidden",
+                        willChange: "transform",
+                      }}
+                    >
+                      {/* 간유리 시트지 — 사무실 유리문의 그 가로 띠다. 이 한 줄이
+                          "밋밋한 판"을 "유리문"으로 읽히게 하는 거의 전부다. */}
+                      <div style={{ position: "absolute", left: 0, right: 0, top: "42%", height: 132, background: "rgba(255,255,255,.5)", borderTop: "1px solid rgba(255,255,255,.75)", borderBottom: "1px solid rgba(199,178,173,.45)" }} />
+                      {/* 유리에 비친 빛 한 줄기 */}
+                      <div style={{ position: "absolute", top: "-30%", bottom: "-30%", left: side === "left" ? "18%" : "auto", right: side === "right" ? "18%" : "auto", width: 90, transform: `rotate(${dir * 9}deg)`, background: "linear-gradient(90deg, rgba(255,255,255,0), rgba(255,255,255,.5), rgba(255,255,255,0))" }} />
+                      {/* 금속 새시 — 위·아래 가로대와 문틈 쪽 세로 기둥.
+                          이게 없으면 <문>이 아니라 그냥 밝은 판으로 읽힌다(실제로 그랬다).
+                          닫혀 있을 때 세로 기둥 두 개가 가운데서 맞물리는 것이
+                          "여기가 열린다" 를 말해주는 유일한 신호다. */}
+                      <div style={{ position: "absolute", left: 0, right: 0, top: 0, height: 30, background: "linear-gradient(180deg,#DFCEC9,#C9B2AD)" }} />
+                      <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 46, background: "linear-gradient(0deg,#D5C0BB,#C9B2AD)" }} />
+                      <div style={{ position: "absolute", top: 0, bottom: 0, left: side === "left" ? "auto" : 0, right: side === "left" ? 0 : "auto", width: 14, background: "linear-gradient(90deg,#DDCBC6,#C4ABA6)" }} />
+                      {/* 레버 — 마지막 문의 오른쪽 문짝에만.
+                          ⚠️ "기능 보기" 같은 라벨 버튼이 아니라 <이 세계의 물건>이다.
+                             여기는 안내 데스크고 눈앞에 문이 있다. 당기면 안쪽에서 응답이 온다.
+                          ⚠️ 문짝 안에 넣었으므로 문이 열리면 레버도 함께 밀려나간다.
+                             레이어에 따로 띄우면 문은 열리는데 레버만 허공에 남는다.
+                          ⚠️ 안내 문구를 <달지 않는다.> 레버는 생김새로 이미 "당기는 것"이라
+                             말하고, 글자를 붙이면 방금 지운 라벨 버튼으로 되돌아간다. */}
+                      {side === "right" && i === DOOR_COUNT - 1 && (
+                        <div
+                          ref={leverRef}
+                          style={{ position: "absolute", left: "13%", top: "38%", opacity: 0, visibility: "hidden", pointerEvents: "none" }}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => setArmsOpen((v) => !v)}
+                            aria-expanded={armsOpen}
+                            /* 그림만 있어서 이름을 손으로 달아준다. 없으면 스크린리더에
+                               "버튼" 이라고만 읽혀 무엇을 하는지 알 수 없다. */
+                            aria-label={armsOpen ? "기능 목록 닫기" : "기능 목록 보기"}
+                            className={`alldap-lever${armsOpen ? " is-on" : ""}`}
+                          >
+                            <span className="alldap-lever-slot" aria-hidden />
+                            <span className="alldap-lever-grip" aria-hidden />
+                          </button>
+                        </div>
+                      )}
+                      {/* 손잡이 — 문틈 쪽 세로 바 */}
+                      <div style={{ position: "absolute", top: "50%", marginTop: -54, left: side === "left" ? "auto" : 34, right: side === "left" ? 34 : "auto", width: 9, height: 108, borderRadius: 5, background: "linear-gradient(180deg,#EFE3DF,#BCA6A1)", boxShadow: "0 6px 14px rgba(120,88,82,.28)" }} />
+                    </div>
+                  );
+                })}
+                {/* 문틈으로 새는 빛 — 문짝 <위>에 얹는다.
+                    뒤에 깔면 닫혀 있는 동안 완전히 가려져서, 정작 보여주고 싶은
+                    "닫힌 문틈으로 새어 나오는 실선"이 안 보인다(실제로 그렇게 나왔다).
+                    색은 로봇의 눈·전구와 같은 민트(ACCENT)다 — 처음에는 실선 한 줄이지만
+                    마지막 문이 열리면 그 빛의 정체가 로봇이었음이 밝혀진다.
+                    이 화면에서 크게 건 <한 가지>이고 나머지는 조용히 뒀다. */}
+                <div
+                  style={{
+                    position: "absolute",
+                    left: "50%",
+                    top: 0,
+                    bottom: 0,
+                    // --open(0~1)은 루프가 문 레이어에 써준다. 자식은 calc 로 받아 쓴다.
+                    // 닫혔을 때 12px. 7px 로 뒀더니 blur 를 먹고 <아예 안 보였다> —
+                    // 닫힌 문틈의 실선이 이 연출의 첫인상이라 보이지 않으면 의미가 없다.
+                    /* ⚠️ 폭을 <실제 틈>에서 계산한다. 예전에는 "10px + 최대 150px" 로
+                       따로 굴렸는데, 문짝은 자기 폭(화면의 50.3%)의 비율로 벌어지므로
+                       활짝 열리면 틈이 1400px 인데 빛은 160px 이었다 —
+                       <문이 열리는 속도와 빛이 퍼지는 속도가 어긋나 보이던 원인이다.>
+                       틈 = 양쪽 문짝이 물러난 거리의 합 = open × 50.3vw × 2.
+                       닫혔을 때의 11px 은 실선으로 남기는 몫이다. */
+                    width: "calc(11px + var(--open, 0) * 100.6vw)",
+                    opacity: "var(--glow, 1)",
+                    transform: "translateX(-50%)",
+                    // 가로로는 가운데가 밝고, 세로로는 <가운데가 가장 밝다.>
+                    // 균일하게 채우면 빛이 아니라 칠해놓은 띠로 보인다(실제로 그랬다).
+                    background:
+                      "radial-gradient(70% 55% at 50% 50%, rgba(232,252,246,1) 0%, rgba(126,208,192,.8) 40%, rgba(126,208,192,0) 100%)",
+                    filter: "blur(7px)",
+                    boxShadow: "0 0 52px rgba(126,208,192,.55)",
+                    pointerEvents: "none",
+                  }}
+                />
+              </div>
+            ))}
+          </div>
+
+          {/* ── 로봇 팔 ──────────────────────────────────────────────────────
+              "기능 보기" 를 누르면 <위에서> 팔이 내려와 기능 목록을 들고 있고,
+              다시 누르면 올라간다.
+
+              ── 왜 rAF 루프가 아니라 CSS 전환인가 ──────────────────────────
+              이 화면의 다른 움직임은 전부 스크롤 진행도(p)에 묶여 있어서 매 프레임
+              계산해야 하지만, 팔은 <눌렀나 안 눌렀나> 두 상태뿐이다. 두 상태 사이를
+              오가는 것은 CSS transition 이 이미 하는 일이라 직접 그릴 이유가 없다.
+              계단식으로 내려오는 것도 transitionDelay 한 줄이면 된다.
+
+              ── 왜 팔마다 길이가 다른가 ────────────────────────────────────
+              같은 길이로 내려오면 팔이 아니라 <표>로 보인다. 길이를 흩어야
+              천장에서 기계 팔이 내려온 것으로 읽힌다. */}
+          <div
+            className="alldap-arms"
+            data-open={armsOpen}
+            /* aria-hidden: 접혀 있을 때 화면 밖 글자가 스크린리더에 읽히면
+               "어디에도 없는 목록" 이 읽힌다. 펼쳐졌을 때만 노출한다. */
+            aria-hidden={!armsOpen}
+            style={{ position: "absolute", inset: 0, zIndex: 7, overflow: "hidden", pointerEvents: "none" }}
+          >
+            {FEATURES.map((f) => (
+              <div
+                key={f.label}
+                className="alldap-arm"
+                /* 가운데(50%)부터 바깥으로 퍼지듯 내려오게 한다. 왼쪽부터 차례로
+                   내려오면 순서가 있는 목록처럼 읽히는데, 이건 순서가 없다. */
+                style={{ left: `${f.x}%`, transitionDelay: `${Math.abs(f.x - 50) * 3.4}ms` }}
+              >
+                {/* 팔 — 위 끝은 화면 밖이라 둥글릴 필요가 없다 */}
+                <div className="alldap-arm-bar" style={{ height: f.len }} />
+                {/* 관절 하나. 이게 없으면 그냥 막대기다 */}
+                <div className="alldap-arm-joint" style={{ top: f.len * 0.52 }} />
+                {/* 집게 — 판을 물고 있는 부분 */}
+                <div className="alldap-arm-grip" />
+                {/* tabIndex 를 주는 이유: 상세를 <마우스를 올렸을 때만> 보여주면
+                    키보드만 쓰는 사람은 영영 못 본다. 포커스로도 열리게 한다
+                    (CSS 의 :focus-within). */}
+                <div className="alldap-arm-card" tabIndex={0}>
+                  <span className="alldap-arm-label">{f.label}</span>
+                  {/* ⚠️ 상세를 <한 겹 더> 감싼다. 0fr 접기는 자식이 요소여야 하는데
+                      글자만 두면 익명 항목이 되어 overflow: hidden 이 안 걸리고,
+                      접힌 판의 높이가 안 줄어든다(실제로 빈 상자처럼 나왔다). */}
+                  <span className="alldap-arm-detail">
+                    <span>{f.detail}</span>
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+
           {/* 비네트 — 가장자리를 살짝 눌러 시선을 가운데로 모은다 */}
           <div style={{ position: "absolute", inset: 0, pointerEvents: "none", background: "radial-gradient(75% 60% at 50% 45%, rgba(0,0,0,0) 40%, rgba(90,66,62,0.16) 100%)" }} />
-          {/* 모달 뒤를 덮는 어두운 막. 모달 글자가 밝은 색이라 <이게 없으면 안 읽힌다> —
-              그래서 rAF 가 아니라 chatOpen 에 직접 물려 CSS 로 전환한다. */}
-          <div style={{ position: "absolute", inset: 0, zIndex: 8, pointerEvents: "none", opacity: chatOpen ? 1 : 0, transition: "opacity 0.32s ease", background: "radial-gradient(90% 70% at 50% 50%, rgba(28,20,19,.42) 0%, rgba(28,20,19,.68) 100%)" }} />
-
           <header style={{ position: "absolute", top: 0, left: 0, right: 0, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "26px 34px", zIndex: 5 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
               <span style={{ fontSize: 19, fontWeight: 700, letterSpacing: "0.22em" }}>ALLDAP</span>
               <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 26, height: 22, border: "1.6px solid #171514", borderRadius: 4, fontSize: 11, fontWeight: 700, letterSpacing: "0.02em" }}>AI</span>
             </div>
-            <div ref={navRef} style={{ position: "relative", padding: 11, willChange: "opacity" }}>
-              {/* 네 모서리 브래킷 — 카메라 뷰파인더 느낌 */}
-              <div style={{ position: "absolute", top: 0, left: 0, width: 20, height: 20, borderTop: "1.5px solid rgba(23,21,20,.35)", borderLeft: "1.5px solid rgba(23,21,20,.35)" }} />
-              <div style={{ position: "absolute", top: 0, right: 0, width: 20, height: 20, borderTop: "1.5px solid rgba(23,21,20,.35)", borderRight: "1.5px solid rgba(23,21,20,.35)" }} />
-              <div style={{ position: "absolute", bottom: 0, left: 0, width: 20, height: 20, borderBottom: "1.5px solid rgba(23,21,20,.35)", borderLeft: "1.5px solid rgba(23,21,20,.35)" }} />
-              <div style={{ position: "absolute", bottom: 0, right: 0, width: 20, height: 20, borderBottom: "1.5px solid rgba(23,21,20,.35)", borderRight: "1.5px solid rgba(23,21,20,.35)" }} />
-              {/* 원본 스펙(14px / 5·12 패딩)보다 한 단계 키웠다. 히어로가 전체 화면을
-                  쓰는 큰 무대라 스펙 크기로는 구석에서 눈에 안 들어온다. */}
-              {/* ⚠️ 이 메뉴는 전부 href="#" 였다 — 눌러도 아무 일이 없었다.
-                  그리고 "고객사례" 는 <제거했다>: 실제 고객이 없으므로 페이지를 만들면
-                  없는 사실을 지어내는 것이 된다. 링크를 죽은 채로 두는 것도 같은 문제다.
-                  섹션 앵커가 아니라 별도 페이지로 보내는 이유는 이 히어로가 wheel 을
-                  preventDefault 로 가로채 자기 줌 연출에 쓰기 때문이다 — 아래로 스크롤될
-                  페이지가 애초에 없다. */}
-              <nav className="alldap-nav" style={{ display: "flex", alignItems: "center", gap: 5, background: "rgba(255,255,255,.42)", backdropFilter: "blur(10px)", borderRadius: 10, padding: "6px 6px 6px 16px" }}>
-                {NAV.map(({ label, href }) => (
-                  <a key={label} href={href} style={{ padding: "12px 18px", fontSize: 17, fontWeight: 500 }}>{label}</a>
-                ))}
-                {/* 🔴 좁은 화면에서는 위 링크들이 감춰진다(globals.css 720px 미디어쿼리).
-                    그러면 모바일 사용자는 기능·요금제·FAQ 로 갈 길이 없어지므로 햄버거를 둔다.
-                    <details> 를 쓴 이유: 펼침 상태·키보드 조작(Enter·Space)·스크린리더 전달을
-                    브라우저가 이미 한다. 직접 만들면 aria-expanded 와 포커스를 손으로 맞춰야 하고
-                    대개 한 군데를 빠뜨린다. 그리고 열 패널이 공짜다 —
-                    "패널이 따로 필요해서 범위가 아니다" 라던 옛 판단이 이걸로 뒤집혔다. */}
-                <details className="alldap-burger">
-                  <summary aria-label="메뉴 열기">
-                    <span aria-hidden>메뉴</span>
-                  </summary>
-                  <div className="alldap-burger-panel">
-                    {NAV.map(({ label, href }) => (
-                      <a key={label} href={href}>{label}</a>
-                    ))}
-                  </div>
-                </details>
-                <a href="/auth" className="alldap-nav-cta" style={{ marginLeft: 7, padding: "15px 30px", borderRadius: 9, background: "#171514", color: "#FFFFFF", fontSize: 17, fontWeight: 600 }}>도입 문의</a>
-              </nav>
-            </div>
           </header>
 
-          <div ref={heroRef} style={{ position: "absolute", top: 0, left: 0, right: 0, height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-start", paddingTop: "14vh", gap: 26, zIndex: 4, pointerEvents: "none", willChange: "transform,opacity" }}>
-            <h1 style={{ margin: 0, fontSize: "clamp(52px,7.4vw,116px)", lineHeight: 1.0, fontWeight: 800, letterSpacing: "-0.035em", display: "flex", alignItems: "center", gap: 4 }}>
-              안녕하세요, 올답입니다.
-              <span className="alldap-caret" style={{ display: "inline-block", width: 6, height: "0.86em", background: "#171514" }} />
-            </h1>
-            <p style={{ margin: 0, textAlign: "center", fontSize: "clamp(19px,2vw,29px)", lineHeight: 1.45, fontWeight: 500, color: "#3A3230" }}>
-              문서를 읽고 출처까지 알려주는<br />한국어 AI 안내 데스크
-            </p>
+          {/* ── 인사 팻말 ────────────────────────────────────────────────────
+              🔴 예전에는 화면 위쪽에 큰 글자 두 덩어리(제목 + 부제)가 떠 있었다.
+                 위로 몰려 보였고, 무엇보다 <이 장면과 무관한 웹페이지 문구>였다.
+                 지금은 문 뒤의 로봇이 팔을 넘겨 팻말을 들고 있다 — 기능 팻말과 같은
+                 언어라, 처음 보는 사람도 "저 팔이 뭔가 보여주는구나" 를 한 번에 익힌다.
+              ⚠️ 부제("문서를 읽고 출처까지…")는 <지웠다.> 팻말에 두 문장을 넣으면
+                 들고 있기엔 무거워지고, 그 설명은 팔이 내려와 보여주는 기능 목록과 겹친다.
+                 SEO 용 설명은 app/page.tsx 의 metadata 가 이미 갖고 있다.
+              ⚠️ h1 은 <여기 살아 있다.> 이 화면의 유일한 제목이라 없애면 문서 구조가
+                 사라진다(그림만 남고 기계는 아무것도 못 읽는다). */}
+          <div ref={greetRef} className="alldap-greet" data-open="true">
+            <span className="alldap-greet-bar" style={{ left: "14%" }} aria-hidden />
+            <span className="alldap-greet-bar" style={{ right: "14%" }} aria-hidden />
+            <div className="alldap-greet-card">
+              <h1>
+                안녕하세요, 올답입니다.
+                <span className="alldap-caret" aria-hidden />
+              </h1>
+            </div>
           </div>
 
           <div ref={ctaRef} style={{ position: "absolute", left: "50%", top: "64%", transform: "translateX(-50%)", zIndex: 6, opacity: 0, pointerEvents: "none", willChange: "transform,opacity" }}>
@@ -696,16 +838,23 @@ export function ReceptionHero() {
               <div style={{ position: "absolute", bottom: 0, right: 0, width: 28, height: 28, borderBottom: "1.6px solid rgba(23,21,20,.4)", borderRight: "1.6px solid rgba(23,21,20,.4)" }} />
               {/* 이 화면의 유일한 목적지다. 원본 스펙(17px / 20·34 패딩)보다 키웠다 —
                   줌인이 끝난 뒤 화면 전체에서 눌러야 할 곳이 여기 하나뿐인데 작으면 안 보인다. */}
-              <button type="button" onClick={openChat} className="alldap-cta" style={{ display: "flex", alignItems: "center", gap: 14, border: "none", cursor: "pointer", padding: "26px 48px", borderRadius: 14, background: "#171514", color: "#FFFFFF", fontSize: 21, fontWeight: 600, fontFamily: "inherit", letterSpacing: "-0.015em", boxShadow: "0 22px 54px rgba(74,50,46,.32)" }}>
+              {/* 이 화면의 유일한 목적지다.
+                  ⚠️ 문구가 "챗봇 시작하기" 가 아니라 <고용하기> 인 이유: 이 제품은 도구를
+                     켜는 것이 아니라 <안내 데스크 직원을 들이는 것>으로 팔린다. 여기까지
+                     오는 동안 방문자는 문을 열고 들어와 직원을 만났다. 그 다음 행동은
+                     "시작"이 아니라 "고용"이다.
+                  ⚠️ button 이 아니라 Link 다 — 실제로 하는 일이 <이동>(로그인/가입)이라서다.
+                     button 으로 두면 새 탭으로 열기·주소 복사가 안 되고 링크로 안 읽힌다. */}
+              <Link href="/auth" className="alldap-cta" style={{ display: "flex", alignItems: "center", gap: 14, cursor: "pointer", padding: "26px 48px", borderRadius: 14, background: "#171514", color: "#FFFFFF", fontSize: 21, fontWeight: 600, letterSpacing: "-0.015em", textDecoration: "none", boxShadow: "0 22px 54px rgba(74,50,46,.32)" }}>
                 <span style={{ display: "inline-block", width: 11, height: 11, borderRadius: "50%", background: ACCENT }} />
-                챗봇 시작하기
-              </button>
+                고용하기
+              </Link>
             </div>
           </div>
 
           {/* 이 화면을 어떻게 진행시키는지 알려주는 유일한 안내다. 스펙(21×33 / 13px)으로는
               구석에서 안 읽혀서, 마우스 아이콘과 글자를 함께 키웠다. */}
-          <div ref={hintRef} onClick={() => glideTo(1)} style={{ position: "absolute", left: 34, bottom: 34, display: "flex", alignItems: "center", gap: 16, zIndex: 5, cursor: "pointer" }}>
+          <div ref={hintRef} onClick={() => stepBy(1)} style={{ position: "absolute", left: 34, bottom: 34, display: "flex", alignItems: "center", gap: 16, zIndex: 5, cursor: "pointer" }}>
             <div style={{ position: "relative", width: 27, height: 42, border: "2px solid rgba(23,21,20,.55)", borderRadius: 14, display: "flex", justifyContent: "center", paddingTop: 8, flex: "none" }}>
               <span className="alldap-wheel" style={{ display: "block", width: 3, height: 8, borderRadius: 2, background: "#171514" }} />
             </div>
@@ -714,96 +863,6 @@ export function ReceptionHero() {
         </div>
       </div>
 
-      {/* ── 챗 모달 ── 흰 패널이 아니라 화면 전체를 덮고 뒤 씬을 흐린다.
-          로봇 얼굴이 모달 위로 올라와 표정으로 상태를 말한다. */}
-      {chatOpen && (
-        <div style={{ position: "fixed", inset: 0, zIndex: 30, display: "flex", alignItems: "center", justifyContent: "center", padding: 28 }}>
-          <div className="alldap-rise" style={{ width: "min(94vw,760px)", display: "flex", flexDirection: "column", alignItems: "center", gap: 18 }}>
-            <button type="button" onClick={() => setChatOpen(false)} aria-label="닫기" style={{ position: "absolute", top: 26, right: 28, border: "none", cursor: "pointer", width: 38, height: 38, borderRadius: 10, background: "rgba(255,255,255,.12)", color: "#F5F0EE", fontSize: 15, fontFamily: "inherit" }}>✕</button>
-
-            <div ref={cHeadRef} style={{ position: "relative", width: 104, height: 102, marginBottom: 2 }}>
-              <div style={{ position: "absolute", left: 50, top: -22, width: 5, height: 24, borderRadius: 3, background: "#E4DAD5" }} />
-              <div ref={cBulbRef} style={{ position: "absolute", left: 44, top: -38, width: 17, height: 17, borderRadius: "50%", background: ACCENT, boxShadow: "0 0 18px rgba(126,208,192,.8)" }} />
-              <div style={{ position: "absolute", left: -15, top: 38, width: 19, height: 29, borderRadius: 10, background: "linear-gradient(160deg,#F4EDEA,#DED3CE)" }} />
-              <div style={{ position: "absolute", left: 100, top: 38, width: 19, height: 29, borderRadius: 10, background: "linear-gradient(200deg,#F4EDEA,#DED3CE)" }} />
-              <div style={{ position: "absolute", inset: 0, borderRadius: 34, background: "linear-gradient(165deg,#FFFCFB 0%,#F5EEEB 52%,#E4D9D4 100%)", boxShadow: "0 16px 34px rgba(10,6,6,.4)" }} />
-              <div style={{ position: "absolute", left: 11, top: 23, width: 82, height: 58, borderRadius: 20, background: "linear-gradient(170deg,#3A322F,#1C1817)", overflow: "hidden" }}>
-                <div ref={cEyeLRef} style={{ position: "absolute", left: 23, top: 19, width: 13, height: 20, borderRadius: 7, background: ACCENT, boxShadow: "0 0 12px rgba(126,208,192,.9)" }} />
-                <div ref={cEyeRRef} style={{ position: "absolute", left: 46, top: 19, width: 13, height: 20, borderRadius: 7, background: ACCENT, boxShadow: "0 0 12px rgba(126,208,192,.9)" }} />
-                <div ref={cMouthRef} style={{ position: "absolute", left: 34, top: 42, width: 14, height: 7, borderRadius: "0 0 10px 10px", background: ACCENT, boxShadow: "0 0 9px rgba(126,208,192,.7)" }} />
-                {/* "생각 중" 표시 = 얼굴이 문서가 되고 스캔 라인이 훑는다 */}
-                <div ref={cDocRef} style={{ position: "absolute", left: 26, top: 10, width: 30, height: 38, borderRadius: 3, background: "#FBF7F6", opacity: 0, boxShadow: "0 3px 10px rgba(0,0,0,.4)" }}>
-                  <div style={{ position: "absolute", left: 5, top: 7, width: 20, height: 2.5, borderRadius: 2, background: "#C9BFBC" }} />
-                  <div style={{ position: "absolute", left: 5, top: 14, width: 14, height: 2.5, borderRadius: 2, background: "#D6CDCA" }} />
-                  <div style={{ position: "absolute", left: 5, top: 21, width: 18, height: 2.5, borderRadius: 2, background: "#C9BFBC" }} />
-                  <div style={{ position: "absolute", left: 5, top: 28, width: 11, height: 2.5, borderRadius: 2, background: "#D6CDCA" }} />
-                  <div ref={cScanRef} style={{ position: "absolute", left: 0, top: 0, width: "100%", height: 9, background: "linear-gradient(180deg,rgba(126,208,192,0),rgba(126,208,192,.55),rgba(126,208,192,0))" }} />
-                </div>
-              </div>
-            </div>
-
-            <h2 style={{ margin: 0, fontSize: 29, fontWeight: 700, letterSpacing: "-0.03em", color: "#FBF7F6", textAlign: "center" }}>올답 안내 데스크</h2>
-            <p style={{ margin: "-6px 0 0", maxWidth: 520, textAlign: "center", fontSize: 15.5, lineHeight: 1.62, color: "#B8ADAA" }}>
-              사내 문서 42건을 학습했어요. 규정·절차·복리후생 무엇이든 물어보시면 근거 문서와 조항까지 함께 알려드릴게요.
-            </p>
-
-            {msgs.length > 0 && (
-              <div ref={listRef} style={{ width: "100%", maxHeight: "34vh", overflowY: "auto", display: "flex", flexDirection: "column", gap: 10, padding: "4px 2px" }}>
-                {msgs.map((m, i) => (
-                  <div key={i} style={{ display: "flex", justifyContent: m.role === "me" ? "flex-end" : "flex-start" }}>
-                    <div style={{ maxWidth: "76%", padding: "13px 16px", borderRadius: m.role === "me" ? "16px 16px 5px 16px" : "16px 16px 16px 5px", background: m.role === "me" ? "rgba(126,208,192,.16)" : "rgba(255,255,255,.07)", color: m.role === "me" ? "#EAF6F3" : "#F1EAE8", fontSize: 14.5, lineHeight: 1.6 }}>
-                      {m.text}
-                      {m.source && (
-                        <span style={{ display: "block", marginTop: 10, paddingTop: 10, borderTop: "1px solid rgba(255,255,255,.12)", fontSize: 12, fontWeight: 600, color: "#9C918D" }}>
-                          출처 · {m.source}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: 14, padding: "18px 18px 14px", borderRadius: 22, background: "rgba(32,27,26,.92)", border: "1px solid rgba(255,255,255,.1)", boxShadow: "0 30px 70px rgba(20,12,11,.5)" }}>
-              <input
-                ref={inputRef}
-                onKeyDown={(e) => {
-                  if (e.key !== "Enter") return;
-                  /*
-                   * 🐛 한글 입력에서 <반드시> 필요한 검사다.
-                   *
-                   * 한글은 자모를 모아 한 글자를 만든다. "알려줘"를 치면 마지막 "줘"는
-                   * 아직 <조합 중(composing)> 상태로 입력창에 떠 있다. 이때 Enter 를 누르면
-                   *   keydown(Enter) → send() 가 값을 읽고 입력창을 비움
-                   *   → 그 <뒤에> IME 가 "줘"를 확정해 빈 입력창에 다시 넣는다
-                   * 결과: 마지막 글자가 입력창에 남아 <다음 전송에 딸려 간다.>
-                   *
-                   * isComposing 이 true 면 이 Enter 는 "조합을 확정하라"는 뜻이지
-                   * "전송하라"가 아니다. 그냥 넘겨서 IME 가 처리하게 둔다.
-                   * (영문만 쓰면 조합 단계가 없어서 이 버그가 안 보인다 — 한국어 제품이라 필수)
-                   */
-                  if (e.nativeEvent.isComposing) return;
-                  e.preventDefault();
-                  send();
-                }}
-                onInput={() => { anim.current.typing = true; }}
-                onFocus={() => { anim.current.typing = true; }}
-                onBlur={() => { anim.current.typing = false; }}
-                placeholder="무엇이든 물어보세요"
-                style={{ width: "100%", border: "none", outline: "none", background: "transparent", color: "#FBF7F6", fontSize: 16, fontFamily: "inherit", padding: "6px 4px" }}
-              />
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                {["연차 규정 알려줘", "출장비 정산 절차", "복리후생 요약"].map((label) => (
-                  <button key={label} type="button" onClick={() => send(label)} className="alldap-chip" style={{ border: "1px solid rgba(255,255,255,.14)", cursor: "pointer", padding: "9px 15px", borderRadius: 20, background: "rgba(255,255,255,.05)", color: "#CFC5C2", fontSize: 13.5, fontWeight: 500, fontFamily: "inherit", whiteSpace: "nowrap" }}>
-                    {label}
-                  </button>
-                ))}
-                <button type="button" onClick={() => send()} aria-label="보내기" className="alldap-send" style={{ marginLeft: "auto", border: "none", cursor: "pointer", width: 40, height: 40, borderRadius: "50%", background: ACCENT, color: "#11201D", fontSize: 17, fontWeight: 700, fontFamily: "inherit", flex: "none" }}>↑</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
