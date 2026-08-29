@@ -159,6 +159,12 @@ U+2600-26FF,U+3000-303F,U+1100-11FF,U+3130-318F,U+FF01-FF60" \
   .alldap-arm {
     transition: none;
   }
+  /* 화면 전체가 움직이는 연출이라 이 설정을 켠 사용자가 가장 피하고 싶은 것이다.
+     이동 자체는 그대로 되고 <애니메이션만> 사라진다. */
+  ::view-transition-old(.fade),
+  ::view-transition-new(.fade) {
+    animation: none;
+  }
 }
 
 body {
@@ -481,3 +487,22 @@ body {
 
 .alldap-cta-ghost { transition: background 0.18s ease, border-color 0.18s ease; }
 .alldap-cta-ghost:hover { background: #ffffff; border-color: rgba(23, 21, 20, 0.5); }
+
+/* ── 페이지 전환 ────────────────────────────────────────────────────────────
+   `(site)/layout.tsx` 의 <ViewTransition> 이 이름표를 이 클래스로 바꿔준다.
+   ⚠️ 선택자가 `.fade` 인 것은 <클래스>라는 뜻이다(요소 이름이 아니라).
+      view-transition-class 규칙이라 점을 빼면 매칭되지 않는다. */
+::view-transition-old(.fade) {
+  animation: adPageFade 0.22s ease both reverse;
+}
+::view-transition-new(.fade) {
+  animation: adPageFade 0.22s ease both;
+}
+@keyframes adPageFade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}

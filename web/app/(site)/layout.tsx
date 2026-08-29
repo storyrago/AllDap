@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ViewTransition } from "react";
 
 /**
  * 공개 화면(`/auth`, `/features`, `/pricing`, `/faq`) 공통 레이아웃.
@@ -40,7 +41,20 @@ export default function SiteLayout({
         </div>
       </header>
 
-      <main className="flex-1">{children}</main>
+      {/*
+        ── 페이지 전환 ────────────────────────────────────────────────────────
+        `<Link>` 가 붙인 이름표(transitionTypes)를 <CSS 클래스로 바꿔주는> 것이 이 래퍼다.
+        래퍼 없이 이름표만 주면 아무 일도 일어나지 않는다.
+        `default: "fade"` 는 이름표가 없는 이동(= 대부분의 이동) 몫이다.
+        ⚠️ 공식 예제는 여기에 "none" 을 써서 첫 로드에 아무것도 안 걸리게 한다.
+           우리는 페이지끼리의 이동에 페이드가 필요해서 "fade" 로 둔다 —
+           대신 첫 로드에도 걸릴 수 있어서 Step 6 에서 그걸 눈으로 확인한다.
+      */}
+      <main className="flex-1">
+        <ViewTransition enter={{ default: "fade" }} exit={{ default: "fade" }}>
+          {children}
+        </ViewTransition>
+      </main>
 
       <footer className="border-t border-subtle">
         <div className="mx-auto w-full max-w-5xl px-6 py-6 text-xs text-muted">
