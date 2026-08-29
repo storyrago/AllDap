@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
+import { ViewTransition } from "react";
 import "./globals.css";
 
 /**
@@ -68,7 +69,23 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ko" className={`h-full antialiased ${pretendard.variable}`}>
-      <body className="flex min-h-full flex-col">{children}</body>
+      {/*
+        ── 페이지 전환 경계는 (site) 가 아니라 여기(루트)에 둔다 ─────────────────
+        랜딩(`app/page.tsx`)은 위 주석대로 (site) 그룹 <밖>에 있다. 이전에는
+        이 경계가 (site)/layout.tsx 안에만 있어서, "/" → "/auth" 같은 이동은
+        도착 쪽에만 경계가 있고 출발 쪽(랜딩)에는 없었다 — React 가 두 스냅샷을
+        비교해 view transition 을 시작하려면 경계가 <양쪽 다>에 있어야 하는데,
+        랜딩 쪽이 빠져 있어 전환이 아예 시작되지 않았다(startViewTransition 0회 실측).
+        루트는 "/" 를 포함한 모든 라우트에 걸쳐 살아있으므로 여기 두면 항상 양쪽에 존재한다.
+      */}
+      <body className="flex min-h-full flex-col">
+        <ViewTransition
+          enter={{ door: "door", default: "fade" }}
+          exit={{ door: "none", default: "fade" }}
+        >
+          {children}
+        </ViewTransition>
+      </body>
     </html>
   );
 }

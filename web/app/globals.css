@@ -113,98 +113,39 @@ U+2600-26FF,U+3000-303F,U+1100-11FF,U+3130-318F,U+FF01-FF60" \
   25% { opacity: 1; }
   100% { transform: translateY(11px); opacity: 0; }
 }
-@keyframes adRise {
-  from { opacity: 0; transform: translateY(14px); }
-  to { opacity: 1; transform: none; }
-}
 
 .alldap-caret { animation: adCaret 1.05s step-end infinite; }
 .alldap-wheel { animation: adWheel 1.6s ease-in-out infinite; }
-.alldap-rise { animation: adRise 0.34s cubic-bezier(0.2, 0.8, 0.3, 1) both; }
 
 .alldap-cta { transition: transform 0.18s ease, background 0.18s ease; }
 .alldap-cta:hover { background: #332d2b; transform: translateY(-2px); }
-.alldap-nav a { color: #171514; text-decoration: none; }
-.alldap-nav a:hover { color: #b4635a; }
-.alldap-nav-cta { color: #ffffff !important; }
-.alldap-nav-cta:hover { background: #332d2b; color: #ffffff !important; }
-.alldap-chip:hover { background: rgba(255, 255, 255, 0.12); color: #fbf7f6; }
-.alldap-send:hover { background: #96ded0; }
-
-/* 좁은 화면에서는 내비 링크가 화면 밖으로 밀려나므로 감추고, 대신 햄버거를 띄운다.
-   ✅ 2026-08-17: 마케팅 페이지(/features · /pricing · /faq)가 실제로 생겨 TODO 를 해결했다.
-      그전까지는 링크가 href="#" 여서 감춰도 잃는 것이 없었지만, 이제는 감추면
-      <모바일 사용자가 그 페이지들에 갈 길이 없어진다.>
-   ⚠️ 옛 주석은 "햄버거는 열 패널이 따로 필요해 범위가 아니다" 라고 했는데,
-      <details>/<summary> 를 쓰면 패널·키보드 조작·스크린리더 전달이 전부 공짜다.
-      그 판단이 뒤집힌 것이다. */
-/* 좁은 데스크톱(노트북)에서 내비가 넘치지 않게 한 단계 줄인다.
-   1024px 폭에서 내비는 536px 이고 오른쪽 여유가 45px 뿐이다 — <폰트가 10%만 넓어져도 넘친다.>
-   윈도우는 한글이 맑은 고딕으로 잡히는데 Apple SD Gothic Neo 보다 넓어서 실제로 그럴 수 있다.
-   ⚠️ !important 가 필요한 이유: 이 요소들의 크기는 인라인 style 로 박혀 있어서
-      (디자인 스펙을 픽셀 그대로 옮긴 것) 클래스 규칙이 그냥은 못 이긴다. */
-@media (max-width: 1100px) {
-  .alldap-nav a {
-    padding: 10px 13px !important;
-    font-size: 15px !important;
-  }
-  .alldap-nav-cta {
-    padding: 12px 22px !important;
-  }
-}
-
-/* 햄버거는 <좁은 화면에서만> 나타난다. 기본은 감춤 — 데스크톱에는 이미 링크가 다 보인다. */
-.alldap-burger { display: none; position: relative; }
-.alldap-burger > summary {
-  list-style: none;              /* Firefox 의 기본 삼각형 */
-  cursor: pointer;
-  padding: 12px 16px;
-  font-size: 15px;
-  font-weight: 500;
-  color: #171514;
-}
-.alldap-burger > summary::-webkit-details-marker { display: none; }  /* Safari·Chrome */
-.alldap-burger[open] > summary { color: #b4635a; }
-.alldap-burger-panel {
-  position: absolute;
-  top: calc(100% + 6px);
-  right: 0;
-  z-index: 20;
-  display: flex;
-  flex-direction: column;
-  min-width: 148px;
-  padding: 6px;
-  border-radius: 10px;
-  /* 히어로 위에 뜨므로 반투명 배경만으로는 글자가 안 읽힌다. 불투명하게 둔다. */
-  background: #ffffff;
-  box-shadow: 0 10px 30px rgba(23, 21, 20, 0.16);
-}
-.alldap-burger-panel a {
-  padding: 11px 14px;
-  border-radius: 7px;
-  font-size: 15px;
-  font-weight: 500;
-  color: #171514;
-  text-decoration: none;
-}
-.alldap-burger-panel a:hover { background: rgba(23, 21, 20, 0.06); color: #b4635a; }
-
-@media (max-width: 720px) {
-  .alldap-nav a:not(.alldap-nav-cta) {
-    display: none;
-  }
-  /* ⚠️ .alldap-nav a 규칙이 위에서 display:none 을 걸므로 패널 안 링크는 되살려야 한다.
-        선택자가 더 구체적이지만 같은 미디어쿼리 안이라 순서만으로는 안 이긴다. */
-  .alldap-burger { display: block; }
-  .alldap-burger-panel a { display: block !important; }
-}
 
 /* 흔들림·깜빡임을 싫어하는 사용자 설정을 존중한다.
    (카메라 흔들림 진폭 0 은 ReceptionHero 의 rAF 루프가 따로 처리한다) */
 @media (prefers-reduced-motion: reduce) {
   .alldap-caret,
-  .alldap-wheel,
-  .alldap-rise {
+  .alldap-wheel {
+    animation: none;
+  }
+  .alldap-lever-grip {
+    transition: none;
+  }
+  /* 말풍선은 <떠다니는 것만> 멈춘다. 지우면 데모로 가는 길이 사라진다. */
+  .alldap-robot-hit.is-live::after {
+    animation: none;
+  }
+  /* 팔은 <사라지는 게 아니라> 전환 없이 제자리로 간다. 없애면 기능 목록 자체를
+     못 보게 되므로, 움직임만 걷어낸다. */
+  .alldap-arm {
+    transition: none;
+  }
+  /* 화면 전체가 움직이는 연출이라 이 설정을 켠 사용자가 가장 피하고 싶은 것이다.
+     이동 자체는 그대로 되고 <애니메이션만> 사라진다. */
+  ::view-transition-old(.fade),
+  ::view-transition-new(.fade) {
+    animation: none;
+  }
+  ::view-transition-new(.door) {
     animation: none;
   }
 }
@@ -216,4 +157,351 @@ body {
      폴백은 폰트가 아직 안 왔을 때와 KS X 1001 밖 글자를 받는다 — 둘 다 실제로 쓰인다. */
   font-family: var(--font-pretendard), sans-serif;
   word-break: keep-all; /* 한국어는 단어 중간에서 줄바꿈되면 읽기 나쁘다 */
+}
+
+/* ── 로봇 팔 (랜딩 히어로) ───────────────────────────────────────────────
+   "기능 보기" 를 누르면 위에서 내려오고, 다시 누르면 올라간다.
+   ⚠️ 접힌 상태의 이동량이 px 이 아니라 <-102%> 인 이유: 팔마다 길이가 달라서
+      고정 px 로는 짧은 팔은 덜 숨고 긴 팔은 지나치게 올라간다. % 는 자기 높이 기준이다. */
+.alldap-arm {
+  position: absolute;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transform: translate(-50%, -102%);
+  /* 끝에서 살짝 지나쳤다 돌아온다(1.5). 기계 팔이 멈출 때 남는 관성이다. */
+  transition: transform 0.62s cubic-bezier(0.34, 1.5, 0.64, 1);
+  will-change: transform;
+}
+.alldap-arms[data-open="true"] .alldap-arm { transform: translate(-50%, 0); }
+
+/* ⚠️ 배경과 같은 톤으로 뒀더니 <팔이 안 보이고 판만 떠 있었다.>
+   한 단계 어둡게 하고 그림자를 줘야 천장에서 내려온 것으로 읽힌다. */
+.alldap-arm-bar {
+  width: 28px;
+  border-radius: 0 0 14px 14px;
+  background: linear-gradient(100deg, #f6ede9, #d9c9c4);
+  box-shadow: inset -5px 0 9px rgba(140, 106, 100, 0.22), 0 6px 16px rgba(120, 88, 82, 0.14);
+}
+.alldap-arm-joint {
+  position: absolute;
+  left: 50%;
+  width: 34px;
+  height: 34px;
+  margin: -17px 0 0 -17px;
+  border-radius: 50%;
+  background: linear-gradient(160deg, #fdf6f3, #ddcdc8);
+  box-shadow: inset -3px -3px 7px rgba(140, 106, 100, 0.26), 0 4px 10px rgba(120, 88, 82, 0.16);
+}
+.alldap-arm-grip {
+  width: 50px;
+  height: 18px;
+  margin-bottom: -9px;
+  border-radius: 9px;
+  background: linear-gradient(180deg, #f6efec, #d9cbc6);
+  box-shadow: 0 4px 10px rgba(120, 88, 82, 0.18);
+}
+.alldap-arm-card {
+  /* 판은 <한 줄>이 기본이다. 상세는 마우스를 올리거나 포커스가 왔을 때만 펼친다 —
+     다섯 개가 처음부터 문단을 펼치고 있으면 읽을 엄두가 안 난다. */
+  max-width: 380px;
+  padding: 21px 27px;
+  border-radius: 16px;
+  /* 위쪽 민트 선은 로봇 눈·문틈 빛과 같은 색이다. 이 판을 들고 있는 것이
+     그 로봇이라는 것을 색 하나로 말한다. */
+  border-top: 4px solid #7ed0c0;
+  background: #fffdfc;
+  box-shadow: 0 18px 40px rgba(96, 66, 62, 0.22);
+  text-align: center;
+  /* 부모(팔 레이어)가 pointer-events: none 이라 여기서 되살려야 마우스가 닿는다 */
+  pointer-events: auto;
+  cursor: default;
+  transition: box-shadow 0.2s ease;
+}
+.alldap-arm-label {
+  display: block;
+  font-size: 21px;
+  font-weight: 700;
+  line-height: 1.4;
+  color: #171514;
+  white-space: nowrap; /* "한 줄" 이 요구사항이다 */
+}
+.alldap-arm-detail {
+  max-width: 310px;
+  /* 접힘/펼침을 grid 1fr 로 하면 <내용 높이를 몰라도> 부드럽게 열린다.
+     max-height 로 하면 넉넉한 값을 찍어둬야 하고, 그 값보다 글이 길면 잘린다. */
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.65;
+  color: #5a4e4b;
+  text-align: left;
+  transition: grid-template-rows 0.28s ease, opacity 0.22s ease, margin-top 0.28s ease;
+}
+.alldap-arm-detail > * {
+  overflow: hidden;
+}
+.alldap-arm-card:hover .alldap-arm-detail,
+.alldap-arm-card:focus-within .alldap-arm-detail,
+.alldap-arm-card:focus-visible .alldap-arm-detail {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  margin-top: 11px;
+}
+.alldap-arm-card:hover,
+.alldap-arm-card:focus-visible {
+  box-shadow: 0 24px 54px rgba(96, 66, 62, 0.3);
+}
+/* 펼친 판이 옆 판 <아래>로 깔리면 글이 가려진다. 올라오게 한다. */
+.alldap-arm:hover,
+.alldap-arm:focus-within {
+  z-index: 2;
+}
+
+/* ── 레버 ── 마지막 문에 붙어 있다. 당기면 안쪽 로봇이 팔을 넘겨 준다.
+   ⚠️ <무광이다.> 이 화면의 다른 물건들은 하이라이트와 반사가 들어간 매끈한 재질인데,
+      레버만 그렇게 만들면 만질 것이 아니라 구경거리로 보인다. 그라데이션·안쪽 흰 선·
+      번지는 광 없이 단색과 얕은 그림자만 쓴다. */
+.alldap-lever {
+  position: relative;
+  width: 76px;
+  height: 170px;
+  padding: 0;
+  border: 1px solid rgba(150, 116, 110, 0.34);
+  border-radius: 16px;
+  background: #e7d9d5;
+  box-shadow: 0 6px 14px rgba(120, 88, 82, 0.16);
+  cursor: pointer;
+  font-family: inherit;
+}
+/* 파인 홈. 밝게 만들면 튀어나온 것으로 보이므로 <어둡게> 깐다. */
+.alldap-lever-slot {
+  position: absolute;
+  left: 50%;
+  top: 18px;
+  bottom: 18px;
+  width: 17px;
+  margin-left: -8.5px;
+  border-radius: 9px;
+  background: rgba(112, 84, 79, 0.18);
+}
+/* 손잡이. 위(꺼짐) ↔ 아래(켜짐) 두 자리만 오간다. */
+.alldap-lever-grip {
+  position: absolute;
+  left: 50%;
+  top: 20px;
+  width: 48px;
+  height: 42px;
+  margin-left: -24px;
+  border-radius: 11px;
+  background: #8a7873;
+  transition: transform 0.34s cubic-bezier(0.34, 1.35, 0.64, 1), background 0.34s ease;
+}
+/* 손잡이 한가운데의 표시선 — 지금 어느 자리인지 읽히게 한다 */
+.alldap-lever-grip::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 22px;
+  height: 4px;
+  margin: -2px 0 0 -11px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.55);
+}
+.alldap-lever:hover { border-color: rgba(150, 116, 110, 0.55); }
+.alldap-lever.is-on .alldap-lever-grip {
+  transform: translateY(88px);
+  background: #5fb9a7; /* 켜진 자리에서만 민트. 로봇 눈과 같은 계열이다 */
+}
+
+/* ── 인사 팻말 ──────────────────────────────────────────────────────────
+   첫 화면에서 문 뒤의 로봇이 팔을 넘겨 들고 있는 팻말. 스크롤하면 걷어 올린다.
+   ⚠️ 팔이 <둘>인 이유: 넓은 팻말을 가는 팔 하나로 들면 매달린 간판처럼 보인다.
+      양쪽에서 잡아야 "들고 있다" 가 된다.
+   ⚠️ 길이를 px 이 아니라 vh 로 잡는다. px 로 두면 세로가 짧은 화면에서 팻말이
+      문 한가운데를 가리고, 큰 화면에서는 위쪽에 몰린다(그 <몰린 느낌>을 고치는 중이다). */
+.alldap-greet {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  z-index: 4;
+  width: min(62vw, 700px);
+  /* 접힘: 자기 높이만큼 위로. 팻말 길이가 화면마다 달라서 % 여야 한다. */
+  transform: translate(-50%, -104%);
+  transition: transform 0.72s cubic-bezier(0.36, 1.18, 0.5, 1);
+  will-change: transform;
+  pointer-events: none;
+}
+.alldap-greet[data-open="true"] {
+  transform: translate(-50%, 0);
+}
+.alldap-greet-bar {
+  position: absolute;
+  top: 0;
+  width: 26px;
+  /* 팻말이 화면 중앙 쪽으로 내려오게 하는 값이다. 짧으면 위쪽에 몰려 보인다. */
+  height: 34vh;
+  border-radius: 0 0 13px 13px;
+  background: linear-gradient(100deg, #f6ede9, #d9c9c4);
+  box-shadow: inset -5px 0 9px rgba(140, 106, 100, 0.22), 0 6px 16px rgba(120, 88, 82, 0.14);
+}
+/* 팔 끝에서 팻말을 무는 집게 */
+.alldap-greet-bar::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -9px;
+  width: 46px;
+  height: 18px;
+  margin-left: -23px;
+  border-radius: 9px;
+  background: linear-gradient(180deg, #f6efec, #d9cbc6);
+  box-shadow: 0 4px 10px rgba(120, 88, 82, 0.18);
+}
+/* 팻말 = 전광판. 바깥 테두리는 무광 금속 베젤, 안쪽은 LED 패널이다.
+   ⚠️ 글자를 흰색이 아니라 민트로 두는 이유: 로봇 눈·문틈 빛과 같은 색이라
+      "저 안에 있는 그 로봇이 켠 것" 으로 읽힌다. 새 색을 하나 들이면 그 연결이 끊긴다. */
+.alldap-greet-card {
+  margin-top: 34vh; /* 팔 길이와 같아야 팻말이 집게에 물린다 */
+  padding: clamp(22px, 3vh, 38px) clamp(26px, 3.6vw, 58px);
+  border: 12px solid #37302d; /* 무광 짙은 금속 베젤 */
+  border-radius: 20px;
+  background-color: #141110;
+  /* LED 알갱이. 4px 격자의 미세한 점이 <전광판>과 <검은 판>을 가른다. */
+  background-image: radial-gradient(circle, rgba(255, 255, 255, 0.055) 1px, transparent 1px);
+  background-size: 4px 4px;
+  box-shadow:
+    inset 0 0 44px rgba(0, 0, 0, 0.66),
+    0 26px 60px rgba(96, 66, 62, 0.26),
+    0 0 0 1px rgba(120, 88, 82, 0.25);
+  text-align: center;
+}
+.alldap-greet-card h1 {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: clamp(28px, 4vw, 60px);
+  line-height: 1;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #8fe0ce;
+  /* 발광은 <한 겹만, 좁게>. 넓게 번지는 겹을 같이 주면 글자 획 사이가 메워져
+     번들거리기만 하고 오히려 안 읽힌다(실제로 그랬다). */
+  text-shadow: 0 0 7px rgba(126, 208, 192, 0.4);
+}
+.alldap-greet-card .alldap-caret {
+  display: inline-block;
+  width: 8px;
+  height: 0.86em;
+  background: #8fe0ce;
+  box-shadow: 0 0 8px rgba(126, 208, 192, 0.45);
+}
+
+/* ── 로봇 말풍선 ─────────────────────────────────────────────────────────
+   🔴 처음에는 hover 에서만 떴다. 그런데 <그림 위에 마우스를 올려볼 이유가 없어서>
+      아무도 발견하지 못한다 — 데모로 가는 유일한 문인데 숨어 있는 셈이었다.
+      그래서 로봇이 드러나면 <먼저 말을 건다.> hover 는 이제 발견이 아니라 확인이다.
+   ⚠️ 그림 위에 테두리를 그리지 않는 이유: 디오라마가 UI 로 보인다. 말풍선은
+      "이 장면 안의 인물이 하는 말" 이라 장면을 깨지 않으면서 누를 곳을 알려준다. */
+.alldap-robot-hit::after {
+  content: "테스트해보시겠어요?";
+  position: absolute;
+  left: 50%;
+  /* ⚠️ <머리 위>다. 아래(bottom)에 두면 안내 데스크와 "고용하기" 버튼에 가려
+     아예 안 보인다. translate 의 -100% 는 자기 높이만큼 위로 올려 로봇 위에 얹는다. */
+  top: -10px;
+  transform: translate(-50%, -100%);
+  padding: 11px 20px;
+  border-radius: 999px;
+  background: rgba(23, 21, 20, 0.9);
+  color: #fbf7f6;
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  white-space: nowrap;
+  box-shadow: 0 10px 26px rgba(74, 50, 46, 0.28);
+  opacity: 0;
+  /* 지연 0.55s — 로봇이 나타나자마자 말을 걸면 화면 전환의 일부로 묻힌다.
+     한 박자 뒤에 떠야 <로봇이 나를 본 것>으로 읽힌다. */
+  transition: opacity 0.4s ease 0.55s, transform 0.2s ease;
+}
+/* 말풍선 꼬리. 이게 없으면 로봇과 무관하게 떠 있는 칩으로 보인다. */
+.alldap-robot-hit::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: -12px;
+  width: 13px;
+  height: 13px;
+  transform: translate(-50%, -50%) rotate(45deg);
+  background: rgba(23, 21, 20, 0.9);
+  opacity: 0;
+  transition: opacity 0.4s ease 0.55s;
+}
+/* is-live 는 rAF 루프가 붙인다 — 로봇이 다 드러난 뒤에만 말을 건다. */
+.alldap-robot-hit.is-live::after,
+.alldap-robot-hit.is-live::before {
+  opacity: 1;
+}
+.alldap-robot-hit.is-live::after {
+  animation: adBubble 3.2s ease-in-out 1s infinite;
+}
+.alldap-robot-hit:hover::after {
+  /* 눌러도 되는 것이라는 확인. 살짝 커지고 진해진다. */
+  animation: none;
+  background: #171514;
+  transform: translate(-50%, -100%) scale(1.04);
+}
+@keyframes adBubble {
+  0%,
+  100% {
+    transform: translate(-50%, -100%);
+  }
+  50% {
+    transform: translate(-50%, calc(-100% - 5px));
+  }
+}
+
+/* ── 페이지 전환 ────────────────────────────────────────────────────────────
+   `app/layout.tsx`(루트) 의 <ViewTransition> 이 이름표를 이 클래스로 바꿔준다.
+   ⚠️ 처음에는 `(site)/layout.tsx` 에 있었는데 루트로 옮겼다 — 랜딩(`/`)이
+      (site) 그룹 밖에 있어, 경계가 (site) 안에만 있으면 "/" 에서 나가는 이동은
+      출발 쪽에 경계가 없어 전환이 아예 시작되지 않았다(실측 0회). 루트는 모든
+      라우트에 걸쳐 있어 이동의 양쪽 모두에 경계가 생긴다.
+   ⚠️ 선택자가 `.fade` 인 것은 <클래스>라는 뜻이다(요소 이름이 아니라).
+      view-transition-class 규칙이라 점을 빼면 매칭되지 않는다. */
+::view-transition-old(.fade) {
+  animation: adPageFade 0.22s ease both reverse;
+}
+::view-transition-new(.fade) {
+  animation: adPageFade 0.22s ease both;
+}
+@keyframes adPageFade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* 문 열림 — 랜딩에서 나가는 링크에만 걸린다(transitionTypes={["door"]}).
+   문짝 DOM 을 만들지 않는다. 도착 페이지 스냅샷을 가운데 틈만 남기고 가렸다가
+   양옆으로 벌리면, 그게 곧 문이 열리는 그림이다. */
+::view-transition-new(.door) {
+  animation: adDoorOpen 0.4s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+@keyframes adDoorOpen {
+  from {
+    clip-path: inset(0 50% 0 50%);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
 }

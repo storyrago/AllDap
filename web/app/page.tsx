@@ -16,7 +16,8 @@ import { ReceptionHero } from "@/components/ReceptionHero";
  * 부분(<ReceptionHero />)만 클라이언트 컴포넌트로 분리했다.
  *
  * 호출하는 API: 없음. 로그인 없이 보는 화면이다.
- * (히어로 안의 데모 챗봇은 현재 목업이다 — ReceptionHero 의 TODO 참고)
+ * (히어로 안의 로봇을 누르면 실제 채팅이 되는 `/demo` 로 이동한다 — 챗봇은
+ *  더 이상 이 화면 안의 목업이 아니다. ReceptionHero 참고)
  */
 export const metadata: Metadata = {
   title: "AllDap — 문서를 읽고 출처까지 알려주는 한국어 AI 안내 데스크",
