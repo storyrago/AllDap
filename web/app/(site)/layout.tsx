@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { ViewTransition } from "react";
 
 /**
  * 공개 화면(`/auth`, `/features`, `/pricing`, `/faq`) 공통 레이아웃.
@@ -8,6 +7,10 @@ import { ViewTransition } from "react";
  * ⚠️ 랜딩(`/`)은 이 그룹에 <없다>. 히어로가 자기 헤더를 갖고 화면 전체를 쓰는
  *    스크롤 무대라 이 크롬을 씌우면 헤더가 두 개가 된다(app/page.tsx 주석 참고).
  *    그래서 헤더 메뉴가 두 곳에 있다 — 여기와 ReceptionHero. 항목을 바꿀 때는 둘 다 본다.
+ *
+ * ⚠️ 페이지 전환(`<ViewTransition>`) 래퍼는 여기 없다 — 루트(`app/layout.tsx`)로
+ *    옮겼다. 랜딩이 이 그룹 밖이라, 경계를 여기에만 두면 "/" 로 오가는 이동은
+ *    한쪽(도착 쪽)에만 경계가 있어 전환이 시작되지 않는다. 다시 여기로 내리지 말 것.
  */
 
 /** 공개 페이지 메뉴. ReceptionHero 의 NAV 와 항목을 맞춘다. */
@@ -41,23 +44,7 @@ export default function SiteLayout({
         </div>
       </header>
 
-      {/*
-        ── 페이지 전환 ────────────────────────────────────────────────────────
-        `<Link>` 가 붙인 이름표(transitionTypes)를 <CSS 클래스로 바꿔주는> 것이 이 래퍼다.
-        래퍼 없이 이름표만 주면 아무 일도 일어나지 않는다.
-        `default: "fade"` 는 이름표가 없는 이동(= 대부분의 이동) 몫이다.
-        ⚠️ 공식 예제는 여기에 "none" 을 써서 첫 로드에 아무것도 안 걸리게 한다.
-           우리는 페이지끼리의 이동에 페이드가 필요해서 "fade" 로 둔다 —
-           대신 첫 로드에도 걸릴 수 있어서 Step 6 에서 그걸 눈으로 확인한다.
-      */}
-      <main className="flex-1">
-        <ViewTransition
-          enter={{ door: "door", default: "fade" }}
-          exit={{ door: "none", default: "fade" }}
-        >
-          {children}
-        </ViewTransition>
-      </main>
+      <main className="flex-1">{children}</main>
 
       <footer className="border-t border-subtle">
         <div className="mx-auto w-full max-w-5xl px-6 py-6 text-xs text-muted">
