@@ -14,7 +14,7 @@
  * 문서 전환이 즉시다. 코퍼스가 수십 MB 로 커지면 그때 나눠 받는 방식으로 바꿔야 한다.
  */
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { ApiError, api } from "@/lib/api";
 import type { Source } from "@/lib/types";
@@ -92,6 +92,31 @@ export function DemoConsole({ docs }: { docs: CorpusDoc[] }) {
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [pending, setPending] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  /*
+   * 대화 로그 영역. 새 말풍선이 생기면 맨 아래로 내린다.
+   * ref 는 "DOM 요소를 직접 가리키는 손잡이"다 — 스크롤 위치는 React 상태로 표현할 수 없는
+   * 브라우저 동작이라 요소를 직접 만져야 한다.
+   *
+   * ⚠️ 이 화면에서는 sentinel + scrollIntoView 를 쓰면 안 된다.
+   * 위젯(/w/[publicKey])과 대시보드 채팅은 그 방식을 쓰는데, 두 화면은 h-dvh 라
+   * <페이지 자체가 스크롤되지 않아서> scrollIntoView 가 컨테이너만 움직인다.
+   * /demo 는 왼쪽 문서 목록 때문에 페이지가 스크롤되고, scrollIntoView 는
+   * <스크롤 가능한 조상을 전부> 움직인다 — 답변이 올 때마다 창이 통째로 아래로 튄다
+   * (실측 664px, 설계 문서의 대조표 참고). 그래서 컨테이너만 직접 민다.
+   */
+  const logRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = logRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+    /*
+     * 의존성이 둘인 이유.
+     * msgs — 말풍선이 늘어날 때 내려야 한다.
+     * pending — "문서를 찾아보는 중…" 줄이 생겼다 사라지며 로그 높이가 바뀐다.
+     *           msgs 만 넣으면 그 로딩 문구가 스크롤 아래에 숨어, 보낸 직후 화면이
+     *           아무 반응 없는 것처럼 보인다.
+     */
+  }, [msgs, pending]);
 
   /* 같은 대화를 묶는 키. 서버가 conversations 행을 이걸로 이어 붙인다.
      첫 질문 때 한 번 만들고 새로고침 전까지 유지한다. */
@@ -188,9 +213,32 @@ export function DemoConsole({ docs }: { docs: CorpusDoc[] }) {
         <h2 className="text-sm font-bold tracking-[0.14em] text-muted">물어보기</h2>
 
         <div className="mt-4 rounded-xl border border-subtle bg-surface p-4">
-          <div className="flex flex-col gap-3">
+          <div
+            ref={logRef}
+            /*
+             * 대화가 쌓여도 패널이 세로로 자라지 않게 <고정 높이 + 안쪽 스크롤>.
+             * 높이를 막지 않으면 패널이 화면보다 커지고, 그 순간 위 <aside> 의
+             * lg:sticky 가 무력해진다 — sticky 는 붙은 요소가 화면보다 작을 때만 동작한다.
+             *
+             * 28rem(448px)은 눈대중이 아니라 브라우저에서 잰 값이다.
+             * 질문 36px + 답변 177px + 질문 36px + 답변 132px + 간격 36px = 417px (2쌍).
+             *
+             * max-h 는 낮은 화면에서만 줄어드는 안전장치다. 이 패널에서 로그를 뺀 나머지
+             * (제목·제안 버튼·입력창·안내문)가 285px 이고 top-8 이 32px 이라 20rem 을 뺀다.
+             * 이게 없으면 세로가 짧은 화면에서 방금 고친 문제가 그대로 재현된다.
+             */
+            className="flex h-[28rem] max-h-[calc(100vh-20rem)] flex-col gap-3 overflow-y-auto"
+            /*
+             * 스크롤되는 영역은 포커스를 받을 수 없으면 키보드로 굴릴 방법이 아예 없다.
+             * role="log" 은 새로 추가되는 답변을 스크린리더가 읽어주게 한다(암묵적 aria-live).
+             */
+            tabIndex={0}
+            role="log"
+          >
+            {/* m-auto: flex 컨테이너에서 margin:auto 는 남는 공간을 사방으로 나눠 가진다.
+                자식이 이것 하나뿐인 빈 상태에서만 효과가 있고, 말풍선이 생기면 사라진다. */}
             {msgs.length === 0 && (
-              <p className="text-sm leading-relaxed text-muted">
+              <p className="m-auto text-sm leading-relaxed text-muted">
                 왼쪽 문서에 있는 것과 <b className="font-semibold text-foreground">없는 것</b>을
                 하나씩 물어보세요. 두 답이 어떻게 다른지가 이 제품의 전부입니다.
               </p>
