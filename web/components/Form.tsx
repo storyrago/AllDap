@@ -40,10 +40,13 @@ export function TextField({
       {hint && <span className="mb-1 block text-xs text-muted">{hint}</span>}
       <input
         type="text"
+        /* 봇 이름·인사말·거절 문구를 받는 칸이다. 끄지 않으면 브라우저가
+           저장해 둔 이름·주소 같은 개인정보를 여기에 채워 넣는다. */
+        autoComplete="off"
         value={value}
         maxLength={maxLength}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full rounded-md border border-subtle bg-background px-3 py-2 text-sm outline-none focus:border-accent"
+        className="w-full rounded-md border border-subtle bg-background px-3 py-2 text-sm outline-none focus:border-accent focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
       />
     </label>
   );
@@ -69,11 +72,13 @@ export function TextArea({
       <span className="mb-1 block text-sm font-medium">{label}</span>
       {hint && <span className="mb-1 block text-xs text-muted">{hint}</span>}
       <textarea
+        /* 위 TextField 와 같은 이유. 답변 지침·설치 주소를 받는 칸이다. */
+        autoComplete="off"
         value={value}
         rows={rows}
         placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full rounded-md border border-subtle bg-background px-3 py-2 text-sm outline-none focus:border-accent"
+        className="w-full rounded-md border border-subtle bg-background px-3 py-2 text-sm outline-none focus:border-accent focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
       />
     </label>
   );

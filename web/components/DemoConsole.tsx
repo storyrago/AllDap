@@ -42,7 +42,10 @@ const SUGGESTIONS = [
 
 type Msg =
   | { role: "me"; text: string }
-  | { role: "bot"; text: string; sources: Source[]; isFallback: boolean };
+  /* isError 는 <서버가 답을 못 준 것>이고 isFallback 은 <근거가 없어 답하지 않은 것>이다.
+     원인이 다른 두 사실이라 한 모양으로 뭉개면 안 된다 — 이 저장소가 지표에서 같은
+     부류의 실수를 네 번 냈다(AGENTS.md "낸 버그 4건"). 화면에서도 갈라 보여준다. */
+  | { role: "bot"; text: string; sources: Source[]; isFallback: boolean; isError?: boolean };
 
 /**
  * 마크다운을 통째로 렌더하는 라이브러리를 넣지 않는다. 코퍼스가 쓰는 문법이
@@ -159,6 +162,7 @@ export function DemoConsole({ docs }: { docs: CorpusDoc[] }) {
                 : "지금은 답변을 가져오지 못했습니다. 잠시 후 다시 시도해 주세요.",
             sources: [],
             isFallback: false,
+            isError: true,
           },
         ]);
       })
@@ -253,8 +257,23 @@ export function DemoConsole({ docs }: { docs: CorpusDoc[] }) {
                   {m.text}
                 </p>
               ) : (
-                <div key={i} className="rounded-xl rounded-bl-sm bg-background px-3 py-2">
-                  <p className="text-sm leading-relaxed">{m.text}</p>
+                <div
+                  key={i}
+                  /* 오류는 답변과 <같은 모양이면 안 된다.> 그러면 방문자가 서버 장애 문구를
+                     봇의 답변으로 읽는다. 색은 이 저장소의 danger 토큰을 그대로 쓴다. */
+                  className={
+                    m.isError
+                      ? "rounded-xl rounded-bl-sm border border-danger bg-danger-surface px-3 py-2"
+                      : "rounded-xl rounded-bl-sm bg-background px-3 py-2"
+                  }
+                >
+                  {/* role="alert" 로 스크린리더가 즉시 읽게 한다. 놓치면 안 되는 정보다. */}
+                  <p
+                    className={m.isError ? "text-sm leading-relaxed text-danger" : "text-sm leading-relaxed"}
+                    role={m.isError ? "alert" : undefined}
+                  >
+                    {m.text}
+                  </p>
 
                   {/* 거절한 답변에는 <근거가 없다는 사실 자체>를 표시한다.
                       출처가 비어 있는 것을 눈으로 확인하는 게 이 화면의 목적이다. */}
@@ -325,7 +344,10 @@ export function DemoConsole({ docs }: { docs: CorpusDoc[] }) {
               }}
               placeholder="문서에 대해 물어보세요"
               aria-label="질문 입력"
-              className="min-w-0 flex-1 rounded-lg border border-subtle bg-background px-3 py-2 text-sm outline-none focus:border-foreground/40"
+              /* 서버가 2000자를 넘기면 거절한다. 여기서 미리 막으면 왕복 한 번과
+                 "왜 안 되지" 를 아낀다(잘라내는 게 아니라 더 못 치게 한다). */
+              maxLength={2000}
+              className="min-w-0 flex-1 rounded-lg border border-subtle bg-background px-3 py-2 text-sm outline-none focus:border-accent"
             />
             <button
               type="button"

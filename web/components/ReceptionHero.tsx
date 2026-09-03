@@ -48,6 +48,30 @@ const SCENE_H = 900;
 /** 문 하나를 지나는 데 걸리는 시간(ms). <키우면 더 느긋해진다.> */
 const STEP_DURATION_MS = 1150;
 
+/**
+ * 이 탭에서 이미 문을 다 열어봤는가. 값은 쓰지 않고 <있느냐>만 본다.
+ *
+ * sessionStorage 라 탭을 닫으면 사라진다 — 처음 온 사람은 언제나 연출을 전부 보고,
+ * 이미 본 사람만 건너뛴다. localStorage 로 두면 몇 달 뒤에 다시 온 사람도
+ * 이 랜딩의 유일한 볼거리를 영영 못 보게 된다.
+ */
+const SEEN_KEY = "alldap:hero-seen";
+
+/**
+ * 마지막 장면 우상단 메뉴. `(site)` 헤더(web/app/(site)/layout.tsx)와 <같은 항목>이라
+ * 두 화면에서 같은 곳으로 간다.
+ *
+ * ⚠️ 고용하기(/auth)는 넣지 않는다. 가운데 CTA 가 이미 그 자리이고, 같은 목적지를
+ *    한 화면에 두 번 두면 "어느 쪽을 눌러야 하나"가 된다.
+ * ⚠️ 문이 열리는 동안에는 이 메뉴가 보이지 않는다. 구석 메뉴를 걷어낸 결정(f66eff0,
+ *    "기능은 레버가 대신한다")은 그 구간에서 그대로 유지된다.
+ */
+const SCENE_NAV = [
+  { label: "기능", href: "/features" },
+  { label: "요금제", href: "/pricing" },
+  { label: "FAQ", href: "/faq" },
+] as const;
+
 const ACCENT = "#7ED0C0";
 
 /**
@@ -113,9 +137,11 @@ const FEATURES = [
 ] as const;
 
 /**
- * 단계 수 = 문 + 마지막 한 걸음.
- * 마지막 한 걸음이 따로 필요한 이유: 문이 열린 <직후>에 로봇이 저 멀리 있으면
- * "만났다"가 아니라 "보인다"에 그친다. 한 걸음을 더 남겨 다가가야 얼굴이 된다.
+ * 진행도를 나누는 구간 수 = 문 + 마지막 다가감 한 구간.
+ * 마지막 구간이 따로 필요한 이유: 문이 열린 <직후>에 로봇이 저 멀리 있으면
+ * "만났다"가 아니라 "보인다"에 그친다. 한 구간을 더 남겨 다가가야 얼굴이 된다.
+ * ⚠️ 이건 <진행도>의 구간 수이지 사용자가 밟는 걸음 수가 아니다. 그 마지막 구간은
+ *    스크롤 한 번이 아니라 마지막 문 열기와 한 전환으로 이어 붙는다(stepBy 참고).
  */
 const STEPS = DOOR_COUNT + 1;
 
@@ -139,6 +165,10 @@ export function ReceptionHero() {
      (버튼 글자도 이 값에 따라 바뀐다). */
   const [armsOpen, setArmsOpen] = useState(false);
 
+  /* 끝까지 봤다는 사실을 이미 저장했는가. sessionStorage 쓰기는 동기 I/O 라
+     매 프레임 부르면 애니메이션 프레임을 갉아먹는다. 한 번만 쓰려고 둔다. */
+  const seenSavedRef = useRef(false);
+
   const scrollRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<HTMLDivElement>(null);
@@ -154,6 +184,8 @@ export function ReceptionHero() {
   /* 인사 팻말. 스크롤이 시작되면 팔이 걷어 올린다(모양은 CSS 가 정한다). */
   const greetRef = useRef<HTMLDivElement>(null);
   const ctaRef = useRef<HTMLDivElement>(null);
+  /* 우상단 메뉴. CTA 와 <같은 값>으로 함께 나타난다. */
+  const navRef = useRef<HTMLElement>(null);
   const hintRef = useRef<HTMLButtonElement>(null);
   /* 문 레이어들. 매 프레임 DOM 을 직접 만지므로 배열 ref 로 모아 둔다.
      ⚠️ 아래 JSX 의 ref 콜백을 반드시 중괄호로 감쌀 것 —
@@ -171,7 +203,7 @@ export function ReceptionHero() {
   const anim = useRef({
     p: 0,          // 현재 진행도(관성 적용된 값)
     target: 0,     // 스크롤이 알려준 목표 진행도
-    step: 0,       // 지금 몇 번째 문까지 지났나 (0 ~ STEPS). target = step / STEPS
+    step: 0,       // 사용자가 밟은 단계 (0 ~ DOOR_COUNT). target 은 stepBy 참고 — 마지막 단계만 1 이다
     mx: 0, my: 0,  // 커서 현재값
     mtx: 0, mty: 0,// 커서 목표값
     fit: 1,        // 씬(1440×900)을 화면에 채우는 배율
@@ -179,6 +211,10 @@ export function ReceptionHero() {
     touchY: 0,     // 터치 시작 y
     transFrom: 0,  // 이번 전환의 출발 진행도
     transStart: 0, // 전환 시작 시각(ms). 0 이면 전환 중이 아니다
+    /* 이번 전환의 길이(ms). 전환마다 <이동 거리가 다르므로> 고정값을 쓸 수 없다.
+       마지막 전환은 다른 단계의 2배를 움직이는데, 길이를 고정하면 그 구간만 2배 빨라져
+       문이 열리자마자 카메라가 튀어 들어간다. */
+    transMs: STEP_DURATION_MS,
     cloudBase: [] as { own: number; slot: number }[],
     cloudSpan: 2800,
   });
@@ -193,7 +229,11 @@ export function ReceptionHero() {
     // 문이 열리는 <중>에는 입력을 받지 않는다. 안 막으면 트랙패드 한 번에
     // wheel 이벤트가 수십 개 날아와 문 세 개를 한 프레임에 지나쳐 버린다.
     if (a.transStart > 0) return;
-    const next = Math.min(STEPS, Math.max(0, a.step + dir));
+    /* 사용자가 밟는 단계는 <문 개수>까지다. 예전에는 STEPS(= 문 + 1)까지 밟을 수 있어서,
+       고용하기가 뜬 뒤에도 스크롤이 한 번 더 먹으며 카메라만 로봇 앞으로 다가갔다.
+       그 마지막 걸음은 사라진 게 아니라 아래 target 계산에서 <마지막 문 열기와 한
+       전환으로 합쳐졌다>. */
+    const next = Math.min(DOOR_COUNT, Math.max(0, a.step + dir));
     if (next === a.step) return; // 양 끝에서는 더 가지 않는다
     a.step = next;
     /* 화면이 움직이면 팔은 걷는다. 안 그러면 문이 닫히거나 로봇에게 다가가는
@@ -201,7 +241,15 @@ export function ReceptionHero() {
     setArmsOpen(false);
     // <현재 위치>에서 출발한다. 전환 도중에 방향을 바꿔도 튀지 않는다.
     a.transFrom = a.p;
-    a.target = next / STEPS;
+    /* 마지막 단계의 목적지는 문이 다 열리는 지점(REVEAL)이 아니라 <끝>(1)이다.
+       그래야 한 번의 전환 안에서 앞부분은 마지막 문이 열리고(→REVEAL),
+       뒷부분은 카메라가 로봇 앞으로 들어간다(REVEAL→1).
+       ⚠️ STEPS 나 REVEAL 을 바꾸지 않는다 — 문 열림 구간·CTA 페이드·로봇 클릭 조건이
+          전부 그 둘에서 계산되므로 한꺼번에 흔들린다(REVEAL 선언부 주석 참고). */
+    a.target = next === DOOR_COUNT ? 1 : next / STEPS;
+    /* 길이는 이동 거리에 비례시킨다. 한 단계(1/STEPS)를 움직이면 STEP_DURATION_MS 그대로고,
+       마지막 전환은 그 2배를 움직이므로 2배 길어진다 — 눈에 보이는 속도가 같아진다. */
+    a.transMs = STEP_DURATION_MS * Math.abs(a.target - a.transFrom) * STEPS;
     a.transStart = performance.now();
   }, []);
 
@@ -210,8 +258,30 @@ export function ReceptionHero() {
     const stage = stageRef.current;
     if (!el || !stage) return;
 
-    // 흔들림을 싫어하는 사용자 설정을 존중한다. 진폭 0 이면 화면이 완전히 정지한다.
+    /* 흔들림을 싫어하는 사용자 설정을 존중한다. 0 이면 카메라 흔들림의 진폭이 사라지고,
+       전환은 즉시 도착하며, 시간축(t)이 멈춰 저절로 도는 것들(구름·전구·눈)도 선다. */
     anim.current.shake = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 1;
+
+    /* 이 탭에서 이미 끝까지 본 적이 있으면 연출을 재생하지 않고 <마지막 상태로 놓는다>.
+       /demo 에 갔다가 뒤로가기나 로고로 돌아오면 문부터 다시 열어야 했던 것이 이 화면의
+       불편이었다. 전환(transStart)을 걸지 않으므로 애니메이션 없이 그 자리에서 시작한다.
+
+       ⚠️ 읽기를 이 effect <안>에서 하는 이유: 서버에는 sessionStorage 가 없다.
+          초기 렌더에서 읽으면 서버가 그린 HTML 과 브라우저의 첫 렌더가 어긋난다
+          (이 저장소가 로그인 유지에서 같은 부류의 버그를 이미 한 번 냈다). */
+    try {
+      if (sessionStorage.getItem(SEEN_KEY)) {
+        const a = anim.current;
+        a.step = DOOR_COUNT;
+        a.p = 1;
+        a.target = 1;
+        a.transStart = 0; // 전환 중이 아니라 <이미 도착한> 상태다
+        seenSavedRef.current = true; // 이미 저장돼 있으니 다시 쓸 필요가 없다
+      }
+    } catch {
+      /* 사파리 사생활 보호 모드 등에서는 sessionStorage 접근 <자체>가 예외를 던진다.
+         기억을 못 하는 것은 불편일 뿐이라, 연출을 처음부터 보여주고 넘어간다. */
+    }
 
     /* ── 입력: 굴린 만큼 진행도에 쌓는다 ──────────────────────────────────
      * passive:false 로 걸고 preventDefault 한다. 페이지가 실제로 스크롤되면
@@ -238,6 +308,12 @@ export function ReceptionHero() {
     const onKey = (e: KeyboardEvent) => {
       // 입력창에 포커스가 있으면 키는 <글자>다. 가로채면 안 된다.
       if (document.activeElement instanceof HTMLInputElement) return;
+      /* 버튼에 포커스가 있으면 Space 는 <그 버튼을 누르는 키>다. 아래에서 무조건
+         preventDefault 하면 그 기본 동작이 취소되어, 레버가 스페이스로는 안 열리고
+         Enter 로만 열린다(Enter 는 이 핸들러가 아예 안 잡아서 무사했다).
+         ⚠️ Space 만 넘긴다. 모든 키를 넘기면 힌트 버튼(첫 화면에서 Tab 이 가장 먼저
+            닿는 곳)에 포커스가 있는 동안 화살표로 장면을 넘길 수 없게 된다. */
+      if (e.key === " " && document.activeElement instanceof HTMLButtonElement) return;
       const down = e.key === "ArrowDown" || e.key === "PageDown" || e.key === " ";
       const up = e.key === "ArrowUp" || e.key === "PageUp";
       if (!down && !up) return;
@@ -288,16 +364,37 @@ export function ReceptionHero() {
           a.p = a.target;
           a.transStart = 0;
         } else {
-          const k = Math.min(1, (now - a.transStart) / STEP_DURATION_MS);
+          const k = Math.min(1, (now - a.transStart) / a.transMs);
           a.p = a.transFrom + (a.target - a.transFrom) * (k * k * (3 - 2 * k));
           if (k >= 1) a.transStart = 0;
         }
       }
       const p = a.p;
-      const t = now / 1000;
+
+      /* 끝까지 왔다는 사실을 이 탭에 남긴다. 다음에 이 랜딩을 열면 문을 건너뛴다.
+         0.999 로 재는 이유: 이 전환은 지수 보간이 아니라 <정해진 길이를 재생>하는
+         방식이라(위 "줌 전환" 주석 참고) k >= 1 이면 p 는 target 에 정확히 도달한다.
+         그런데도 딱 1 과 비교하지 않는 이유는 부동소수점이다 —
+         transFrom + (target - transFrom) * eased 계산이 반올림 오차로 target 과
+         1비트(ulp) 어긋날 수 있다. 게다가 마지막 프레임까지 기다릴 이유도 없다 —
+         저장은 한 번만 하면 충분하다. */
+      if (!seenSavedRef.current && p >= 0.999) {
+        seenSavedRef.current = true;
+        try {
+          sessionStorage.setItem(SEEN_KEY, "1");
+        } catch {
+          /* 저장 못 해도 이번 방문의 연출에는 영향이 없다. 다음에 다시 문부터 볼 뿐이다. */
+        }
+      }
+      /* 시간축. 구름·전구·눈 깜빡임처럼 <스크롤과 무관하게 저절로 도는> 것들이 이 값을 쓴다.
+         🔴 prefers-reduced-motion 이면 여기서 시간을 멈춘다. 262행 주석이 "진폭 0 이면
+            화면이 완전히 정지한다"고 말했지만 실제로 shake 를 곱하는 곳은 카메라 흔들림뿐이라,
+            그 설정을 켜도 구름이 화면을 가로지르고 전구가 맥동하고 눈이 깜빡였다.
+            0 으로 고정하면 각 요소가 자기 시작 자세에 멈춘다 — 사라지지 않는다. */
+      const t = a.shake === 0 ? 0 : now / 1000;
 
       /* ── 씬의 진행도(pz)는 문의 진행도(p)와 <따로 간다> ──────────────────
-       * 문이 열리는 구간(p 0 → 0.75)에서는 씬이 거의 멈춰 있고, 마지막 문을
+       * 문이 열리는 구간(p 0 → REVEAL(2/3))에서는 씬이 거의 멈춰 있고, 마지막 문을
        * 지난 뒤에야 다가간다. 하나로 묶으면 문이 반쯤 열렸을 때 이미 로봇이
        * 코앞에 와 있어서 "마지막 문에서 만난다"가 성립하지 않는다.
        * 아래에서 <문·카드는 p 를, 씬·카메라·시선은 pz 를> 쓴다. */
@@ -371,21 +468,41 @@ export function ReceptionHero() {
         const f = 1 - smoothstep(0.01, 0.12, p);
         hint.style.opacity = String(f);
         hint.style.pointerEvents = f < 0.1 ? "none" : "auto";
+        /* 🔴 button 인데 visibility 를 안 끄면 안 보이는 채로 Tab 포커스를 받는다.
+           CTA·로봇 링크·레버에서 세 번 겪은 함정의 네 번째다. 예전에는 이 구간을
+           스쳐 지나가고 말아서 안 드러났는데, 이번 브랜치의 복원 기능(SEEN_KEY) 때문에
+           마지막 장면이 재방문자의 <첫 화면>이 되면서 힌트가 숨은 상태가 상주 화면이 됐다 —
+           그만큼 노출이 커져 지금 고친다. */
+        hint.style.visibility = f > 0.01 ? "visible" : "hidden";
       }
+      /* 마지막 문이 열려 로봇이 드러나는 순간에 이미 떠 있어야 한다. 그전까지 화면을
+         진행시키던 힌트는 첫 문에서 사라졌으므로, 여기서 CTA 마저 늦게 뜨면
+         <누를 것도 없고 다음으로 갈 안내도 없는> 정지 화면이 된다.
+         ⚠️ 블록 밖에 둔 이유: 아래 우상단 메뉴가 <같은 값>을 써야 한다.
+            따로 계산하면 둘이 어긋나고, 한쪽만 고쳤을 때 조용히 벌어진다. */
+      const ctaIn = smoothstep(REVEAL - 0.12, REVEAL + 0.01, p);
+
       const cta = ctaRef.current;
       if (cta) {
-        /* 마지막 문이 열려 로봇이 드러나는 순간(p ≈ 0.75)에 이미 떠 있어야 한다.
-           그전까지 화면을 진행시키던 힌트는 첫 문에서 사라졌으므로, 여기서
-           CTA 마저 늦게 뜨면 <누를 것도 없고 다음으로 갈 안내도 없는> 정지 화면이 된다. */
-        const f = smoothstep(REVEAL - 0.12, REVEAL + 0.01, p);
-        cta.style.opacity = String(f);
-        cta.style.pointerEvents = f > 0.6 ? "auto" : "none";
+        cta.style.opacity = String(ctaIn);
+        cta.style.pointerEvents = ctaIn > 0.6 ? "auto" : "none";
         /* ⚠️ pointerEvents 는 클릭만 막는다. opacity 0 인 동안에도 Tab 키는
            이 링크를 그대로 찾아가 포커스를 주고 Enter 로 /auth 까지 이동한다 —
            방문자에게는 아무것도 안 보이는 상태에서 일어나는 이동이라 혼란스럽다.
            레버·로봇 링크와 같은 이유로 visibility 를 함께 토글한다. */
-        cta.style.visibility = f > 0.01 ? "visible" : "hidden";
-        cta.style.transform = `translateX(-50%) translateY(${26 - f * 26}px)`;
+        cta.style.visibility = ctaIn > 0.01 ? "visible" : "hidden";
+        cta.style.transform = `translateX(-50%) translateY(${26 - ctaIn * 26}px)`;
+      }
+
+      /* 우상단 메뉴는 CTA 와 <같은 값>으로 나타난다. */
+      const nav = navRef.current;
+      if (nav) {
+        nav.style.opacity = String(ctaIn);
+        nav.style.pointerEvents = ctaIn > 0.6 ? "auto" : "none";
+        /* 🔴 opacity 만 끄면 안 된다. 안 보이는 상태에서도 Tab 키는 이 링크들을 찾아가
+           포커스를 주고 Enter 로 이동시킨다 — 방문자에게는 아무것도 안 보이는 상태에서
+           일어나는 이동이다. CTA·로봇 링크·레버에서 세 번 겪은 함정이라 함께 토글한다. */
+        nav.style.visibility = ctaIn > 0.01 ? "visible" : "hidden";
       }
 
       /* ── 핸드헬드 카메라: 주파수가 다른 사인 여러 개를 겹친다 ──
@@ -398,13 +515,21 @@ export function ReceptionHero() {
       const roll = (sw(0.17, 0.5, 0.9) + sw(0.47, 0.2, 2.4)) * s;
       const breath = 1 + Math.sin(t * 0.31) * 0.006 * s;
 
-      /* ── 줌: 2단계. 멀리서 데스크 전체 → 카운터 → 로봇 얼굴 ──
+      /* ── 줌: 멀리서 데스크 전체 → 카운터 → 로봇 얼굴, <한 번에 이어서> ──
          원본 3D 는 카메라를 z 로 밀어넣었는데, 여기서는 scale + transform-origin
          이동으로 같은 인상을 만든다. origin 이 함께 움직여야 "다가간다"가 되고,
-         고정하면 그냥 "커진다"로 보인다. */
-      const seg = pz < 0.55 ? pz / 0.55 : (pz - 0.55) / 0.45;
-      const e = seg * seg * (3 - 2 * seg);
-      const zoom = pz < 0.55 ? mix(0.72, 1.42, e) : mix(1.42, 2.15, e);
+         고정하면 그냥 "커진다"로 보인다.
+
+         🔴 예전에는 구간을 둘로 나누고 <각 구간에 이징을 따로> 걸었다
+         (`seg = pz < 0.55 ? pz/0.55 : (pz-0.55)/0.45` 를 매번 smoothstep).
+         그러면 속도가 0 → 1.91 → <0> → 2.43 → 0 이 되어, 카메라가 절반쯤에서
+         완전히 멈췄다가 다시 출발한다 — 한 번 다가가는 게 아니라 "두 번 확대"로 보인다.
+         이징을 전체에 한 번만 걸어 속도가 도중에 0 이 되지 않게 했다.
+
+         ⚠️ 거쳐 가는 화면은 그대로다. 카운터 크기(1.42)를 지나는 지점이
+            pz 0.55 → 0.49 로 옮겨질 뿐이라 "데스크 → 카운터 → 얼굴" 순서는 유지된다.
+            사라진 것은 그 중간의 <멈춤>뿐이다. */
+      const zoom = mix(0.72, 2.15, smoothstep(0, 1, pz));
       const ox = mix(50, 48.6, smoothstep(0, 1, pz));
       const oy = mix(58, 38, smoothstep(0, 1, pz));
       const panY = mix(9, -1, smoothstep(0, 0.7, pz));
@@ -832,6 +957,29 @@ export function ReceptionHero() {
               <span style={{ fontSize: 19, fontWeight: 700, letterSpacing: "0.22em" }}>ALLDAP</span>
               <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 26, height: 22, border: "1.6px solid #171514", borderRadius: 4, fontSize: 11, fontWeight: 700, letterSpacing: "0.02em" }}>AI</span>
             </div>
+
+            {/* 문을 다 열고 로봇을 만난 뒤에야 나타나는 메뉴. 초기값이 숨김인 것은
+                rAF 루프가 첫 프레임을 그리기 전에도 안 보여야 하기 때문이다 —
+                CTA 가 같은 이유로 같은 초기값을 갖고 있다. */}
+            <nav
+              ref={navRef}
+              /* 유리판 모양과 hover·focus 는 globals.css 가 갖는다 — 인라인으로는
+                 :hover 도 :focus-visible 도 쓸 수 없다. CTA 와 같은 방식이다. */
+              className="alldap-scene-nav"
+              style={{ display: "flex", alignItems: "center", gap: 2, opacity: 0, pointerEvents: "none", visibility: "hidden" }}
+            >
+              {SCENE_NAV.map(({ label, href }) => (
+                <Link
+                  key={href}
+                  href={href}
+                  /* 랜딩에서 나가는 링크는 전부 문 열림 전환을 쓴다(로봇·고용하기와 같다). */
+                  transitionTypes={["door"]}
+                  style={{ padding: "8px 16px", borderRadius: 999, color: "#171514", fontSize: 15, fontWeight: 500, textDecoration: "none" }}
+                >
+                  {label}
+                </Link>
+              ))}
+            </nav>
           </header>
 
           {/* ── 인사 팻말 ────────────────────────────────────────────────────
@@ -872,7 +1020,7 @@ export function ReceptionHero() {
                      button 으로 두면 새 탭으로 열기·주소 복사가 안 되고 링크로 안 읽힌다. */}
               <Link
                 href="/auth"
-                /* 위 로봇 링크와 같은 이유다. 랜딩에서 나가는 링크는 둘뿐이고 둘 다 문이다. */
+                /* 위 로봇 링크·우상단 메뉴와 같은 이유다. 랜딩에서 나가는 링크는 전부 문이다. */
                 transitionTypes={["door"]}
                 className="alldap-cta"
                 style={{ display: "flex", alignItems: "center", gap: 14, cursor: "pointer", padding: "26px 48px", borderRadius: 14, background: "#171514", color: "#FFFFFF", fontSize: 21, fontWeight: 600, letterSpacing: "-0.015em", textDecoration: "none", boxShadow: "0 22px 54px rgba(74,50,46,.32)" }}
@@ -892,6 +1040,9 @@ export function ReceptionHero() {
             type="button"
             ref={hintRef}
             onClick={() => stepBy(1)}
+            /* 포커스 표시는 globals.css 가 갖는다 — 인라인으로는 :focus-visible 을 쓸 수 없다.
+               .alldap-cta·.alldap-scene-nav 와 같은 방식이다. */
+            className="alldap-hint"
             style={{ position: "absolute", left: 34, bottom: 34, display: "flex", alignItems: "center", gap: 16, zIndex: 5, cursor: "pointer", border: "none", background: "transparent", font: "inherit", padding: 0, textAlign: "left" }}
           >
             <div style={{ position: "relative", width: 27, height: 42, border: "2px solid rgba(23,21,20,.55)", borderRadius: 14, display: "flex", justifyContent: "center", paddingTop: 8, flex: "none" }}>
