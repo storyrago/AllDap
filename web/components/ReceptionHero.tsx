@@ -57,6 +57,21 @@ const STEP_DURATION_MS = 1150;
  */
 const SEEN_KEY = "alldap:hero-seen";
 
+/**
+ * 마지막 장면 우상단 메뉴. `(site)` 헤더(web/app/(site)/layout.tsx)와 <같은 항목>이라
+ * 두 화면에서 같은 곳으로 간다.
+ *
+ * ⚠️ 고용하기(/auth)는 넣지 않는다. 가운데 CTA 가 이미 그 자리이고, 같은 목적지를
+ *    한 화면에 두 번 두면 "어느 쪽을 눌러야 하나"가 된다.
+ * ⚠️ 문이 열리는 동안에는 이 메뉴가 보이지 않는다. 구석 메뉴를 걷어낸 결정(f66eff0,
+ *    "기능은 레버가 대신한다")은 그 구간에서 그대로 유지된다.
+ */
+const SCENE_NAV = [
+  { label: "기능", href: "/features" },
+  { label: "요금제", href: "/pricing" },
+  { label: "FAQ", href: "/faq" },
+] as const;
+
 const ACCENT = "#7ED0C0";
 
 /**
@@ -169,6 +184,8 @@ export function ReceptionHero() {
   /* 인사 팻말. 스크롤이 시작되면 팔이 걷어 올린다(모양은 CSS 가 정한다). */
   const greetRef = useRef<HTMLDivElement>(null);
   const ctaRef = useRef<HTMLDivElement>(null);
+  /* 우상단 메뉴. CTA 와 <같은 값>으로 함께 나타난다. */
+  const navRef = useRef<HTMLElement>(null);
   const hintRef = useRef<HTMLButtonElement>(null);
   /* 문 레이어들. 매 프레임 DOM 을 직접 만지므로 배열 ref 로 모아 둔다.
      ⚠️ 아래 JSX 의 ref 콜백을 반드시 중괄호로 감쌀 것 —
@@ -440,20 +457,34 @@ export function ReceptionHero() {
         hint.style.opacity = String(f);
         hint.style.pointerEvents = f < 0.1 ? "none" : "auto";
       }
+      /* 마지막 문이 열려 로봇이 드러나는 순간에 이미 떠 있어야 한다. 그전까지 화면을
+         진행시키던 힌트는 첫 문에서 사라졌으므로, 여기서 CTA 마저 늦게 뜨면
+         <누를 것도 없고 다음으로 갈 안내도 없는> 정지 화면이 된다.
+         ⚠️ 블록 밖에 둔 이유: 아래 우상단 메뉴가 <같은 값>을 써야 한다.
+            따로 계산하면 둘이 어긋나고, 한쪽만 고쳤을 때 조용히 벌어진다. */
+      const ctaIn = smoothstep(REVEAL - 0.12, REVEAL + 0.01, p);
+
       const cta = ctaRef.current;
       if (cta) {
-        /* 마지막 문이 열려 로봇이 드러나는 순간(p ≈ 0.75)에 이미 떠 있어야 한다.
-           그전까지 화면을 진행시키던 힌트는 첫 문에서 사라졌으므로, 여기서
-           CTA 마저 늦게 뜨면 <누를 것도 없고 다음으로 갈 안내도 없는> 정지 화면이 된다. */
-        const f = smoothstep(REVEAL - 0.12, REVEAL + 0.01, p);
-        cta.style.opacity = String(f);
-        cta.style.pointerEvents = f > 0.6 ? "auto" : "none";
+        cta.style.opacity = String(ctaIn);
+        cta.style.pointerEvents = ctaIn > 0.6 ? "auto" : "none";
         /* ⚠️ pointerEvents 는 클릭만 막는다. opacity 0 인 동안에도 Tab 키는
            이 링크를 그대로 찾아가 포커스를 주고 Enter 로 /auth 까지 이동한다 —
            방문자에게는 아무것도 안 보이는 상태에서 일어나는 이동이라 혼란스럽다.
            레버·로봇 링크와 같은 이유로 visibility 를 함께 토글한다. */
-        cta.style.visibility = f > 0.01 ? "visible" : "hidden";
-        cta.style.transform = `translateX(-50%) translateY(${26 - f * 26}px)`;
+        cta.style.visibility = ctaIn > 0.01 ? "visible" : "hidden";
+        cta.style.transform = `translateX(-50%) translateY(${26 - ctaIn * 26}px)`;
+      }
+
+      /* 우상단 메뉴는 CTA 와 <같은 값>으로 나타난다. */
+      const nav = navRef.current;
+      if (nav) {
+        nav.style.opacity = String(ctaIn);
+        nav.style.pointerEvents = ctaIn > 0.6 ? "auto" : "none";
+        /* 🔴 opacity 만 끄면 안 된다. 안 보이는 상태에서도 Tab 키는 이 링크들을 찾아가
+           포커스를 주고 Enter 로 이동시킨다 — 방문자에게는 아무것도 안 보이는 상태에서
+           일어나는 이동이다. CTA·로봇 링크·레버에서 세 번 겪은 함정이라 함께 토글한다. */
+        nav.style.visibility = ctaIn > 0.01 ? "visible" : "hidden";
       }
 
       /* ── 핸드헬드 카메라: 주파수가 다른 사인 여러 개를 겹친다 ──
@@ -900,6 +931,26 @@ export function ReceptionHero() {
               <span style={{ fontSize: 19, fontWeight: 700, letterSpacing: "0.22em" }}>ALLDAP</span>
               <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 26, height: 22, border: "1.6px solid #171514", borderRadius: 4, fontSize: 11, fontWeight: 700, letterSpacing: "0.02em" }}>AI</span>
             </div>
+
+            {/* 문을 다 열고 로봇을 만난 뒤에야 나타나는 메뉴. 초기값이 숨김인 것은
+                rAF 루프가 첫 프레임을 그리기 전에도 안 보여야 하기 때문이다 —
+                CTA 가 같은 이유로 같은 초기값을 갖고 있다. */}
+            <nav
+              ref={navRef}
+              style={{ display: "flex", alignItems: "center", gap: 4, opacity: 0, pointerEvents: "none", visibility: "hidden" }}
+            >
+              {SCENE_NAV.map(({ label, href }) => (
+                <Link
+                  key={href}
+                  href={href}
+                  /* 랜딩에서 나가는 링크는 전부 문 열림 전환을 쓴다(로봇·고용하기와 같다). */
+                  transitionTypes={["door"]}
+                  style={{ padding: "8px 14px", borderRadius: 8, color: "#171514", fontSize: 15, fontWeight: 500, textDecoration: "none" }}
+                >
+                  {label}
+                </Link>
+              ))}
+            </nav>
           </header>
 
           {/* ── 인사 팻말 ────────────────────────────────────────────────────
