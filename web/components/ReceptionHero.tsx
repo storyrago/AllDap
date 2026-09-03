@@ -179,6 +179,10 @@ export function ReceptionHero() {
     touchY: 0,     // 터치 시작 y
     transFrom: 0,  // 이번 전환의 출발 진행도
     transStart: 0, // 전환 시작 시각(ms). 0 이면 전환 중이 아니다
+    /* 이번 전환의 길이(ms). 전환마다 <이동 거리가 다르므로> 고정값을 쓸 수 없다.
+       마지막 전환은 다른 단계의 2배를 움직이는데, 길이를 고정하면 그 구간만 2배 빨라져
+       문이 열리자마자 카메라가 튀어 들어간다. */
+    transMs: STEP_DURATION_MS,
     cloudBase: [] as { own: number; slot: number }[],
     cloudSpan: 2800,
   });
@@ -193,7 +197,11 @@ export function ReceptionHero() {
     // 문이 열리는 <중>에는 입력을 받지 않는다. 안 막으면 트랙패드 한 번에
     // wheel 이벤트가 수십 개 날아와 문 세 개를 한 프레임에 지나쳐 버린다.
     if (a.transStart > 0) return;
-    const next = Math.min(STEPS, Math.max(0, a.step + dir));
+    /* 사용자가 밟는 단계는 <문 개수>까지다. 예전에는 STEPS(= 문 + 1)까지 밟을 수 있어서,
+       고용하기가 뜬 뒤에도 스크롤이 한 번 더 먹으며 카메라만 로봇 앞으로 다가갔다.
+       그 마지막 걸음은 사라진 게 아니라 아래 target 계산에서 <마지막 문 열기와 한
+       전환으로 합쳐졌다>. */
+    const next = Math.min(DOOR_COUNT, Math.max(0, a.step + dir));
     if (next === a.step) return; // 양 끝에서는 더 가지 않는다
     a.step = next;
     /* 화면이 움직이면 팔은 걷는다. 안 그러면 문이 닫히거나 로봇에게 다가가는
@@ -201,7 +209,15 @@ export function ReceptionHero() {
     setArmsOpen(false);
     // <현재 위치>에서 출발한다. 전환 도중에 방향을 바꿔도 튀지 않는다.
     a.transFrom = a.p;
-    a.target = next / STEPS;
+    /* 마지막 단계의 목적지는 문이 다 열리는 지점(REVEAL)이 아니라 <끝>(1)이다.
+       그래야 한 번의 전환 안에서 앞부분은 마지막 문이 열리고(→REVEAL),
+       뒷부분은 카메라가 로봇 앞으로 들어간다(REVEAL→1).
+       ⚠️ STEPS 나 REVEAL 을 바꾸지 않는다 — 문 열림 구간·CTA 페이드·로봇 클릭 조건이
+          전부 그 둘에서 계산되므로 한꺼번에 흔들린다(REVEAL 선언부 주석 참고). */
+    a.target = next === DOOR_COUNT ? 1 : next / STEPS;
+    /* 길이는 이동 거리에 비례시킨다. 한 단계(1/STEPS)를 움직이면 STEP_DURATION_MS 그대로고,
+       마지막 전환은 그 2배를 움직이므로 2배 길어진다 — 눈에 보이는 속도가 같아진다. */
+    a.transMs = STEP_DURATION_MS * Math.abs(a.target - a.transFrom) * STEPS;
     a.transStart = performance.now();
   }, []);
 
@@ -288,7 +304,7 @@ export function ReceptionHero() {
           a.p = a.target;
           a.transStart = 0;
         } else {
-          const k = Math.min(1, (now - a.transStart) / STEP_DURATION_MS);
+          const k = Math.min(1, (now - a.transStart) / a.transMs);
           a.p = a.transFrom + (a.target - a.transFrom) * (k * k * (3 - 2 * k));
           if (k >= 1) a.transStart = 0;
         }
