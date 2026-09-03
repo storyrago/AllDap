@@ -348,8 +348,12 @@ export function ReceptionHero() {
       const p = a.p;
 
       /* 끝까지 왔다는 사실을 이 탭에 남긴다. 다음에 이 랜딩을 열면 문을 건너뛴다.
-         0.999 로 재는 이유: p 는 보간으로 다가가므로 정확히 1 이 되는 프레임을
-         기다리면 놓칠 수 있다. */
+         0.999 로 재는 이유: 이 전환은 지수 보간이 아니라 <정해진 길이를 재생>하는
+         방식이라(위 "줌 전환" 주석 참고) k >= 1 이면 p 는 target 에 정확히 도달한다.
+         그런데도 딱 1 과 비교하지 않는 이유는 부동소수점이다 —
+         transFrom + (target - transFrom) * eased 계산이 반올림 오차로 target 과
+         1비트(ulp) 어긋날 수 있다. 게다가 마지막 프레임까지 기다릴 이유도 없다 —
+         저장은 한 번만 하면 충분하다. */
       if (!seenSavedRef.current && p >= 0.999) {
         seenSavedRef.current = true;
         try {
