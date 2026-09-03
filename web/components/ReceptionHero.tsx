@@ -48,6 +48,15 @@ const SCENE_H = 900;
 /** 문 하나를 지나는 데 걸리는 시간(ms). <키우면 더 느긋해진다.> */
 const STEP_DURATION_MS = 1150;
 
+/**
+ * 이 탭에서 이미 문을 다 열어봤는가. 값은 쓰지 않고 <있느냐>만 본다.
+ *
+ * sessionStorage 라 탭을 닫으면 사라진다 — 처음 온 사람은 언제나 연출을 전부 보고,
+ * 이미 본 사람만 건너뛴다. localStorage 로 두면 몇 달 뒤에 다시 온 사람도
+ * 이 랜딩의 유일한 볼거리를 영영 못 보게 된다.
+ */
+const SEEN_KEY = "alldap:hero-seen";
+
 const ACCENT = "#7ED0C0";
 
 /**
@@ -141,6 +150,10 @@ export function ReceptionHero() {
      (버튼 글자도 이 값에 따라 바뀐다). */
   const [armsOpen, setArmsOpen] = useState(false);
 
+  /* 끝까지 봤다는 사실을 이미 저장했는가. sessionStorage 쓰기는 동기 I/O 라
+     매 프레임 부르면 애니메이션 프레임을 갉아먹는다. 한 번만 쓰려고 둔다. */
+  const seenSavedRef = useRef(false);
+
   const scrollRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<HTMLDivElement>(null);
@@ -231,6 +244,27 @@ export function ReceptionHero() {
     // 흔들림을 싫어하는 사용자 설정을 존중한다. 진폭 0 이면 화면이 완전히 정지한다.
     anim.current.shake = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 1;
 
+    /* 이 탭에서 이미 끝까지 본 적이 있으면 연출을 재생하지 않고 <마지막 상태로 놓는다>.
+       /demo 에 갔다가 뒤로가기나 로고로 돌아오면 문부터 다시 열어야 했던 것이 이 화면의
+       불편이었다. 전환(transStart)을 걸지 않으므로 애니메이션 없이 그 자리에서 시작한다.
+
+       ⚠️ 읽기를 이 effect <안>에서 하는 이유: 서버에는 sessionStorage 가 없다.
+          초기 렌더에서 읽으면 서버가 그린 HTML 과 브라우저의 첫 렌더가 어긋난다
+          (이 저장소가 로그인 유지에서 같은 부류의 버그를 이미 한 번 냈다). */
+    try {
+      if (sessionStorage.getItem(SEEN_KEY)) {
+        const a = anim.current;
+        a.step = DOOR_COUNT;
+        a.p = 1;
+        a.target = 1;
+        a.transStart = 0; // 전환 중이 아니라 <이미 도착한> 상태다
+        seenSavedRef.current = true; // 이미 저장돼 있으니 다시 쓸 필요가 없다
+      }
+    } catch {
+      /* 사파리 사생활 보호 모드 등에서는 sessionStorage 접근 <자체>가 예외를 던진다.
+         기억을 못 하는 것은 불편일 뿐이라, 연출을 처음부터 보여주고 넘어간다. */
+    }
+
     /* ── 입력: 굴린 만큼 진행도에 쌓는다 ──────────────────────────────────
      * passive:false 로 걸고 preventDefault 한다. 페이지가 실제로 스크롤되면
      * 화면이 밀려버려서, 이 히어로는 "스크롤"이 아니라 <스크롤 제스처>만 받는다. */
@@ -312,6 +346,18 @@ export function ReceptionHero() {
         }
       }
       const p = a.p;
+
+      /* 끝까지 왔다는 사실을 이 탭에 남긴다. 다음에 이 랜딩을 열면 문을 건너뛴다.
+         0.999 로 재는 이유: p 는 보간으로 다가가므로 정확히 1 이 되는 프레임을
+         기다리면 놓칠 수 있다. */
+      if (!seenSavedRef.current && p >= 0.999) {
+        seenSavedRef.current = true;
+        try {
+          sessionStorage.setItem(SEEN_KEY, "1");
+        } catch {
+          /* 저장 못 해도 이번 방문의 연출에는 영향이 없다. 다음에 다시 문부터 볼 뿐이다. */
+        }
+      }
       const t = now / 1000;
 
       /* ── 씬의 진행도(pz)는 문의 진행도(p)와 <따로 간다> ──────────────────
