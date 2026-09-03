@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 
 import { Evidence, Framed, PageIntro } from "@/components/Evidence";
 
@@ -159,6 +160,17 @@ export default function FeaturesPage() {
           </div>
         </Framed>
       </section>
+
+      {/* 공개 페이지 넷 중 여기만 <다음으로 갈 곳>이 없었다. /pricing 과 /faq 는 /auth 로
+          잇는데, 이 페이지는 "출처가 붙는다 · 모르면 답하지 않는다"를 주장하는 자리라
+          그걸 그대로 실연하는 /demo 로 보내는 편이 맞다. 세 페이지가 서로 다른 다음 행동을 준다.
+          className 은 /pricing 의 CTA 와 같은 것을 쓴다 — 새 스타일을 만들지 않는다. */}
+      <Link
+        href="/demo"
+        className="mt-8 inline-flex rounded-lg bg-foreground px-6 py-3 text-sm font-semibold text-surface"
+      >
+        데모 열어보기
+      </Link>
     </div>
   );
 }

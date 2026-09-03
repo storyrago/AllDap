@@ -121,6 +121,7 @@ export default function AuthPage() {
         <Field label="이메일">
           <input
             type="email"
+            name="email"
             required
             autoComplete="email"
             value={email}
@@ -133,6 +134,7 @@ export default function AuthPage() {
         <Field label="비밀번호">
           <input
             type="password"
+            name="password"
             required
             /* 가입은 새 비밀번호, 로그인은 기존 비밀번호. 브라우저 자동완성 동작이 달라진다. */
             autoComplete={isSignup ? "new-password" : "current-password"}
@@ -149,6 +151,7 @@ export default function AuthPage() {
           <Field label="이름 (선택)">
             <input
               type="text"
+              name="name"
               autoComplete="name"
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -206,4 +209,11 @@ function Field({
 
 /** 입력칸 공통 스타일. 문자열로 빼둬 세 군데가 어긋나지 않게 한다. */
 const inputClass =
-  "w-full rounded-md border border-subtle bg-surface px-3 py-2 text-sm outline-none focus:border-accent";
+  "w-full rounded-md border border-subtle bg-surface px-3 py-2 text-sm outline-none focus:border-accent " +
+  /* 🔴 outline-none 이 브라우저 기본 포커스 링을 지우는데, 대체가 1px 민트 테두리뿐이었다.
+     민트(#7ED0C0)는 흰 배경 대비 1.8:1 이고 <테두리 색이 바뀌는 것>만 보면 1.29:1 이라
+     WCAG 1.4.11 의 3:1 에 한참 못 미친다. 값은 globals.css 의 .alldap-scene-nav
+     a:focus-visible 과 같은 언어이고, outline 은 레이아웃을 밀지 않아 간격이 안 바뀐다.
+     ⚠️ outline-solid 를 빼면 안 된다 — outline-none 이 --tw-outline-style 을 none 으로
+        박아둬서, 폭만 2px 로 줘봐야 선이 안 그려진다. */
+  "focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground";
