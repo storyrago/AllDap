@@ -258,7 +258,8 @@ export function ReceptionHero() {
     const stage = stageRef.current;
     if (!el || !stage) return;
 
-    // 흔들림을 싫어하는 사용자 설정을 존중한다. 진폭 0 이면 화면이 완전히 정지한다.
+    /* 흔들림을 싫어하는 사용자 설정을 존중한다. 0 이면 카메라 흔들림의 진폭이 사라지고,
+       전환은 즉시 도착하며, 시간축(t)이 멈춰 저절로 도는 것들(구름·전구·눈)도 선다. */
     anim.current.shake = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 1;
 
     /* 이 탭에서 이미 끝까지 본 적이 있으면 연출을 재생하지 않고 <마지막 상태로 놓는다>.
@@ -307,6 +308,12 @@ export function ReceptionHero() {
     const onKey = (e: KeyboardEvent) => {
       // 입력창에 포커스가 있으면 키는 <글자>다. 가로채면 안 된다.
       if (document.activeElement instanceof HTMLInputElement) return;
+      /* 버튼에 포커스가 있으면 Space 는 <그 버튼을 누르는 키>다. 아래에서 무조건
+         preventDefault 하면 그 기본 동작이 취소되어, 레버가 스페이스로는 안 열리고
+         Enter 로만 열린다(Enter 는 이 핸들러가 아예 안 잡아서 무사했다).
+         ⚠️ Space 만 넘긴다. 모든 키를 넘기면 힌트 버튼(첫 화면에서 Tab 이 가장 먼저
+            닿는 곳)에 포커스가 있는 동안 화살표로 장면을 넘길 수 없게 된다. */
+      if (e.key === " " && document.activeElement instanceof HTMLButtonElement) return;
       const down = e.key === "ArrowDown" || e.key === "PageDown" || e.key === " ";
       const up = e.key === "ArrowUp" || e.key === "PageUp";
       if (!down && !up) return;
@@ -379,7 +386,12 @@ export function ReceptionHero() {
           /* 저장 못 해도 이번 방문의 연출에는 영향이 없다. 다음에 다시 문부터 볼 뿐이다. */
         }
       }
-      const t = now / 1000;
+      /* 시간축. 구름·전구·눈 깜빡임처럼 <스크롤과 무관하게 저절로 도는> 것들이 이 값을 쓴다.
+         🔴 prefers-reduced-motion 이면 여기서 시간을 멈춘다. 262행 주석이 "진폭 0 이면
+            화면이 완전히 정지한다"고 말했지만 실제로 shake 를 곱하는 곳은 카메라 흔들림뿐이라,
+            그 설정을 켜도 구름이 화면을 가로지르고 전구가 맥동하고 눈이 깜빡였다.
+            0 으로 고정하면 각 요소가 자기 시작 자세에 멈춘다 — 사라지지 않는다. */
+      const t = a.shake === 0 ? 0 : now / 1000;
 
       /* ── 씬의 진행도(pz)는 문의 진행도(p)와 <따로 간다> ──────────────────
        * 문이 열리는 구간(p 0 → REVEAL(2/3))에서는 씬이 거의 멈춰 있고, 마지막 문을
@@ -1028,6 +1040,9 @@ export function ReceptionHero() {
             type="button"
             ref={hintRef}
             onClick={() => stepBy(1)}
+            /* 포커스 표시는 globals.css 가 갖는다 — 인라인으로는 :focus-visible 을 쓸 수 없다.
+               .alldap-cta·.alldap-scene-nav 와 같은 방식이다. */
+            className="alldap-hint"
             style={{ position: "absolute", left: 34, bottom: 34, display: "flex", alignItems: "center", gap: 16, zIndex: 5, cursor: "pointer", border: "none", background: "transparent", font: "inherit", padding: 0, textAlign: "left" }}
           >
             <div style={{ position: "relative", width: 27, height: 42, border: "2px solid rgba(23,21,20,.55)", borderRadius: 14, display: "flex", justifyContent: "center", paddingTop: 8, flex: "none" }}>

@@ -119,6 +119,20 @@ U+2600-26FF,U+3000-303F,U+1100-11FF,U+3130-318F,U+FF01-FF60" \
 
 .alldap-cta { transition: transform 0.18s ease, background 0.18s ease; }
 .alldap-cta:hover { background: #332d2b; transform: translateY(-2px); }
+/* 🔴 포커스 표시. 아래 .alldap-scene-nav a:focus-visible 과 같은 이유·같은 값이다.
+   offset 이 2 가 아니라 3 인 것은 이 버튼만 배경이 잉크색이라, 링이 판 위가 아니라
+   밝은 씬 위에 얹혀야 보이기 때문이다. */
+.alldap-cta:focus-visible {
+  outline: 2px solid #171514;
+  outline-offset: 3px;
+}
+
+/* 화면을 진행시키는 유일한 <눈에 보이는> 안내다. 배경도 테두리도 없는 버튼이라
+   브라우저 기본 윤곽선이 밝은 씬 위에서 특히 안 읽힌다. */
+.alldap-hint:focus-visible {
+  outline: 2px solid #171514;
+  outline-offset: 4px;
+}
 
 /* 마지막 장면 우상단 메뉴.
    ⚠️ 인라인 style 이 아니라 여기 있는 이유: hover·focus-visible 은 인라인으로 표현할 수
@@ -200,6 +214,20 @@ U+2600-26FF,U+3000-303F,U+1100-11FF,U+3130-318F,U+FF01-FF60" \
      못 보게 되므로, 움직임만 걷어낸다. */
   .alldap-arm {
     transition: none;
+  }
+  /* 팻말도 팔과 같다 — 걷히는 것 자체는 남기고 <미끄러지는 연출만> 없앤다.
+     이게 빠져 있으면 짝이 어긋난다: rAF 루프는 이 설정에서 줌을 즉시 도착시키는데
+     (ReceptionHero 의 shake === 0 분기) 팻말만 0.72초 동안 화면 절반을 미끄러진다.
+     이동 거리가 자기 높이(-104%)라 이 화면에서 가장 큰 움직임이다. */
+  .alldap-greet {
+    transition: none;
+  }
+  /* CTA 는 <색만> 바뀌고 떠오르지 않는다. 눌리는 느낌은 남기고 움직임만 없앤다. */
+  .alldap-cta {
+    transition: background 0.18s ease;
+  }
+  .alldap-cta:hover {
+    transform: none;
   }
   /* 화면 전체가 움직이는 연출이라 이 설정을 켠 사용자가 가장 피하고 싶은 것이다.
      이동 자체는 그대로 되고 <애니메이션만> 사라진다. */
@@ -375,6 +403,13 @@ body {
   background: rgba(255, 255, 255, 0.55);
 }
 .alldap-lever:hover { border-color: rgba(150, 116, 110, 0.55); }
+/* 그림만 있는 버튼이라 hover 의 테두리 변화가 옅다. :hover 만 두면 되먹임이
+   마우스 사용자 몫으로만 남는다. 값은 .alldap-scene-nav a:focus-visible 과 같다.
+   (레버 배경이 밝아서 CTA 와 달리 offset 3 이 필요 없다) */
+.alldap-lever:focus-visible {
+  outline: 2px solid #171514;
+  outline-offset: 2px;
+}
 .alldap-lever.is-on .alldap-lever-grip {
   transform: translateY(88px);
   background: #5fb9a7; /* 켜진 자리에서만 민트. 로봇 눈과 같은 계열이다 */
