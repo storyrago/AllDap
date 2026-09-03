@@ -382,7 +382,7 @@ export function ReceptionHero() {
       const t = now / 1000;
 
       /* ── 씬의 진행도(pz)는 문의 진행도(p)와 <따로 간다> ──────────────────
-       * 문이 열리는 구간(p 0 → 0.75)에서는 씬이 거의 멈춰 있고, 마지막 문을
+       * 문이 열리는 구간(p 0 → REVEAL(2/3))에서는 씬이 거의 멈춰 있고, 마지막 문을
        * 지난 뒤에야 다가간다. 하나로 묶으면 문이 반쯤 열렸을 때 이미 로봇이
        * 코앞에 와 있어서 "마지막 문에서 만난다"가 성립하지 않는다.
        * 아래에서 <문·카드는 p 를, 씬·카메라·시선은 pz 를> 쓴다. */
@@ -456,6 +456,12 @@ export function ReceptionHero() {
         const f = 1 - smoothstep(0.01, 0.12, p);
         hint.style.opacity = String(f);
         hint.style.pointerEvents = f < 0.1 ? "none" : "auto";
+        /* 🔴 button 인데 visibility 를 안 끄면 안 보이는 채로 Tab 포커스를 받는다.
+           CTA·로봇 링크·레버에서 세 번 겪은 함정의 네 번째다. 예전에는 이 구간을
+           스쳐 지나가고 말아서 안 드러났는데, 이번 브랜치의 복원 기능(SEEN_KEY) 때문에
+           마지막 장면이 재방문자의 <첫 화면>이 되면서 힌트가 숨은 상태가 상주 화면이 됐다 —
+           그만큼 노출이 커져 지금 고친다. */
+        hint.style.visibility = f > 0.01 ? "visible" : "hidden";
       }
       /* 마지막 문이 열려 로봇이 드러나는 순간에 이미 떠 있어야 한다. 그전까지 화면을
          진행시키던 힌트는 첫 문에서 사라졌으므로, 여기서 CTA 마저 늦게 뜨면
@@ -991,7 +997,7 @@ export function ReceptionHero() {
                      button 으로 두면 새 탭으로 열기·주소 복사가 안 되고 링크로 안 읽힌다. */}
               <Link
                 href="/auth"
-                /* 위 로봇 링크와 같은 이유다. 랜딩에서 나가는 링크는 둘뿐이고 둘 다 문이다. */
+                /* 위 로봇 링크·우상단 메뉴와 같은 이유다. 랜딩에서 나가는 링크는 전부 문이다. */
                 transitionTypes={["door"]}
                 className="alldap-cta"
                 style={{ display: "flex", alignItems: "center", gap: 14, cursor: "pointer", padding: "26px 48px", borderRadius: 14, background: "#171514", color: "#FFFFFF", fontSize: 21, fontWeight: 600, letterSpacing: "-0.015em", textDecoration: "none", boxShadow: "0 22px 54px rgba(74,50,46,.32)" }}
