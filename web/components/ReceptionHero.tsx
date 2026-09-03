@@ -951,7 +951,10 @@ export function ReceptionHero() {
                 CTA 가 같은 이유로 같은 초기값을 갖고 있다. */}
             <nav
               ref={navRef}
-              style={{ display: "flex", alignItems: "center", gap: 4, opacity: 0, pointerEvents: "none", visibility: "hidden" }}
+              /* 유리판 모양과 hover·focus 는 globals.css 가 갖는다 — 인라인으로는
+                 :hover 도 :focus-visible 도 쓸 수 없다. CTA 와 같은 방식이다. */
+              className="alldap-scene-nav"
+              style={{ display: "flex", alignItems: "center", gap: 2, opacity: 0, pointerEvents: "none", visibility: "hidden" }}
             >
               {SCENE_NAV.map(({ label, href }) => (
                 <Link
@@ -959,7 +962,7 @@ export function ReceptionHero() {
                   href={href}
                   /* 랜딩에서 나가는 링크는 전부 문 열림 전환을 쓴다(로봇·고용하기와 같다). */
                   transitionTypes={["door"]}
-                  style={{ padding: "8px 14px", borderRadius: 8, color: "#171514", fontSize: 15, fontWeight: 500, textDecoration: "none" }}
+                  style={{ padding: "8px 16px", borderRadius: 999, color: "#171514", fontSize: 15, fontWeight: 500, textDecoration: "none" }}
                 >
                   {label}
                 </Link>
