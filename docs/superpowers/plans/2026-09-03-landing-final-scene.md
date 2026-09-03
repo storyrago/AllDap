@@ -32,6 +32,12 @@ docker compose up -d && (cd api && ./gradlew bootRun &) && (cd web && npm run de
 > 씬의 transform 이 4초 넘게 한 숫자도 안 변했다. 진행이 안 되면 코드가 아니라
 > **이것부터** 의심할 것. 합성 `WheelEvent`·`KeyboardEvent` 로는 진행되지 않는 것도 확인했다.
 > 진행에는 **실제 키 입력**(`computer` 도구의 `key` 액션, 패인이 앞에 있을 때)을 쓴다.
+>
+> 🔴 **키 이름은 `ArrowDown` / `ArrowUp` 이다.** `Down` / `Up` 으로 보내면 이벤트는 도착하지만
+> `e.key` 가 달라 `onKey` 핸들러의 조건에 안 걸린다(Task 1 에서 실제로 겪었다).
+> 그리고 **새로고침한 뒤에는 화면을 한 번 클릭해 포커스를 준 다음** 키를 보내야 한다.
+> 키가 가끔 한 번 누락되기도 하므로, 눌렀으면 `heroState()` 로 <실제로 진행됐는지 확인>하고
+> 안 됐으면 다시 누를 것. 횟수를 세지 말고 상태를 볼 것.
 
 ---
 
@@ -78,7 +84,7 @@ heroState();
 
 - [ ] **Step 1: 지금 동작을 먼저 확인한다 (변경 전이라 실패해야 한다)**
 
-미리보기 패인을 앞에 두고 `http://localhost:3000` 을 연 뒤, **아래로 두 번** 스크롤한다(실제 키 입력 `Down` 두 번, 사이에 3초씩 기다린다). 그리고 위 `heroState()` 를 실행한다.
+미리보기 패인을 앞에 두고 `http://localhost:3000` 을 연 뒤, **아래로 두 번** 스크롤한다(실제 키 입력 `ArrowDown` 두 번, 사이에 3초씩 기다린다). 그리고 위 `heroState()` 를 실행한다.
 
 Expected (변경 전): 문은 다 열렸지만 카메라가 아직 멀리 있다.
 
@@ -176,7 +182,7 @@ Expected (변경 전): 문은 다 열렸지만 카메라가 아직 멀리 있다
 
 - [ ] **Step 5: 브라우저에서 확인한다**
 
-패인을 앞에 두고 `http://localhost:3000` 을 **새로고침**한 뒤, `Down` 두 번(사이 3초, 마지막 전환은 2.3초 걸린다 — 넉넉히 4초 기다릴 것). 그리고 `heroState()`.
+패인을 앞에 두고 `http://localhost:3000` 을 **새로고침**한 뒤, `ArrowDown` 두 번(사이 3초, 마지막 전환은 2.3초 걸린다 — 넉넉히 4초 기다릴 것). 그리고 `heroState()`.
 
 Expected: **두 번 만에** 카메라가 로봇 앞까지 들어와 있다.
 
@@ -184,11 +190,11 @@ Expected: **두 번 만에** 카메라가 로봇 앞까지 들어와 있다.
 { scale: 2 이상, ctaOpacity: "1", ctaVisibility: "visible", ... }
 ```
 
-이어서 `Down` 을 한 번 더 누르고 3초 뒤 다시 `heroState()`.
+이어서 `ArrowDown` 을 한 번 더 누르고 3초 뒤 다시 `heroState()`.
 
 Expected: `scale` 이 **거의 그대로**다(호흡·손떨림 때문에 ±1% 안쪽으로만 흔들린다). 2배로 뛰면 실패다.
 
-그리고 `Up` 을 한 번 눌러 되돌아가는 것도 본다 — 카메라가 물러나며 문이 닫혀야 하고, 중간에 멈춰 갇히면 안 된다.
+그리고 `ArrowUp` 을 한 번 눌러 되돌아가는 것도 본다 — 카메라가 물러나며 문이 닫혀야 하고, 중간에 멈춰 갇히면 안 된다.
 
 ---
 
@@ -345,7 +351,7 @@ rAF 루프 안, `const p = a.p;` **다음** 줄에 넣는다.
 - [ ] **Step 6: 브라우저에서 확인한다**
 
 1. 콘솔에서 `sessionStorage.clear()` 후 새로고침 → **문부터** 시작한다(`ctaVisibility: "hidden"`).
-2. `Down` 두 번으로 끝까지 간 뒤 `sessionStorage.getItem("alldap:hero-seen")` → `"1"`.
+2. `ArrowDown` 두 번으로 끝까지 간 뒤 `sessionStorage.getItem("alldap:hero-seen")` → `"1"`.
 3. 그 상태에서 **새로고침** → `heroState()` 가 곧바로 `scale` 2 이상, `ctaVisibility: "visible"`.
 4. 로봇을 눌러 `/demo` 로 간 뒤 **뒤로가기** → 문이 아니라 로봇 화면.
 5. 🔴 **첫 프레임에 문이 스치는지 눈으로 본다.** 스펙이 "1프레임 미만일 것으로 보지만 추정"
@@ -554,7 +560,7 @@ const SCENE_NAV = [
 
 1. `sessionStorage.clear()` 후 새로고침 → `heroState()` 로 **`navExists: true`, `navVisibility: "hidden"`, `navFocusable: false`** 를 확인한다.
    🔴 `navFocusable` 이 `true` 면 안 보이는 링크가 Tab 순서에 남아 있다는 뜻이다 — 실패다.
-2. `Down` 두 번으로 끝까지 간 뒤 `heroState()` → `navVisibility: "visible"`, `navFocusable: true`.
+2. `ArrowDown` 두 번으로 끝까지 간 뒤 `heroState()` → `navVisibility: "visible"`, `navFocusable: true`.
 3. 화면에서 우상단에 **기능 · 요금제 · FAQ** 세 개가 CTA 와 함께 떠 있는지 스크린샷으로 확인한다.
 4. **요금제**를 눌러 `/pricing` 으로 이동하는지 확인한다.
 
