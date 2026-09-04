@@ -51,7 +51,10 @@ server:
   #      IP 기준 rate limit 이 요청마다 다른 키가 되어 무력화된다.
   #    그래서 Caddyfile 에 `header_up -Forwarded` 를 넣었다.
   #    ⚠️ 그 한 줄이 이 설정의 전제다. Caddyfile 을 고칠 때 함께 볼 것.
-  #    (caddy 2.7+ 는 불신 상대의 X-Forwarded-* 는 잇지 않고 <버린다>. 그쪽은 원래 안전했다)
+  #    (caddy:2-alpine 이 가리키는 2.11.4 로 실측: 불신 상대의 X-Forwarded-* 는 잇지 않고
+  #     <버린다>. 그쪽은 이 버전에서는 원래 안전했다 — 2.7 의 trusted_proxies 도입이
+  #     원인이라 추정하지만, 그 버전 경계 자체는 확인하지 않았다. 배포 이미지가 2-alpine
+  #     이라 미래 버전이 이 동작을 유지하는지도 매번 실측해야 한다)
   forward-headers-strategy: framework
 
 management:

@@ -150,13 +150,15 @@ public class WidgetController {
      * 맡기고({@code server.forward-headers-strategy: framework}) 여기서는
      * {@code getRemoteAddr()} 만 부른다.
      *
-     * <p>⚠️ <b>다만 이 변경만으로 prod 동작이 바뀌지는 않았다.</b> 실측으로 확인한 사실:
+     * <p>⚠️ <b>다만 이 변경만으로 prod 동작이 바뀌지는 않았다.</b> 실측·소스 확인한 사실:
      * <ul>
-     *   <li>caddy 2.7 부터는 신뢰하지 않는 상대가 보낸 {@code X-Forwarded-*} 를
-     *       잇는(append) 게 아니라 <b>버린다</b>. caddy 2.11.4 로 재현했다.</li>
-     *   <li>{@code framework} 전략의 {@code ForwardedHeaderExtractingRequest} 는
-     *       {@code ForwardedHeaderRemovingRequest} 를 상속해 {@code X-Forwarded-*} 를
-     *       감춘다. 즉 prod 에서는 옛 코드도 이미 {@code getRemoteAddr()} 로 떨어졌다.</li>
+     *   <li>[실측] caddy 2.11.4 컨테이너로 재현한 결과, 신뢰하지 않는 상대가 보낸
+     *       {@code X-Forwarded-*} 는 잇는(append) 게 아니라 <b>버려졌다</b>.
+     *       (더 이른 버전부터인지는 실측하지 않았다 — 아래 참고)</li>
+     *   <li>[소스 확인] {@code framework} 전략의 {@code ForwardedHeaderExtractingRequest} 는
+     *       {@code ForwardedHeaderRemovingRequest} 를 상속해({@code ForwardedHeaderFilter.java:247})
+     *       {@code X-Forwarded-*} 를 감춘다. 즉 prod 에서는 옛 코드도 이미
+     *       {@code getRemoteAddr()} 로 떨어졌다.</li>
      * </ul>
      * 진짜 구멍은 <b>{@code Forwarded}(RFC 7239)</b> 쪽이었다. caddy 는 이 헤더를
      * 건드리지 않고 그대로 넘기는데, Spring 의 {@code ForwardedHeaderUtils} 는
@@ -166,8 +168,10 @@ public class WidgetController {
      * ({@code header_up X-Forwarded-For {remote_host}} 는 caddy 기본값에 기대지 않겠다는
      * 명시이고, {@code trusted_proxies} 를 설정하는 순간부터 실제로 필요해진다)
      *
-     * <p>⚠️ <b>실패 방향이 안전한 쪽으로 바뀐다.</b> 프록시 설정이 빠진 채 배포되면
-     * 예전에는 "제한 없음"(위조 자유)이었지만, 이제는 모든 요청이 프록시 IP 하나로 묶여
+     * <p>⚠️ <b>실패 방향이 안전한 쪽으로 바뀐다.</b> 프록시 설정({@code forward-headers-strategy})이
+     * 빠진 채 배포되면, <b>프록시(caddy) 자체가 없는 경우에만</b> 예전 코드가 "제한 없음"(위조 자유)이었다.
+     * caddy 는 있는데 이 설정만 빠졌다면 옛 코드도 caddy 가 써준 실제 접속 IP 를 읽고 있었으니
+     * 그 경우는 "제한 없음"이 아니었다. 이 조합이 빠지면 이제는 모든 요청이 프록시 IP 하나로 묶여
      * <b>과하게 엄격해진다.</b> 보안 장치는 이 방향으로 실패해야 한다.
      */
     private String clientKey(HttpServletRequest request, String publicKey) {
