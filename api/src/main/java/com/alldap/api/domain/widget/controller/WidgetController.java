@@ -146,18 +146,25 @@ public class WidgetController {
      *
      * <p>🔴 <b>{@code X-Forwarded-For} 를 직접 읽지 않는다.</b> 예전에는 이 메서드가 그 헤더의
      * 맨 앞 항목을 원 클라이언트로 삼았는데, <b>그 값은 클라이언트가 위조할 수 있다.</b>
-     * Caddy 의 기본 동작은 덮어쓰기가 아니라 <b>잇기(append)</b> 라 위조값이 맨 앞에 남고,
-     * 결과적으로 요청마다 헤더만 바꾸면 rate limit 키가 달라져 한도가 무제한이 됐다.
+     * 파싱 규칙을 여기와 프레임워크 두 곳에 두면 어긋나기도 한다. 그래서 프레임워크 한 곳에
+     * 맡기고({@code server.forward-headers-strategy: framework}) 여기서는
+     * {@code getRemoteAddr()} 만 부른다.
      *
-     * <p>이제 방어가 두 겹이다.
-     * <ol>
-     *   <li>{@code Caddyfile} 의 {@code header_up X-Forwarded-For {remote_host}} 가
-     *       클라이언트가 보낸 값을 <b>버리고</b> 실제 접속 IP 로 덮어쓴다.</li>
-     *   <li>{@code server.forward-headers-strategy: framework}(application-prod.yaml)가
-     *       그 헤더를 읽어 {@code getRemoteAddr()} 자체를 실제 클라이언트 IP 로 바꿔준다.</li>
-     * </ol>
-     * 그래서 여기서는 {@code getRemoteAddr()} 만 부르면 된다. 헤더 파싱 규칙이 한 곳
-     * (프레임워크)에만 있게 되어, 두 곳에 두었다가 어긋나는 사고가 원천적으로 사라진다.
+     * <p>⚠️ <b>다만 이 변경만으로 prod 동작이 바뀌지는 않았다.</b> 실측으로 확인한 사실:
+     * <ul>
+     *   <li>caddy 2.7 부터는 신뢰하지 않는 상대가 보낸 {@code X-Forwarded-*} 를
+     *       잇는(append) 게 아니라 <b>버린다</b>. caddy 2.11.4 로 재현했다.</li>
+     *   <li>{@code framework} 전략의 {@code ForwardedHeaderExtractingRequest} 는
+     *       {@code ForwardedHeaderRemovingRequest} 를 상속해 {@code X-Forwarded-*} 를
+     *       감춘다. 즉 prod 에서는 옛 코드도 이미 {@code getRemoteAddr()} 로 떨어졌다.</li>
+     * </ul>
+     * 진짜 구멍은 <b>{@code Forwarded}(RFC 7239)</b> 쪽이었다. caddy 는 이 헤더를
+     * 건드리지 않고 그대로 넘기는데, Spring 의 {@code ForwardedHeaderUtils} 는
+     * {@code X-Forwarded-For} 보다 <b>먼저</b> 이걸 읽는다 → 클라이언트가 매 요청
+     * {@code Forwarded: for=...} 를 바꾸면 rate limit 키가 달라져 한도가 무제한이 된다.
+     * {@code Caddyfile} 의 {@code header_up -Forwarded} 가 그 통로를 막는다.
+     * ({@code header_up X-Forwarded-For {remote_host}} 는 caddy 기본값에 기대지 않겠다는
+     * 명시이고, {@code trusted_proxies} 를 설정하는 순간부터 실제로 필요해진다)
      *
      * <p>⚠️ <b>실패 방향이 안전한 쪽으로 바뀐다.</b> 프록시 설정이 빠진 채 배포되면
      * 예전에는 "제한 없음"(위조 자유)이었지만, 이제는 모든 요청이 프록시 IP 하나로 묶여
