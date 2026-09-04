@@ -159,10 +159,14 @@ public class AiServiceClient {
      *
      * <p>Spring 이 documents 를 직접 DELETE 하지 않는 이유: 쓰기 소유자가 Python 이기 때문이다.
      * 양쪽이 같은 테이블에 쓰기 시작하면 누가 무엇을 바꿨는지 추적이 불가능해진다.
+     *
+     * <p><b>botId 를 함께 보낸다.</b> Python 의 {@code /internal/*} 에는 인증이 없어서,
+     * 그쪽 SQL 의 {@code WHERE ... AND bot_id = %s} 가 봇 간 격리의 마지막 그물이다.
+     * Spring 이 이미 소유권을 확인했지만, 격리를 <b>한 겹으로 두지 않는다.</b>
      */
-    public void deleteDocument(UUID documentId) {
+    public void deleteDocument(UUID botId, UUID documentId) {
         call("문서 삭제", () -> aiServiceRestClient.delete()
-                .uri("/internal/documents/{documentId}", documentId)
+                .uri("/internal/bots/{botId}/documents/{documentId}", botId, documentId)
                 .retrieve()
                 .toBodilessEntity());
 

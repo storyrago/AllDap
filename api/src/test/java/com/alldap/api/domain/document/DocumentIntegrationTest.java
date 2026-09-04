@@ -157,6 +157,20 @@ class DocumentIntegrationTest {
         assertThat(response.body()).isEqualTo(없는문서.body());
     }
 
+    @Test
+    @DisplayName("[보안] 삭제 요청 경로에 botId 가 실려 Python 쪽에서도 봇으로 좁혀진다")
+    void 삭제_요청에_botId_가_실린다() {
+        UUID documentId = insertDocument(botId, "규정.pdf", "ready");
+        aiService.enqueue(204, null);
+
+        request(HttpMethod.DELETE, "/api/documents/" + documentId, ownerToken);
+
+        // /internal/* 에는 인증이 없다. Python 쪽 WHERE 가 두 값으로 좁혀지려면
+        // 경로에 botId 가 반드시 실려야 한다 — 그게 격리의 마지막 그물이다.
+        assertThat(aiService.received().get(0).path())
+                .isEqualTo("/internal/bots/" + botId + "/documents/" + documentId);
+    }
+
     // ── 정상 흐름 ────────────────────────────────────────────────────────
 
     @Test
@@ -258,7 +272,10 @@ class DocumentIntegrationTest {
         assertThat(response.status()).isEqualTo(204);
         assertThat(aiService.received()).hasSize(1);
         assertThat(aiService.received().get(0).method()).isEqualTo("DELETE");
-        assertThat(aiService.received().get(0).path()).isEqualTo("/internal/documents/" + documentId);
+        // 🔴 경로에 botId 가 들어간다. /internal/* 에는 인증이 없어서, doc_id 만으로 DELETE 하면
+        //    <남의 봇 문서를 지울 수 있다.> Python 쪽 WHERE 도 두 값으로 함께 좁힌다.
+        assertThat(aiService.received().get(0).path())
+                .isEqualTo("/internal/bots/" + botId + "/documents/" + documentId);
 
         // ⚠️ 위 세 줄만으로는 "Spring 이 <직접> 지우지 않았다"를 증명하지 못한다 —
         // Spring 이 Python 도 부르고 자기도 DELETE 했다면 위 단언은 그대로 통과한다.
