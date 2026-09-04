@@ -14,12 +14,18 @@
 {$API_DOMAIN} {
 	# Spring 만 바깥에 노출된다. ai-service 는 여기에 없다 — 의도적이다.
 	#
-	# X-Forwarded-For / -Proto 는 Caddy 가 알아서 붙인다. 따로 적지 않는다.
-	# ⚠️ TODO(배포): Spring 이 그 헤더를 믿게 하려면
-	#    `server.forward-headers-strategy: framework` 가 필요하다.
-	#    지금은 위젯 채팅 rate limit 이 <프록시의 IP> 를 보게 되어
-	#    전 세계가 한 바구니에서 한도를 나눠 쓴다. 배포 후 바로 확인할 것.
-	reverse_proxy api:8080
+	# 🔴 클라이언트가 보낸 X-Forwarded-For 를 <버리고> 실제 접속 IP 로 덮어쓴다.
+	#    Caddy 기본값은 덮어쓰기가 아니라 <잇기(append)> 라, 그냥 두면
+	#    클라이언트가 보낸 위조값이 맨 앞에 남는다. 그런데 WidgetController.clientKey()
+	#    와 Spring 의 ForwardedHeaderFilter 는 둘 다 <맨 앞 항목>을 원 클라이언트로 읽는다.
+	#    → 헤더에 아무 IP 나 넣어 매 요청 rate limit 키를 바꾸면 한도가 무제한이 된다.
+	#      인증 없이 열린 유일한 문이고 요청당 LLM 호출 = 실제 돈이라, 곧바로 요금 사고다.
+	#
+	# ⚠️ 이건 "프록시를 반드시 거친다" 는 전제를 <없앤> 것이 아니라 <성립하게 만든> 것이다.
+	#    Spring 컨테이너 포트를 직접 노출하면 다시 뚫린다. compose 에서 api 의 ports 를 열지 말 것.
+	reverse_proxy api:8080 {
+		header_up X-Forwarded-For {remote_host}
+	}
 
 	encode gzip
 

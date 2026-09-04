@@ -144,17 +144,27 @@ public class WidgetController {
      * <p>IP 만 쓰면 한 회사에서 여러 봇을 쓸 때 서로의 한도를 잡아먹고,
      * publicKey 만 쓰면 한 명이 그 봇 전체를 마비시킬 수 있다.
      *
-     * <p>{@code X-Forwarded-For} 를 먼저 보는 이유: 배포하면 앞에 프록시가 서므로
-     * {@code getRemoteAddr()} 이 <b>전부 프록시 IP</b> 가 되어 모든 사용자가 한 덩어리로 세어진다.
-     * ⚠️ 다만 이 헤더는 <b>클라이언트가 위조할 수 있다.</b> 신뢰하려면 프록시가 덮어쓰도록
-     * 설정돼 있어야 한다. TODO(배포): 프록시 설정을 확인하고 신뢰 여부를 확정할 것.
+     * <p>🔴 <b>{@code X-Forwarded-For} 를 직접 읽지 않는다.</b> 예전에는 이 메서드가 그 헤더의
+     * 맨 앞 항목을 원 클라이언트로 삼았는데, <b>그 값은 클라이언트가 위조할 수 있다.</b>
+     * Caddy 의 기본 동작은 덮어쓰기가 아니라 <b>잇기(append)</b> 라 위조값이 맨 앞에 남고,
+     * 결과적으로 요청마다 헤더만 바꾸면 rate limit 키가 달라져 한도가 무제한이 됐다.
+     *
+     * <p>이제 방어가 두 겹이다.
+     * <ol>
+     *   <li>{@code Caddyfile} 의 {@code header_up X-Forwarded-For {remote_host}} 가
+     *       클라이언트가 보낸 값을 <b>버리고</b> 실제 접속 IP 로 덮어쓴다.</li>
+     *   <li>{@code server.forward-headers-strategy: framework}(application-prod.yaml)가
+     *       그 헤더를 읽어 {@code getRemoteAddr()} 자체를 실제 클라이언트 IP 로 바꿔준다.</li>
+     * </ol>
+     * 그래서 여기서는 {@code getRemoteAddr()} 만 부르면 된다. 헤더 파싱 규칙이 한 곳
+     * (프레임워크)에만 있게 되어, 두 곳에 두었다가 어긋나는 사고가 원천적으로 사라진다.
+     *
+     * <p>⚠️ <b>실패 방향이 안전한 쪽으로 바뀐다.</b> 프록시 설정이 빠진 채 배포되면
+     * 예전에는 "제한 없음"(위조 자유)이었지만, 이제는 모든 요청이 프록시 IP 하나로 묶여
+     * <b>과하게 엄격해진다.</b> 보안 장치는 이 방향으로 실패해야 한다.
      */
     private String clientKey(HttpServletRequest request, String publicKey) {
-        String forwarded = request.getHeader("X-Forwarded-For");
-        String ip = (forwarded == null || forwarded.isBlank())
-                ? request.getRemoteAddr()
-                : forwarded.split(",")[0].trim();   // 프록시를 여러 번 거치면 쉼표로 이어진다. 맨 앞이 원 클라이언트
-        return ip + "|" + publicKey;
+        return request.getRemoteAddr() + "|" + publicKey;
     }
 
     // TODO(W2 이후): 위젯 사용자가 👍/👎 를 누를 수 있어야 하는지 결정할 것.

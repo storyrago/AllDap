@@ -43,9 +43,12 @@ server:
   # 요청자 IP 가 전부 <프록시의 IP> 로 보인다.
   # 위젯 채팅의 rate limit 이 IP 기준이라, 그대로 두면 전 세계가
   # 한 바구니에서 한도를 나눠 쓰게 된다.
-  # ⚠️ 프록시를 반드시 거친다는 전제에서만 안전하다. Spring 을 직접 노출하면
-  #    클라이언트가 이 헤더를 위조해 rate limit 을 우회할 수 있다.
-  #    우리 구성은 Caddy 만 포트를 열므로 그 전제가 성립한다.
+  #
+  # 🔴 안전한 전제는 "프록시만 포트를 연다" 가 아니라 <"프록시가 헤더를 덮어쓴다"> 다.
+  #    Caddy 기본값은 잇기(append) 라 클라이언트가 보낸 위조값이 맨 앞에 남고,
+  #    이 설정도 WidgetController 도 맨 앞 항목을 읽는다 = 위조가 그대로 통한다.
+  #    그래서 Caddyfile 에 `header_up X-Forwarded-For {remote_host}` 를 명시했다.
+  #    ⚠️ 그 한 줄이 이 설정의 전제다. Caddyfile 을 고칠 때 함께 볼 것.
   forward-headers-strategy: framework
 
 management:
