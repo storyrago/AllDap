@@ -43,9 +43,18 @@ server:
   # 요청자 IP 가 전부 <프록시의 IP> 로 보인다.
   # 위젯 채팅의 rate limit 이 IP 기준이라, 그대로 두면 전 세계가
   # 한 바구니에서 한도를 나눠 쓰게 된다.
-  # ⚠️ 프록시를 반드시 거친다는 전제에서만 안전하다. Spring 을 직접 노출하면
-  #    클라이언트가 이 헤더를 위조해 rate limit 을 우회할 수 있다.
-  #    우리 구성은 Caddy 만 포트를 열므로 그 전제가 성립한다.
+  #
+  # 🔴 이 전략은 X-Forwarded-For 만 보는 게 아니다. Spring 의 ForwardedHeaderUtils 는
+  #    RFC 7239 `Forwarded` 를 <먼저> 읽는다. 그런데 Caddy 는 X-Forwarded-* 와 달리
+  #    `Forwarded` 를 손대지 않고 그대로 넘긴다(caddy 2.11.4 실측).
+  #    → 그대로 두면 클라이언트가 `Forwarded: for=...` 로 getRemoteAddr() 을 위조할 수 있고,
+  #      IP 기준 rate limit 이 요청마다 다른 키가 되어 무력화된다.
+  #    그래서 Caddyfile 에 `header_up -Forwarded` 를 넣었다.
+  #    ⚠️ 그 한 줄이 이 설정의 전제다. Caddyfile 을 고칠 때 함께 볼 것.
+  #    (caddy:2-alpine 이 가리키는 2.11.4 로 실측: 불신 상대의 X-Forwarded-* 는 잇지 않고
+  #     <버린다>. 그쪽은 이 버전에서는 원래 안전했다 — 2.7 의 trusted_proxies 도입이
+  #     원인이라 추정하지만, 그 버전 경계 자체는 확인하지 않았다. 배포 이미지가 2-alpine
+  #     이라 미래 버전이 이 동작을 유지하는지도 매번 실측해야 한다)
   forward-headers-strategy: framework
 
 management:

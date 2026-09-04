@@ -279,6 +279,27 @@ class WidgetIntegrationTest {
         assertThat(widgetChat(다른키, "다른 봇 질문").status()).isEqualTo(200);
     }
 
+    @Test
+    @DisplayName("[비용] X-Forwarded-For 를 바꿔가며 보내도 채팅 한도를 우회할 수 없다")
+    void 위조된_XFF_로는_한도를_우회할_수_없다() {
+        // 테스트 컨텍스트의 한도는 분당 3회 (TestcontainersConfiguration)
+        for (int i = 0; i < 3; i++) {
+            aiService.enqueue(200, 정상응답);
+            assertThat(widgetChatWithForwardedFor(publicKey, "질문 " + i, "1.2.3." + i).status())
+                    .isEqualTo(200);
+        }
+
+        // 헤더만 바꾼 네 번째 요청. 프록시가 덮어쓰면 같은 클라이언트로 세어져 막혀야 한다.
+        Response blocked = widgetChatWithForwardedFor(publicKey, "우회 시도", "9.9.9.9");
+
+        assertThat(blocked.status()).isEqualTo(429);
+        assertThat(blocked.json().path("error").path("code").asString())
+                .isEqualTo("RATE_LIMIT_EXCEEDED");
+
+        // 막힌 요청이 Python 까지 갔다면 LLM 비용이 이미 나간 뒤다.
+        assertThat(aiService.received()).hasSize(3);
+    }
+
     // ── 테스트 보조 ──────────────────────────────────────────────────────
 
     private void allowOrigin(String origin) {
@@ -297,6 +318,20 @@ class WidgetIntegrationTest {
     private Response widgetChat(String publicKey, String message, String origin) {
         return publicRequest(HttpMethod.POST, "/api/w/" + publicKey + "/chat", origin,
                 new ChatRequest(message, "widget-session-1"));
+    }
+
+    /**
+     * X-Forwarded-For 를 실어 보낸다. 이 헤더는 <b>클라이언트가 위조할 수 있는 값</b>이라,
+     * 신뢰 프록시가 덮어쓰지 않으면 rate limit 키가 매번 달라져 한도가 무의미해진다.
+     */
+    private Response widgetChatWithForwardedFor(String publicKey, String message, String forwardedFor) {
+        EntityExchangeResult<byte[]> result = client.method(HttpMethod.POST)
+                .uri("/api/w/" + publicKey + "/chat")
+                .header("X-Forwarded-For", forwardedFor)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(new ChatRequest(message, "widget-session-1"))
+                .exchange().expectBody().returnResult();
+        return new Response(result.getStatus().value(), decode(result.getResponseBody()));
     }
 
     /** 인증 헤더를 붙이지 않는다 — 위젯은 공개 API 다. */

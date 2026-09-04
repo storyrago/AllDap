@@ -82,6 +82,10 @@ public class WidgetController {
             @RequestHeader(value = HttpHeaders.ORIGIN, required = false) String origin,
             HttpServletRequest servletRequest) {
 
+        // rateLimiter.check 보다 먼저: publicKey 형식 자체를 검증해 키 공간을 제한한다.
+        // (아래 requirePlausiblePublicKey 주석 참고)
+        requirePlausiblePublicKey(publicKey);
+
         // 비용은 없지만 무제한이면 publicKey 를 무작위로 넣어 <존재하는 봇>을 훑을 수 있다.
         rateLimiter.check("widget-config", clientKey(servletRequest, publicKey),
                 widgetProperties.configPerMinute(), Duration.ofMinutes(1));
@@ -105,11 +109,39 @@ public class WidgetController {
             @Valid @RequestBody ChatRequest request,
             HttpServletRequest servletRequest) {
 
+        // rateLimiter.check 보다 먼저: publicKey 형식 자체를 검증해 키 공간을 제한한다.
+        requirePlausiblePublicKey(publicKey);
+
         // 여기가 실질적 방어선이다. 채팅 한 번은 외부 LLM 호출 = 실제 돈이다.
         rateLimiter.check("widget-chat", clientKey(servletRequest, publicKey),
                 widgetProperties.chatPerMinute(), Duration.ofMinutes(1));
 
         return ResponseEntity.ok(chatService.chatAsWidget(publicKey, origin, request));
+    }
+
+    /**
+     * publicKey 의 <b>형식만</b> 본다 — 존재 여부는 여전히 {@code findByPublicKey} 의 몫이고,
+     * 그 호출은 rate limit <b>뒤에</b> 남아 있어야 한다(조회 자체도 제한받아야 하므로).
+     *
+     * <p>🔴 이 검사를 rate limit <b>앞에</b> 두는 이유: {@code publicKey} 는 검증 없이 그대로
+     * rate limit 키({@code clientKey})에 들어간다. 매 요청 다른 무작위 문자열을 publicKey 자리에
+     * 넣으면 요청마다 새 카운터 버킷이 생겨 <b>절대 429 에 걸리지 않고</b>,
+     * {@code RateLimiter.counters} 가 무한히 자란다. 10만 개를 넘기면
+     * {@code RateLimiter} 가 <b>전체 카운터를 통째로 비우는데</b>, 그 순간 다른 모든 봇·방문자의
+     * 카운터도 같이 사라진다 — 공격 경제성은 나쁘지만({@code Bot.generatePublicKey} 형식을
+     * 맞추지 않고 100,000 건을 보내야 한다) 형식만 확인하면 그 통로 자체를 막을 수 있다.
+     *
+     * <p>형식은 {@code Bot.generatePublicKey()} 가 실제로 만드는 값과 맞춘다 —
+     * {@code "pk_"} 접두사 + Base64 URL-safe(패딩 없음) 22자 = 총 25자. 넉넉히 32자까지 허용해
+     * 포맷이 조금 바뀌어도(컬럼 길이 VARCHAR(32)) 깨지지 않게 한다.
+     *
+     * <p>존재 여부를 드러내지 않도록 형식이 틀렸을 때도 {@link ErrorCode#BOT_NOT_FOUND} 를
+     * 던진다 — 실제로 없는 publicKey 를 조회했을 때({@code findByPublicKey}) 나는 것과 같은 코드다.
+     */
+    private void requirePlausiblePublicKey(String publicKey) {
+        if (publicKey == null || publicKey.length() > 32 || !publicKey.startsWith("pk_")) {
+            throw new ApiException(ErrorCode.BOT_NOT_FOUND);
+        }
     }
 
     /**
@@ -144,17 +176,38 @@ public class WidgetController {
      * <p>IP 만 쓰면 한 회사에서 여러 봇을 쓸 때 서로의 한도를 잡아먹고,
      * publicKey 만 쓰면 한 명이 그 봇 전체를 마비시킬 수 있다.
      *
-     * <p>{@code X-Forwarded-For} 를 먼저 보는 이유: 배포하면 앞에 프록시가 서므로
-     * {@code getRemoteAddr()} 이 <b>전부 프록시 IP</b> 가 되어 모든 사용자가 한 덩어리로 세어진다.
-     * ⚠️ 다만 이 헤더는 <b>클라이언트가 위조할 수 있다.</b> 신뢰하려면 프록시가 덮어쓰도록
-     * 설정돼 있어야 한다. TODO(배포): 프록시 설정을 확인하고 신뢰 여부를 확정할 것.
+     * <p>🔴 <b>{@code X-Forwarded-For} 를 직접 읽지 않는다.</b> 예전에는 이 메서드가 그 헤더의
+     * 맨 앞 항목을 원 클라이언트로 삼았는데, <b>그 값은 클라이언트가 위조할 수 있다.</b>
+     * 파싱 규칙을 여기와 프레임워크 두 곳에 두면 어긋나기도 한다. 그래서 프레임워크 한 곳에
+     * 맡기고({@code server.forward-headers-strategy: framework}) 여기서는
+     * {@code getRemoteAddr()} 만 부른다.
+     *
+     * <p>⚠️ <b>다만 이 변경만으로 prod 동작이 바뀌지는 않았다.</b> 실측·소스 확인한 사실:
+     * <ul>
+     *   <li>[실측] caddy 2.11.4 컨테이너로 재현한 결과, 신뢰하지 않는 상대가 보낸
+     *       {@code X-Forwarded-*} 는 잇는(append) 게 아니라 <b>버려졌다</b>.
+     *       (더 이른 버전부터인지는 실측하지 않았다 — 아래 참고)</li>
+     *   <li>[소스 확인] {@code framework} 전략의 {@code ForwardedHeaderExtractingRequest} 는
+     *       {@code ForwardedHeaderRemovingRequest} 를 상속해({@code ForwardedHeaderFilter.java:247})
+     *       {@code X-Forwarded-*} 를 감춘다. 즉 prod 에서는 옛 코드도 이미
+     *       {@code getRemoteAddr()} 로 떨어졌다.</li>
+     * </ul>
+     * 진짜 구멍은 <b>{@code Forwarded}(RFC 7239)</b> 쪽이었다. caddy 는 이 헤더를
+     * 건드리지 않고 그대로 넘기는데, Spring 의 {@code ForwardedHeaderUtils} 는
+     * {@code X-Forwarded-For} 보다 <b>먼저</b> 이걸 읽는다 → 클라이언트가 매 요청
+     * {@code Forwarded: for=...} 를 바꾸면 rate limit 키가 달라져 한도가 무제한이 된다.
+     * {@code Caddyfile} 의 {@code header_up -Forwarded} 가 그 통로를 막는다.
+     * ({@code header_up X-Forwarded-For {remote_host}} 는 caddy 기본값에 기대지 않겠다는
+     * 명시이고, {@code trusted_proxies} 를 설정하는 순간부터 실제로 필요해진다)
+     *
+     * <p>⚠️ <b>실패 방향이 안전한 쪽으로 바뀐다.</b> 프록시 설정({@code forward-headers-strategy})이
+     * 빠진 채 배포되면, <b>프록시(caddy) 자체가 없는 경우에만</b> 예전 코드가 "제한 없음"(위조 자유)이었다.
+     * caddy 는 있는데 이 설정만 빠졌다면 옛 코드도 caddy 가 써준 실제 접속 IP 를 읽고 있었으니
+     * 그 경우는 "제한 없음"이 아니었다. 이 조합이 빠지면 이제는 모든 요청이 프록시 IP 하나로 묶여
+     * <b>과하게 엄격해진다.</b> 보안 장치는 이 방향으로 실패해야 한다.
      */
     private String clientKey(HttpServletRequest request, String publicKey) {
-        String forwarded = request.getHeader("X-Forwarded-For");
-        String ip = (forwarded == null || forwarded.isBlank())
-                ? request.getRemoteAddr()
-                : forwarded.split(",")[0].trim();   // 프록시를 여러 번 거치면 쉼표로 이어진다. 맨 앞이 원 클라이언트
-        return ip + "|" + publicKey;
+        return request.getRemoteAddr() + "|" + publicKey;
     }
 
     // TODO(W2 이후): 위젯 사용자가 👍/👎 를 누를 수 있어야 하는지 결정할 것.
