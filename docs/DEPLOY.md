@@ -213,10 +213,32 @@ free -h && docker stats --no-stream
 
 ## 9. 운영
 
+**갱신 배포는 아래 순서를 반드시 지킬 것.** ⚠️ `pull` → `up -d` 두 줄만 돌리고 끝내지 말 것 —
+`Caddyfile` 은 3번에서 `up -d` 로는 갱신되지 않는다(아래 4번 참고).
+
 ```bash
-# 갱신 배포 (CI 가 latest 를 새로 올린 뒤)
+# 1. git pull — Caddyfile 은 bind mount(docker-compose.prod.yml:94, `./Caddyfile:/etc/caddy/Caddyfile:ro`)라
+#    이미지 안이 아니라 서버 디스크의 파일을 그대로 읽는다. 서버에 새 Caddyfile 이 없으면
+#    아래 어떤 명령을 돌려도 옛 설정 그대로다.
+git pull
+
+# 2. 이미지 갱신
 docker compose -f docker-compose.prod.yml --env-file .env.prod pull
+
+# 3. api·ai-service 갱신 — 이 둘은 반드시 같이 올린다.
+#    문서 삭제 경로가 /internal/documents/{id} → /internal/bots/{botId}/documents/{docId} 로 바뀌었다.
+#    ai-service 가 api 의 healthcheck 를 기다리는 동안(depends_on: condition: service_healthy)
+#    그 사이에 들어온 삭제 요청은 502 AI_SERVICE_ERROR 로 실패할 수 있다 — 데이터는 안 없어지고,
+#    이 4xx 는 서킷브레이커 실패로도 안 세므로(의도된 설계) 서킷이 열리지도 않는다. 재시도하면 된다.
 docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
+
+# 4. 🔴 Caddy 강제 재생성 — 별도 단계다. 절대 건너뛰지 말 것.
+#    bind mount 는 "파일 내용이 바뀌었다"를 Compose 의 재생성 트리거로 보지 않는다.
+#    Compose 는 이미지 다이제스트나 서비스 정의가 바뀔 때만 컨테이너를 다시 만드는데,
+#    caddy:2-alpine 은 태그가 고정 버전이 아니라 그때그때 다른 이미지를 가리킬 수 있어
+#    3번의 pull 이 우연히 새 이미지를 받아오면 재생성되고, 안 받아오면 재생성되지 않는다 —
+#    즉 이 단계를 생략하면 Caddyfile 갱신이 "가끔 되고 가끔 안 된다." 겉으로는 항상 성공한 것처럼 보인다.
+docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --force-recreate caddy
 
 # 롤백 — .env.prod 의 IMAGE_TAG 를 이전 커밋 SHA 로 바꾸고 위를 다시
 docker compose -f docker-compose.prod.yml --env-file .env.prod logs -f api
@@ -224,6 +246,26 @@ docker compose -f docker-compose.prod.yml --env-file .env.prod logs -f api
 # DB 백업은 RDS 자동 스냅샷이 맡는다. 수동 덤프가 필요하면
 docker compose -f docker-compose.prod.yml exec -T api sh -c 'apt-get install -y postgresql-client' # 또는 로컬에서
 ```
+
+### rate limit 종단 확인 (4번 이후 매번 할 것)
+
+`Forwarded` 헤더 제거는 자동 테스트로 검증할 수 없다 — 진짜 Caddy 를 거쳐야만 재현되는
+문제이기 때문이다. 배포마다 직접 확인한다. `$API_DOMAIN` 은 실제 배포 도메인,
+`<publicKey>` 는 아무 봇의 공개 위젯 키로 바꿔서 돌릴 것.
+
+```bash
+for i in $(seq 1 25); do
+  curl -s -o /dev/null -w "%{http_code}\n" \
+    -X POST "https://$API_DOMAIN/api/w/<publicKey>/chat" \
+    -H "Content-Type: application/json" \
+    -H "Forwarded: for=203.0.113.$i" \
+    -d '{"message":"test"}'
+done
+```
+
+25번 중 뒤쪽에서 `429` 가 나와야 정상이다. **25개가 전부 `200`(또는 동일 코드)이면
+4번(`--force-recreate caddy`)이 이번 배포에 실제로 적용되지 않은 것이다** — 컨테이너가
+재생성됐는지(`docker compose ps` 의 `caddy` 생성 시각)부터 다시 확인할 것.
 
 ## 알려진 구멍 (배포 후 처리)
 
@@ -234,7 +276,6 @@ docker compose -f docker-compose.prod.yml exec -T api sh -c 'apt-get install -y 
   수평 확장 시작 시점이 Redis 교체 시점이다.
 - **백그라운드 문서 처리가 FastAPI `BackgroundTasks` 다.** 컨테이너를 재시작하면
   처리 중이던 업로드가 `pending` 에 갇힌다.
-- **재시도·서킷브레이커가 없다.** Python 이 죽으면 <고객 사이트에 박힌> 챗봇이 죽는다.
 - **테스트 질문 생성이 Gemini 무료 등급을 쓴다.** 약관상 입력을 학습에 쓴다 —
   실제 고객 문서를 받기 전에 정리할 것.
 - **프리티어 12개월이 끝나면 월 $23 쯤 나간다.** 만료 전에 정리하거나 옮길 것.

@@ -28,7 +28,6 @@ from .schemas import (
     ConflictStatusRequest,
     DocumentOut,
     EvalQuestionOut,
-    EvalResultOut,
     EvalRunOut,
     GenerateQuestionsRequest,
     UpdateEvalQuestionRequest,
@@ -180,10 +179,27 @@ def list_documents(bot_id: UUID) -> list[DocumentOut]:
 #   "Status code 204 must not have a response body" 로 앱이 뜨지도 못하고 죽는다.
 #   (요청이 올 때가 아니라 라우트를 등록하는 import 시점에 터진다)
 #   response_model=None 은 "애너테이션에서 추론하지 말라"는 명시적 지시다.
-@app.delete("/internal/documents/{doc_id}", status_code=204, response_model=None)
-def delete_document(doc_id: UUID) -> None:
+@app.delete("/internal/bots/{bot_id}/documents/{doc_id}", status_code=204, response_model=None)
+def delete_document(bot_id: UUID, doc_id: UUID) -> None:
+    """문서 1건을 지운다. 청크는 CASCADE 로 함께 사라진다.
+
+    🔴 <b>경로에 bot_id 가 반드시 있어야 한다.</b> `/internal/*` 에는 인증이 없어서
+    doc_id 만으로 DELETE 하면 <남의 봇 문서를 통째로 지울 수 있다.> 그리고 이건
+    되돌릴 수 없다 — chunks 와 doc_conflicts 가 CASCADE 로 함께 사라진다.
+
+    같은 파일의 `update_conflict_status` 가 정확히 이 이유로 bot_id 를 요구한다.
+    여기만 규칙에서 빠져 있었고, 파괴력은 이쪽이 더 크다.
+
+    ⚠️ 소유권을 "검사" 하지 않고 <조회 조건에 못박는다>. 검사 방식은 빠뜨려도
+    테스트가 통과하지만, WHERE 에 못박으면 빠뜨릴 자리가 없다(AGENTS.md 원칙).
+
+    없는 문서를 지워도 204 다(SQL DELETE 가 0행을 지운 것뿐).
+    "없는 문서" 판단은 Spring 이 이 호출 <전에> DB 조회로 끝낸다.
+    """
     with cursor(commit=True) as cur:
-        cur.execute("DELETE FROM documents WHERE id=%s", (doc_id,))  # 청크는 CASCADE
+        cur.execute(
+            "DELETE FROM documents WHERE id=%s AND bot_id=%s", (doc_id, bot_id)
+        )
 
 
 # ── 채팅 ─────────────────────────────────────────────────────────────
@@ -434,35 +450,6 @@ def list_eval_runs(bot_id: UUID) -> list[EvalRunOut]:
             avg_relevancy=float(r[4]) if r[4] is not None else None,
             answered_rate=float(r[5]) if r[5] is not None else None,
             created_at=r[6],
-        )
-        for r in rows
-    ]
-
-
-@app.get("/internal/eval/runs/{run_id}/results", response_model=list[EvalResultOut])
-def list_eval_results(run_id: UUID) -> list[EvalResultOut]:
-    """질문별 채점 결과. <점수 낮은 순>이 기본 정렬이다.
-
-    잘된 답을 구경하는 화면이 아니라 <못한 답을 찾아 고치는 화면>이기 때문이다.
-    NULL(채점 못 함)을 먼저 보여준다 — 그것도 들여다봐야 할 대상이다.
-    """
-    with cursor() as cur:
-        cur.execute(
-            """SELECT r.question_id, q.question, q.ground_truth,
-                      r.generated_answer, r.retrieved_chunks, r.faithfulness, r.relevancy
-                 FROM eval_results r
-                 JOIN eval_questions q ON q.id = r.question_id
-                WHERE r.run_id = %s
-                ORDER BY r.faithfulness ASC NULLS FIRST, r.relevancy ASC NULLS FIRST""",
-            (run_id,),
-        )
-        rows = cur.fetchall()
-    return [
-        EvalResultOut(
-            question_id=r[0], question=r[1], ground_truth=r[2],
-            generated_answer=r[3], retrieved_chunks=r[4] or [],
-            faithfulness=float(r[5]) if r[5] is not None else None,
-            relevancy=float(r[6]) if r[6] is not None else None,
         )
         for r in rows
     ]

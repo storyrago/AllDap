@@ -112,22 +112,6 @@ class EvalRunOut(BaseModel):
     created_at: datetime
 
 
-class EvalResultOut(BaseModel):
-    """질문 1건의 채점 결과.
-
-    faithfulness / relevancy 가 None 이면 <채점하지 못했다>는 뜻이다. 0점이 아니다.
-    (fallback 이라 채점 대상이 아니었거나, 채점 호출이 실패했거나)
-    """
-
-    question_id: UUID
-    question: str
-    ground_truth: str
-    generated_answer: str | None = None
-    retrieved_chunks: list[dict] = []
-    faithfulness: float | None = None
-    relevancy: float | None = None
-
-
 class ConflictOut(BaseModel):
     """문서 간 사실 충돌 1건.
 

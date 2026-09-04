@@ -60,6 +60,31 @@ def check_long_section_still_splits() -> None:
     assert all(len(c.content) <= 200 + 20 for c in chunks), [len(c.content) for c in chunks]
 
 
+def check_line_without_period_is_still_split() -> None:
+    """🔴 마침표가 <없는> 긴 줄도 size 를 넘지 않아야 한다.
+
+    _split_sentences 가 `line.split(".")` 로만 자르기 때문에, 마침표가 없으면
+    조각이 하나뿐이라 <길이 상한이 전혀 적용되지 않았다.> 실측(2026-09-03):
+        "## 긴 표\\n" + "가나다라마바사아자차"*300, size=500  →  청크 길이 [6, 3008]
+
+    3008자 청크는 이 모듈의 존재 이유("청크 하나에 주제 하나")가 정면으로 무너진 것이다.
+    2026-08-03 에 478자 청크에 조항 4개가 들어가 fallback 이 났던 것과 <같은 실패 모드>이고
+    규모가 6배다.
+
+    ⚠️ 바로 위 check_long_section_still_splits 는 이걸 못 잡는다 —
+       그 지문("가나다라마바사아자차. " * 80)은 <마침표를 갖고 있다.>
+
+    현실적인 입력: PDF·HWPX 표 한 행, 마침표 없이 개행·중점으로만 나열된 조항.
+    parsers._parse_docx 가 표를 " | " 로 이어 붙인 줄이 정확히 이 모양이다.
+    """
+    no_period = "## 긴 표\n" + ("가나다라마바사아자차" * 300)
+    chunks = chunk_text(no_period, size=500, overlap=50, split_headings=True)
+    lengths = [len(c.content) for c in chunks]
+    # +1: _pack 이 "꼬리(overlap) + '\n' + 다음 조각" 으로 새 buf 를 시작하므로,
+    # 강제분할로 조각이 정확히 size 자가 되면 그 개행 한 글자만큼 상한을 넘는다.
+    assert all(n <= 500 + 50 + 1 for n in lengths), lengths
+
+
 def check_no_heading_document() -> None:
     """제목이 없는 문서(txt 등)도 깨지지 않는다."""
     plain = "첫 문단입니다.\n\n둘째 문단입니다."
@@ -116,6 +141,7 @@ def main() -> None:
         check_heading_split,
         check_legacy_behavior,
         check_long_section_still_splits,
+        check_line_without_period_is_still_split,
         check_no_heading_document,
         check_index_is_sequential,
         check_idempotent,

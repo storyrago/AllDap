@@ -458,7 +458,7 @@ JSON 필드는 전부 **snake_case**입니다(FastAPI/Pydantic 기본값). Sprin
 | GET | `/health` | — | `{"status":"ok"}` | ✅ 구현됨 |
 | POST | `/internal/bots/{bot_id}/documents` | multipart, 필드명 **`file`** | `202` + `DocumentOut` | ✅ 구현됨 |
 | GET | `/internal/bots/{bot_id}/documents` | — | `DocumentOut[]` | ✅ 구현됨 |
-| DELETE | `/internal/documents/{doc_id}` | — | `204` (본문 없음) | ✅ 구현됨 |
+| DELETE | `/internal/bots/{bot_id}/documents/{doc_id}` | — | `204` (본문 없음) | ✅ 구현됨 |
 | POST | `/internal/chat` | `{bot_id, message, session_id}` | `ChatResponse` | ✅ 구현됨 |
 | — | `/internal/eval/*` | — | — | ❌ **아직 없음. W3에서 구현** |
 
