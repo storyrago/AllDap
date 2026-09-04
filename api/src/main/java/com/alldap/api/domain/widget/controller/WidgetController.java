@@ -82,6 +82,10 @@ public class WidgetController {
             @RequestHeader(value = HttpHeaders.ORIGIN, required = false) String origin,
             HttpServletRequest servletRequest) {
 
+        // rateLimiter.check 보다 먼저: publicKey 형식 자체를 검증해 키 공간을 제한한다.
+        // (아래 requirePlausiblePublicKey 주석 참고)
+        requirePlausiblePublicKey(publicKey);
+
         // 비용은 없지만 무제한이면 publicKey 를 무작위로 넣어 <존재하는 봇>을 훑을 수 있다.
         rateLimiter.check("widget-config", clientKey(servletRequest, publicKey),
                 widgetProperties.configPerMinute(), Duration.ofMinutes(1));
@@ -105,11 +109,39 @@ public class WidgetController {
             @Valid @RequestBody ChatRequest request,
             HttpServletRequest servletRequest) {
 
+        // rateLimiter.check 보다 먼저: publicKey 형식 자체를 검증해 키 공간을 제한한다.
+        requirePlausiblePublicKey(publicKey);
+
         // 여기가 실질적 방어선이다. 채팅 한 번은 외부 LLM 호출 = 실제 돈이다.
         rateLimiter.check("widget-chat", clientKey(servletRequest, publicKey),
                 widgetProperties.chatPerMinute(), Duration.ofMinutes(1));
 
         return ResponseEntity.ok(chatService.chatAsWidget(publicKey, origin, request));
+    }
+
+    /**
+     * publicKey 의 <b>형식만</b> 본다 — 존재 여부는 여전히 {@code findByPublicKey} 의 몫이고,
+     * 그 호출은 rate limit <b>뒤에</b> 남아 있어야 한다(조회 자체도 제한받아야 하므로).
+     *
+     * <p>🔴 이 검사를 rate limit <b>앞에</b> 두는 이유: {@code publicKey} 는 검증 없이 그대로
+     * rate limit 키({@code clientKey})에 들어간다. 매 요청 다른 무작위 문자열을 publicKey 자리에
+     * 넣으면 요청마다 새 카운터 버킷이 생겨 <b>절대 429 에 걸리지 않고</b>,
+     * {@code RateLimiter.counters} 가 무한히 자란다. 10만 개를 넘기면
+     * {@code RateLimiter} 가 <b>전체 카운터를 통째로 비우는데</b>, 그 순간 다른 모든 봇·방문자의
+     * 카운터도 같이 사라진다 — 공격 경제성은 나쁘지만({@code Bot.generatePublicKey} 형식을
+     * 맞추지 않고 100,000 건을 보내야 한다) 형식만 확인하면 그 통로 자체를 막을 수 있다.
+     *
+     * <p>형식은 {@code Bot.generatePublicKey()} 가 실제로 만드는 값과 맞춘다 —
+     * {@code "pk_"} 접두사 + Base64 URL-safe(패딩 없음) 22자 = 총 25자. 넉넉히 32자까지 허용해
+     * 포맷이 조금 바뀌어도(컬럼 길이 VARCHAR(32)) 깨지지 않게 한다.
+     *
+     * <p>존재 여부를 드러내지 않도록 형식이 틀렸을 때도 {@link ErrorCode#BOT_NOT_FOUND} 를
+     * 던진다 — 실제로 없는 publicKey 를 조회했을 때({@code findByPublicKey}) 나는 것과 같은 코드다.
+     */
+    private void requirePlausiblePublicKey(String publicKey) {
+        if (publicKey == null || publicKey.length() > 32 || !publicKey.startsWith("pk_")) {
+            throw new ApiException(ErrorCode.BOT_NOT_FOUND);
+        }
     }
 
     /**
