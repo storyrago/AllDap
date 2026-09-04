@@ -279,7 +279,7 @@ W2에서 Spring이 이 규격에 맞춰 호출합니다. JSON 필드는 전부 *
 | GET | `/health` | — | `{"status":"ok"}` |
 | POST | `/internal/bots/{bot_id}/documents` | multipart, 필드명 **`file`** | `202` + `DocumentOut` |
 | GET | `/internal/bots/{bot_id}/documents` | — | `DocumentOut[]` |
-| DELETE | `/internal/documents/{doc_id}` | — | `204` |
+| DELETE | `/internal/bots/{bot_id}/documents/{doc_id}` | — | `204` |
 | POST | `/internal/chat` | `{bot_id, message(1~2000자), session_id(≤64자)}` | `ChatResponse` |
 
 ```

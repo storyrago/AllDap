@@ -129,7 +129,7 @@ Python 쪽 컨트랙트는 **`ai-service/app/main.py` 와 `schemas.py` 를 직�
 |---|---|---|
 | `POST /api/bots/{botId}/documents` | `POST /internal/bots/{botId}/documents` | multipart, **필드명 `file`**. 202 + `DocumentOut` |
 | `GET /api/bots/{botId}/documents` | `GET /internal/bots/{botId}/documents` | `DocumentOut[]` |
-| `DELETE /api/documents/{docId}` | `DELETE /internal/documents/{docId}` | 204 (본문 없음) |
+| `DELETE /api/documents/{docId}` | `DELETE /internal/bots/{botId}/documents/{docId}` | 204 (본문 없음) |
 | `POST /api/bots/{botId}/chat` (테스트 채팅) | `POST /internal/chat` | `ChatResponse` |
 | `POST /api/w/{publicKey}/chat` (위젯) | `POST /internal/chat` | publicKey → botId 로 바꿔 호출 |
 | `POST/GET /api/bots/{botId}/eval/*` | `POST /internal/eval/*` | ❌ **아직 존재하지 않음 (W3에서 구현)** |

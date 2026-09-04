@@ -28,7 +28,15 @@ public record EvalRunResponse(
         BigDecimal avgRelevancy,
         /** 응답률 (0~1) */
         BigDecimal answeredRate,
-        /** running | completed | failed */
+        /**
+         * running | completed | failed | partial
+         *
+         * <p>{@code partial} 은 <b>일부</b> 질문만 처리되거나 채점됐다는 뜻이다
+         * ({@code processed > 0} 인데 {@code scoredCount < questionCount} 인 경우 등,
+         * 예: 채점 응답 JSON 파싱 실패 1건). {@code processed == 0}(전부 실패)이면 {@code failed} 다.
+         * 🔴 {@code partial} 실행은 <b>다른 설정과 비교하면 안 된다</b> —
+         * 분모가 달라 {@code overallFaithfulness} 가 있어도 다른 실행과 같은 기준이 아니다.
+         */
         String status,
         /** 이 실행의 대상 질문 수. avg_* 를 해석하려면 반드시 필요한 분모. 옛 실행은 null. */
         Integer questionCount,

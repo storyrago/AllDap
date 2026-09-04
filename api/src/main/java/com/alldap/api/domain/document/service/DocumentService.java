@@ -119,7 +119,15 @@ public class DocumentService {
 
         // ⚠️ documentRepository.delete() 를 부르면 안 된다. documents 의 쓰기 소유자는 Python 이다.
         // 실제 DELETE 는 Python 이 하고, chunks 는 DB 의 ON DELETE CASCADE 로 함께 사라진다.
-        aiServiceClient.deleteDocument(document.getId());
+        //
+        // botId 를 함께 넘긴다 — Python 쪽 WHERE 가 두 값으로 좁혀지므로,
+        // 여기 소유권 검사가 언젠가 빠지더라도 남의 봇 문서까지는 지워지지 않는다.
+        //
+        // ⚠️ document.getBot() 은 초기화 안 된 Hibernate 프록시다 — findByIdAndBotUserId 는
+        // fetch join 도 @EntityGraph 도 없고, 이 메서드는 @Transactional 이 아니며 open-in-view 도 false 다.
+        // getId() 만 예외적으로 안전하다 — Hibernate 가 식별자 getter 를 가로채 DB 접근 없이 FK 값을 돌려준다.
+        // getName() 등 다른 필드를 부르면 여기서 LazyInitializationException 이 난다.
+        aiServiceClient.deleteDocument(document.getBot().getId(), document.getId());
         log.info("[delete] 문서 삭제 userId={} documentId={}", userId, documentId);
     }
 
