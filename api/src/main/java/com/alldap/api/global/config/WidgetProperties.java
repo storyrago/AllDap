@@ -12,10 +12,16 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  *                        채팅은 건당 LLM 비용이 들어 낮게 잡는다
  * @param configPerMinute 설정 조회 허용 횟수. 비용은 없지만 무제한이면
  *                        publicKey 를 무작위로 넣어 <b>존재하는 봇을 훑을 수</b> 있다
+ * @param loginPerMinute  같은 IP 기준 분당 로그인 시도 허용 횟수.
+ *                        <p>여기 있는 이유: 이 record 가 이미 "요청 수 제한 값들" 을 담고 있고,
+ *                        값 하나 때문에 새 프로퍼티 클래스를 만들 이유가 없다.
+ *                        (이름이 {@code app.widget} 인 것은 어색하지만, 프리픽스를 바꾸면
+ *                        배포 환경변수까지 함께 바꿔야 해서 그 대가가 더 크다)
  */
 @ConfigurationProperties(prefix = "app.widget")
 public record WidgetProperties(
         int chatPerMinute,
-        int configPerMinute
+        int configPerMinute,
+        int loginPerMinute
 ) {
 }

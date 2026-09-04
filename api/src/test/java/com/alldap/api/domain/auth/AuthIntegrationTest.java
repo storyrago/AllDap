@@ -3,6 +3,7 @@ package com.alldap.api.domain.auth;
 import com.alldap.api.domain.auth.dto.LoginRequest;
 import com.alldap.api.domain.auth.dto.SignupRequest;
 import com.alldap.api.domain.user.repository.UserRepository;
+import com.alldap.api.global.ratelimit.RateLimiter;
 import com.alldap.api.support.IntegrationTest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -75,6 +76,9 @@ class AuthIntegrationTest {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
+    @Autowired
+    RateLimiter rateLimiter;
+
     private RestTestClient client;
 
     @BeforeEach
@@ -91,6 +95,11 @@ class AuthIntegrationTest {
         // 요청을 처리하는 스레드가 테스트 스레드와 다르기 때문이다.
         // 그래서 상태를 남기지 않으려면 이렇게 직접 지워야 한다.
         userRepository.deleteAll();
+
+        // 🔴 RateLimiter 는 <상태를 가진 싱글턴>이다. 안 비우면 앞 테스트의 로그인 호출이
+        //    카운터에 남아, 실행 순서에 따라 나타났다 사라지는 실패가 난다.
+        //    (DocumentIntegrationTest 가 circuitBreaker.reset() 을 부르는 것과 같은 이유)
+        rateLimiter.reset();
     }
 
     // ── 가입 ────────────────────────────────────────────────────────────
@@ -228,6 +237,26 @@ class AuthIntegrationTest {
         assertThat(storedHash).startsWith("$2");
         // 형식만 맞는 게 아니라 실제로 이 비밀번호의 해시가 맞는지까지 확인한다.
         assertThat(passwordEncoder.matches(PASSWORD, storedHash)).isTrue();
+    }
+
+    @Test
+    @DisplayName("[보안] 로그인 시도를 반복하면 429 로 막힌다 (비밀번호 추측 방지)")
+    void 로그인_요청수_제한() {
+        // 테스트 컨텍스트의 한도는 분당 3회 (TestcontainersConfiguration)
+        for (int i = 0; i < 3; i++) {
+            Response 실패 = post("/api/auth/login",
+                    new LoginRequest("nobody@example.com", "wrong-password-1234"));
+            assertThat(실패.status()).isEqualTo(401);
+        }
+
+        Response blocked = post("/api/auth/login",
+                new LoginRequest("nobody@example.com", "wrong-password-1234"));
+
+        // 이 제한이 없으면 유일한 방어가 BCrypt 비용(약 100ms/회)뿐이라
+        // 병렬 커넥션으로 분당 수천 회를 추측할 수 있다.
+        assertThat(blocked.status()).isEqualTo(429);
+        assertThat(blocked.json().path("error").path("code").asString())
+                .isEqualTo("RATE_LIMIT_EXCEEDED");
     }
 
     // ── 테스트 보조 ──────────────────────────────────────────────────────

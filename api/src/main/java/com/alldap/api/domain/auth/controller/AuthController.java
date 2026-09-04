@@ -4,6 +4,9 @@ import com.alldap.api.domain.auth.dto.AuthResponse;
 import com.alldap.api.domain.auth.dto.LoginRequest;
 import com.alldap.api.domain.auth.dto.SignupRequest;
 import com.alldap.api.domain.auth.service.AuthService;
+import com.alldap.api.global.config.WidgetProperties;
+import com.alldap.api.global.ratelimit.RateLimiter;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -12,6 +15,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.time.Duration;
 
 /**
  * 인증 API (PRD §10.1). SecurityConfig 에서 공개 경로로 열려 있다.
@@ -22,6 +27,8 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
     private final AuthService authService;
+    private final RateLimiter rateLimiter;
+    private final WidgetProperties widgetProperties;
 
     /**
      * POST /api/auth/signup — 가입. 성공하면 바로 토큰까지 준다(가입 후 재로그인을 시키지 않는다).
@@ -41,9 +48,19 @@ public class AuthController {
      *
      * <p>200 OK 다. 로그인은 서버에 새 리소스를 만드는 행위가 아니라
      * 이미 있는 계정을 확인하고 토큰을 발급받는 행위이기 때문이다.
+     *
+     * <p><b>요청 수를 제한한다.</b> 이 경로는 {@code permitAll} 이고 실패 카운트도 지연도 없어,
+     * 유일한 방어가 BCrypt 비용(약 100ms/회)뿐이었다. 병렬 커넥션이면 분당 수천 회 추측이 가능하고,
+     * {@code PasswordEncoder.matches} 가 요청당 CPU 를 태우므로 그 자체가 저비용 DoS 이기도 하다.
+     *
+     * <p><b>키는 IP 다.</b> 이메일로 잡으면 남의 계정을 골라 잠글 수 있다(계정 잠금 공격).
+     * ⚠️ 이 IP 가 믿을 수 있으려면 프록시가 X-Forwarded-For 를 덮어써야 한다 — Caddyfile 참고.
      */
     @PostMapping("/login")
-    public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
+    public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request,
+                                              HttpServletRequest servletRequest) {
+        rateLimiter.check("login", servletRequest.getRemoteAddr(),
+                widgetProperties.loginPerMinute(), Duration.ofMinutes(1));
         AuthResponse response = authService.login(request);
         return ResponseEntity.ok(response);
     }

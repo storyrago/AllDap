@@ -89,6 +89,10 @@ app:
     # (제한기의 한계 — 인스턴스가 늘면 각자 세므로 실질 한도가 배가 된다 — 는 RateLimiter 주석 참고)
     chat-per-minute: ${WIDGET_CHAT_PER_MINUTE:20}
     config-per-minute: ${WIDGET_CONFIG_PER_MINUTE:60}
+    # 로그인 시도 제한. 키는 <IP> 다 — 이메일로 잡으면 남의 계정을 잠글 수 있다.
+    # 10 인 근거: 사람이 비밀번호를 잘못 치는 횟수로는 넉넉하고,
+    # 흔한 비밀번호 목록 대입에는 턱없이 부족하다. ⚠️ 실측으로 조정할 값이다.
+    login-per-minute: ${LOGIN_PER_MINUTE:10}
   cors:
     # 관리자 화면(Next.js)이 떠 있는 오리진. 브라우저는 포트가 다르면 다른 출처로 본다.
     # 여러 개면 쉼표로 구분한다. 예: CORS_ALLOWED_ORIGINS=https://a.example.com,https://b.example.com

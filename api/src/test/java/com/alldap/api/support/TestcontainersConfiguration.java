@@ -114,6 +114,7 @@ public class TestcontainersConfiguration {
             // <한도를 넘으면 429 가 나가는가> 이므로 값을 줄여도 검증 내용은 그대로다.
             registry.add("app.widget.chat-per-minute", () -> "3");
             registry.add("app.widget.config-per-minute", () -> "5");
+            registry.add("app.widget.login-per-minute", () -> "3");
         };
     }
 }
