@@ -74,10 +74,15 @@ export default function QualityPage() {
       setRuns(r);
       setError(null);
 
-      /* 최신 <완료된> 실행의 문항별 결과를 미리 받아둔다.
+      /* 최신 실행의 문항별 결과를 미리 받아둔다.
          스트립이 이 화면의 핵심 정보라 펼치기 전에도 보여야 한다.
-         running 인 실행은 아직 결과가 없으므로 건너뛴다. */
-      const newest = r.find((x) => x.status === "completed");
+         ⚠️ 위 MeasurementBand 는 runs[0](최신 실행, 상태 무관)을 그린다.
+         여기서 "completed 인 것 중 최신"을 고르면 band 와 strip 이 <서로 다른 실행>을
+         가리키게 된다 — 예를 들어 오늘 돌린 실행이 partial(문항 하나 채점 실패)이면
+         band 는 오늘 점수를 보여주면서 strip 은 어제의 completed 실행을 그려,
+         "어느 문항이 점수를 깎았는지"를 다른 실행에서 읽게 된다.
+         running 만 예외다 — 아직 결과 행 자체가 없으므로 건너뛴다. */
+      const newest = r[0]?.status === "running" ? undefined : r[0];
       if (newest) {
         setLatestResults(await api.evaluation.getRunResults(botId, newest.id));
       } else {
