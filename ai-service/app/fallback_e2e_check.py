@@ -143,8 +143,9 @@ def main() -> None:
     #
     #    ⚠️ 루프 밖에서 한 번만 읽는다. 질문마다 읽으면 도중에 설정이 바뀔 때
     #       앞뒤 질문이 다른 프롬프트로 판정돼 측정이 섞인다(evalrun 과 같은 이유).
-    system_prompt = build_system_prompt(fetch_bot_prompt(BOT_ID))
-    print(f"봇 지침: {'있음 (프로덕션과 동일하게 결합해 태운다)' if len(system_prompt) > 400 else '없음 (기본 규칙만)'}\n")
+    bot_prompt = fetch_bot_prompt(BOT_ID)
+    system_prompt = build_system_prompt(bot_prompt)
+    print(f"봇 지침: {'있음 (프로덕션과 동일하게 결합해 태운다)' if bot_prompt else '없음 (기본 규칙만)'}\n")
 
     print("── 근거 없는 질문 (fallback 이 나와야 한다) ──")
     fallbacks = 0
