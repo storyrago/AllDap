@@ -42,7 +42,7 @@ import sys
 from uuid import UUID
 
 from .db import close_pool, cursor
-from .generator import generate
+from .generator import build_system_prompt, fetch_bot_prompt, generate
 from .retriever import search
 
 # 평가에 쓰는 봇. 코퍼스 50문서 · 306청크.
@@ -129,12 +129,30 @@ def main() -> None:
     if guard_only:
         return
 
+    # 🔴 프로덕션이 실제로 쓰는 프롬프트를 그대로 태운다.
+    #
+    #    이 검사는 파일 첫머리에서 "1차·2차 방어선이 함께 걸린다" 고 주장하는데,
+    #    봇 지침 없이 기본 SYSTEM_PROMPT 로만 돌면 그 주장이 거짓이 된다.
+    #    main.chat 과 evalrun._execute 는 둘 다 build_system_prompt(fetch_bot_prompt(...)) 를 쓴다.
+    #
+    #    왜 중요한가: 2026-08-13 실측으로 <봇 지침 하나에 fallback 판정이 뚫린다>는 것이
+    #    확인돼 있다(AGENTS.md · bot_prompt_check). 지침에 "모르는 것도 아는 척 답해" 계열
+    #    문구가 들어가면 근거 없는 질문에 is_fallback=False 로 답한다.
+    #    그런데 이 검사는 기본 프롬프트로 돌아 10/10 을 찍는다 —
+    #    <W1 완료 조건이 통과했다고 보고하는데 제품은 뚫려 있는> 상태가 된다.
+    #
+    #    ⚠️ 루프 밖에서 한 번만 읽는다. 질문마다 읽으면 도중에 설정이 바뀔 때
+    #       앞뒤 질문이 다른 프롬프트로 판정돼 측정이 섞인다(evalrun 과 같은 이유).
+    bot_prompt = fetch_bot_prompt(BOT_ID)
+    system_prompt = build_system_prompt(bot_prompt)
+    print(f"봇 지침: {'있음 (프로덕션과 동일하게 결합해 태운다)' if bot_prompt else '없음 (기본 규칙만)'}\n")
+
     print("── 근거 없는 질문 (fallback 이 나와야 한다) ──")
     fallbacks = 0
     cut_by_search = 0
     for question, _ in UNGROUNDED:
         sources = search(BOT_ID, question)
-        answer, is_fallback = generate(question, sources)
+        answer, is_fallback = generate(question, sources, system_prompt=system_prompt)
         fallbacks += is_fallback
         # 근거가 0건이면 1차 방어선(max_distance)이 잡은 것 = LLM 을 아예 안 불렀다.
         line = "✅" if is_fallback else "❌"
@@ -148,7 +166,7 @@ def main() -> None:
     answered = 0
     for question, expect in GROUNDED:
         sources = search(BOT_ID, question)
-        answer, is_fallback = generate(question, sources)
+        answer, is_fallback = generate(question, sources, system_prompt=system_prompt)
         hit = (not is_fallback) and (expect in answer)
         answered += hit
         print(f"  {'✅' if hit else '❌'} {question[:30]:32s} → {answer[:44]}")
@@ -158,7 +176,7 @@ def main() -> None:
     recovered = 0
     for question, expect in KNOWN_RETRIEVAL_GAP:
         sources = search(BOT_ID, question)
-        answer, is_fallback = generate(question, sources)
+        answer, is_fallback = generate(question, sources, system_prompt=system_prompt)
         hit = (not is_fallback) and (expect in answer)
         recovered += hit
         mark = "🎉 이제 답한다 — 목록에서 빼고 GROUNDED 로 옮길 것" if hit else "예상대로 못 찾음"
