@@ -52,7 +52,7 @@ import java.util.function.Supplier;
  * GET    /health                             -> {"status":"ok"}
  * POST   /internal/bots/{bot_id}/documents   multipart 필드명 "file" -> 202 + DocumentOut
  * GET    /internal/bots/{bot_id}/documents   -> DocumentOut[]
- * DELETE /internal/documents/{doc_id}        -> 204 (본문 없음)
+ * DELETE /internal/bots/{bot_id}/documents/{doc_id}  -> 204 (본문 없음)
  * POST   /internal/chat                      {bot_id, message, session_id} -> ChatResponse
  * POST   /internal/bots/{bot_id}/eval/questions/generate  {count} -> EvalQuestionOut[]  (동기)
  * PATCH  /internal/bots/{bot_id}/eval/questions/{question_id}     -> EvalQuestionOut    (부분 수정)

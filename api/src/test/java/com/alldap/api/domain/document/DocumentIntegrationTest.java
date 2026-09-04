@@ -167,6 +167,7 @@ class DocumentIntegrationTest {
 
         // /internal/* 에는 인증이 없다. Python 쪽 WHERE 가 두 값으로 좁혀지려면
         // 경로에 botId 가 반드시 실려야 한다 — 그게 격리의 마지막 그물이다.
+        assertThat(aiService.received()).hasSize(1);
         assertThat(aiService.received().get(0).path())
                 .isEqualTo("/internal/bots/" + botId + "/documents/" + documentId);
     }
