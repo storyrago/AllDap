@@ -32,6 +32,7 @@
 - Modify: `Caddyfile:16-28`
 - Modify: `api/src/main/resources/application-prod.yaml:42-49`
 - Modify: `api/src/main/resources/application.yaml:86-91`
+- Modify: `api/src/main/java/com/alldap/api/domain/widget/controller/WidgetController.java` (`clientKey`)
 - Modify: `api/src/main/java/com/alldap/api/global/config/WidgetProperties.java`
 - Modify: `api/src/main/java/com/alldap/api/domain/auth/controller/AuthController.java`
 - Modify: `api/src/test/java/com/alldap/api/support/TestcontainersConfiguration.java:115-116`
@@ -129,6 +130,45 @@ Expected: `위조된_XFF_로는_한도를_우회할_수_없다` FAIL
 
 > ⚠️ 기존 주석에 있던 TODO(*"`forward-headers-strategy: framework` 가 필요하다. 배포 후 바로 확인할 것"*)는 **지운다.** 이미 `application-prod.yaml:49`에 들어가 있어 낡은 안내다.
 
+- [ ] **Step 4b: `WidgetController.clientKey()` 의 XFF 직접 파싱을 지운다**
+
+🔴 **Caddyfile 만 고치면 이 테스트는 수정 후에도 실패한다.** 통합 테스트는 Caddy 를 거치지 않고 톰캣을 직접 때리므로, `clientKey()` 가 헤더를 직접 읽는 한 위조값을 그대로 본다. 그리고 그건 테스트만의 문제가 아니다 — **파싱 규칙이 Spring 과 Caddy 두 곳에 생기고, 둘 중 하나는 반드시 어긋난다.**
+
+`WidgetController` 의 `clientKey` 메서드를 통째로 교체한다.
+
+```java
+    /**
+     * 제한을 셀 단위. <b>IP 와 publicKey 를 함께</b> 쓴다.
+     *
+     * <p>IP 만 쓰면 한 회사에서 여러 봇을 쓸 때 서로의 한도를 잡아먹고,
+     * publicKey 만 쓰면 한 명이 그 봇 전체를 마비시킬 수 있다.
+     *
+     * <p>🔴 <b>{@code X-Forwarded-For} 를 직접 읽지 않는다.</b> 예전에는 이 메서드가 그 헤더의
+     * 맨 앞 항목을 원 클라이언트로 삼았는데, <b>그 값은 클라이언트가 위조할 수 있다.</b>
+     * Caddy 의 기본 동작은 덮어쓰기가 아니라 <b>잇기(append)</b> 라 위조값이 맨 앞에 남고,
+     * 결과적으로 요청마다 헤더만 바꾸면 rate limit 키가 달라져 한도가 무제한이 됐다.
+     *
+     * <p>이제 방어가 두 겹이다.
+     * <ol>
+     *   <li>{@code Caddyfile} 의 {@code header_up X-Forwarded-For {remote_host}} 가
+     *       클라이언트가 보낸 값을 <b>버리고</b> 실제 접속 IP 로 덮어쓴다.</li>
+     *   <li>{@code server.forward-headers-strategy: framework}(application-prod.yaml)가
+     *       그 헤더를 읽어 {@code getRemoteAddr()} 자체를 실제 클라이언트 IP 로 바꿔준다.</li>
+     * </ol>
+     * 그래서 여기서는 {@code getRemoteAddr()} 만 부르면 된다. 헤더 파싱 규칙이 한 곳
+     * (프레임워크)에만 있게 되어, 두 곳에 두었다가 어긋나는 사고가 원천적으로 사라진다.
+     *
+     * <p>⚠️ <b>실패 방향이 안전한 쪽으로 바뀐다.</b> 프록시 설정이 빠진 채 배포되면
+     * 예전에는 "제한 없음"(위조 자유)이었지만, 이제는 모든 요청이 프록시 IP 하나로 묶여
+     * <b>과하게 엄격해진다.</b> 보안 장치는 이 방향으로 실패해야 한다.
+     */
+    private String clientKey(HttpServletRequest request, String publicKey) {
+        return request.getRemoteAddr() + "|" + publicKey;
+    }
+```
+
+쓰이지 않게 된 import 가 있으면 지운다(`HttpServletRequest` 는 계속 쓴다).
+
 - [ ] **Step 5: `application-prod.yaml`의 틀린 전제 설명을 고친다**
 
 `api/src/main/resources/application-prod.yaml`의 `server:` 블록 주석(42-48행)을 아래로 교체한다. `forward-headers-strategy: framework` 줄 자체는 **그대로 둔다.**
@@ -157,23 +197,32 @@ cd api && ./gradlew test --tests 'WidgetIntegrationTest'
 
 Expected: PASS (전체 클래스)
 
-> ⚠️ **이 테스트는 Spring 계층만 검증한다.** `header_up`은 Caddy 설정이라 Testcontainers가 닿지 않는다. 테스트가 초록불이 된 이유는 `MockMvc`/`RestTestClient` 경로에서 XFF가 `getRemoteAddr()`을 덮지 않기 때문이다. **이 사실을 PR 본문에 그대로 적는다** — 이 저장소는 "통합 테스트 초록불"을 검증으로 착각해 두 번 물렸다(HTTP/2 h2c, iframe Origin).
+이제 통과하는 이유: `clientKey()` 가 `getRemoteAddr()` 만 보는데, 테스트 프로파일에는 `forward-headers-strategy` 가 없어(그건 `application-prod.yaml` 에만 있다) 위조 헤더가 그 값을 바꾸지 못한다 → 네 요청이 같은 클라이언트로 세어져 네 번째가 429다.
+
+> ⚠️ **이 테스트가 검증하는 것은 "Spring 이 헤더를 직접 믿지 않는다" 까지다.** `header_up` 한 줄이 실제로 프록시에서 동작하는지는 Caddy 설정이라 Testcontainers 가 닿지 않는다. **이 구분을 PR 본문에 그대로 적는다** — 이 저장소는 "통합 테스트 초록불"을 검증으로 착각해 두 번 물렸다(HTTP/2 h2c, iframe Origin).
 
 - [ ] **Step 7: 커밋한다**
 
 ```bash
 git add Caddyfile api/src/main/resources/application-prod.yaml \
+        api/src/main/java/com/alldap/api/domain/widget/controller/WidgetController.java \
         api/src/test/java/com/alldap/api/domain/widget/WidgetIntegrationTest.java
 git commit -m "$(cat <<'EOF'
 fix: 위조된 X-Forwarded-For 로 위젯 rate limit 을 우회할 수 없게 했다
 
 Caddy 기본값이 덮어쓰기가 아니라 잇기라, 클라이언트가 보낸 위조값이 맨 앞에 남고
-WidgetController.clientKey() 와 ForwardedHeaderFilter 가 둘 다 그 맨 앞을 읽었다.
-헤더에 아무 IP 나 넣어 매 요청 키를 바꾸면 한도가 무제한이 된다 — 인증 없이 열린
-유일한 문이고 요청당 LLM 호출 = 실제 돈이다.
+WidgetController.clientKey() 가 그 맨 앞을 읽었다. 헤더에 아무 IP 나 넣어 매 요청
+키를 바꾸면 한도가 무제한이 된다 — 인증 없이 열린 유일한 문이고 요청당 LLM 호출 = 실제 돈이다.
 
-header_up 으로 실제 접속 IP 를 덮어쓰게 하고, application-prod.yaml 의 틀린 전제
-설명("프록시만 포트를 여니 안전하다")을 사실에 맞게 고쳤다.
+두 겹으로 막았다.
+  1) Caddyfile 의 header_up 이 클라이언트가 보낸 값을 버리고 실제 접속 IP 로 덮어쓴다
+  2) clientKey() 가 헤더를 직접 파싱하지 않고 getRemoteAddr() 만 본다
+     (forward-headers-strategy 가 이미 그 값을 실제 클라이언트 IP 로 바꿔준다)
+
+파싱 규칙이 프레임워크 한 곳에만 남아, 두 곳에 두었다가 어긋나는 사고가 사라진다.
+실패 방향도 안전해진다 — 프록시 설정이 빠지면 "제한 없음" 이 아니라 "전부 한 바구니" 다.
+
+application-prod.yaml 의 틀린 전제 설명("프록시만 포트를 여니 안전하다")도 고쳤다.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 EOF
@@ -377,10 +426,21 @@ XFF 수정이 선행 조건이라 같은 PR 입니다 — 먼저 고치지 않�
 
 ## 어떻게 해결했나요
 
-`Caddyfile` 에 `header_up X-Forwarded-For {remote_host}` 한 줄. 모든 소비자를 한 번에 고치고,
-프록시 없이 뜨는 사고에도 견딥니다. `application-prod.yaml` 의 **틀린 전제 설명**
-("Caddy 만 포트를 여므로 안전하다")도 사실에 맞게 고쳤습니다 — 문제는 "누가 포트에 닿는가" 가
-아니라 **"프록시가 헤더를 덮어쓰는가"** 였습니다.
+**두 겹으로 막았습니다.**
+
+1. `Caddyfile` 에 `header_up X-Forwarded-For {remote_host}` — 클라이언트가 보낸 값을 **버리고** 실제 접속 IP 로 덮어씁니다.
+2. `WidgetController.clientKey()` 가 헤더를 **직접 파싱하지 않고** `getRemoteAddr()` 만 봅니다.
+   `forward-headers-strategy: framework` 가 이미 그 값을 실제 클라이언트 IP 로 바꿔주기 때문입니다.
+
+②가 없으면 파싱 규칙이 Spring 과 Caddy 두 곳에 생기고, 둘 중 하나는 반드시 어긋납니다.
+그리고 **②가 없으면 이 PR 의 회귀 테스트가 아예 성립하지 않습니다** — 통합 테스트는 Caddy 를
+거치지 않으므로, Spring 이 헤더를 직접 읽는 한 수정 전에도 후에도 똑같이 실패합니다.
+
+🔴 **실패 방향도 바뀝니다.** 프록시 설정이 빠진 채 배포되면 예전에는 "제한 없음"(위조 자유)이었지만,
+이제는 모든 요청이 프록시 IP 하나로 묶여 **과하게 엄격해집니다.** 보안 장치는 이 방향으로 실패해야 합니다.
+
+`application-prod.yaml` 의 **틀린 전제 설명**("Caddy 만 포트를 여므로 안전하다")도 고쳤습니다 —
+문제는 "누가 포트에 닿는가" 가 아니라 **"프록시가 헤더를 덮어쓰는가"** 였습니다.
 
 <!-- 실제 실행 결과를 여기에 붙일 것: Step 3 의 FAIL 출력과 Step 15 의 PASS 출력 -->
 
@@ -389,8 +449,9 @@ XFF 수정이 선행 조건이라 같은 PR 입니다 — 먼저 고치지 않�
 - **여전히 "프록시를 반드시 거친다" 는 전제 위에 서 있습니다.** Spring 컨테이너 포트를 직접
   노출하면 다시 뚫립니다. 바뀐 것은 전제를 **없앤** 게 아니라 **성립하게 만든** 것입니다.
 - 신뢰 프록시가 **정확히 1단**일 때만 맞습니다. 앞에 CDN 을 하나 더 세우면 다시 계산해야 합니다.
-- 🔴 **`header_up` 자체는 이 PR 의 테스트가 검증하지 못합니다.** Caddy 설정이라 Testcontainers 가
-  닿지 않습니다. 검증이 "테스트 2건 + 배포 후 실제 요청 확인" 둘로 갈리고, **후자는 아직입니다.**
+- 🔴 **테스트가 검증하는 것은 "Spring 이 헤더를 직접 믿지 않는다" 까지입니다.** `header_up` 한 줄이
+  실제 프록시에서 동작하는지는 Caddy 설정이라 Testcontainers 가 닿지 않습니다. 검증이
+  "테스트 2건 + 배포 후 실제 요청 확인" 둘로 갈리고, **후자는 아직입니다.**
   이 저장소는 "통합 테스트 초록불" 을 검증으로 착각해 두 번 물렸습니다(HTTP/2 h2c, iframe Origin).
 - 인메모리 고정 윈도우라는 기존 한계는 그대로입니다(인스턴스 늘면 무력, 윈도우 경계 문제).
 - 로그인 한도 10회는 **실측한 값이 아닙니다.** 사람이 오타 내는 횟수로는 넉넉하고 사전 대입에는
@@ -399,7 +460,11 @@ XFF 수정이 선행 조건이라 같은 PR 입니다 — 먼저 고치지 않�
 ## 검토한 대안
 
 - **Spring 에서 XFF 의 맨 뒤 항목 읽기** — 신뢰 프록시가 정확히 1단일 때만 성립하고,
-  프록시 없이 직접 노출하면 다시 뚫립니다. Caddy 쪽이 그 사고에도 견딥니다.
+  프록시 없이 직접 노출하면 다시 뚫립니다. 무엇보다 **파싱 규칙을 Spring 에 남기는 선택**이라,
+  Caddy 쪽 규칙과 어긋날 여지가 그대로 남습니다.
+- **Caddyfile 만 고치고 Spring 은 그대로 두기** — 운영에서는 동작하지만 **회귀 테스트를 쓸 수 없습니다.**
+  통합 테스트가 Caddy 를 거치지 않으므로 위조 헤더가 그대로 통과합니다. 막은 것을 증명할 방법이 없는 수정은
+  다음 사람이 되돌립니다.
 - **로그인 키를 이메일로** — 남의 계정을 골라 잠글 수 있어(계정 잠금 공격) 기각했습니다.
 - **Bucket4j 도입** — 필요한 규칙이 "같은 키로 1분에 N번" 하나뿐이라 의존성을 늘리지 않았습니다.
 
