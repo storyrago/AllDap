@@ -62,7 +62,14 @@ def _split_sentences(line: str, size: int) -> list[str]:
             buf += " " + s
     if buf.strip():
         out.append(buf.strip())
-    return out or [line[:size]]
+    # 🔴 마지막 그물. 위 루프는 마침표로만 자르므로, 마침표가 없는 줄은
+    #    조각이 하나뿐이라 <길이 상한이 전혀 적용되지 않는다.>
+    #    (실측 2026-09-03: 마침표 없는 3000자 줄 → 3008자 청크 하나)
+    #    표 한 행처럼 마침표가 없는 입력에서는 자를 자리를 알 방법이 없어 강제로 끊는다.
+    #    문장 중간이 잘리는 것은 대가지만, 3000자 한 덩어리보다 낫다.
+    #    ⚠️ `out or [line]` 인 이유: 위 루프가 한 조각도 못 만든 경우에도
+    #       원본 줄 전체를 잘라 담아야 한다(예전에는 `line[:size]` 로 <뒤를 버렸다>).
+    return [p[i : i + size] for p in (out or [line]) for i in range(0, len(p), size)]
 
 
 def _split_long(paragraph: str, size: int) -> list[str]:

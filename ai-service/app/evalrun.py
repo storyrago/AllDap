@@ -110,6 +110,35 @@ def create_run(bot_id: UUID) -> tuple[UUID, int]:
     return run_id, total
 
 
+def _run_status(processed: int, total: int, judge_failed: int) -> str:
+    """이 실행을 <다른 설정과 비교해도 되는가> 를 판정한다.
+
+      completed  전 질문을 처리하고 전부 채점했다 = 설정 비교에 쓸 수 있다
+      partial    일부가 처리 실패했거나(429·타임아웃) <채점>에 실패했다 = 비교하면 안 된다
+      failed     한 문항도 처리하지 못했다 = 측정 자체가 없다
+
+    🔴 judge_failed 를 보는 이유. 채점 실패는 fallback 과 <완전히 다른 사실>인데
+       둘 다 scored_count 에서 빠져 결과가 같아 보인다. 그런데 Spring 의 전체 충실성은
+       `avg_faithfulness × scored_count / question_count` 다(EvalRunResponse.overall).
+       즉 <채점하지 못한 문항이 "충실성 0점" 으로 환산된다.>
+
+       16문항 전부 정답(실제 1.000)인데 judge 가 2건에서 JSON 을 못 뱉으면
+       avg=1.000 · scored=14 · total=16 → 대시보드 0.875 다. 그리고 processed 는
+       검색·생성만 세므로 status 는 completed 로 남아, <화면 어디에도 경고가 없다.>
+
+       AGENTS.md 의 "낸 버그 4건" 과 정확히 같은 부류다 — 원인이 다른 두 사실을
+       같은 값으로 뭉갠 것. 그 절은 "다섯 번째를 조심할 것" 으로 끝난다.
+
+    ⚠️ 순수 함수로 뽑은 이유는 <검사할 수 있게 하려고> 다(evalrun_check).
+       DB 와 모델 호출에 묶여 있으면 이 판정만 따로 재현할 방법이 없다.
+    """
+    if not processed:
+        return "failed"
+    if processed < total or judge_failed:
+        return "partial"
+    return "completed"
+
+
 def execute(run_id: UUID, bot_id: UUID) -> None:
     """실제 채점. 백그라운드에서 실행된다.
 
@@ -152,6 +181,10 @@ def _execute(run_id: UUID, bot_id: UUID) -> None:
     # ⚠️ processed 는 <검색·생성이 실제로 돌아간> 질문 수다. total 과 다를 수 있다.
     #    응답률의 분모가 되며, 이걸 total 로 쓰면 안 되는 이유는 아래 집계 부분 주석 참고.
     processed = 0
+    # ⚠️ 채점까지 못 간 것. fallback 과 <다른 사실>이라 따로 센다.
+    #    둘 다 scored_count 에서 빠지지만, fallback 은 "근거가 없어 못 답했다"(제품의 품질)이고
+    #    채점 실패는 "우리가 재지 못했다"(측정의 실패)다. 뭉개면 전자가 후자로 둔갑한다.
+    judge_failed = 0
     rows: list[tuple] = []
 
     for qid, question, ground_truth in questions:
@@ -190,6 +223,8 @@ def _execute(run_id: UUID, bot_id: UUID) -> None:
         sc = judge.score(question, ground_truth, sources, answer)
         if sc is None:
             # 채점 실패는 0점이 아니다. 평균에서 빼고 행만 남긴다.
+            # 그리고 <세어둔다> — 이게 있으면 이 실행은 비교에 쓸 수 없다(_run_status).
+            judge_failed += 1
             rows.append((run_id, qid, answer, retrieved, None, None))
             continue
 
@@ -231,12 +266,7 @@ def _execute(run_id: UUID, bot_id: UUID) -> None:
     #
     # 그때 커밋 메시지에 "일부만 실패한 실행은 그대로 completed 다(그건 측정이 됐다)"
     # 라고 적었는데 그 판단이 틀렸다. 측정은 됐지만 <비교>는 안 된다. 분모가 다르다.
-    if not processed:
-        status = "failed"
-    elif processed < total:
-        status = "partial"
-    else:
-        status = "completed"
+    status = _run_status(processed, total, judge_failed)
 
     with cursor(commit=True) as cur:
         cur.executemany(
@@ -255,9 +285,10 @@ def _execute(run_id: UUID, bot_id: UUID) -> None:
 
     used = cf.neurons_used()
     _log.info(
-        "평가 실행 완료 run_id=%s 질문 %d개 · 처리 %d개(실패 %d) · 답변 %d개 · 채점 %d개 "
-        "· 💰 %.1f 뉴런 (%s)",
-        run_id, total, processed, total - processed, answered, len(faiths),
+        "평가 실행 완료 run_id=%s [%s] 질문 %d개 · 처리 %d개(실패 %d) · 답변 %d개 "
+        "· 채점 %d개(실패 %d) · 💰 %.1f 뉴런 (%s)",
+        run_id, status, total, processed, total - processed, answered,
+        len(faiths), judge_failed,
         sum(used.values()),
         " / ".join(f"{m.rsplit('/', 1)[-1]} {n:.1f}" for m, n in sorted(used.items(), key=lambda x: -x[1])),
     )

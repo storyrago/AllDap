@@ -87,15 +87,19 @@ export default function FaqPage() {
         lead="지금 동작하는 것만 현재형으로 썼습니다. 계획이거나 정해지지 않은 것은 그렇다고 표시했습니다."
       />
 
-      <div className="mt-10 divide-y divide-subtle border-b border-subtle">
+      {/* 질문 목록이므로 ul/li 다. div 나열이면 스크린리더가 "6개 중 3번째" 를 못 읽어준다.
+          클래스는 그대로 옮겼고 details 는 li 안으로만 들어간다 — group-open/py-5 가
+          details 에 남아야 펼침 회전과 divide-y 간격이 유지된다. */}
+      <ul className="mt-10 divide-y divide-subtle border-b border-subtle">
         {QA.map((item) => (
-          <details key={item.q} className="group py-5">
+          <li key={item.q}>
+          <details className="group py-5">
             <summary className="flex cursor-pointer list-none items-start justify-between gap-4 text-base font-semibold leading-snug marker:content-none sm:text-lg">
               {item.q}
               {/* 펼침 표시. group-open 으로 회전시킨다 — 아이콘 두 개를 번갈아 숨기는 것보다 단순하다 */}
               <span
                 aria-hidden
-                className="mt-1 shrink-0 text-muted transition-transform group-open:rotate-45 motion-reduce:transition-none"
+                className="mt-1 shrink-0 text-muted group-hover:text-foreground transition-transform group-open:rotate-45 motion-reduce:transition-none"
               >
                 +
               </span>
@@ -105,8 +109,9 @@ export default function FaqPage() {
               <Evidence kind={item.evidence.kind}>{item.evidence.text}</Evidence>
             </div>
           </details>
+          </li>
         ))}
-      </div>
+      </ul>
 
       <p className="mt-10 text-sm text-muted">
         찾는 답이 없으면{" "}
