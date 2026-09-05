@@ -4,6 +4,7 @@ import com.alldap.api.global.client.AiServiceCircuitBreaker;
 import com.alldap.api.domain.auth.dto.SignupRequest;
 import com.alldap.api.domain.bot.dto.CreateBotRequest;
 import com.alldap.api.domain.chat.dto.ChatRequest;
+import com.alldap.api.domain.usage.entity.UsageEvent;
 import com.alldap.api.domain.user.repository.UserRepository;
 import com.alldap.api.global.ratelimit.RateLimiter;
 import com.alldap.api.support.AiServiceStub;
@@ -92,7 +93,7 @@ class UsageIntegrationTest {
         aiService.enqueue(200, 정상응답);
         widgetChat(publicKey, "환불 규정이 어떻게 되나요?");
 
-        assertThat(countUsage(userId, "chat_answer")).isEqualTo(1);
+        assertThat(countUsage(userId, UsageEvent.KIND_CHAT_ANSWER)).isEqualTo(1);
     }
 
     @Test
@@ -103,7 +104,7 @@ class UsageIntegrationTest {
 
         // 답변 행은 남아야 한다 — 안 남으면 대화 로그가 비어 로그 화면이 깨진다
         assertThat(countMessages(botId)).isEqualTo(2);   // user + assistant
-        assertThat(countUsage(userId, "chat_answer")).isZero();
+        assertThat(countUsage(userId, UsageEvent.KIND_CHAT_ANSWER)).isZero();
     }
 
     @Test
@@ -117,7 +118,7 @@ class UsageIntegrationTest {
         widgetChat(publicKey, "환불 규정이 어떻게 되나요?");
 
         // 위젯 1건만 세어진다. 테스트 채팅도 LLM 비용은 들지만 과금 대상이 아니다.
-        assertThat(countUsage(userId, "chat_answer")).isEqualTo(1);
+        assertThat(countUsage(userId, UsageEvent.KIND_CHAT_ANSWER)).isEqualTo(1);
     }
 
     @Test
@@ -125,7 +126,7 @@ class UsageIntegrationTest {
     void 봇을_지워도_사용량은_남는다() {
         aiService.enqueue(200, 정상응답);
         widgetChat(publicKey, "환불 규정이 어떻게 되나요?");
-        assertThat(countUsage(userId, "chat_answer")).isEqualTo(1);
+        assertThat(countUsage(userId, UsageEvent.KIND_CHAT_ANSWER)).isEqualTo(1);
 
         // 봇을 지우면 conversations·messages 는 CASCADE 로 사라진다.
         // request() 는 항상 body 를 붙이는 helper 라 DELETE 에도 빈 객체를 실어 보낸다
@@ -134,7 +135,22 @@ class UsageIntegrationTest {
         assertThat(countMessages(botId)).isZero();
 
         // 🔴 그런데 사용량은 남아야 한다. 청구 근거가 삭제 버튼 하나로 사라지면 안 된다.
-        assertThat(countUsage(userId, "chat_answer")).isEqualTo(1);
+        assertThat(countUsage(userId, UsageEvent.KIND_CHAT_ANSWER)).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("[과금] 주인 없는 봇(V1 시드)의 답변은 500 없이 성공하고, 다만 세지 않는다")
+    void 주인_없는_봇은_과금되지_않는다() {
+        // V1__init.sql 이 심어두는 로컬 개발용 시드 봇. user_id 가 NULL 이다.
+        // 청구할 계정이 없는 상태에서도 채팅 자체는 정상 동작해야 한다(회귀 확인).
+        aiService.enqueue(200, 정상응답);
+        Response response = widgetChat("pk_local_dev", "환불 규정이 어떻게 되나요?");
+
+        assertThat(response.status()).isEqualTo(200);
+        assertThat(countMessages(UUID.fromString("00000000-0000-0000-0000-000000000001"))).isEqualTo(2);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT count(*) FROM usage_events WHERE bot_id = ?",
+                Long.class, UUID.fromString("00000000-0000-0000-0000-000000000001"))).isZero();
     }
 
     // ── 테스트 보조 ──────────────────────────────────────────────────────

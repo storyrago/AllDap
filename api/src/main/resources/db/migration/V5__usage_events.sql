@@ -7,7 +7,8 @@
 --   그리고 이 문은 한 방향이다 — 나중에 원장이 필요해져도 지워진 봇의 대화는 소급할 수 없다.
 --
 -- 소유권: Spring 이 쓰고 Spring 이 읽는다. Python 은 건드리지 않는다.
---         (평가 실행은 Python 이 완료를 알지만, 기록은 Spring 이 메꾼다 — UsageService 참고)
+--         (평가 실행은 Python 이 완료를 알지만, 기록은 Spring 이 메꾼다 —
+--          UsageService 가 그 일을 할 예정이다. 아직 없다 — 다음 조각에서 만든다)
 CREATE TABLE IF NOT EXISTS usage_events (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 
