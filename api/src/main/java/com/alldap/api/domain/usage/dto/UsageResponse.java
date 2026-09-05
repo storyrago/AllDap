@@ -14,6 +14,8 @@ import java.time.OffsetDateTime;
  *
  * @param chatAnswers 위젯에서 실제로 만들어진 답변 수(fallback·테스트 채팅 제외)
  * @param evalRuns    완료된 품질 평가 실행 수(partial·failed 제외)
+ * @param periodEnd   다음 달 1일 00:00 KST 의 순간. <b>이 기간에 포함되지 않는다</b>(오른쪽 제외) —
+ *                    화면에서 "이 달의 마지막 날"로 그대로 표시하면 하루 밀려 다음 달 1일이 된다
  */
 public record UsageResponse(
         String month,

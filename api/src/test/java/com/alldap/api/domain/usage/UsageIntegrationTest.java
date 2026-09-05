@@ -184,11 +184,20 @@ class UsageIntegrationTest {
         widgetChat(publicKey, "환불 규정이 어떻게 되나요?");
         insertEvalRun(botId, "completed");
 
+        // 침입자도 자기 봇 · 자기 완료된 평가 실행을 하나씩 가진다.
+        // 0 을 기대하면 "격리가 됐다"와 "애초에 응답을 못 받았다"를 구별할 수 없다 —
+        // WHERE b.user_id = :userId 를 통째로 지워도 침입자 자신의 사용량은 여전히
+        // 침입자 소유로 남기 때문에(메꿔진 행의 user_id 가 그 봇의 주인이다) 0 은 그대로 통과한다.
+        // 침입자에게 자기 몫 1건을 쥐여줘야 "남의 것이 안 섞였다"를 "자기 것은 제대로 보인다"로 검증할 수 있다.
         String 침입자 = signup("intruder@example.com");
+        JsonNode 침입자봇 = request(HttpMethod.POST, "/api/bots", 침입자, new CreateBotRequest("침입자 봇")).json();
+        insertEvalRun(UUID.fromString(침입자봇.path("id").asString()), "completed");
 
-        JsonNode 남의것 = usage(침입자, null).json();
+        Response 응답 = usage(침입자, null);
+        assertThat(응답.status()).isEqualTo(200);
+        JsonNode 남의것 = 응답.json();
         assertThat(남의것.path("chatAnswers").asInt()).isZero();
-        assertThat(남의것.path("evalRuns").asInt()).isZero();
+        assertThat(남의것.path("evalRuns").asInt()).isEqualTo(1);
     }
 
     @Test
@@ -200,7 +209,22 @@ class UsageIntegrationTest {
         insertUsageAt(userId, "chat_answer", Instant.parse("2026-08-31T15:00:00Z"));
 
         assertThat(usage(ownerToken, "2026-08").json().path("chatAnswers").asInt()).isEqualTo(1);
-        assertThat(usage(ownerToken, "2026-09").json().path("chatAnswers").asInt()).isEqualTo(1);
+        JsonNode 구월 = usage(ownerToken, "2026-09").json();
+        assertThat(구월.path("chatAnswers").asInt()).isEqualTo(1);
+        // KST 계산과 직렬화 형식을 동시에 못박는다 — periodStart 가 정확히 이 문자열이어야
+        // "KST 로 계산했다"와 "OffsetDateTime 이 그 값을 그대로 내보낸다"가 둘 다 검증된다.
+        assertThat(구월.path("periodStart").asString()).isEqualTo("2026-09-01T00:00:00+09:00");
+    }
+
+    @Test
+    @DisplayName("[입력] 연산 범위를 넘는 month 는 500 이 아니라 400 이다")
+    void 범위를_넘는_달은_400() {
+        // YearMonth.parse 자체는 성공한다(ISO 8601 이 부호 있는 확장 연도를 허용) —
+        // 실패는 그 다음 plusMonths(1) 에서 난다. 그 지점이 try 밖에 있으면 500 이 나갔었다.
+        Response 응답 = usage(ownerToken, "%2B999999999-12");
+
+        assertThat(응답.status()).isEqualTo(400);
+        assertThat(응답.json().path("error").path("code").asString()).isEqualTo("INVALID_INPUT");
     }
 
     // ── 테스트 보조 ──────────────────────────────────────────────────────

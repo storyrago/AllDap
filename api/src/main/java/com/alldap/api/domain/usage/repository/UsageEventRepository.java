@@ -76,9 +76,12 @@ public interface UsageEventRepository extends JpaRepository<UsageEvent, UUID> {
      *
      * <p>{@code ON CONFLICT DO NOTHING} 이 멱등성의 전부다 — 몇 번을 돌려도 결과가 같다.
      *
-     * <p>🔴 {@code b.user_id IS NOT NULL} — {@link #recordChatAnswer} 와 같은 이유로 같은 가드를 둔다.
-     * V1 시드 봇({@code pk_local_dev})처럼 주인 없는 봇이 완료된 평가 실행을 가지면,
-     * 이 가드가 없을 때 {@code usage_events.user_id NOT NULL} 제약을 위반해 조회 전체가 실패한다.
+     * <p>{@code b.user_id IS NOT NULL} — 사실 <b>이 쿼리에서는 중복이다.</b> 바로 위
+     * {@code WHERE b.user_id = :userId} 가 이미 {@code user_id IS NULL} 인 행을 걸러낸다
+     * (SQL 에서 {@code NULL = x} 는 UNKNOWN 이라 그런 행은 절대 매치되지 않는다).
+     * {@link #recordChatAnswer} 에는 사용자 동등 조건이 없어 이 가드가 진짜 방어선이지만,
+     * 여기서는 그 코드와 <b>짝을 맞추고</b>, 나중에 이 {@code WHERE} 절이
+     * (예: 전 계정을 훑는 일괄 메꾸기로) 바뀌어도 안전하도록 남겨둔 것뿐이다.
      */
     @Modifying
     @Query(value = """
