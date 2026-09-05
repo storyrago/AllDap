@@ -201,10 +201,15 @@ CREATE TABLE IF NOT EXISTS usage_events (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 
   -- 청구 대상은 <계정>이다. 봇이 아니라 봇의 주인이 낸다.
-  -- ⚠️ ON DELETE CASCADE 를 걸지 않는다. 이 저장소의 다른 테이블과 반대인데 의도한 것이다 —
-  --    계정을 지우면 청구 근거가 함께 사라진다. 계정 삭제 기능을 만들 때
-  --    "청구가 끝나지 않은 계정은 지울 수 없다" 를 DB 가 강제하게 된다.
-  user_id     UUID NOT NULL REFERENCES users(id),
+  -- ON DELETE CASCADE 다 — 이 저장소의 다른 테이블과 같다.
+  -- ⚠️ 처음에는 "계정을 지워도 청구 근거는 남아야 한다" 며 CASCADE 를 빼려 했다가 되돌렸다 —
+  --    ① 계정 삭제 기능이 <아직 없다>. 없는 기능을 위한 방어였다.
+  --    ② 대가는 실재했다 — 통합 테스트가 전부 userRepository.deleteAll() 로 정리하고
+  --       Postgres 컨테이너를 공유해서, 계량된 답변이 하나라도 있으면 FK 가 그 정리를 막아
+  --       이 기능과 무관한 테스트들이 깨졌다.
+  --    이 설계가 지키려는 것은 "계정 삭제" 가 아니라 "봇을 지워도 청구 근거가 남는다" 이고,
+  --    그건 아래 bot_id 에 FK 를 걸지 않은 것이 담당한다. 그쪽은 그대로다.
+  user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
 
   -- 🔴 bots 를 FK 로 걸지 않는다. 봇이 지워져도 그 달 기록은 남아야 한다.
   --    어느 봇이었는지는 <값으로만> 들고 있는다(참조 무결성 없음, 화면 표시용).
