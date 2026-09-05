@@ -5,6 +5,7 @@ import com.alldap.api.domain.bot.dto.CreateBotRequest;
 import com.alldap.api.domain.bot.dto.UpdateBotRequest;
 import com.alldap.api.domain.bot.entity.Bot;
 import com.alldap.api.domain.bot.repository.BotRepository;
+import com.alldap.api.domain.usage.repository.UsageEventRepository;
 import com.alldap.api.domain.user.entity.User;
 import com.alldap.api.domain.user.repository.UserRepository;
 import com.alldap.api.global.exception.ApiException;
@@ -32,6 +33,7 @@ public class BotService {
 
     private final BotRepository botRepository;
     private final UserRepository userRepository;
+    private final UsageEventRepository usageEventRepository;
 
     public List<BotResponse> findMyBots(UUID userId) {
         return botRepository.findAllByUserIdOrderByCreatedAtDesc(userId).stream()
@@ -76,9 +78,14 @@ public class BotService {
 
     @Transactional
     public void deleteBot(UUID userId, UUID botId) {
-        // ⚠️ 봇을 지우면 documents/chunks 가 DB 의 ON DELETE CASCADE 로 함께 사라진다.
-        // chunks 는 Python 소유이므로, Spring 이 bots 를 지우는 것만으로 Python 데이터까지
-        // 지워진다는 사실을 인지하고 있어야 한다. (별도 정리 호출은 필요 없다)
+        // ⚠️ 봇을 지우면 documents/chunks 뿐 아니라 eval_runs 도 DB 의 ON DELETE CASCADE 로
+        // 함께 사라진다(V1__init.sql). usage_events 의 eval_run 항목은 "사용량 화면을 열 때"
+        // 라는 조회 시점에 메꾸는 방식(UsageEventRepository.backfillEvalRuns)이라, 아무도
+        // 화면을 열기 전에 봇을 지우면 청구 근거가 통째로 사라진다 — 채팅 답변(chat_answer)은
+        // 답변이 나오는 순간 바로 기록되어 이 문제가 없지만, 평가 실행은 유일하게 이 구멍에
+        // 노출돼 있다. 그래서 실제 삭제 전에 한 번 메꿔서 이미 번 것을 원장에 확정해둔다.
+        // 멱등(ON CONFLICT DO NOTHING)이라 직전에 화면을 열어 이미 메꿔졌어도 안전하다.
+        usageEventRepository.backfillEvalRuns(userId);
         botRepository.delete(findOwnedBot(userId, botId));
         log.info("[deleteBot] 봇 삭제 userId={} botId={}", userId, botId);
     }

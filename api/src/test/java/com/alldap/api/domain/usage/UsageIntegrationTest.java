@@ -141,6 +141,20 @@ class UsageIntegrationTest {
     }
 
     @Test
+    @DisplayName("[과금] 봇을 지우면 eval_runs 가 CASCADE 로 사라지기 전에 평가 실행도 메꿔진다")
+    void 봇을_지워도_평가실행_사용량은_남는다() {
+        insertEvalRun(botId, "completed");
+
+        // ⚠️ 여기서 절대 usage(...) 를 먼저 호출하지 않는다.
+        // 먼저 조회하면 그 조회가 메꾸기를 실행해버려서, 삭제 경로의 메꾸기가 없어도
+        // 테스트가 통과해버린다(버그를 놓친다). 이 테스트의 핵심은
+        // "사용량 화면을 한 번도 안 열어도 평가 실행이 남는가"이다.
+        request(HttpMethod.DELETE, "/api/bots/" + botId, ownerToken, new Object());
+
+        assertThat(usage(ownerToken, null).json().path("evalRuns").asInt()).isEqualTo(1);
+    }
+
+    @Test
     @DisplayName("[과금] 주인 없는 봇(V1 시드)의 답변은 500 없이 성공하고, 다만 세지 않는다")
     void 주인_없는_봇은_과금되지_않는다() {
         // V1__init.sql 이 심어두는 로컬 개발용 시드 봇. user_id 가 NULL 이다.
