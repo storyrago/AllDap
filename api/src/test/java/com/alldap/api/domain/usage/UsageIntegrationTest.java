@@ -252,13 +252,40 @@ class UsageIntegrationTest {
         assertThat(응답.json().path("error").path("code").asString()).isEqualTo("INVALID_INPUT");
     }
 
+    @Test
+    @DisplayName("[기간] 메꾸는 시각이 아니라 실행이 시작된 시각으로 청구 기간이 갈린다")
+    void 평가실행은_시작시각_기준으로_메꿔진다() {
+        // 지난달 15일 정오(KST)에 시작해 그날 끝난 실행. created_at 을 now() 로 넣으면(버그를 심으면)
+        // 메꾸는 지금(이번 달)으로 잡혀 이 테스트가 실패해야 한다 — 그게 아래 검증 두 줄의 목적이다.
+        java.time.ZoneId KST = java.time.ZoneId.of("Asia/Seoul");
+        java.time.YearMonth 지난달YM = java.time.YearMonth.now(KST).minusMonths(1);
+        Instant 지난달 = 지난달YM.atDay(15).atTime(12, 0).atZone(KST).toInstant();
+        insertEvalRun(botId, "completed", Timestamp.from(지난달));
+
+        // ⚠️ 조회는 매번 메꾸기를 실행한다 — 지난달·이번달 둘 다 확인해야 한다.
+        // 하나만 보면 "메꿔지긴 했다"만 확인될 뿐 <어느 달로> 잡혔는지는 못 잡는다.
+        String 이번달YM = java.time.YearMonth.now(KST).toString();
+
+        assertThat(usage(ownerToken, 지난달YM.toString()).json().path("evalRuns").asInt())
+                .as("실행이 시작된 달(created_at)로 잡혀야 한다").isEqualTo(1);
+        assertThat(usage(ownerToken, 이번달YM).json().path("evalRuns").asInt())
+                .as("메꾼 시각(now)이 아니라 시작 시각 기준이므로 이번 달엔 없어야 한다").isZero();
+    }
+
     // ── 테스트 보조 ──────────────────────────────────────────────────────
 
-    /** eval_runs 는 Python 소유 테이블이라 테스트에서 직접 넣는다 */
+    /** eval_runs 는 Python 소유 테이블이라 테스트에서 직접 넣는다 (created_at = now()) */
     private void insertEvalRun(UUID botId, String status) {
         jdbcTemplate.update(
                 "INSERT INTO eval_runs (bot_id, status, created_at) VALUES (?, ?, now())",
                 botId, status);
+    }
+
+    /** created_at 을 명시하는 오버로드. 기간 경계(1a)처럼 "언제 시작됐는가"를 못박아야 할 때 쓴다. */
+    private void insertEvalRun(UUID botId, String status, Timestamp createdAt) {
+        jdbcTemplate.update(
+                "INSERT INTO eval_runs (bot_id, status, created_at) VALUES (?, ?, ?)",
+                botId, status, createdAt);
     }
 
     /** 기간 경계 검증용. 사건 시각을 직접 정해야 하므로 원장에 바로 넣는다 */

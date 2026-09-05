@@ -31,6 +31,14 @@ export default function DashboardPage() {
   const [creating, setCreating] = useState(false);
 
   const [usage, setUsage] = useState<Usage | null>(null);
+  /*
+   * usage 하나만으로는 "아직 안 불러옴 / 실패함 / 사용량이 0건임"을 구분할 수 없다.
+   * 셋 다 usage 가 null 이거나 { chatAnswers: 0, ... } 이 되기 때문이다.
+   * 특히 실패와 "0건"은 화면에 다르게 보여야 한다 — 실패를 0건처럼 보여주면
+   * 사용자가 "과금 안 됐네" 로 착각하고, 반대로 실패를 아예 숨기면
+   * "이 기능이 원래 없다"로 착각한다. 그래서 실패 여부만 별도 불리언으로 둔다.
+   */
+  const [usageFailed, setUsageFailed] = useState(false);
 
   /**
    * 사용량을 불러온다.
@@ -43,13 +51,16 @@ export default function DashboardPage() {
    * 매 렌더마다 새 함수가 만들어지면 effect 가 매번 다시 돌아 요청이 무한히 나간다.
    *
    * 실패해도 화면을 막지 않는다 — 사용량은 <보조 정보>다. 여기서 에러를 띄우면
-   * 봇 목록이라는 주 기능이 부수 기능 때문에 가려진다.
+   * 봇 목록이라는 주 기능이 부수 기능 때문에 가려진다. 다만 완전히 숨기지도 않는다 —
+   * 아래 usageFailed 참고.
    */
   const loadUsage = useCallback(async () => {
     try {
       setUsage(await api.usage.current());
+      setUsageFailed(false);
     } catch {
       setUsage(null);
+      setUsageFailed(true);
     }
   }, []);
 
@@ -188,6 +199,13 @@ export default function DashboardPage() {
             답하지 못한 질문과 관리자 테스트 채팅은 세지 않습니다. 금액은 아직 없습니다.
           </p>
         </section>
+      )}
+
+      {/* usage 가 null 인 두 경우(아직 안 옴 / 실패함) 중 실패했을 때만 보인다.
+          "아직 안 옴"은 로딩 중이라 아무것도 안 보이는 게 맞고, 실패는 알려야
+          "사용량 기능이 아예 없다"로 착각하지 않는다. */}
+      {usageFailed && (
+        <p className="mt-6 text-xs text-muted">사용량을 불러오지 못했습니다.</p>
       )}
 
       <div className="mt-6">
