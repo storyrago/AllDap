@@ -6,6 +6,7 @@ import com.alldap.api.domain.chat.entity.Conversation;
 import com.alldap.api.domain.chat.entity.Message;
 import com.alldap.api.domain.chat.repository.ConversationRepository;
 import com.alldap.api.domain.chat.repository.MessageRepository;
+import com.alldap.api.domain.usage.repository.UsageEventRepository;
 import com.alldap.api.global.exception.ApiException;
 import com.alldap.api.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -45,6 +46,7 @@ public class ChatTurnStore {
     private final BotRepository botRepository;
     private final ConversationRepository conversationRepository;
     private final MessageRepository messageRepository;
+    private final UsageEventRepository usageEventRepository;
 
     /**
      * ① 소유권 확인 → 대화 찾기/만들기 → 질문 저장.
@@ -108,6 +110,12 @@ public class ChatTurnStore {
         Conversation conversation = conversationRepository.getReferenceById(conversationId);
         Message answer = messageRepository.save(
                 Message.createAssistantMessage(conversation, content, sourcesJson, isFallback, latencyMs));
+
+        // 🔴 과금 계량. <같은 트랜잭션>이라 "답변은 남았는데 계량이 안 된" 상태가 생길 수 없다.
+        //    무엇이 과금 대상인지는 전부 이 쿼리 안에 있다(위젯만 · fallback 제외).
+        //    여기에 if 를 두지 않는 이유는 정책이 두 곳으로 나뉘는 것을 막기 위해서다.
+        usageEventRepository.recordChatAnswer(answer.getId(), conversationId, isFallback);
+
         return answer.getId();
     }
 
