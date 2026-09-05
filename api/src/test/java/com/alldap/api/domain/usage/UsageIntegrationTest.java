@@ -24,6 +24,8 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
 import java.nio.charset.StandardCharsets;
+import java.sql.Timestamp;
+import java.time.Instant;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -153,7 +155,75 @@ class UsageIntegrationTest {
                 Long.class, UUID.fromString("00000000-0000-0000-0000-000000000001"))).isZero();
     }
 
+    @Test
+    @DisplayName("[과금] completed 평가 실행만 센다 (partial·failed 는 측정이 안 된 것이다)")
+    void completed_평가실행만_센다() {
+        insertEvalRun(botId, "completed");
+        insertEvalRun(botId, "partial");
+        insertEvalRun(botId, "failed");
+
+        assertThat(usage(ownerToken, null).json().path("evalRuns").asInt()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("[과금] 사용량을 여러 번 조회해도 평가 실행이 중복으로 세어지지 않는다")
+    void 메꾸기는_멱등하다() {
+        insertEvalRun(botId, "completed");
+
+        for (int i = 0; i < 3; i++) {
+            assertThat(usage(ownerToken, null).json().path("evalRuns").asInt()).isEqualTo(1);
+        }
+        // DB 로도 확인한다 — 응답이 1 이어도 행이 3개면 다음 달 청구가 틀어진다
+        assertThat(countUsage(userId, "eval_run")).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("[보안] 남의 계정 사용량이 내 숫자에 섞이지 않는다")
+    void 계정_격리() {
+        aiService.enqueue(200, 정상응답);
+        widgetChat(publicKey, "환불 규정이 어떻게 되나요?");
+        insertEvalRun(botId, "completed");
+
+        String 침입자 = signup("intruder@example.com");
+
+        JsonNode 남의것 = usage(침입자, null).json();
+        assertThat(남의것.path("chatAnswers").asInt()).isZero();
+        assertThat(남의것.path("evalRuns").asInt()).isZero();
+    }
+
+    @Test
+    @DisplayName("[기간] 9월 1일 00:00 KST 를 경계로 8월분과 9월분이 갈린다")
+    void 기간_경계는_KST_다() {
+        // 2026-08-31 23:59:59 KST = 2026-08-31T14:59:59Z
+        insertUsageAt(userId, "chat_answer", Instant.parse("2026-08-31T14:59:59Z"));
+        // 2026-09-01 00:00:00 KST = 2026-08-31T15:00:00Z
+        insertUsageAt(userId, "chat_answer", Instant.parse("2026-08-31T15:00:00Z"));
+
+        assertThat(usage(ownerToken, "2026-08").json().path("chatAnswers").asInt()).isEqualTo(1);
+        assertThat(usage(ownerToken, "2026-09").json().path("chatAnswers").asInt()).isEqualTo(1);
+    }
+
     // ── 테스트 보조 ──────────────────────────────────────────────────────
+
+    /** eval_runs 는 Python 소유 테이블이라 테스트에서 직접 넣는다 */
+    private void insertEvalRun(UUID botId, String status) {
+        jdbcTemplate.update(
+                "INSERT INTO eval_runs (bot_id, status, created_at) VALUES (?, ?, now())",
+                botId, status);
+    }
+
+    /** 기간 경계 검증용. 사건 시각을 직접 정해야 하므로 원장에 바로 넣는다 */
+    private void insertUsageAt(UUID userId, String kind, Instant occurredAt) {
+        jdbcTemplate.update("""
+                INSERT INTO usage_events (user_id, bot_id, kind, source_ref, occurred_at)
+                VALUES (?, NULL, ?, gen_random_uuid(), ?)""",
+                userId, kind, Timestamp.from(occurredAt));
+    }
+
+    private Response usage(String token, String month) {
+        String uri = month == null ? "/api/usage" : "/api/usage?month=" + month;
+        return request(HttpMethod.GET, uri, token, null);
+    }
 
     private long countUsage(UUID userId, String kind) {
         Long n = jdbcTemplate.queryForObject(
@@ -192,11 +262,15 @@ class UsageIntegrationTest {
     }
 
     private Response request(HttpMethod method, String uri, String token, Object body) {
-        var spec = client.method(method).uri(uri).contentType(MediaType.APPLICATION_JSON);
+        var spec = client.method(method).uri(uri);
         if (token != null) {
             spec.header(HttpHeaders.AUTHORIZATION, "Bearer " + token);
         }
-        EntityExchangeResult<byte[]> result = spec.body(body).exchange().expectBody().returnResult();
+        // GET 인 usage(...) 는 본문이 없다. body 를 강제로 붙이면 본문 없는 GET 요청을 표현할 수 없다.
+        EntityExchangeResult<byte[]> result = (body == null
+                ? spec
+                : spec.contentType(MediaType.APPLICATION_JSON).body(body))
+                .exchange().expectBody().returnResult();
         return new Response(result.getStatus().value(), decode(result.getResponseBody()));
     }
 

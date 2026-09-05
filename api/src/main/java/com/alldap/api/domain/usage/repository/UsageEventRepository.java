@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.Instant;
 import java.util.UUID;
 
 public interface UsageEventRepository extends JpaRepository<UsageEvent, UUID> {
@@ -57,4 +58,54 @@ public interface UsageEventRepository extends JpaRepository<UsageEvent, UUID> {
     int recordChatAnswer(@Param("messageId") UUID messageId,
                          @Param("conversationId") UUID conversationId,
                          @Param("isFallback") boolean isFallback);
+
+    /**
+     * 완료된 평가 실행을 원장에 <메꾼다>. 이미 있는 것은 건너뛴다.
+     *
+     * <p><b>왜 메꾸는가 — 기록 시점을 우리가 정할 수 없기 때문이다.</b>
+     * 평가 실행이 끝나는 것은 <b>Python 이 안다</b>({@code eval_runs.status} 를 Python 이 갱신한다).
+     * 그런데 과금은 Spring 소유다. Python 이 {@code usage_events} 에 쓰면
+     * 테이블 소유권 원칙이 깨진다(AGENTS.md 소유권 표).
+     *
+     * <p><b>왜 폴링에 얹지 않는가.</b> 화면이 실행 상태를 폴링하니 거기서 기록할 수도 있지만,
+     * 그러면 <b>아무도 대시보드를 안 열면 계량이 안 된다.</b> 조회 직전에 한 번 도는 쪽이 안전하다.
+     *
+     * <p>🔴 {@code occurred_at} 이 {@code r.created_at} 인 것이 중요하다. <b>메꾼 시각이 아니라
+     * 실행이 시작된 시각</b>이 청구 기간을 가른다. 8월 31일에 시작한 실행을 9월에 메꿨다고
+     * 9월분으로 청구하면 안 된다.
+     *
+     * <p>{@code ON CONFLICT DO NOTHING} 이 멱등성의 전부다 — 몇 번을 돌려도 결과가 같다.
+     *
+     * <p>🔴 {@code b.user_id IS NOT NULL} — {@link #recordChatAnswer} 와 같은 이유로 같은 가드를 둔다.
+     * V1 시드 봇({@code pk_local_dev})처럼 주인 없는 봇이 완료된 평가 실행을 가지면,
+     * 이 가드가 없을 때 {@code usage_events.user_id NOT NULL} 제약을 위반해 조회 전체가 실패한다.
+     */
+    @Modifying
+    @Query(value = """
+            INSERT INTO usage_events (user_id, bot_id, kind, source_ref, occurred_at)
+            SELECT b.user_id, r.bot_id, 'eval_run', r.id, r.created_at
+              FROM eval_runs r
+              JOIN bots b ON b.id = r.bot_id
+             WHERE b.user_id = :userId
+               AND b.user_id IS NOT NULL
+               AND r.status = 'completed'
+            ON CONFLICT (kind, source_ref) DO NOTHING
+            """, nativeQuery = true)
+    int backfillEvalRuns(@Param("userId") UUID userId);
+
+    /**
+     * 기간 안의 사건 수. <b>경계는 왼쪽 포함 · 오른쪽 제외</b>({@code >= from}, {@code < to})다.
+     * 양쪽을 포함하면 8월 마지막 순간과 9월 첫 순간이 <b>양쪽 달에 모두</b> 세어진다.
+     */
+    @Query("""
+            SELECT count(e) FROM UsageEvent e
+             WHERE e.userId = :userId
+               AND e.kind = :kind
+               AND e.occurredAt >= :from
+               AND e.occurredAt < :to
+            """)
+    long countInPeriod(@Param("userId") UUID userId,
+                       @Param("kind") String kind,
+                       @Param("from") Instant from,
+                       @Param("to") Instant to);
 }
