@@ -85,8 +85,12 @@ public class BotService {
         // 답변이 나오는 순간 바로 기록되어 이 문제가 없지만, 평가 실행은 유일하게 이 구멍에
         // 노출돼 있다. 그래서 실제 삭제 전에 한 번 메꿔서 이미 번 것을 원장에 확정해둔다.
         // 멱등(ON CONFLICT DO NOTHING)이라 직전에 화면을 열어 이미 메꿔졌어도 안전하다.
+        // 소유권을 먼저 확인해야 한다 — findOwnedBot 을 delete(...) 의 인자로 평가하게 두면
+        // 존재하지 않거나 남의 봇이라 404 가 날 요청도 메꾸기부터 실행해버려,
+        // 실패할 삭제마다 자기 이력 전체를 훑는 헛수고가 매번 벌어진다.
+        Bot bot = findOwnedBot(userId, botId);
         usageEventRepository.backfillEvalRuns(userId);
-        botRepository.delete(findOwnedBot(userId, botId));
+        botRepository.delete(bot);
         log.info("[deleteBot] 봇 삭제 userId={} botId={}", userId, botId);
     }
 

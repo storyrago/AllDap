@@ -199,10 +199,14 @@ class UsageIntegrationTest {
         insertEvalRun(botId, "completed");
 
         // 침입자도 자기 봇 · 자기 완료된 평가 실행을 하나씩 가진다.
-        // 0 을 기대하면 "격리가 됐다"와 "애초에 응답을 못 받았다"를 구별할 수 없다 —
-        // WHERE b.user_id = :userId 를 통째로 지워도 침입자 자신의 사용량은 여전히
-        // 침입자 소유로 남기 때문에(메꿔진 행의 user_id 가 그 봇의 주인이다) 0 은 그대로 통과한다.
-        // 침입자에게 자기 몫 1건을 쥐여줘야 "남의 것이 안 섞였다"를 "자기 것은 제대로 보인다"로 검증할 수 있다.
+        // 0 을 기대하면 "격리가 됐다"와 "애초에 응답을 못 받았다"를 구별할 수 없으므로,
+        // 침입자에게 자기 몫 1건을 쥐여줘 "남의 것이 안 섞였다"를 "자기 것은 제대로 보인다"로 검증한다.
+        //
+        // ⚠️ 이 테스트는 backfillEvalRuns 의 WHERE b.user_id = :userId 를 지키지 않는다.
+        // 실제 격리는 조회 쪽 countInPeriod 의 e.userId = :userId 필터가 전부 한다 —
+        // 메꿔진 행은 어차피 그 봇의 진짜 주인(b.user_id)에게 귀속되므로, backfillEvalRuns 의
+        // WHERE 절을 통째로 지워도 "한 번의 조회가 몇 명의 이력까지 한꺼번에 메꾸는가"만
+        // 달라질 뿐 침입자가 보는 숫자는 바뀌지 않는다. 그 절을 지키는 테스트는 따로 없다.
         String 침입자 = signup("intruder@example.com");
         JsonNode 침입자봇 = request(HttpMethod.POST, "/api/bots", 침입자, new CreateBotRequest("침입자 봇")).json();
         insertEvalRun(UUID.fromString(침입자봇.path("id").asString()), "completed");
@@ -235,7 +239,14 @@ class UsageIntegrationTest {
     void 범위를_넘는_달은_400() {
         // YearMonth.parse 자체는 성공한다(ISO 8601 이 부호 있는 확장 연도를 허용) —
         // 실패는 그 다음 plusMonths(1) 에서 난다. 그 지점이 try 밖에 있으면 500 이 나갔었다.
-        Response 응답 = usage(ownerToken, "%2B999999999-12");
+        //
+        // ⚠️ "+" 를 문자열에 미리 %2B 로 박아 usage(...)(문자열 URI) 로 넘기면 이 테스트는
+        // 무엇을 되돌려도 통과한다. RestTestClient.uri(String) 은 DefaultUriBuilderFactory 를
+        // TEMPLATE_AND_VALUES 모드로 써서 그 문자열을 <다시> 인코딩하므로, 서버는 %252B 를
+        // 한 번 디코드한 "%2B999999999-12"(퍼센트 기호가 남은 리터럴)를 받는다 — 그건
+        // YearMonth.parse 자체가 실패하는 경로라 plusMonths 가드를 되돌려도 여전히 400 이 나간다.
+        // 템플릿 변수로 넘겨야 정확히 한 번만 인코딩돼 서버에 "+999999999-12" 그대로 도착한다.
+        Response 응답 = usageTemplated(ownerToken, "+999999999-12");
 
         assertThat(응답.status()).isEqualTo(400);
         assertThat(응답.json().path("error").path("code").asString()).isEqualTo("INVALID_INPUT");
@@ -261,6 +272,17 @@ class UsageIntegrationTest {
     private Response usage(String token, String month) {
         String uri = month == null ? "/api/usage" : "/api/usage?month=" + month;
         return request(HttpMethod.GET, uri, token, null);
+    }
+
+    /**
+     * {@link #usage} 와 달리 month 를 URI 템플릿 변수로 넘긴다 — 딱 한 번만 인코딩되어야
+     * 서버가 원래 문자를 그대로 받는다(위 "범위를_넘는_달은_400" 참고). 이 검사에만 쓴다.
+     */
+    private Response usageTemplated(String token, String month) {
+        var spec = client.method(HttpMethod.GET).uri("/api/usage?month={month}", month);
+        spec.header(HttpHeaders.AUTHORIZATION, "Bearer " + token);
+        EntityExchangeResult<byte[]> result = spec.exchange().expectBody().returnResult();
+        return new Response(result.getStatus().value(), decode(result.getResponseBody()));
     }
 
     private long countUsage(UUID userId, String kind) {
