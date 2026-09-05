@@ -14,7 +14,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { ApiError, api } from "@/lib/api";
-import type { Bot } from "@/lib/types";
+import type { Bot, Usage } from "@/lib/types";
 import { PageHeader } from "@/components/PageHeader";
 
 export default function DashboardPage() {
@@ -29,6 +29,43 @@ export default function DashboardPage() {
 
   const [newName, setNewName] = useState("");
   const [creating, setCreating] = useState(false);
+
+  const [usage, setUsage] = useState<Usage | null>(null);
+
+  /**
+   * 사용량을 불러온다.
+   *
+   * 왜 클라이언트에서 가져오는가: 인증 토큰이 <브라우저에만> 있어서 서버 컴포넌트가
+   * 이 요청을 대신 보낼 수 없다. 이 파일이 이미 "use client" 인 이유와 같고,
+   * 바로 위 봇 목록도 같은 이유로 여기서 부른다.
+   *
+   * useCallback 으로 감싸는 이유: 아래 useEffect 의 의존성 배열에 이 함수를 넣어야 하는데,
+   * 매 렌더마다 새 함수가 만들어지면 effect 가 매번 다시 돌아 요청이 무한히 나간다.
+   *
+   * 실패해도 화면을 막지 않는다 — 사용량은 <보조 정보>다. 여기서 에러를 띄우면
+   * 봇 목록이라는 주 기능이 부수 기능 때문에 가려진다.
+   */
+  const loadUsage = useCallback(async () => {
+    try {
+      setUsage(await api.usage.current());
+    } catch {
+      setUsage(null);
+    }
+  }, []);
+
+  useEffect(() => {
+    // 위 loadBots 의 effect 와 같은 이유로 즉시실행 IIFE + cancelled 플래그를 쓴다
+    // (eslint react-hooks/set-state-in-effect 가 effect 안에서 setState 하는 함수를
+    // 그냥 호출하는 모양을 막는다 — 응답 <뒤>에 갱신한다는 게 코드 모양에 드러나야 한다).
+    let cancelled = false;
+    void (async () => {
+      await loadUsage();
+      if (cancelled) return;
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [loadUsage]);
 
   /*
    * useCallback 으로 감싼 이유: 이 함수를 아래 useEffect 의 의존성 배열에 넣어야 하는데,
@@ -124,6 +161,33 @@ export default function DashboardPage() {
         >
           {error}
         </p>
+      )}
+
+      {usage && (
+        <section aria-labelledby="usage-heading" className="mt-6">
+          <h2 id="usage-heading" className="text-sm font-medium">
+            이번 달 사용량 ({usage.month})
+          </h2>
+          <dl className="mt-2 grid gap-3 sm:grid-cols-2">
+            <div className="rounded-lg border border-subtle bg-surface p-4">
+              <dt className="text-xs text-muted">답변</dt>
+              <dd className="mt-1 text-lg font-medium">
+                {usage.chatAnswers.toLocaleString("ko-KR")}건
+              </dd>
+            </div>
+            <div className="rounded-lg border border-subtle bg-surface p-4">
+              <dt className="text-xs text-muted">품질 평가 실행</dt>
+              <dd className="mt-1 text-lg font-medium">
+                {usage.evalRuns.toLocaleString("ko-KR")}회
+              </dd>
+            </div>
+          </dl>
+          {/* 🔴 /pricing 이 "금액이 아직 없다" 고 말하고 있다.
+              여기서만 금액이 있는 척하면 화면끼리 거짓말을 하게 된다. */}
+          <p className="mt-2 text-xs text-muted">
+            답하지 못한 질문과 관리자 테스트 채팅은 세지 않습니다. 금액은 아직 없습니다.
+          </p>
+        </section>
       )}
 
       <div className="mt-6">
