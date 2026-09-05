@@ -468,3 +468,27 @@ export interface ConflictScan {
   conflicts: number;
   failed: number;
 }
+
+/**
+ * 한 계정의 한 달 사용량. `GET /api/usage` 의 응답.
+ *
+ * 🔴 금액이 없다 — 이 단계는 개수만 센다. 단가·플랜·초과 계산은 다음 조각이다.
+ *
+ * `interface` 로 둔 이유: 백엔드 응답 <객체의 모양>을 그리는 타입이고,
+ * 이 파일의 다른 응답 타입(Bot·EvalRun 등)이 전부 interface 라 맞췄다.
+ * (합집합·별칭이 필요할 때만 `type` 을 쓴다 — 예: 위 EvalRunStatus)
+ *
+ * 필드 이름이 camelCase 인 것은 Spring 이 변환해 내려주기 때문이다.
+ * Python 은 snake_case(`is_fallback`)를 쓰지만 프론트까지 오지 않는다.
+ */
+export interface Usage {
+  /** "2026-09" */
+  month: string;
+  /** 위젯에서 실제로 만들어진 답변 수 (fallback·관리자 테스트 채팅 제외) */
+  chatAnswers: number;
+  /** 완료된 품질 평가 실행 수 (partial·failed 제외) */
+  evalRuns: number;
+  /** 서버가 정한 기간 경계(KST). 화면이 "9월"을 제멋대로 해석하지 않게 한다 */
+  periodStart: string;
+  periodEnd: string;
+}

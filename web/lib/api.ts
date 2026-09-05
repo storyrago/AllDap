@@ -33,6 +33,7 @@ import type {
   Paged,
   UnansweredSummary,
   UpdateBotRequest,
+  Usage,
   Uuid,
   WidgetConfig,
 } from "./types";
@@ -391,6 +392,25 @@ export const api = {
      */
     listUnanswered: (botId: Uuid, limit = 50) =>
       request<UnansweredSummary>(`/api/bots/${botId}/eval/unanswered?limit=${limit}`),
+  },
+
+  /**
+   * 사용량 (요금제 연동 1조각)
+   *
+   * ✅ 구현되어 동작한다. 추정이 아니다.
+   * botId 를 받지 않는 이유: 청구 대상이 <계정>이라 서버가 토큰의 주인으로 조회한다.
+   */
+  usage: {
+    /**
+     * @param month "2026-09" 형식. 생략하면 이번 달(한국 시간 기준)
+     * encodeURIComponent 로 감싸는 이유: 지금은 호출부가 없어 실제 버그는 아니지만,
+     * 나중에 월 선택 UI 가 붙어 사용자 입력이 그대로 들어오면 "+" 같은 문자가
+     * 쿼리스트링에서 서버 쪽 디코딩 시 공백으로 풀려 서버가 다른 문자열을 받게 된다.
+     */
+    current: (month?: string) =>
+      request<Usage>(
+        month ? `/api/usage?month=${encodeURIComponent(month)}` : "/api/usage",
+      ),
   },
 
   /**
