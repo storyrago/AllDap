@@ -454,7 +454,7 @@ W1 fallback 종단(10/10) · 리랭커 융합 재측정(설정당 3~4회). 각�
 
 **남은 구멍 (알면서 남긴 것)**
 
-- 🔴 **대시보드의 `cancelled` 플래그가 실효 없다** (2026-09-06 확인). `web/app/(dashboard)/dashboard/page.tsx` 의 두 effect 가 `await` **뒤에** 플래그를 검사하는데, `setState` 는 이미 `loadBots`/`loadUsage` **안에서** 끝나 있다. 막는 게 없는 줄이다. **더 나쁜 것은 주석이 사실과 다르다는 것** — 104~105행이 "cancelled 플래그로 그때는 아무것도 하지 않는다" 고 단언한다. 다음 사람이 "이미 처리돼 있다"고 믿는다. React 19 라 실질 피해는 없으니 **버그 수정이 아니라 코드와 주석을 사실과 맞추는 일**이다. 고칠 때 **두 effect 를 함께** 다룰 것(같은 패턴이 복사돼 있다). 계량 작업이 만든 결함이 아니라 기존 `loadBots` 패턴을 따른 것이다.
+- ✅ **취소(`cancelled`) 플래그는 2026-09-07 에 8곳에서 걷어냈다.** `await load(); if (cancelled) return;` 이 아무것도 막지 못하는데 주석은 "플래그로 그때는 아무것도 하지 않는다" 고 단언하고 있었다. **대시보드 2곳인 줄 알았는데 실제로는 8곳이었다** (dashboard×2 · settings · quality · logs · diagnostics · documents · export). IIFE 는 남겼다 — eslint `react-hooks/set-state-in-effect` 가 `void load()` 를 막는 것은 실측으로 재확인했고, IIFE 는 우회가 아니라 `setState` 가 <비동기 경계 뒤>에서 일어난다는 표시다. 🔴 **정말로 취소가 필요하면 `setState` <바로 앞>에서 검사할 것** — `components/BotName.tsx` 가 그 예다. 뿌리였던 `docs/decisions.md` 2026-08-02 항목에 정정을 달았다.
 - **Spring 은 잘림을 구분하지 못한다.** Python 이 503 을 주면 Spring 은 `AI_SERVICE_UNAVAILABLE`
   ("잠시 후 재시도")로 바꾼다. 그런데 `temperature=0` 이라 **재시도해도 똑같이 잘린다** —
   안내가 사실과 다르다. 맞는 안내는 "질문을 더 좁혀보세요"다.
