@@ -334,6 +334,44 @@ class BillingIntegrationTest {
     }
 
     @Test
+    @DisplayName("[삭제] 연결이 끊기면 503 이고 <우리 행이 남는다> — 리뷰 수정 ①이 사는 자리")
+    void 삭제_중_연결이_끊기면_우리_행이_남는다() {
+        등록한다();
+        tossStub.enqueueAbort();   // 응답 없이 끊김 — TossClient 가 로그에 URL(빌링키 포함)을 남기면 안 되는 경로
+
+        Response 응답 = request(HttpMethod.DELETE, "/api/billing/method", ownerToken, null);
+
+        assertThat(응답.status()).isEqualTo(503);
+        assertThat(응답.json().path("error").path("code").asString())
+                .isEqualTo("BILLING_PROVIDER_UNAVAILABLE");
+
+        // 5xx 테스트와 같은 방식으로 행 유지를 증명한다 — DB 행수와 GET 응답 둘 다 본다.
+        assertThat(카드_행수(userId)).isEqualTo(1);
+        assertThat(request(HttpMethod.GET, "/api/billing/method", ownerToken, null)
+                .json().path("method").isNull()).isFalse();
+    }
+
+    @Test
+    @DisplayName("[삭제] 토스가 401 이면 503 이고 <우리 행이 남는다> — 401 은 '없다'가 아니라 '모른다'다")
+    void 삭제_중_토스가_401_이면_우리_행이_남는다() {
+        등록한다();
+        tossStub.enqueue(401, "{\"code\":\"UNAUTHORIZED_KEY\",\"message\":\"인증되지 않은 요청입니다.\"}");
+
+        Response 응답 = request(HttpMethod.DELETE, "/api/billing/method", ownerToken, null);
+
+        assertThat(응답.status()).isEqualTo(503);
+        assertThat(응답.json().path("error").path("code").asString())
+                .isEqualTo("BILLING_PROVIDER_UNAVAILABLE");
+
+        // 🔴 404 만 삼키고 그 밖의 4xx(401 포함)는 우리 행을 지우지 않는다는 것을 못박는다.
+        //    고치기 전(4xx 전부 삼킴)이었다면 이 테스트는 204 + 행수 0 을 보고 실패했을 것이다 —
+        //    시크릿 키가 잘못돼 토스가 빌링키를 쳐다보지도 않았는데 우리만 유일한 사본을 지운 것이다.
+        assertThat(카드_행수(userId)).isEqualTo(1);
+        assertThat(request(HttpMethod.GET, "/api/billing/method", ownerToken, null)
+                .json().path("method").isNull()).isFalse();
+    }
+
+    @Test
     @DisplayName("[삭제] 토스가 4xx 면 우리 행은 지운다 (토스 쪽엔 이미 없다는 뜻)")
     void 토스_4xx_면_우리_행을_지운다() {
         등록한다();
