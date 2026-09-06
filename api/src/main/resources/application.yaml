@@ -75,6 +75,16 @@ app:
     retry-delay: 200ms
     circuit-failure-threshold: 5
     circuit-open-duration: 30s
+  billing-crypto:
+    # 토스 빌링키를 DB 에 넣기 전 암호화하는 AES-256 키. Base64 로 인코딩한 32바이트다.
+    # ⚠️ 아래 기본값은 로컬 전용이다. 운영에서는 반드시 BILLING_CRYPTO_KEY 를 주입할 것.
+    #    (application-prod.yaml 은 기본값 없이 환경변수를 강제한다)
+    # 이 값을 바꾸면 BillingCrypto.KNOWN_LOCAL_DEFAULT_KEY 도 함께 바꿀 것 —
+    # "공개된 기본값으로 운영에 뜨는 것"을 막는 기동 가드가 이 문자열을 비교한다.
+    # 🔴 그리고 이 키를 바꾸면 <이미 저장된 카드는 복호화되지 않는다.> 토스에 조회 API 가 없어
+    #    우리 DB 가 유일한 사본이라, 바꾸는 순간 그 고객들은 카드를 다시 등록해야 한다.
+    # 생성: openssl rand -base64 32
+    key: ${BILLING_CRYPTO_KEY:YWxsZGFwLWxvY2FsLWRldi1iaWxsaW5nLWtleS0zMmI=}
   jwt:
     # ⚠️ 아래 기본값은 로컬 전용이다. 운영에서는 반드시 JWT_SECRET 을 주입할 것.
     #    (application-prod.yaml 은 기본값 없이 환경변수를 강제한다)
