@@ -239,6 +239,24 @@ class BillingIntegrationTest {
     }
 
     @Test
+    @DisplayName("[결제] 토스가 발급에서 429(레이트리밋) 면 503 이다 — 카드 문제가 아니라 우리 잘못이다")
+    void 발급에서_429_면_503() {
+        tossStub.enqueue(429, "{\"code\":\"REJECT_CARD_PAYMENT\",\"message\":\"요청이 일시적으로 많습니다.\"}");
+
+        Response 응답 = post(ownerToken, customerKey, "auth-key-1");
+
+        // 🔴 리뷰 지적 ④가 사는 자리다. 고치기 전에는 401 만 따로 뗐고 429 는 <그 밖의 4xx> 로
+        //    떨어져 400 BILLING_AUTH_FAILED("카드 정보를 확인해주세요")가 나갔다 — 사용자가
+        //    손쓸 수 없는 레이트리밋을 카드 탓으로 돌린 것이다. 같은 429 가 삭제 경로
+        //    (TossClient.deleteBillingKey)에서는 이미 503 이다 — 그 주석이 명시한다:
+        //    "429(레이트리밋)도 '없다'는 뜻이 전혀 아니다." 발급도 같은 기준을 따라야 한다.
+        assertThat(응답.status()).isEqualTo(503);
+        assertThat(응답.json().path("error").path("code").asString())
+                .isEqualTo("BILLING_PROVIDER_UNAVAILABLE");
+        assertThat(tossStub.received()).hasSize(1);
+    }
+
+    @Test
     @DisplayName("[결제] 연결이 끊기면 <같은 멱등키로> 한 번만 재시도한다")
     void 연결이_끊기면_같은_멱등키로_재시도한다() {
         tossStub.enqueueAbort();                                   // 1회차: 응답 없이 끊김
@@ -372,8 +390,8 @@ class BillingIntegrationTest {
     }
 
     @Test
-    @DisplayName("[삭제] 토스가 4xx 면 우리 행은 지운다 (토스 쪽엔 이미 없다는 뜻)")
-    void 토스_4xx_면_우리_행을_지운다() {
+    @DisplayName("[삭제] 토스가 404 면 우리 행은 지운다 (토스 쪽엔 이미 없다는 뜻) — 바로 위 401 테스트와 짝이다")
+    void 토스_404_면_우리_행을_지운다() {
         등록한다();
         tossStub.enqueue(404, 토스_4xx);
 
@@ -382,7 +400,10 @@ class BillingIntegrationTest {
         assertThat(응답.status()).isEqualTo(204);
         assertThat(카드_행수(userId)).isZero();
 
-        // 반대로 잡으면(4xx 도 유지) 사용자가 카드를 <영영 못 지운다>.
+        // 바로 위 401 테스트(삭제_중_토스가_401_이면_우리_행이_남는다)와 이 테스트가 함께
+        // 실제 기준을 증명한다 — 갈리는 것은 "4xx 냐 아니냐"가 아니라 <404 냐 아니냐>다.
+        // 401(위)은 행을 남기고, 404(여기)는 행을 지운다.
+        // 반대로 잡으면(404 도 유지) 사용자가 카드를 <영영 못 지운다>.
         // 이건 해석이지 확인된 사실이 아니다 — 토스 문서에 이 API 의 에러 코드표가 없다.
         // 해석이 틀리면 토스 쪽에 고아가 남지만, 반대 선택의 대가가 더 크다고 보고 이쪽을 택했다.
     }

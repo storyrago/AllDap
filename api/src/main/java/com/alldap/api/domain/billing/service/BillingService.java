@@ -138,9 +138,12 @@ public class BillingService {
      * {@code DocumentService.delete}(조회 → 외부 호출)와 같은 모양이다.
      *
      * <p>대가는 원자성이다. 토스가 200 을 준 뒤 우리 DELETE 전에 프로세스가 죽으면
-     * <b>죽은 키를 가진 행</b>이 남는다. 그런데 그 상태는 스스로 낫는다 — 사용자가 다시 삭제하면
-     * 토스가 4xx 를 주고, {@code TossClient} 의 4xx 분기가 "이미 없다"로 보고 행을 지운다.
-     * <b>4xx 를 삼키는 설계가 이 사고의 복구 경로이기도 하다.</b>
+     * <b>죽은 키를 가진 행</b>이 남는다. 이 상태가 스스로 낫는지는 <b>토스가 무슨 코드를 주느냐에
+     * 달려 있다</b>. 사용자가 다시 삭제를 누르면 토스는 이미 없는 빌링키를 보고 <b>404</b> 를 줄
+     * 것이고, {@code TossClient} 는 <b>404 만</b> "이미 없다"로 보고 행을 지운다 — 그러면 자기 치유가
+     * 성립한다. <b>404 가 아닌 다른 코드(401·429 등)가 오면 성립하지 않는다</b> — {@code TossClient}
+     * 는 그런 코드를 "모른다"로 보고 행을 그대로 남긴다({@link TossClient#deleteBillingKey} 의 javadoc
+     * 참고). 이건 완화되지 않은 <b>알려진 한계</b>다({@code docs/decisions.md} 와 설계 문서에 적어뒀다).
      */
     public void delete(UUID userId) {
         // 없는 것과 남의 것을 구분할 필요가 없다 — 조회 자체가 토큰 주인으로 좁혀져 있어
@@ -156,6 +159,6 @@ public class BillingService {
 
         // 🔴 빌링키도 customerKey 도 로그에 남기지 않는다. 우리 DB 가 유일한 사본이라는 말은
         //    <로그로 새면 그것도 사본이 된다>는 뜻이다. userId 하나면 추적에 충분하다.
-        log.info("[billing] 결제 수단 삭제 userId={}", userId);
+        log.info("[결제] 결제 수단 삭제 userId={}", userId);
     }
 }

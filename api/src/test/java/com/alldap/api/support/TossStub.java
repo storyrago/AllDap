@@ -44,6 +44,17 @@ import java.util.concurrent.Executors;
  * <h2>포트를 0으로 여는 이유</h2>
  * OS 가 비어 있는 포트를 고르게 한다. 실제 포트는 {@link #baseUrl()} 로 알아내
  * {@code app.toss.base-url} 에 주입한다({@link TestcontainersConfiguration} 참고).
+ *
+ * <h2>왜 {@link AiServiceStub} 과 합치지 않았는가</h2>
+ * 중복된 ~140줄은 <b>{@code HttpServer} 배관</b>이고 외부 계약과 무관하다. 계약 차이는 세 군데뿐이다 —
+ * 빈 큐 응답 본문({@code {"detail"}} vs {@code {"code","message"}}) · {@code hasHeader(boolean)} vs
+ * {@code header(String)} · {@code enqueueSlow} 부재.
+ * <p>그럼에도 합치지 않는 이유는 <b>공통화하면 {@link AiServiceStub} 을 쓰는 기존 131건의 지지대를
+ * 건드리기 때문</b>이다. 얻는 것은 거의 안 바뀌는 테스트 지원 코드 140줄이고, 잃는 것은 초록불
+ * 스위트에 대한 리스크다.
+ * <p>{@code enqueueSlow} 부재는 <b>의도된 갈라짐</b>이다 — {@code AiServiceClient} 는 연결 실패(503)와
+ * 읽기 타임아웃(504)을 가르지만 {@code TossClient} 는 둘을 한 블록으로 받아 같은 503 을 준다.
+ * 느린 응답 재현이 없어도 커버리지 구멍이 아니다.
  */
 public class TossStub implements AutoCloseable {
 

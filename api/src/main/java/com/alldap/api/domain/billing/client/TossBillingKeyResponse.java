@@ -20,6 +20,16 @@ package com.alldap.api.domain.billing.client;
 public record TossBillingKeyResponse(String billingKey, Card card) {
 
     /**
+     * 🔴 자동 생성 {@code toString()} 이 billingKey 를 찍는 것을 막는다. {@link TossBilling} 과
+     * 같은 이유 — 이 값이 로그에 안 찍힌다는 것을 <구조로> 보장한다({@code card} 는 어차피
+     * 마스킹된 값이라 그대로 둔다).
+     */
+    @Override
+    public String toString() {
+        return "TossBillingKeyResponse[billingKey=***, card=%s]".formatted(card);
+    }
+
+    /**
      * @param issuerCode 카드 발급사 코드("61" 등). 이름은 {@code CardIssuer} 가 붙인다
      * @param number     토스가 마스킹해서 준 번호("43301234****123*").
      *                   <b>우리가 마스킹하는 것이 아니다</b> — 전체 카드번호는 우리 서버에 닿지 않는다

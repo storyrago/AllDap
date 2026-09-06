@@ -31,7 +31,7 @@ import java.util.UUID;
  * <p><b>코드를 나누는 기준도 같다 — "누구 잘못인가".</b> 아래는 {@link #issueBillingKey} (발급) 규칙이다.
  * <ul>
  *   <li>토스 4xx(카드 거절·유효기간·정지) → 400 {@code BILLING_AUTH_FAILED} + <b>토스의 한국어 문구 그대로</b></li>
- *   <li>토스 401 → 503. 이건 사용자 잘못이 아니라 <b>우리 키 설정 문제</b>다. 아래 참고</li>
+ *   <li>토스 401·403·429 → 503. 셋 다 사용자 잘못이 아니라 <b>우리 쪽 설정·호출 빈도 문제</b>다. 아래 참고</li>
  *   <li>토스 5xx·타임아웃·연결 실패 → 503 {@code BILLING_PROVIDER_UNAVAILABLE}</li>
  * </ul>
  *
@@ -170,12 +170,21 @@ public class TossClient {
     private ApiException translateHttpFailure(RestClientResponseException e) {
         HttpStatusCode status = e.getStatusCode();
 
-        // 🔴 401 만 따로 뗀다. 4xx 라고 사용자에게 "카드를 확인하세요" 라고 하면 <거짓말>이다 —
-        //    사용자는 손쓸 수 없고, 고칠 사람은 TOSS_SECRET_KEY 를 넣을 우리다.
+        // 🔴 401·403·429 는 따로 뗀다. 셋 다 "카드가 잘못됐다"가 아니라 <사용자가 손쓸 수 없는>
+        //    문제다. 4xx 로 뭉뚱그려 "카드 정보를 확인해주세요" 라고 하면 <거짓말>이다.
+        //     - 401: 우리 TOSS_SECRET_KEY 설정 문제. 고칠 사람은 우리다.
+        //     - 403: 권한 문제. 역시 우리 설정 쪽이다.
+        //     - 429: 레이트리밋. 삭제 경로({@link #deleteBillingKey})가 이미 같은 판단을 한다 —
+        //       그 주석이 "429(레이트리밋)도 '없다'는 뜻이 전혀 아니다" 라고 적었는데, 발급도
+        //       마찬가지로 "카드가 거절됐다" 는 뜻이 아니다. 두 경로가 같은 상황에 다르게
+        //       안내하면 안 된다("누구 잘못인가"가 코드를 가르는 기준이라는 이 파일의 원칙 그대로).
         //    (INVALID_API_KEY 는 결제위젯 키를 넣었을 때 나온다. 자동결제는 API 개별 연동 키다)
-        if (status.isSameCodeAs(HttpStatus.UNAUTHORIZED)) {
-            log.error("[토스] 인증 키가 거절됐다. TOSS_SECRET_KEY 가 <API 개별 연동 키>(test_sk_/live_sk_)인지, "
-                    + "앞뒤에 공백·BOM 이 섞이지 않았는지 확인할 것. body={}", e.getResponseBodyAsString());
+        if (status.isSameCodeAs(HttpStatus.UNAUTHORIZED)
+                || status.isSameCodeAs(HttpStatus.FORBIDDEN)
+                || status.isSameCodeAs(HttpStatus.TOO_MANY_REQUESTS)) {
+            log.error("[토스] 발급이 {} 로 거절됐다 — 카드 문제가 아니라 우리 쪽 설정·호출 빈도 문제다. "
+                    + "401 이면 TOSS_SECRET_KEY 가 <API 개별 연동 키>(test_sk_/live_sk_)인지, 앞뒤에 공백·BOM 이 "
+                    + "섞이지 않았는지 확인할 것. body={}", status, e.getResponseBodyAsString());
             return new ApiException(ErrorCode.BILLING_PROVIDER_UNAVAILABLE);
         }
 

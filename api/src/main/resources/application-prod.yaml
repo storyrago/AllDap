@@ -75,8 +75,13 @@ app:
     read-timeout: ${AI_SERVICE_READ_TIMEOUT:120s}
   toss:
     base-url: ${TOSS_BASE_URL:https://api.tosspayments.com}
-    # fail-closed. 기본값을 두지 않는다 — 키 없이 뜨면 카드 등록이 전부 실패하는데
-    # 원인이 로그를 뒤져야 나온다. 차라리 기동이 실패하는 편이 안전하다.
+    # ⚠️ 이 파일 머리의 fail-closed 원칙이 <적용되지 않는> 값이다. TossProperties 는
+    # @Validated·@NotBlank 가 없는 순수 record 라, 이 값이 비어 있어도(또는 docker-compose 가
+    # 빈 문자열을 그대로 주입해도) 기동을 막지 않는다 — TossClientConfig 가 그 값을 그대로 받아
+    # 인증 헤더를 만든다. 비면 토스가 401 을 주고 TossClient 가 그걸 503 으로 바꿔 내보내므로,
+    # 증상은 배포 시점이 아니라 <사용자가 카드를 등록할 때> 나타난다("떴으니 됐다"로 읽으면
+    # 안 되는 값이다 — docs/DEPLOY.md §7 참고). TODO: BillingCrypto 처럼 시작 시 가드를 추가할
+    # 수 있다 — 동작을 바꾸는 것은 별도 슬라이스다.
     secret-key: ${TOSS_SECRET_KEY}
     connect-timeout: ${TOSS_CONNECT_TIMEOUT:3s}
     read-timeout: ${TOSS_READ_TIMEOUT:10s}

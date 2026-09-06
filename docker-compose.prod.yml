@@ -34,7 +34,9 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       # 빌링키 암호화 키. application-prod.yaml 이 기본값을 안 두므로 없으면 기동 실패한다.
       BILLING_CRYPTO_KEY: ${BILLING_CRYPTO_KEY}
-      # application-prod.yaml 이 기본값을 안 두므로 없으면 기동 실패한다(JWT_SECRET 과 같다).
+      # ⚠️ JWT_SECRET 과 다르다 — 없어도 기동을 막지 <않는다>. TossProperties 는 순수 record 라
+      # 가드가 없고, 비면 빈 문자열이 그대로 주입돼 컨테이너가 정상 healthy 로 뜬다.
+      # 증상은 카드를 등록할 때에야 401→503 으로 드러난다. 자세한 근거는 docs/DEPLOY.md §7 참고.
       TOSS_SECRET_KEY: ${TOSS_SECRET_KEY}
       # Python 은 같은 compose 네트워크 안에서만 부른다. 인터넷에서 닿지 않는다.
       AI_SERVICE_BASE_URL: http://ai-service:8001
