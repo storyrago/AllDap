@@ -43,6 +43,17 @@ import { Section } from "@/components/Form";
  */
 const TOSS_CLIENT_KEY = process.env.NEXT_PUBLIC_TOSS_CLIENT_KEY ?? "";
 
+/*
+ * "취소"라는 같은 사용자 의도가 두 개의 다른 경로로 들어온다 — 하나로 묶어 <한 번만 판정>한다.
+ *   ① 결제창의 X 버튼 → SDK 가 예외를 던진다 → 코드가 "USER_CANCEL"(handleOpenBillingWindow 의 catch)
+ *   ② 토스 창 <안의> 취소 버튼 → failUrl 로 리다이렉트한다 → 코드가 "PAY_PROCESS_CANCELED"(토스 문서 명시)
+ * 둘 다 "닫았을 뿐"인데 빨간 오류를 띄우면 "뭐가 고장났나"로 읽힌다. 리터럴을 두 곳에 따로 두면
+ * 나중에 한쪽만 코드가 바뀌거나(예: 새 취소 사유 추가) 한쪽만 고치는 사고가 난다 — Set 하나로 공유한다.
+ * ⚠️ PAY_PROCESS_ABORTED(결제 승인 실패)·REJECT_CARD_COMPANY(카드사 거절)는 여기 넣지 않는다.
+ *    둘은 진짜 실패라 사용자가 원인을 알아야 한다.
+ */
+const CANCEL_CODES = new Set(["USER_CANCEL", "PAY_PROCESS_CANCELED"]);
+
 export default function BillingPage() {
   const router = useRouter();
 
@@ -111,6 +122,18 @@ export default function BillingPage() {
       const failCode = params.get("code");
 
       /*
+       * 🔴 URL 을 <POST 하기 전에> 비운다 (2026-09 리뷰로 앞당김 — 원래는 POST 뒤였다).
+       *    registerBillingMethod 는 토스 발급 + I/O 실패 시 1회 재시도까지 하므로 수 초가 걸린다.
+       *    POST 가 끝난 뒤 비우면 그 몇 초 동안 주소창에 authKey 가 남아 있고, 그 창에서
+       *    새로고침하면 <이미 소모된 authKey> 가 한 번 더 POST 된다 — 막으려던 바로 그 사고다.
+       *    authKey·customerKey·failCode 는 이미 아래 지역 변수에 담겨 있으므로 URL 을 먼저
+       *    비워도 <클로저> 안의 값은 그대로 살아 있다 — replace 는 주소창만 바꿀 뿐 이 함수
+       *    안에서 참조하는 변수에는 영향이 없다. 같은 라우트로의 replace 라 컴포넌트도
+       *    다시 마운트되지 않는다(= landedRef 가드가 다시 걸릴 일도 없다).
+       */
+      if (failCode || authKey) router.replace("/billing");
+
+      /*
        * 착지 결과를 <먼저 계산>하고 setState 는 아래 await 뒤에 몰아서 한다.
        * 이렇게 두면 eslint 의 react-hooks/set-state-in-effect 규칙과도 맞고
        * ("effect 에서 곧바로 setState 하는" 모양을 만들지 않는다),
@@ -120,10 +143,19 @@ export default function BillingPage() {
       let landedNotice: string | null = null;
 
       if (failCode) {
-        // 토스가 실패 사유를 한국어 message 로 실어 보낸다. 우리가 다시 쓰지 않고 그대로 보여준다.
-        landedError =
-          params.get("message") ??
-          "카드 등록에 실패했습니다. 카드를 확인한 뒤 다시 시도해주세요.";
+        /*
+         * 🔴 취소는 오류가 아니다 — CANCEL_CODES 참고. handleOpenBillingWindow 의 catch(SDK
+         * 예외 경로)와 여기(failUrl 리다이렉트 경로)가 <같은 판정>을 공유해야 한다. 한쪽만
+         * 걸러내면 "결제창의 X"는 조용한데 "토스 창 안의 취소 버튼"만 빨간 오류가 뜨는,
+         * 사용자 입장에서 똑같은 취소 행동이 다르게 보이는 버그가 난다.
+         * PAY_PROCESS_ABORTED·REJECT_CARD_COMPANY 는 여기 안 걸린다 — 진짜 실패라 보여줘야 한다.
+         */
+        if (!CANCEL_CODES.has(failCode)) {
+          // 토스가 실패 사유를 한국어 message 로 실어 보낸다. 우리가 다시 쓰지 않고 그대로 보여준다.
+          landedError =
+            params.get("message") ??
+            "카드 등록에 실패했습니다. 카드를 확인한 뒤 다시 시도해주세요.";
+        }
       } else if (authKey) {
         try {
           /*
@@ -136,14 +168,6 @@ export default function BillingPage() {
           landedError = e instanceof ApiError ? e.message : "카드를 등록하지 못했습니다.";
         }
       }
-
-      /*
-       * 🔴 URL 을 비운다. 안 비우면 새로고침 한 번에 <이미 소모된 authKey> 가 다시 POST 되고,
-       *    토스가 그걸 거절해서 방금 성공한 화면에 빨간 오류가 뜬다.
-       *    authKey 는 한 번만 쓸 수 있는 값이다 — 브라우저 주소창에 남겨둘 이유가 없다.
-       *    같은 라우트로의 replace 라 컴포넌트는 다시 마운트되지 않는다.
-       */
-      if (failCode || authKey) router.replace("/billing");
 
       /*
        * 등록 응답에도 카드 정보가 들어 있지만 <쓰지 않고> 다시 조회한다.
@@ -209,6 +233,8 @@ export default function BillingPage() {
       /*
        * 사용자가 창을 그냥 닫으면 SDK 가 USER_CANCEL 을 던진다. 이건 오류가 아니라 <취소>다.
        * 빨간 문구를 띄우면 "닫았을 뿐인데 뭐가 고장났나" 로 읽힌다.
+       * (토스 창 <안의> 취소 버튼은 이 경로를 안 타고 failUrl 로 리다이렉트한다 —
+       *  그 경로의 판정은 위 useEffect 가 <같은 CANCEL_CODES> 로 내린다.)
        *
        * 에러 객체의 모양을 확신할 수 없어(실제 SDK 는 CDN 에서 오고 타입이 없다)
        * code 를 조심스럽게 꺼낸다.
@@ -217,7 +243,7 @@ export default function BillingPage() {
         typeof e === "object" && e !== null && "code" in e
           ? String((e as { code: unknown }).code)
           : "";
-      if (code !== "USER_CANCEL") {
+      if (!CANCEL_CODES.has(code)) {
         setError(
           e instanceof Error
             ? e.message
@@ -237,9 +263,15 @@ export default function BillingPage() {
    * 오류도 안 뜬다. 밖에서 보면 "버튼이 고장났다" 와 구별할 수 없다.
    * 그래서 봇 삭제(settings)와 같은 <인라인 패널>을 쓴다.
    *
-   * ⚠️ 실패해도 load() 를 부르지 않는다. 서버는 <토스를 먼저> 부르고 우리 행을 나중에 지우므로,
-   *    503(토스 5xx)이면 카드가 그대로 남아 있다. 다시 조회하면 같은 카드가 다시 그려질 뿐이고,
-   *    "지워진 것 같은데 남아 있네" 라는 깜빡임만 만든다. 오류만 띄우고 화면은 그대로 둔다.
+   * ⚠️ 실패해도 기본은 load() 를 부르지 않는다. 서버는 <토스를 먼저> 부르고 우리 행을 나중에
+   *    지우므로, 503(토스 5xx)이면 카드가 그대로 남아 있다. 다시 조회하면 같은 카드가 다시
+   *    그려질 뿐이고, "지워진 것 같은데 남아 있네" 라는 깜빡임만 만든다. 오류만 띄우고 화면은
+   *    그대로 둔다.
+   *
+   * 🔴 단, 404(BILLING_METHOD_NOT_FOUND)는 정반대다 — 서버 행이 <이미 없다>는 뜻이라
+   *    화면을 그대로 두면 실제로는 없는 카드를 계속 그리게 된다(탭 두 개로 지운 경우 등).
+   *    이때는 load() 로 다시 맞추고, "삭제하지 못했습니다" 대신 <이미 지워졌다>는 걸
+   *    안내한다 — 사용자에게는 오류가 아니라 "화면이 낡아 있었을 뿐"이기 때문이다.
    */
   async function handleDelete() {
     setDeleting(true);
@@ -251,8 +283,14 @@ export default function BillingPage() {
       setNotice("카드를 삭제했습니다.");
       await load();
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : "카드를 삭제하지 못했습니다.");
-      setArmed(false);
+      if (e instanceof ApiError && e.status === 404) {
+        setArmed(false);
+        setNotice("이미 삭제된 카드입니다. 최신 상태로 다시 불러왔습니다.");
+        await load();
+      } else {
+        setError(e instanceof ApiError ? e.message : "카드를 삭제하지 못했습니다.");
+        setArmed(false);
+      }
     } finally {
       setDeleting(false);
     }
@@ -294,7 +332,13 @@ export default function BillingPage() {
           {error}
         </p>
       )}
-      {notice && <p className="mt-4 text-sm text-success">{notice}</p>}
+      {/* role="status" — alert 이 아니다. 급한 오류가 아니라 상태 변화(등록·삭제 완료) 안내라
+          스크린리더가 현재 흐름을 방해하지 않고 조용히 읽어주는 쪽이 맞다. */}
+      {notice && (
+        <p role="status" className="mt-4 text-sm text-success">
+          {notice}
+        </p>
+      )}
 
       <Section title="등록된 카드">
         {data.method ? (
