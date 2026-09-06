@@ -7,6 +7,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -26,8 +27,6 @@ import java.util.UUID;
  * {@code /api/auth/signup}·{@code /api/auth/login}·{@code /api/w/**}·{@code /actuator/health}·
  * {@code /widget/**} 뿐이고, 나머지 {@code /api/**} 는 {@code anyRequest().authenticated()} 로
  * 이미 인증을 요구한다.
- *
- * <p>DELETE 는 Task 3 에서 붙인다.
  */
 @RestController
 @RequiredArgsConstructor
@@ -54,5 +53,26 @@ public class BillingController {
             @AuthenticationPrincipal UUID userId,
             @Valid @RequestBody RegisterBillingMethodRequest request) {
         return ResponseEntity.ok(billingService.register(userId, request));
+    }
+
+    /**
+     * DELETE /api/billing/method — 등록된 카드 삭제. 성공하면 본문 없이 <b>204</b>.
+     *
+     * <p>토스 쪽 빌링키도 함께 폐기된다({@code BillingService.delete} 주석 참고).
+     * 실패는 {@code GlobalExceptionHandler} 가 공통 포맷으로 바꿔 내려준다 —
+     * 등록된 카드가 없으면 <b>404</b>, 토스가 죽었거나 응답이 없으면 <b>503</b>(이때 카드는 그대로 남는다).
+     *
+     * <p>경로에 식별자가 없다. 계정당 카드는 한 장이고 "누구의 것인가"는
+     * {@code @AuthenticationPrincipal} 이 이미 정한다 — id 를 받으면 남의 id 를 적어 보낼 자리가 생긴다.
+     *
+     * <p>⚠️ 브리프 원안은 {@code @DeleteMapping("/api/billing/method")} 였지만, 이 컨트롤러는
+     * 클래스에 {@code @RequestMapping("/api/billing/method")} 를 이미 붙여두고
+     * {@code @GetMapping}·{@code @PostMapping} 을 경로 없이 쓰는 관례다. 같은 관례를 따른다
+     * (경로를 또 넣으면 {@code /api/billing/method/api/billing/method} 가 된다).
+     */
+    @DeleteMapping
+    public ResponseEntity<Void> deleteBillingMethod(@AuthenticationPrincipal UUID userId) {
+        billingService.delete(userId);
+        return ResponseEntity.noContent().build();
     }
 }

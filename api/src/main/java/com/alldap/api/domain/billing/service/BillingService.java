@@ -116,6 +116,46 @@ public class BillingService {
                 .getBillingCustomerKey();
     }
 
-    // TODO(Task 3): delete(UUID userId) — 토스 먼저, 우리 나중.
-    //   순서를 뒤집으면 토스 호출이 실패했을 때 우리는 키를 이미 지운 뒤라 영영 폐기할 수 없다.
+    /**
+     * 결제 수단 삭제. <b>토스 먼저, 우리 나중.</b>
+     *
+     * <h2>🔴 순서를 뒤집으면 안 되는 이유</h2>
+     * 우리 행을 먼저 지우고 토스 호출이 실패하면, 그 빌링키는 <b>영영 폐기할 수 없는 고아</b>가 된다.
+     * 토스에는 <b>빌링키를 조회하는 API 가 없다</b>(문서 원문: "발급된 빌링키를 조회하는 API는
+     * 제공되지 않습니다"). 우리 DB 가 그 키의 유일한 사본이므로, 지우는 순간 우리도 토스도
+     * 아무도 그 키를 모른다.
+     * <p>반대 순서의 최악은 "행이 남아 사용자가 버튼을 다시 누른다" 뿐이다. 비대칭이 크다.
+     *
+     * <h2>{@code @Transactional} 을 붙이지 않는다</h2>
+     * 붙이면 토스 호출이 끝날 때까지 DB 커넥션 하나가 묶인다 — 기본 풀이 10 이라
+     * 결제 화면 몇 개가 <b>채팅까지 멈춘다.</b> {@code ChatTurnStore} 가 별도 빈까지 만들어 푼 문제가 이것이다.
+     *
+     * <p><b>다만 여기는 그런 분리가 필요 없다.</b> 채팅은 긴 호출 <b>양옆에</b> DB 작업이 있어
+     * "각각 짧은 트랜잭션 두 개"가 필요했고, 같은 클래스 안에서 자기 메서드를 부르면 프록시를 안 거쳐
+     * 트랜잭션이 조용히 사라지므로 빈을 나눠야 했다. 삭제는 <b>조회 1번 · 삭제 1번</b>이고
+     * 둘이 같은 트랜잭션일 이유가 없다. 스프링 데이터 JPA 의 리포지토리 메서드는 각자 자기 트랜잭션을
+     * 열고 닫으므로, <b>아무것도 안 붙이는 것이 곧 "짧은 트랜잭션 두 개"</b>다.
+     * {@code DocumentService.delete}(조회 → 외부 호출)와 같은 모양이다.
+     *
+     * <p>대가는 원자성이다. 토스가 200 을 준 뒤 우리 DELETE 전에 프로세스가 죽으면
+     * <b>죽은 키를 가진 행</b>이 남는다. 그런데 그 상태는 스스로 낫는다 — 사용자가 다시 삭제하면
+     * 토스가 4xx 를 주고, {@code TossClient} 의 4xx 분기가 "이미 없다"로 보고 행을 지운다.
+     * <b>4xx 를 삼키는 설계가 이 사고의 복구 경로이기도 하다.</b>
+     */
+    public void delete(UUID userId) {
+        // 없는 것과 남의 것을 구분할 필요가 없다 — 조회 자체가 토큰 주인으로 좁혀져 있어
+        // "남의 결제 수단" 이라는 경우가 애초에 이 쿼리에 걸리지 않는다.
+        BillingMethod method = billingMethodRepository.findByUserId(userId)
+                .orElseThrow(() -> new ApiException(ErrorCode.BILLING_METHOD_NOT_FOUND));
+
+        // 복호화는 토스를 부르기 <전에> 한다. 여기서 실패하면(암호화 키 분실·행 손상) 토스도 안 부르고
+        // 행도 안 지운다. 사용자에게는 500 이 나가지만, "지울 수 없는 키를 모르는 채 행만 지우는" 것보다 낫다.
+        tossClient.deleteBillingKey(billingCrypto.decrypt(method.getBillingKeyEnc()));
+
+        billingMethodRepository.delete(method);
+
+        // 🔴 빌링키도 customerKey 도 로그에 남기지 않는다. 우리 DB 가 유일한 사본이라는 말은
+        //    <로그로 새면 그것도 사본이 된다>는 뜻이다. userId 하나면 추적에 충분하다.
+        log.info("[billing] 결제 수단 삭제 userId={}", userId);
+    }
 }

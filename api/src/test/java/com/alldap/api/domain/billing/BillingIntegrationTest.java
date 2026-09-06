@@ -71,6 +71,28 @@ class BillingIntegrationTest {
             {"code":"INVALID_CARD_EXPIRATION",
              "message":"카드 유효기간이 올바르지 않습니다.","data":null}""";
 
+    // ── 삭제 검사 전용 (Task 3) ──────────────────────────────────────────
+
+    /**
+     * 삭제 검사 전용 발급 응답. <b>빌링키에 {@code /} 와 {@code +} 가 든 것이 의도</b>다 —
+     * 토스의 빌링키는 base64 라 실제로 이 문자들이 온다(문서 예시를 그대로 옮겼다).
+     * 평범한 영숫자 키로만 검사하면 경로를 만드는 코드가 이 문자들에서 터져도 드러나지 않는다.
+     */
+    private static final String 빌링키_BASE64 = "IuLQlvcbmS/5jVDkbnRnAmCn88YZLfnGpVBGpLJ+abU=";
+
+    private static final String 발급응답_BASE64키 = """
+            {"billingKey":"IuLQlvcbmS/5jVDkbnRnAmCn88YZLfnGpVBGpLJ+abU=",
+             "card":{"issuerCode":"61","number":"43301234****123*"}}""";
+
+    /** 토스의 오류 본문 모양은 {@code {code, message}} 두 필드다. */
+    private static final String 토스_4xx =
+            """
+            {"code":"NOT_FOUND_BILLING_KEY","message":"존재하지 않는 빌링키 입니다."}""";
+
+    private static final String 토스_5xx =
+            """
+            {"code":"FAILED_INTERNAL_SYSTEM_PROCESSING","message":"내부 시스템 처리 작업이 실패했습니다."}""";
+
     @LocalServerPort
     private int port;
 
@@ -257,6 +279,140 @@ class BillingIntegrationTest {
         assertThat(응답.json().path("method").isNull()).isTrue();
         // customerKey 도 자기 것이어야 한다 — 남의 것을 받으면 남의 계정에 카드를 붙일 수 있다.
         assertThat(응답.json().path("customerKey").asString()).isNotEqualTo(customerKey);
+    }
+
+    // ── 삭제 (설계 §쓰기 경로 ②) ─────────────────────────────────────────
+
+    @Test
+    @DisplayName("[삭제] 우리가 저장한 그 빌링키로 토스에 폐기를 요청한다")
+    void 삭제는_토스에_그_키를_보낸다() {
+        등록한다();
+        tossStub.reset();               // 발급 때의 기록을 지운다 — 아래 검증이 <삭제> 호출만 보게
+        tossStub.enqueue(200, "");      // 토스 레퍼런스는 "비어있는 body 에 200" 이라고 한다
+
+        Response 응답 = request(HttpMethod.DELETE, "/api/billing/method", ownerToken, null);
+
+        assertThat(응답.status()).isEqualTo(204);
+
+        var 삭제요청 = tossStub.received().getFirst();
+        assertThat(삭제요청.method()).isEqualTo("DELETE");
+        // 이 한 줄이 두 가지를 지킨다:
+        //  ① 토스를 실제로 불렀다
+        //  ② 저장된 암호문을 제대로 복호화했다 — DB 왕복을 거쳐 원래 키가 돌아왔다는 뜻이다
+        assertThat(삭제요청.path()).isEqualTo("/v1/billing/" + 빌링키_BASE64);
+
+        // ⚠️ 이 검사가 <못> 하는 것 두 가지를 적어둔다. 이 저장소는 "숫자가 나왔다"에서 멈춰서
+        //    사고를 낸 적이 다섯 번 있다.
+        //    ① 인코딩: 스텁의 getPath() 가 퍼센트 인코딩을 풀어 돌려주므로, '/' 를 %2F 로 보냈든
+        //       그대로 보냈든 같은 문자열이 된다. 토스가 %2F 를 어떻게 해석하는지는
+        //       설계 §검사 3(테스트 키 브라우저 종단)에서만 알 수 있다.
+        //    ② "먼저": 순서를 증명하는 것은 이 테스트가 아니라 아래 5xx 테스트다.
+        //       우리가 먼저 지웠다면 5xx 일 때 행이 남아 있을 수 없다.
+    }
+
+    @Test
+    @DisplayName("[삭제] 토스가 5xx 면 503 이고 <우리 행이 남는다> — 이 Task 의 핵심 주장")
+    void 토스_5xx_면_우리_행이_남는다() {
+        등록한다();
+        tossStub.enqueue(500, 토스_5xx);
+
+        Response 응답 = request(HttpMethod.DELETE, "/api/billing/method", ownerToken, null);
+
+        assertThat(응답.status()).isEqualTo(503);
+        assertThat(응답.json().path("error").path("code").asString())
+                .isEqualTo("BILLING_PROVIDER_UNAVAILABLE");
+
+        // 🔴 여기가 전부다. 행이 남아야 <다시 시도해 폐기할 수> 있다.
+        //    먼저 지웠다면 토스에는 우리가 값을 모르는 빌링키가 영영 남는다 —
+        //    토스에 <빌링키를 조회하는 API 가 없어서> 다시 알아낼 방법이 없다.
+        assertThat(카드_행수(userId)).isEqualTo(1);
+
+        // 화면에도 그대로 보여야 한다. 행만 남고 조회가 비면 사용자는 "지워졌다"고 믿고
+        // 다시 시도하지 않는다 = 고아를 만드는 것과 결과가 같다.
+        assertThat(request(HttpMethod.GET, "/api/billing/method", ownerToken, null)
+                .json().path("method").isNull()).isFalse();
+    }
+
+    @Test
+    @DisplayName("[삭제] 토스가 4xx 면 우리 행은 지운다 (토스 쪽엔 이미 없다는 뜻)")
+    void 토스_4xx_면_우리_행을_지운다() {
+        등록한다();
+        tossStub.enqueue(404, 토스_4xx);
+
+        Response 응답 = request(HttpMethod.DELETE, "/api/billing/method", ownerToken, null);
+
+        assertThat(응답.status()).isEqualTo(204);
+        assertThat(카드_행수(userId)).isZero();
+
+        // 반대로 잡으면(4xx 도 유지) 사용자가 카드를 <영영 못 지운다>.
+        // 이건 해석이지 확인된 사실이 아니다 — 토스 문서에 이 API 의 에러 코드표가 없다.
+        // 해석이 틀리면 토스 쪽에 고아가 남지만, 반대 선택의 대가가 더 크다고 보고 이쪽을 택했다.
+    }
+
+    @Test
+    @DisplayName("[삭제] 등록된 카드가 없으면 404 이고 토스를 부르지 않는다")
+    void 없는_카드를_지우면_404() {
+        Response 응답 = request(HttpMethod.DELETE, "/api/billing/method", ownerToken, null);
+
+        assertThat(응답.status()).isEqualTo(404);
+        assertThat(응답.json().path("error").path("code").asString())
+                .isEqualTo("BILLING_METHOD_NOT_FOUND");
+
+        // "요청이 토스까지 가지 않았다" 를 확인한다. "404 가 났다" 만 보면
+        // <토스가 거절해서 404> 인 경우와 구별되지 않는다.
+        // (AGENTS.md 의 "테스트도 '404 가 났다'가 아니라 '요청이 Python 까지 가지 않았다'를 확인할 것" 그대로)
+        assertThat(tossStub.received()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("[종단] 삭제 후 다시 등록된다. customerKey 는 그대로다")
+    void 삭제하고_다시_등록된다() {
+        String 처음_customerKey = request(HttpMethod.GET, "/api/billing/method", ownerToken, null)
+                .json().path("customerKey").asString();
+
+        등록한다();
+        tossStub.enqueue(200, "");
+        assertThat(request(HttpMethod.DELETE, "/api/billing/method", ownerToken, null).status())
+                .isEqualTo(204);
+
+        // 다시 등록한다. 여기서 409 가 나면 삭제가 행을 안 지운 것이다.
+        등록한다();
+
+        JsonNode 조회 = request(HttpMethod.GET, "/api/billing/method", ownerToken, null).json();
+        assertThat(조회.path("method").path("cardNumberMasked").asString()).isEqualTo("43301234****123*");
+
+        // 🔴 customerKey 는 카드보다 오래 산다. 카드를 뺐다 넣어도 같아야 토스 쪽 고객 이력이 이어진다.
+        //    users(customerKey) 와 billing_methods(billingKey) 로 테이블을 나눈 이유가 이것이고,
+        //    "없음 → 있음 → 없음 → 있음" 을 한 바퀴 돌 수 있어야 종단 검증이 성립한다는 것이
+        //    <삭제를 이 조각에 넣은> 이유다(설계 §무엇을 하는가).
+        assertThat(조회.path("customerKey").asString()).isEqualTo(처음_customerKey);
+    }
+
+    // ── 삭제 검사용 보조 ─────────────────────────────────────────────────
+
+    /**
+     * 카드 한 장을 등록해 둔다. 삭제 검사의 전제조건이라, 실패하면 그 자리에서 드러나야 한다
+     * (등록이 깨진 채로 "삭제 테스트가 실패했다" 는 로그만 보면 엉뚱한 곳을 파게 된다).
+     *
+     * <p>⚠️ 브리프 원안은 여기서 {@code request(...)} 를 직접 불러 {@code RegisterBillingMethodRequest}
+     * 를 새로 조립했지만, Task 2 가 이미 같은 일을 하는 {@link #post(String, String, String)} 를
+     * 만들어 뒀다(POST 본문을 만들어 보내고 응답을 돌려준다) — 그대로 재사용한다.
+     * customerKey 도 새로 GET 해서 얻지 않고 {@code @BeforeEach} 가 채워둔 클래스 필드를 쓴다.
+     */
+    private void 등록한다() {
+        tossStub.enqueue(200, 발급응답_BASE64키);
+
+        Response 응답 = post(ownerToken, customerKey, "test_auth_key_for_delete");
+
+        assertThat(응답.status())
+                .as("등록이 먼저 성공해야 삭제를 검사할 수 있다. 응답 본문=%s", 응답.body())
+                .isEqualTo(200);
+    }
+
+    private long 카드_행수(UUID userId) {
+        Long n = jdbcTemplate.queryForObject(
+                "SELECT count(*) FROM billing_methods WHERE user_id = ?", Long.class, userId);
+        return n == null ? 0 : n;
     }
 
     // ── 테스트 보조 ──────────────────────────────────────────────────────

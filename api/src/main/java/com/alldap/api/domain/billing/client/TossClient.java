@@ -215,8 +215,73 @@ public class TossClient {
         }
     }
 
-    // TODO(Task 3): deleteBillingKey(String billingKey) — DELETE /v1/billing/{billingKey}.
-    //   지금 만들지 않는 이유는 호출자가 없기 때문이다. 이 저장소는 호출자 없는 메서드가
-    //   "검증되지 않은 채 동작한다는 인상만 남긴다" 는 것을 AiServiceClient.listDocuments 에서
-    //   이미 문서화했다.
+    /**
+     * 빌링키 폐기. {@code DELETE {base}/v1/billing/{billingKey}}
+     *
+     * <h2>🔴 반환값이 {@code void} 인 것이 이 메서드의 설계다</h2>
+     * 4xx 와 5xx 를 호출부에 구분해 넘겨야 할 것 같지만, 실제로 <b>호출부가 두 경우에 하는 일이 같다</b> —
+     * 둘 다 우리 행을 지운다.
+     * <ul>
+     *   <li><b>200</b> — 토스가 지웠다 → 우리 행도 지운다</li>
+     *   <li><b>4xx</b> — 토스 쪽엔 <b>이미 없다</b>. 치울 게 없으니 우리 행만 지운다</li>
+     *   <li><b>5xx · I/O</b> — <b>지워졌는지 모른다</b> → 예외를 던진다. 우리 행이 남아야 다시 시도할 수 있다</li>
+     * </ul>
+     * 즉 호출부가 필요한 신호는 "지워도 되는가 / 아직 아닌가" 하나뿐이고, 그건 <b>예외를 던지느냐</b>로
+     * 이미 표현된다. {@code boolean} 을 돌려주는 안도 검토했지만, 호출부가 그 값으로 분기할 일이
+     * 없는데 반환값이 있으면 <b>"여기서 뭔가 갈라져야 하는 것 아닌가"</b> 하는 잘못된 인상만 남긴다.
+     *
+     * <h2>4xx 를 "이미 없다"로 보는 것은 우리 <b>추측</b>이다</h2>
+     * 토스 문서에 이 API 의 에러 코드표가 없다 — 없는 빌링키를 지울 때 무슨 코드가 오는지 모른다.
+     * 추측이 틀리면(예: 인증 오류도 4xx 다) 토스 쪽에 고아 빌링키가 남는다. 그래도 이쪽을 택한 이유는
+     * 반대 선택("4xx 도 유지")이면 <b>사용자가 카드를 영영 못 지우는</b> 상태가 되기 때문이다.
+     * 그래서 삼키되 <b>반드시 WARN 으로 남긴다</b> — 고아가 생겼다면 이 로그가 유일한 흔적이다.
+     *
+     * <h2>멱등키를 붙이지 않는다</h2>
+     * 발급({@code issueBillingKey})에는 붙였지만 여기는 아니다. <b>DELETE 는 메서드 자체가 멱등</b>이라
+     * (같은 키를 두 번 지워도 결과가 같다) 중복 실행이 새 부작용을 만들지 않는다.
+     * 발급이 멱등키를 필요로 했던 이유는 정확히 반대다 — POST 는 부를 때마다 빌링키가
+     * <b>하나씩 더 생기고</b>, 조회 API 가 없어 회수할 방법이 없다.
+     *
+     * <h2>응답 본문을 읽지 않는다</h2>
+     * <b>토스 문서가 자기모순이다.</b> API 레퍼런스는 "비어있는 body 에 200 응답만 내려갑니다" 라고
+     * 하는데 연동 가이드 FAQ 는 {@code {"billingKey":"..."}} 를 보여준다. 어느 쪽이 맞는지 우리가
+     * 정할 수 없으므로 <b>HTTP 상태로만 판정한다.</b> {@code toBodilessEntity()} 가 그 결정을 코드로
+     * 못박은 것이다 — 본문을 DTO 로 받게 해두면 언젠가 "그 필드를 쓰는" 코드가 붙고, 그날 토스가
+     * 레퍼런스대로 빈 본문을 주면 조용히 깨진다.
+     *
+     * <p>재시도하지 않는다. 실패해도 <b>우리 행이 남으므로</b> 사용자가 버튼을 다시 누르면 된다 —
+     * 그게 "토스 먼저, 우리 나중" 순서가 사주는 것이다.
+     */
+    public void deleteBillingKey(String billingKey) {
+        try {
+            tossRestClient.delete()
+                    // ⚠️ 문자열로 이어붙이지 말 것. 토스의 빌링키는 base64 라 '/' 와 '+' 가 들어온다
+                    //    (문서 예시: "IuLQlvcbmS/5jVDkbnRnAmCn88YZLfnGpVBGpLJ+abU=").
+                    //    URI 템플릿 변수로 넘겨야 스프링이 경로 세그먼트 규칙대로 인코딩한다.
+                    .uri("/v1/billing/{billingKey}", billingKey)
+                    .retrieve()
+                    .toBodilessEntity();
+
+        } catch (RestClientResponseException e) {
+            if (e.getStatusCode().is4xxClientError()) {
+                log.warn("[토스] 빌링키 폐기를 {} 로 거절당했다. 이미 없는 키로 보고 우리 행만 지운다. body={}",
+                        e.getStatusCode(), e.getResponseBodyAsString());
+                return;   // 삼킨다 = "토스 쪽엔 이미 없다"
+            }
+            log.error("[토스] 빌링키 폐기 실패 — 토스가 {} 응답. body={}",
+                    e.getStatusCode(), e.getResponseBodyAsString());
+            throw new ApiException(ErrorCode.BILLING_PROVIDER_UNAVAILABLE);
+
+        } catch (RestClientException e) {
+            // 연결 실패·타임아웃·응답 도중 끊김. 전부 <지워졌는지 모르는> 상태다.
+            //
+            // AiServiceClient 는 여기서 연결 실패(503)와 읽기 타임아웃(504)을 갈랐지만, 그건
+            // 사용자가 할 수 있는 행동이 달랐기 때문이다("기다려라" vs "질문을 줄여라").
+            // 삭제에는 그런 차이가 없다 — 어느 쪽이든 답은 "잠시 후 다시 눌러주세요" 하나라
+            // 나누면 코드만 늘고 안내는 같아진다. ResourceAccessException 도 RestClientException 의
+            // 하위 타입이라 이 한 블록이 다 받는다.
+            log.error("[토스] 빌링키 폐기 실패 — 토스와 통신하지 못했다.", e);
+            throw new ApiException(ErrorCode.BILLING_PROVIDER_UNAVAILABLE);
+        }
+    }
 }
