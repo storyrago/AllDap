@@ -72,23 +72,14 @@ export default function SettingsPage() {
   }, [botId]);
 
   useEffect(() => {
-    /*
-     * effect 안에서 async 함수를 <즉시 실행>하고 취소 플래그를 둔다.
-     *
-     * 왜 `void loadBot()` 이 아닌가 — 두 가지 이유가 겹친다.
-     * ① 화면을 떠난 뒤 응답이 도착하면 사라진 컴포넌트의 상태를 갱신하려 든다.
-     *    cancelled 플래그로 그때는 아무것도 하지 않는다.
-     * ② eslint 의 react-hooks/set-state-in-effect 규칙이 "effect 에서 setState 를 하는 함수를
-     *    그냥 호출하는" 모양을 막는다. 응답이 온 <뒤>에 갱신한다는 게 코드 모양에 드러나야 한다.
-     */
-    let cancelled = false;
+    // eslint react-hooks/set-state-in-effect 때문에 IIFE 로 감싼다 — setState 가
+    // <비동기 경계 뒤>에서 일어난다는 것을 코드에 드러내는 것이다.
+    // 취소 플래그는 두지 않는다: React 18+ 에서 떠난 뒤의 setState 는 무시되고,
+    // 예전의 `await loadBot(); if (cancelled) return;` 은 setState 가 이미 끝난
+    // 뒤라 아무것도 막지 못했다. 근거는 app/(dashboard)/dashboard/page.tsx 첫 effect 주석.
     void (async () => {
       await loadBot();
-      if (cancelled) return;
     })();
-    return () => {
-      cancelled = true;
-    };
   }, [loadBot]);
 
   async function handleSave(event: React.FormEvent<HTMLFormElement>) {
