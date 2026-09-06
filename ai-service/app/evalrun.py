@@ -67,6 +67,11 @@ def create_run(bot_id: UUID) -> tuple[UUID, int]:
     config = {
         "top_k": s.top_k,
         "max_distance": s.max_distance,
+        # 🔴 판정 게이트도 박제한다. None(꺼짐)과 값이 있는 것은 <다른 실험>이고,
+        #    안 적으면 게이트 ON/OFF 실행의 config 가 완전히 같아져 구분할 방법이 없다.
+        #    max_distance 바로 옆에 두는 이유: 두 값이 한 쌍이기 때문이다 —
+        #    하나는 "무엇을 근거로 쓸지", 하나는 "근거가 있는지" 를 정한다.
+        "answerable_max_distance": s.answerable_max_distance,
         "chat_model": s.chat_model,
         "embedding_model": s.embedding_model,
         "judge_model": s.judge_model,

@@ -118,6 +118,22 @@ def search(
         cur.execute(sql, (qvec, bot_id, limit))
         rows = list(cur.fetchall())
 
+    # ── 판정: 근거가 <있는가> (아래 max_distance 컷과 별개다) ─────────
+    #
+    # ⚠️ rows[0] 은 <벡터 최근접>이고, 하이브리드 재정렬 <전에> 봐야 한다:
+    #      · rows 는 ORDER BY distance 로 왔으므로 rows[0] 이 최근접이다.
+    #      · 하이브리드가 덧붙이는 키워드 행은 벡터 top-N <밖>이라 항상 이보다 멀다.
+    #      · 리랭커는 순서만 바꾸고 거리를 안 건드린다.
+    #    → 리랭커·하이브리드를 어떻게 켜든 판정값이 안 흔들린다.
+    #      편의가 아니라 <비교가 성립하기 위한 조건>이다. 판정이 설정에 따라 흔들리면
+    #      무엇 때문에 점수가 변했는지 알 수 없다(같은 이유로 아래 컷도 벡터 거리를 쓴다).
+    #
+    # 빈 목록을 돌려주면 generator.generate 가 LLM 을 안 부르고 fallback 한다.
+    # 새 상태도 새 경로도 만들지 않는다.
+    answerable = s.answerable_max_distance
+    if answerable is not None and (not rows or rows[0][4] > answerable):
+        return []
+
     if hybrid:
         # 키워드가 데려온 청크를 <벡터 후보 뒤에> 덧붙인다. 순서는 아래 RRF 가 다시 매긴다.
         vec_order = [r[0] for r in rows]
