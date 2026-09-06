@@ -29,11 +29,11 @@
 | 4 | **swap 2GB** + **Docker 설치** | `free -h` 에 Swap 2.0Gi · `docker ps` 됨 |
 | 5 | EC2 에서 **RDS 연결 확인** | `nc -zv <RDS엔드포인트> 5432` → succeeded |
 | 6 | **DuckDNS** 서브도메인 → 탄력적 IP | `dig +short <도메인>` 이 탄력적 IP 를 뱉음 |
-| 7 | `git clone` → `.env.prod` 채우기 | `DB_HOST`·`JWT_SECRET`·`CF_*` 가 비어 있지 않음 |
+| 7 | `git clone` → `.env.prod` 채우기 | `DB_HOST`·`JWT_SECRET`·`CF_*`·`BILLING_CRYPTO_KEY`·`TOSS_SECRET_KEY` 가 비어 있지 않음 |
 | 8 | **`docker compose … up -d`** | `docker compose … ps` 에서 api 가 `healthy` (2~3분 걸림) |
 | 9 | **HTTPS 확인** | `curl https://<도메인>/actuator/health` → `{"status":"UP"}` |
 | 10 | 🔴 **격리 확인** | `curl http://<탄력적IP>:8001/health` → **연결 실패해야 정상** |
-| 11 | **Vercel** 배포 (Root `web`, `NEXT_PUBLIC_API_BASE_URL`) | Vercel 주소로 로그인 화면이 뜸 |
+| 11 | **Vercel** 배포 (Root `web`, `NEXT_PUBLIC_API_BASE_URL`, `NEXT_PUBLIC_TOSS_CLIENT_KEY`) | Vercel 주소로 로그인 화면이 뜸 |
 | 12 | `CORS_ALLOWED_ORIGINS` 에 Vercel 주소 넣고 api 재시작 | 브라우저에서 가입이 됨 |
 | 13 | **종단 테스트** — 문서 업로드 → 채팅 → 내보내기 → 다른 사이트에 설치 | 남의 사이트에서 근거 붙은 답변이 나옴 |
 
@@ -173,10 +173,55 @@ docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
 
 t3.micro 는 느려서 Spring 기동에 2~3분 걸릴 수 있다(`start_period: 180s`).
 
+### 결제 수단(토스) 환경변수 — 2026-09-06 추가
+
+`.env.prod` 에 두 개가 더 필요하다. **둘 다 비어 있으면 `prod` 프로파일에서 기동이 실패한다**(fail-closed).
+
+```bash
+# 빌링키 암호화 키 — Base64 32바이트. 반드시 이 명령으로 만든다.
+openssl rand -base64 32
+```
+
+```
+BILLING_CRYPTO_KEY=<위 명령의 출력>
+TOSS_SECRET_KEY=test_sk_...
+```
+
+> 🔴 **`BILLING_CRYPTO_KEY` 를 잃으면 전 고객이 카드를 다시 등록해야 한다.**
+> 토스에는 **빌링키를 조회하는 API 가 없다** — 우리 DB 의 `billing_methods.billing_key_enc` 가
+> 세상에 하나뿐인 사본이고, 그 값은 이 키로만 열린다. 키를 잃으면 DB 가 멀쩡해도 내용물이 영원히 잠긴다.
+> **이 키는 DB 백업과 <함께> 백업 대상이다.** RDS 자동 스냅샷은 암호문만 지킬 뿐 키를 지켜주지 않는다.
+> 서버를 옮기거나 `.env.prod` 를 새로 만들 때 **이 값만은 새로 만들지 말고 그대로 옮길 것.**
+> 키 회전 기능은 없다(`docs/decisions.md` 2026-09-06 항목 참고).
+>
+> ⚠️ **길이가 정확히 32바이트여야 한다.** JCE 는 16바이트 키를 주면 **말없이 AES-128 로 돈다.**
+> `BillingCrypto` 생성자가 길이를 확인해 아니면 기동을 중단하지만, 애초에 위 명령을 그대로 쓰면 된다.
+>
+> ⚠️ **키 <종류>를 틀리면 `INVALID_API_KEY` 가 난다.** 자동결제는 **API 개별 연동 키**
+> (`test_ck_` / `test_sk_`)를 쓴다. 결제위젯 키(`test_gck_` / `test_gsk_`)가 아니다.
+> 토스는 서비스마다 다른 MID 에 각각 키를 발급하고, 세트가 아닌 키를 섞으면 거부한다.
+> 클라이언트 키(`test_ck_`)와 시크릿 키(`test_sk_`)는 **같은 세트**여야 한다.
+
+### 🔴 배포한다고 결제가 되는 것은 아니다
+
+토스 문서(https://docs.tosspayments.com/guides/v2/billing) 원문:
+
+> "자동결제는 리스크 검토 및 추가 계약 후 사용할 수 있습니다. 정기 구독형 서비스가 아니라면
+> 정책적으로 자동결제 사용이 제한되니 유의하세요."
+
+라이브 키를 받으려면 **전자결제 계약 + 자동결제 추가 계약** 두 개가 필요하고 둘 다 사업자등록이 전제다.
+**테스트 키(`test_sk_` / `test_ck_`)로는 사업자등록 없이 전 흐름이 돈다** — 카드 등록창·빌링키 발급·삭제까지.
+그래서 이 기능의 배포 완료 조건은 **테스트 키 기준**이고, 배포된 화면 어디에도 "결제됩니다"라고 쓰지 않는다.
+실제 청구(4번 조각)는 아직 만들지도 않았다 — **지금 카드를 등록해도 돈이 빠져나가는 경로가 코드에 없다.**
+
 ## 7. Vercel (프론트)
 
 - **Root Directory**: `web`
 - **환경변수**: `NEXT_PUBLIC_API_BASE_URL=https://alldap.duckdns.org`
+- **환경변수**: `NEXT_PUBLIC_TOSS_CLIENT_KEY=test_ck_...` — 토스 카드 등록창을 여는 데 쓴다.
+  `NEXT_PUBLIC_` 이라 **브라우저 번들에 그대로 들어간다.** 클라이언트 키는 원래 공개돼도 되는 값이라
+  괜찮지만, **시크릿 키(`test_sk_`)를 여기 넣으면 안 된다** — 그러면 누구나 우리 계정으로 API 를 부른다.
+  위 `.env.prod` 의 `TOSS_SECRET_KEY` 와 **같은 세트의 키**여야 한다(다르면 `INVALID_API_KEY`).
 - 배포 후 그 주소를 `.env.prod` 의 `CORS_ALLOWED_ORIGINS` 에 넣고 api 를 재시작한다.
 
 > ⚠️ Vercel 은 브랜치마다 **프리뷰 도메인**을 만든다. 프리뷰에서도 API 를 쓰려면
@@ -279,3 +324,7 @@ done
 - **테스트 질문 생성이 Gemini 무료 등급을 쓴다.** 약관상 입력을 학습에 쓴다 —
   실제 고객 문서를 받기 전에 정리할 것.
 - **프리티어 12개월이 끝나면 월 $23 쯤 나간다.** 만료 전에 정리하거나 옮길 것.
+- 🔴 **결제는 테스트 키로만 돈다.** 라이브 전환에 자동결제 추가 계약이 필요하다(위 §6 참고).
+  그리고 실제 청구 로직 자체가 아직 없다 — 카드를 저장하는 데까지가 전부다.
+- 🔴 **`BILLING_CRYPTO_KEY` 는 DB 백업과 함께 백업해야 하는 값이다.** 이것만 잃어도
+  `billing_methods` 전체가 쓸모없어지고, 토스에 조회 API 가 없어 복구 수단이 없다.

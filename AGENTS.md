@@ -121,6 +121,8 @@ AllDap/  ← 저장소 루트
 | `chunks` | **Python** | — | Spring은 건드리지 않음 |
 | `conversations`, `messages` | Spring | — | 대화 로그는 Spring이 저장 |
 | `eval_*` | **Python** | Spring | 평가 실행은 Python, 조회는 Spring |
+| `usage_events` | Spring | — | 과금 원장(V5, 2026-09-05). append-only. 평가 실행분도 Python 이 아니라 **Spring 이 조회 직전에 멱등하게 메꾼다** |
+| `billing_methods` | Spring | — | 결제 수단·토스 빌링키(V6, 2026-09-06). Python 은 건드리지 않음. `billing_key_enc` 는 **암호문**이라 SQL 로 읽어도 못 쓴다 |
 
 - Spring의 `spring.jpa.hibernate.ddl-auto`는 반드시 **`validate` 또는 `none`**.
   Hibernate가 스키마를 바꾸면 Python 쪽이 깨진다.
@@ -327,7 +329,7 @@ Spring:   대화 로그 저장(assistant 메시지 + sources + is_fallback)
 | `widget/` 스크립트 | ✅ **실제 설치 실측 통과** (2026-08-02). 별도 origin 의 가짜 고객 사이트에 `<script>` 한 줄 → 로더 → iframe → 인사말 → 답변(근거 포함) → `channel=widget` 로그까지. 허용 안 된 도메인은 안내 문구로 차단됨 |
 | Flyway · CI · PR 템플릿 | ✅ 도입 완료 (위 Flyway 규칙 참고) |
 | 사용량 계량 (2026-09-06) | ✅ **PR #52·#53 머지됨.** 요금제 연동 4조각 중 **1번**. `usage_events` append-only 원장 + `GET /api/usage` + 대시보드 카드. 통합 테스트 123건 통과. |
-| 결제 수단 등록 (2026-09-06) | 🚧 **설계·계획 완료, 구현 전.** 요금제 연동 4조각 중 **3번**(2번보다 먼저 하는 근거는 설계 문서에 있다 — 2번은 아직 없는 금액을 요구한다). 토스 빌링키 발급·암호화 저장·폐기. 설계 `docs/superpowers/specs/2026-09-06-billing-method-design.md` · 계획 `docs/superpowers/plans/2026-09-06-billing-method.md` |
+| 결제 수단 등록 (2026-09-06) | 🚧 **PR #55 오픈, 미머지.** 요금제 연동 4조각 중 **3번**. 토스 빌링키 발급·조회·삭제 + `billing_methods`(V6) + **앱 레벨 AES-256-GCM** 암호화(이 저장소의 첫 암호화) + `/billing` 화면. 통합 테스트 **148건 통과**(신규 `BillingCryptoTest` 8건·`BillingIntegrationTest` 17건). 프론트 `tsc`·`lint` 통과, 자동 테스트는 없음. 🔴 **테스트 키 기준이다 — 라이브 전환은 <자동결제 추가 계약>이 필요해 이 조각으로 되지 않는다.** 금액·플랜·실제 청구·웹훅·영수증은 없다(2·4번 조각). 🔴 **토스에 빌링키 <조회> API 가 없어 우리 DB 가 유일한 사본이다** — `BILLING_CRYPTO_KEY` 를 잃으면 전 고객이 재등록해야 한다(`docs/DEPLOY.md` 참고). ⚠️ **통합 테스트만 통과 · 실제 토스 테스트 키로 브라우저 종단(등록→조회→삭제→재등록)은 미수행** — 취소·실패 콜백 리다이렉트와 404 재조회 화면은 브라우저로 확인했으나 카드 등록 자체는 확인하지 못했다 |
 | 백엔드 코드 리뷰 수정 6건 (2026-09-05) | ✅ **PR #44~#49 전부 머지됨.** #44 위젯 rate limit `Forwarded` 우회 차단·로그인 요청 제한, #45 채점 실패를 fallback 과 분리(`_run_status`), #46 `/internal` 문서 삭제에 `bot_id` 추가·격리 없는 eval-results 라우트 삭제, #47 마침표 없는 긴 줄의 청크 크기 상한, #48 W1 fallback 검사가 프로덕션과 같은 시스템 프롬프트를 태우게 함, #49 품질 대시보드 상단 지표·문항 스트립이 같은 실행을 보게 함. **🔴 배포 시점 미검증 2건 — `docs/DEPLOY.md` §9 참고**: ① `docker compose ... up -d --force-recreate caddy`(bind mount 는 파일 변경을 재생성 트리거로 안 본다 — 이 단계를 빠뜨리면 #44 가 운영에 <적용조차 안 된다>) ② `Forwarded` 를 바꿔가며 위젯 채팅을 반복 호출해 rate limit 이 종단으로 걸리는지 확인 |
 
 **`api/` 에서 검증된 것 / 안 된 것 (2026-08-01)**
