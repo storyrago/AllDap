@@ -37,8 +37,28 @@ from .fallback_e2e_check import BOT_ID, UNGROUNDED, guard
 from .retriever import embed_one
 
 # ── 홀드아웃: 임계값을 고른 <뒤에만> 보는 근거없음 질문 ────────────────
-# Task 2 에서 채운다.
-HOLDOUT: list[tuple[str, tuple[str, ...]]] = []
+#
+# 기존 UNGROUNDED 10개와 <주제가 겹치지 않게> 골랐다. 겹치면 같은 문서가
+# top1 으로 올라와 사실상 같은 측정을 두 번 하는 셈이 된다.
+#
+# 감시 낱말 규칙은 UNGROUNDED 와 같다 — 코퍼스에 그 낱말이 생기면
+# 이 질문은 더 이상 "근거 없는 질문"이 아니다. guard() 가 막는다.
+# 🔴 처음 고른 10개 중 <6개가 가드에 걸렸다.> 코퍼스에 실제로 그 문서가 있었다:
+#    동호회(24_사내동호회) · 기숙사/사택(39) · 통근버스(38) · 주차(22) · 창립(41_장기근속).
+#    사람이 "이건 없겠지" 하고 고른 것의 절반이 틀렸다는 뜻이다 —
+#    가드가 없었다면 <근거가 있는 질문으로 차단률을 재고> 그 숫자를 믿을 뻔했다.
+HOLDOUT: list[tuple[str, tuple[str, ...]]] = [
+    ("헌혈하면 휴가를 주나요?", ("헌혈",)),
+    ("사내 벤처 제도가 있나요?", ("사내벤처",)),
+    ("사내 도서관을 이용할 수 있나요?", ("도서관",)),
+    ("사내 심리상담을 받을 수 있나요?", ("심리상담", "상담실")),
+    ("회사 콘도를 예약할 수 있나요?", ("콘도", "리조트")),
+    ("사내에 수면실이 있나요?", ("수면실", "낮잠")),
+    ("사내 마사지 서비스를 받을 수 있나요?", ("마사지",)),
+    ("회사에서 세탁 서비스를 제공하나요?", ("세탁",)),
+    ("자전거로 출퇴근하면 거치대가 있나요?", ("자전거",)),
+    ("개인 택배를 회사로 받아도 되나요?", ("택배",)),
+]
 
 
 def _tradeoff(grounded: list[float], ungrounded: list[float], threshold: float) -> tuple[int, int]:
@@ -110,11 +130,95 @@ def _self_check() -> None:
     print("OK — 트레이드오프 계산 6가지 통과")
 
 
+def d1(bot_id: UUID, question: str) -> float | None:
+    """질문의 <벡터 최근접 거리>. 근거가 하나도 없으면 None.
+
+    ⚠️ `retriever.search()` 의 첫 SQL 과 <같은 거리>를 재야 한다.
+       거기서는 `ORDER BY distance LIMIT %s` 로 여러 건을 가져오고 그중 첫 행이
+       최근접인데, 여기서는 그 첫 행 하나만 필요하므로 `LIMIT 1` 이다.
+       JOIN documents 를 하지 않는 이유: 파일명이 필요 없고, 조인이 없으면
+       documents 행이 없는 청크에서도 같은 값이 나온다(거리는 chunks 만의 성질이다).
+    """
+    qvec = embed_one(question)
+    with cursor() as cur:
+        cur.execute(
+            """SELECT c.embedding <=> %s::vector AS distance
+                 FROM chunks c
+                WHERE c.bot_id = %s AND c.embedding IS NOT NULL
+                ORDER BY distance
+                LIMIT 1""",
+            (qvec, bot_id),
+        )
+        row = cur.fetchone()
+    return float(row[0]) if row else None
+
+
+def _measure(label: str, questions: list[str]) -> list[float]:
+    """질문 목록의 d1 을 재서 출력하고 돌려준다."""
+    print(f"── {label} ({len(questions)}문항) ──")
+    out: list[float] = []
+    for q in questions:
+        d = d1(BOT_ID, q)
+        if d is None:
+            print(f"  ⚠️  근거 청크가 하나도 없습니다: {q}")
+            continue
+        out.append(d)
+        print(f"  {d:.4f}  {q[:44]}")
+    if out:
+        print(f"  → 최소 {min(out):.4f} · 중앙 {sorted(out)[len(out) // 2]:.4f} · 최대 {max(out):.4f}\n")
+    return out
+
+
+def _eval_questions() -> list[str]:
+    """평가 테스트셋(16문항). evalrun._execute 와 <같은 조건>으로 읽는다."""
+    with cursor() as cur:
+        cur.execute(
+            """SELECT question FROM eval_questions
+                WHERE bot_id=%s AND is_active
+                ORDER BY created_at""",
+            (BOT_ID,),
+        )
+        return [r[0] for r in cur.fetchall()]
+
+
 def main() -> None:
     if "--self" in sys.argv:
         _self_check()
         return
-    raise SystemExit("측정 모드는 Task 2 에서 구현한다")
+
+    _self_check()  # 측정 전에 계산 로직부터 검증한다
+
+    if "--holdout" in sys.argv:
+        # 🔴 홀드아웃 모드 — 임계값을 <이미 고른 뒤에> 돌린다.
+        print("── 홀드아웃 질문 점검 (감시 낱말이 코퍼스에 없는가) ──")
+        if not guard(HOLDOUT):
+            print("\n🔴 중단합니다. 답이 있을 수 있는 질문으로 재면 <거짓 차단률>이 나옵니다.")
+            sys.exit(1)
+        print(f"OK — 홀드아웃 {len(HOLDOUT)}개 전부 코퍼스에 흔적 없음\n")
+
+        held = _measure("홀드아웃 · 근거없음", [q for q, _ in HOLDOUT])
+        print("── 임계값별 홀드아웃 차단률 ──")
+        for t, _, blocked in _tradeoff_table([], held):
+            print(f"  {t:.2f}  차단 {blocked:2d}/{len(held)}")
+        return
+
+    # ── 기본 모드: 임계값을 고르기 위한 표 ──
+    # 🔴 홀드아웃은 <읽지도 않는다.> 보면서 고르면 홀드아웃이 아니게 된다.
+    print("── 근거없음 질문 점검 (감시 낱말이 코퍼스에 없는가) ──")
+    if not guard():
+        print("\n🔴 중단합니다.")
+        sys.exit(1)
+    print(f"OK — 근거없음 {len(UNGROUNDED)}개 전부 코퍼스에 흔적 없음\n")
+
+    grounded = _measure("평가 테스트셋 · 근거있음", _eval_questions())
+    ungrounded = _measure("근거없음", [q for q, _ in UNGROUNDED])
+
+    print("── 임계값 트레이드오프 (결과가 바뀌는 지점만) ──")
+    print(f"  {'임계':>6}  {'정답유지':>8}  {'근거없음차단':>12}")
+    for t, kept, blocked in _tradeoff_table(grounded, ungrounded):
+        print(f"  {t:6.2f}  {kept:5d}/{len(grounded):<2d}  {blocked:8d}/{len(ungrounded):<2d}")
+    print("\n⚠️  경계값에 딱 붙여 고르지 말 것 — 분포가 조금만 흔들려도 뚫린다.")
+    print("    고른 뒤 `--holdout` 으로 검증할 것.")
 
 
 if __name__ == "__main__":
