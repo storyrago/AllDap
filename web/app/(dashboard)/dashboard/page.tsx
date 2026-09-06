@@ -65,17 +65,31 @@ export default function DashboardPage() {
   }, []);
 
   useEffect(() => {
-    // 위 loadBots 의 effect 와 같은 이유로 즉시실행 IIFE + cancelled 플래그를 쓴다
-    // (eslint react-hooks/set-state-in-effect 가 effect 안에서 setState 하는 함수를
-    // 그냥 호출하는 모양을 막는다 — 응답 <뒤>에 갱신한다는 게 코드 모양에 드러나야 한다).
-    let cancelled = false;
+    /*
+     * effect 안에서 async 함수를 <즉시 실행>한다. 이 저장소의 표준 모양이고,
+     * 다른 화면들이 여기를 가리키므로 근거를 여기에 모아둔다.
+     *
+     * 왜 `void loadUsage()` 가 아닌가 — eslint 의 react-hooks/set-state-in-effect 가
+     * "effect 에서 setState 하는 함수를 그냥 호출하는" 모양을 막는다(실측 확인).
+     * IIFE 는 그 규칙의 <우회>가 아니라, setState 가 <비동기 경계 뒤>에서 일어난다는 것을
+     * 코드 모양에 드러내는 것이다. 규칙이 잡으려는 건 렌더 중 동기 setState 다.
+     *
+     * 🔴 취소(cancelled) 플래그는 두지 않는다 — 2026-09-07 에 걷어냈다.
+     *    예전에는 `await loadUsage(); if (cancelled) return;` 이 있었는데
+     *    <아무것도 막지 못했다>: setState 는 이미 loadUsage() 안에서 끝나 있고
+     *    그 뒤의 return 은 빈 return 이다. 그런데 주석은 "플래그로 그때는 아무것도
+     *    하지 않는다" 고 단언하고 있어서, 읽는 사람이 <이미 처리돼 있다>고 믿게 만들었다.
+     *
+     *    애초에 막을 필요도 없다. 화면을 떠난 뒤 setState 가 불리는 것은 React 18+ 에서
+     *    무시된다(경고도 없다) — billing 화면 주석이 이미 그렇게 적고 있었다.
+     *    저장소 안에 상충하는 두 서술이 있었고 그쪽이 맞았다.
+     *
+     * ⚠️ 정말로 취소가 필요한 경우(예: 응답이 오래 걸리고 그 사이 다른 대상으로 바뀌는 화면)
+     *    에는 <setState 바로 앞>에서 검사해야 한다. components/BotName.tsx 가 그 예다.
+     */
     void (async () => {
       await loadUsage();
-      if (cancelled) return;
     })();
-    return () => {
-      cancelled = true;
-    };
   }, [loadUsage]);
 
   /*
@@ -96,23 +110,10 @@ export default function DashboardPage() {
   }, []);
 
   useEffect(() => {
-    /*
-     * effect 안에서 async 함수를 <즉시 실행>하고 취소 플래그를 둔다.
-     *
-     * 왜 `void loadBots()` 이 아닌가 — 두 가지 이유가 겹친다.
-     * ① 화면을 떠난 뒤 응답이 도착하면 사라진 컴포넌트의 상태를 갱신하려 든다.
-     *    cancelled 플래그로 그때는 아무것도 하지 않는다.
-     * ② eslint 의 react-hooks/set-state-in-effect 규칙이 "effect 에서 setState 를 하는 함수를
-     *    그냥 호출하는" 모양을 막는다. 응답이 온 <뒤>에 갱신한다는 게 코드 모양에 드러나야 한다.
-     */
-    let cancelled = false;
+    // 위 loadUsage effect 와 같은 모양이다 — 근거는 그쪽 주석에 모아두었다.
     void (async () => {
       await loadBots();
-      if (cancelled) return;
     })();
-    return () => {
-      cancelled = true;
-    };
   }, [loadBots]);
 
   async function handleCreate(event: React.FormEvent<HTMLFormElement>) {

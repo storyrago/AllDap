@@ -81,15 +81,14 @@ export default function DiagnosticsPage() {
   }, [botId]);
 
   useEffect(() => {
-    // 다른 화면들과 같은 형태. 떠난 뒤 응답이 와도 상태를 건드리지 않는다.
-    let cancelled = false;
+    // eslint react-hooks/set-state-in-effect 때문에 IIFE 로 감싼다 — setState 가
+    // <비동기 경계 뒤>에서 일어난다는 것을 코드에 드러내는 것이다.
+    // 취소 플래그는 두지 않는다: React 18+ 에서 떠난 뒤의 setState 는 무시되고,
+    // 예전의 `await load(); if (cancelled) return;` 은 setState 가 이미 끝난
+    // 뒤라 아무것도 막지 못했다. 근거는 app/(dashboard)/dashboard/page.tsx 첫 effect 주석.
     void (async () => {
       await load();
-      if (cancelled) return;
     })();
-    return () => {
-      cancelled = true;
-    };
   }, [load]);
 
   async function handleScan() {
