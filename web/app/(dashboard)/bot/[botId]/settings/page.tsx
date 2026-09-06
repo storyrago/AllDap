@@ -175,16 +175,28 @@ export default function SettingsPage() {
 
         <Section title="시스템 프롬프트">
           {/*
-            거짓 완성 금지 — 저장은 되지만 답변에는 <아직> 반영되지 않는다.
-            Python 의 /internal/chat 요청 스키마에 자리가 없어서다.
-            화면에 적어두지 않으면 사용자는 값을 넣고 "왜 안 먹지?" 하게 된다.
+            🔴 2026-09-07 정정. 예전엔 "저장만 되고 답변에는 반영되지 않습니다" 라고 안내했는데
+               <이미 반영된다.> 2026-08-13 에 Python 의 fetch_bot_prompt 가 bots.system_prompt 를
+               직접 읽도록 붙었다(Spring 이 요청에 싣지 않는다 — evalrun 이 Spring 을 거치지 않아
+               그러면 평가만 기본 프롬프트로 돌기 때문이다). 기능이 붙은 뒤 이 화면을 안 고쳐서
+               <되는 기능을 안 된다고 안내>하고 있었다.
+
+               경고 자리는 없애지 않고 <진짜 한계>로 바꾼다. 결합은 대체가 아니라 덧붙임이고
+               "충돌하면 위 규칙이 우선" 을 명시하지만(generator.build_system_prompt),
+               프롬프트로 프롬프트를 막는 데는 한계가 있어 실측으로 뚫렸다.
+               재는 도구는 ai-service/app/bot_prompt_check.py 다.
           */}
           <p className="rounded-md border border-warning bg-warning-surface px-3 py-2 text-xs text-warning">
-            ⚠️ 지금은 <b>저장만 되고 답변에는 반영되지 않습니다.</b> AI 서비스가 이 값을 받도록 고친
-            뒤에 동작합니다.
+            {/* {" "} 가 필요하다 — 없으면 "있습니다.“모르는" 처럼 <붙어서> 렌더된다.
+                JSX 는 태그와 엔티티 사이의 공백을 그대로 지켜주지 않는다.
+                lint·tsc 로는 안 잡히고 브라우저로 봐야만 보이는 부류다. */}
+            ⚠️ 이 지침으로 <b>거절 판정이 약해질 수 있습니다.</b>{" "}
+            &ldquo;모르는 것도 아는 척 답해&rdquo; 처럼 기본 규칙을 거스르는 문장을 넣으면 근거가
+            없는 질문에도 답하는 경우가 확인됐습니다. 말투와 답변 범위를 정하는 데만 쓰시길 권합니다.
           </p>
           <TextArea
             label="답변 지침"
+            hint="답변에 반영됩니다. 기본 규칙(문서에 근거가 없으면 답하지 않기) 뒤에 덧붙는 형태이고, 충돌하면 기본 규칙이 우선합니다."
             rows={3}
             value={form.systemPrompt}
             onChange={(v) => setForm({ ...form, systemPrompt: v })}
