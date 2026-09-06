@@ -73,6 +73,13 @@ app:
     base-url: ${AI_SERVICE_BASE_URL}
     connect-timeout: ${AI_SERVICE_CONNECT_TIMEOUT:3s}
     read-timeout: ${AI_SERVICE_READ_TIMEOUT:120s}
+  toss:
+    base-url: ${TOSS_BASE_URL:https://api.tosspayments.com}
+    # fail-closed. 기본값을 두지 않는다 — 키 없이 뜨면 카드 등록이 전부 실패하는데
+    # 원인이 로그를 뒤져야 나온다. 차라리 기동이 실패하는 편이 안전하다.
+    secret-key: ${TOSS_SECRET_KEY}
+    connect-timeout: ${TOSS_CONNECT_TIMEOUT:3s}
+    read-timeout: ${TOSS_READ_TIMEOUT:10s}
   billing-crypto:
     # 🔴 기본값을 두지 않는다. 이 파일의 fail-closed 원칙 그대로다 —
     #    공개된 로컬 키로 운영에 뜨면 DB 를 손에 넣은 사람이 전 고객의 빌링키를 복호화한다.

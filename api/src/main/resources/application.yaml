@@ -75,6 +75,16 @@ app:
     retry-delay: 200ms
     circuit-failure-threshold: 5
     circuit-open-duration: 30s
+  toss:
+    base-url: ${TOSS_BASE_URL:https://api.tosspayments.com}
+    # 🔴 기본값을 두지 않는다. 토스 대시보드에서 발급받은 <API 개별 연동 키>(test_sk_...)를
+    #    TOSS_SECRET_KEY 환경변수로 넣을 것. 결제위젯 키(test_gsk_)는 거부된다.
+    #    비워두면 토스가 401 을 주고, TossClient 가 그걸 <우리 설정 문제>로 분류해
+    #    503 + 서버 로그 ERROR 로 알린다(사용자에게 "카드를 확인하세요" 라고 하지 않는다).
+    secret-key: ${TOSS_SECRET_KEY:}
+    # 타임아웃 근거는 TossClientConfig 주석. AI 서비스(3s/120s)와 <일부러 다르다>.
+    connect-timeout: 3s
+    read-timeout: 10s
   billing-crypto:
     # 토스 빌링키를 DB 에 넣기 전 암호화하는 AES-256 키. Base64 로 인코딩한 32바이트다.
     # ⚠️ 아래 기본값은 로컬 전용이다. 운영에서는 반드시 BILLING_CRYPTO_KEY 를 주입할 것.

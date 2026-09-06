@@ -34,6 +34,8 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       # 빌링키 암호화 키. application-prod.yaml 이 기본값을 안 두므로 없으면 기동 실패한다.
       BILLING_CRYPTO_KEY: ${BILLING_CRYPTO_KEY}
+      # application-prod.yaml 이 기본값을 안 두므로 없으면 기동 실패한다(JWT_SECRET 과 같다).
+      TOSS_SECRET_KEY: ${TOSS_SECRET_KEY}
       # Python 은 같은 compose 네트워크 안에서만 부른다. 인터넷에서 닿지 않는다.
       AI_SERVICE_BASE_URL: http://ai-service:8001
       # Vercel 배포 주소. application-prod.yaml 이 기본값을 안 두므로 없으면 기동 실패한다.

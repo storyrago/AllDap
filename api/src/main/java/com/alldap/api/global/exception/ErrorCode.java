@@ -93,6 +93,23 @@ public enum ErrorCode {
     EVAL_NOT_READY(HttpStatus.BAD_REQUEST, "EVAL_NOT_READY",
             "아직 평가를 실행할 수 없습니다. 문서와 테스트 질문을 먼저 준비해주세요."),
 
+    // ── 결제 수단 (토스 빌링키) ───────────────────────────────────────────
+    // 🔴 INVALID_INPUT 하나로 뭉치지 않는 이유: 프론트가 "카드를 바꿔 다시 시도하세요" 와
+    //    "우리 쪽 문제라 잠시 후 다시 시도하세요" 를 <다르게> 안내해야 하기 때문이다.
+    //    뭉치면 사용자가 카드를 몇 번이나 다시 넣어보게 만든다.
+    //
+    // ⚠️ BILLING_AUTH_FAILED 의 기본 문구는 실제로는 거의 쓰이지 않는다 —
+    //    토스가 상황별로 더 구체적인 한국어를 주고(예: "카드 유효기간이 올바르지 않습니다.")
+    //    TossClient 가 그 문구를 그대로 실어 보낸다. 여기 문구는 파싱에 실패했을 때의 보루다.
+    BILLING_AUTH_FAILED(HttpStatus.BAD_REQUEST, "BILLING_AUTH_FAILED",
+            "카드 등록에 실패했습니다. 카드 정보를 확인한 뒤 다시 시도하거나 다른 카드로 등록해주세요."),
+    BILLING_PROVIDER_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "BILLING_PROVIDER_UNAVAILABLE",
+            "결제 서비스에 일시적으로 연결할 수 없습니다. 잠시 후 다시 시도해주세요."),
+    BILLING_METHOD_ALREADY_EXISTS(HttpStatus.CONFLICT, "BILLING_METHOD_ALREADY_EXISTS",
+            "이미 등록된 카드가 있습니다. 카드를 바꾸려면 등록된 카드를 삭제한 뒤 다시 등록해주세요."),
+    BILLING_METHOD_NOT_FOUND(HttpStatus.NOT_FOUND, "BILLING_METHOD_NOT_FOUND",
+            "등록된 카드가 없습니다. 결제 수단 화면에서 카드를 먼저 등록해주세요."),
+
     // ── 그 외 ───────────────────────────────────────────────────────────
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_ERROR",
             "일시적인 오류가 발생했습니다. 잠시 후 다시 시도해주세요. 계속되면 문의해주세요."),
