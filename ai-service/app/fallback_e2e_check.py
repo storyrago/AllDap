@@ -96,11 +96,17 @@ KNOWN_RETRIEVAL_GAP: list[tuple[str, str]] = [
 PASS_THRESHOLD = 8  # W1 완료 조건 (10개 중 8개 이상)
 
 
-def guard() -> bool:
-    """감시 낱말이 코퍼스에 나타났는지 본다. 하나라도 나오면 측정을 막는다."""
+def guard(questions: list[tuple[str, tuple[str, ...]]] | None = None) -> bool:
+    """감시 낱말이 코퍼스에 나타났는지 본다. 하나라도 나오면 측정을 막는다.
+
+    questions 를 받는 이유: 같은 가드를 <홀드아웃 질문 목록>에도 써야 하는데
+    (`answerable_check`), 로직을 복사하면 한쪽만 고쳐지는 사고가 구조적으로 가능해진다.
+    기본값이 UNGROUNDED 라 기존 호출부는 그대로 둔다.
+    """
+    questions = UNGROUNDED if questions is None else questions
     ok = True
     with cursor() as cur:
-        for question, sentinels in UNGROUNDED:
+        for question, sentinels in questions:
             for word in sentinels:
                 cur.execute(
                     """SELECT count(*), min(d.filename)
