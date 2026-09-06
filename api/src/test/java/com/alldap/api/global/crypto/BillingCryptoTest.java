@@ -16,7 +16,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * 이미 둘 있다({@code JwtService} 의 시크릿 검사, {@code application-prod.yaml} 의 fail-closed).
  * 그런데 <b>테스트로 고정된 것은 하나도 없다.</b> 가드는 조용히 무력해져도 아무도 모른다 —
  * yaml 의 기본값 문자열만 바꾸면 {@code JwtService} 의 블랙리스트 비교가 그냥 빗나간다.
- * 아래 5·6 번이 그 부류를 테스트로 붙드는 첫 사례다.
+ * {@code shortKeyFailsFast}, {@code unresolvedPlaceholderFailsFast}는 설정 실수(키 길이,
+ * 플레이스홀더 미해석)를 검증하고, {@code knownLocalDefaultKeyWithProductionProfileFailsFast},
+ * {@code knownLocalDefaultKeyWithoutProfileWarnsButSucceeds}는 운영 환경에 공개된 로컬 기본값이
+ * 우연히 쓰이는 것을 검증한다. 이 두 가지가 테스트로 붙은 것은 처음이다.
  *
  * <p>스프링 컨텍스트를 띄우지 않는다. {@link BillingCrypto} 는 프로퍼티와
  * {@code Environment} 만 받는 순수 객체라 그럴 이유가 없고, 컨텍스트를 띄우면
@@ -104,5 +107,47 @@ class BillingCryptoTest {
         assertThatThrownBy(() -> crypto("${BILLING_CRYPTO_KEY}"))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("BILLING_CRYPTO_KEY");
+    }
+
+    @Test
+    @DisplayName("🔴 운영 프로파일 + 저장소 공개 기본 키 → 기동이 실패한다")
+    void knownLocalDefaultKeyWithProductionProfileFailsFast() {
+        // MockEnvironment 는 기본으로 활성 프로파일이 없어 항상 개발 환경으로 인식되기 때문에,
+        // 운영 환경에서 공개된 로컬 기본 키가 거부되는 분기를 실행하려면 프로파일을 명시해야 한다.
+        // BillingCrypto.DEVELOPMENT_PROFILES 에 없는 이름을 쓸 것("prod", "production" 등).
+        MockEnvironment environment = new MockEnvironment();
+        environment.setActiveProfiles("prod");
+
+        // BillingCrypto.KNOWN_LOCAL_DEFAULT_KEY = "YWxsZGFwLWxvY2FsLWRldi1iaWxsaW5nLWtleS0zMmI="
+        // (Base64 로 "alldap-local-dev-billing-key-32b", 정확히 32바이트)
+        String knownLocalDefaultKey = "YWxsZGFwLWxvY2FsLWRldi1iaWxsaW5nLWtleS0zMmI=";
+
+        assertThatThrownBy(() -> new BillingCrypto(
+                new BillingCryptoProperties(knownLocalDefaultKey),
+                environment))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("저장소에 공개된 로컬 기본값");
+    }
+
+    @Test
+    @DisplayName("저장소 공개 기본 키도 프로파일 없이는 정상 생성된다 — 경고만 나간다")
+    void knownLocalDefaultKeyWithoutProfileWarnsButSucceeds() {
+        // 프로파일이 하나도 없으면 개발 환경으로 인정하는 트레이드오프다 —
+        // 로컬 bootRun·IDE 실행·통합 테스트가 전부 프로파일 없이 돈다(JwtService 와 같은 논리).
+        // 그래서 같은 기본 키라도 프로파일이 없으면 예외 없이 통과한다(경고는 로그에 남는다).
+        MockEnvironment environment = new MockEnvironment();
+        // 프로파일을 명시하지 않으면 기본값(없음)이 쓰인다 → 개발 환경으로 인정.
+
+        String knownLocalDefaultKey = "YWxsZGFwLWxvY2FsLWRldi1iaWxsaW5nLWtleS0zMmI=";
+
+        // 예외가 안 나야 한다는 것이 핵심이다. 그 객체를 만들 수 있고,
+        // 그 뒤 encrypt/decrypt 도 정상적으로 돈다는 뜻이다.
+        BillingCrypto crypto = new BillingCrypto(
+                new BillingCryptoProperties(knownLocalDefaultKey),
+                environment);
+
+        // 진짜로 동작하는지 간단히 확인한다.
+        String encrypted = crypto.encrypt(BILLING_KEY);
+        assertThat(crypto.decrypt(encrypted)).isEqualTo(BILLING_KEY);
     }
 }
