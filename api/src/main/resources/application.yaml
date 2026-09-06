@@ -75,6 +75,26 @@ app:
     retry-delay: 200ms
     circuit-failure-threshold: 5
     circuit-open-duration: 30s
+  toss:
+    base-url: ${TOSS_BASE_URL:https://api.tosspayments.com}
+    # 🔴 기본값을 두지 않는다. 토스 대시보드에서 발급받은 <API 개별 연동 키>(test_sk_...)를
+    #    TOSS_SECRET_KEY 환경변수로 넣을 것. 결제위젯 키(test_gsk_)는 거부된다.
+    #    비워두면 토스가 401 을 주고, TossClient 가 그걸 <우리 설정 문제>로 분류해
+    #    503 + 서버 로그 ERROR 로 알린다(사용자에게 "카드를 확인하세요" 라고 하지 않는다).
+    secret-key: ${TOSS_SECRET_KEY:}
+    # 타임아웃 근거는 TossClientConfig 주석. AI 서비스(3s/120s)와 <일부러 다르다>.
+    connect-timeout: 3s
+    read-timeout: 10s
+  billing-crypto:
+    # 토스 빌링키를 DB 에 넣기 전 암호화하는 AES-256 키. Base64 로 인코딩한 32바이트다.
+    # ⚠️ 아래 기본값은 로컬 전용이다. 운영에서는 반드시 BILLING_CRYPTO_KEY 를 주입할 것.
+    #    (application-prod.yaml 은 기본값 없이 환경변수를 강제한다)
+    # 이 값을 바꾸면 BillingCrypto.KNOWN_LOCAL_DEFAULT_KEY 도 함께 바꿀 것 —
+    # "공개된 기본값으로 운영에 뜨는 것"을 막는 기동 가드가 이 문자열을 비교한다.
+    # 🔴 그리고 이 키를 바꾸면 <이미 저장된 카드는 복호화되지 않는다.> 토스에 조회 API 가 없어
+    #    우리 DB 가 유일한 사본이라, 바꾸는 순간 그 고객들은 카드를 다시 등록해야 한다.
+    # 생성: openssl rand -base64 32
+    key: ${BILLING_CRYPTO_KEY:YWxsZGFwLWxvY2FsLWRldi1iaWxsaW5nLWtleS0zMmI=}
   jwt:
     # ⚠️ 아래 기본값은 로컬 전용이다. 운영에서는 반드시 JWT_SECRET 을 주입할 것.
     #    (application-prod.yaml 은 기본값 없이 환경변수를 강제한다)

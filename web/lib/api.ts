@@ -17,6 +17,7 @@
 
 import type {
   AuthResponse,
+  BillingMethodResponse,
   Bot,
   ChatMessage,
   ChatRequest,
@@ -411,6 +412,46 @@ export const api = {
       request<Usage>(
         month ? `/api/usage?month=${encodeURIComponent(month)}` : "/api/usage",
       ),
+  },
+
+  /**
+   * 결제 수단 (요금제 연동 3조각)
+   *
+   * botId 를 받지 않는 이유: 청구 대상이 <계정>이라 서버가 토큰의 주인으로 조회한다.
+   * 위 usage 와 같다.
+   *
+   * 함수 이름이 `get`·`register`·`remove` 가 아니라 `getBillingMethod` 처럼 긴 것은
+   * 설계 문서가 고정한 이름이기 때문이다. 짧게 줄이지 말 것.
+   */
+  billing: {
+    /** 카드가 없어도 customerKey 는 항상 온다 (결제창을 띄우려면 그게 필요하다) */
+    getBillingMethod: () => request<BillingMethodResponse>("/api/billing/method"),
+    /**
+     * 토스 결제창에서 돌아온 authKey 로 빌링키를 발급받아 저장한다.
+     *
+     * 🔴 customerKey 를 같이 보내지만 서버는 그 값을 <신뢰하지 않는다> — 토큰의 주인 것을
+     *    DB 에서 읽어 쓰고, 여기 실린 값은 <대조만> 하고 다르면 400 이다.
+     *    신뢰했다면 남의 customerKey 를 적어 보내는 것만으로 카드가 남에게 붙는다.
+     *    userId 를 @AuthenticationPrincipal 로만 받는 이 저장소의 규칙과 같은 이유다.
+     *
+     * 실패 코드가 셋으로 갈린다 — 프론트가 "카드를 바꿔 다시" 와 "우리 버그" 를 구분해
+     * 안내해야 해서다: BILLING_AUTH_FAILED(400) · BILLING_PROVIDER_UNAVAILABLE(503) ·
+     * BILLING_METHOD_ALREADY_EXISTS(409). 셋 다 ApiError.message 에 한국어 안내가 들어 있다.
+     */
+    registerBillingMethod: (authKey: string, customerKey: string) =>
+      request<BillingMethodResponse>("/api/billing/method", {
+        method: "POST",
+        body: { authKey, customerKey },
+      }),
+    /**
+     * 204 를 돌려주므로 반환값이 없다. request() 가 204 를 이미 다룬다(본문을 파싱하지 않는다).
+     *
+     * ⚠️ 서버는 <토스를 먼저> 부르고 우리 행을 나중에 지운다. 그래서 503 이 오면
+     *    카드가 <그대로 남아 있다> — 화면은 그 경우 목록을 다시 부르지 말고
+     *    오류만 띄워야 한다(page.tsx 의 handleDelete 참고).
+     */
+    deleteBillingMethod: () =>
+      request<void>("/api/billing/method", { method: "DELETE" }),
   },
 
   /**

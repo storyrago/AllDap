@@ -117,4 +117,34 @@ public class TestcontainersConfiguration {
             registry.add("app.widget.login-per-minute", () -> "3");
         };
     }
+
+    /**
+     * 토스페이먼츠 자리에 세우는 가짜 서버. <b>{@link AiServiceStub} 과 같은 이유로 여기(공유 설정)에 둔다</b> —
+     * 결제 테스트에만 필요하다고 그쪽에 두면 그 테스트만 {@code @SpringBootTest} 설정이 달라져
+     * 컨텍스트가 하나 더 생기고 Docker 컨테이너도 하나 더 뜬다.
+     */
+    @Bean
+    TossStub tossStub() {
+        return new TossStub();
+    }
+
+    /**
+     * 가짜 토스의 주소와 짧은 타임아웃을 주입한다.
+     *
+     * <p>{@code DynamicPropertyRegistrar} 빈을 <b>따로 두는 이유</b>: 위 AI 용 등록부에 섞으면
+     * 한 메서드가 서로 무관한 두 상대의 설정을 들고 있게 된다. 스프링은 등록부 빈을 전부 모아 적용한다.
+     *
+     * <p>{@code secret-key} 를 넣는 이유: {@code application.yaml} 의 기본값이 비어 있어서
+     * ({@code ${TOSS_SECRET_KEY:}}) 그대로 두면 {@code Authorization} 이 {@code Basic Og==}(":" 만)이
+     * 되어, "콜론이 붙는가" 를 검증하는 테스트가 <b>키가 비어도 통과</b>한다.
+     */
+    @Bean
+    DynamicPropertyRegistrar tossPropertiesRegistrar(TossStub stub) {
+        return registry -> {
+            registry.add("app.toss.base-url", stub::baseUrl);
+            registry.add("app.toss.secret-key", () -> "test_sk_stub_secret");
+            registry.add("app.toss.connect-timeout", () -> "1s");
+            registry.add("app.toss.read-timeout", () -> "2s");
+        };
+    }
 }

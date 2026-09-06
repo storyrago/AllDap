@@ -73,6 +73,25 @@ app:
     base-url: ${AI_SERVICE_BASE_URL}
     connect-timeout: ${AI_SERVICE_CONNECT_TIMEOUT:3s}
     read-timeout: ${AI_SERVICE_READ_TIMEOUT:120s}
+  toss:
+    base-url: ${TOSS_BASE_URL:https://api.tosspayments.com}
+    # ⚠️ 이 파일 머리의 fail-closed 원칙이 <적용되지 않는> 값이다. TossProperties 는
+    # @Validated·@NotBlank 가 없는 순수 record 라, 이 값이 비어 있어도(또는 docker-compose 가
+    # 빈 문자열을 그대로 주입해도) 기동을 막지 않는다 — TossClientConfig 가 그 값을 그대로 받아
+    # 인증 헤더를 만든다. 비면 토스가 401 을 주고 TossClient 가 그걸 503 으로 바꿔 내보내므로,
+    # 증상은 배포 시점이 아니라 <사용자가 카드를 등록할 때> 나타난다("떴으니 됐다"로 읽으면
+    # 안 되는 값이다 — docs/DEPLOY.md §7 참고). TODO: BillingCrypto 처럼 시작 시 가드를 추가할
+    # 수 있다 — 동작을 바꾸는 것은 별도 슬라이스다.
+    secret-key: ${TOSS_SECRET_KEY}
+    connect-timeout: ${TOSS_CONNECT_TIMEOUT:3s}
+    read-timeout: ${TOSS_READ_TIMEOUT:10s}
+  billing-crypto:
+    # 🔴 기본값을 두지 않는다. 이 파일의 fail-closed 원칙 그대로다 —
+    #    공개된 로컬 키로 운영에 뜨면 DB 를 손에 넣은 사람이 전 고객의 빌링키를 복호화한다.
+    #    (BillingCrypto 생성자에도 같은 가드가 있다. 두 겹으로 둔 이유는
+    #     프로파일을 깜빡하고 배포하면 이 파일 자체가 안 읽히기 때문이다)
+    # 🔴 한 번 정하면 바꿀 수 없다. 바꾸는 순간 이미 등록된 카드가 전부 복호화 불가가 된다.
+    key: ${BILLING_CRYPTO_KEY}
   jwt:
     secret: ${JWT_SECRET}
     access-token-ttl: ${JWT_ACCESS_TOKEN_TTL:24h}

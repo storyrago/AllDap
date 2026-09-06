@@ -326,7 +326,9 @@ Spring:   대화 로그 저장(assistant 메시지 + sources + is_fallback)
 | `web/` 화면 | ✅ **전 화면 브라우저 실측 통과** (2026-08-02). 품질 대시보드까지 구현 완료 — **★전체 충실성**(생존 편향 없는 비교용) · 충실성 · 관련성 · 응답률 카드, 테스트셋, 실행 이력, 질문별 상세. 디자인은 기능 우선. **공개 페이지 추가**(2026-08-17): `/features` · `/pricing` · `/faq` — 랜딩 헤더 메뉴가 전부 `href="#"` 였던 것을 실제 경로로 이었다. **로그인·가입 뒤 있던 페이지로 복귀**(`?next=`, 오픈 리다이렉트 검증은 `web/lib/redirect.ts`) |
 | `widget/` 스크립트 | ✅ **실제 설치 실측 통과** (2026-08-02). 별도 origin 의 가짜 고객 사이트에 `<script>` 한 줄 → 로더 → iframe → 인사말 → 답변(근거 포함) → `channel=widget` 로그까지. 허용 안 된 도메인은 안내 문구로 차단됨 |
 | Flyway · CI · PR 템플릿 | ✅ 도입 완료 (위 Flyway 규칙 참고) |
-| 백엔드 코드 리뷰 수정 6건 (2026-09-05) | 🚧 **PR #44~#49 오픈, 전부 미머지.** #44 위젯 rate limit `Forwarded` 우회 차단·로그인 요청 제한, #45 채점 실패를 fallback 과 분리(`_run_status`), #46 `/internal` 문서 삭제에 `bot_id` 추가·격리 없는 eval-results 라우트 삭제, #47 마침표 없는 긴 줄의 청크 크기 상한, #48 W1 fallback 검사가 프로덕션과 같은 시스템 프롬프트를 태우게 함, #49 품질 대시보드 상단 지표·문항 스트립이 같은 실행을 보게 함. **배포 시점 미검증 2건 — `docs/DEPLOY.md` §9 참고**: ① `docker compose ... up -d --force-recreate caddy`(bind mount 는 파일 변경을 재생성 트리거로 안 본다) ② `Forwarded` 를 바꿔가며 위젯 채팅을 반복 호출해 rate limit 이 종단으로 걸리는지 확인 |
+| 사용량 계량 (2026-09-06) | ✅ **PR #52·#53 머지됨.** 요금제 연동 4조각 중 **1번**. `usage_events` append-only 원장 + `GET /api/usage` + 대시보드 카드. 통합 테스트 123건 통과. |
+| 결제 수단 등록 (2026-09-06) | 🚧 **설계·계획 완료, 구현 전.** 요금제 연동 4조각 중 **3번**(2번보다 먼저 하는 근거는 설계 문서에 있다 — 2번은 아직 없는 금액을 요구한다). 토스 빌링키 발급·암호화 저장·폐기. 설계 `docs/superpowers/specs/2026-09-06-billing-method-design.md` · 계획 `docs/superpowers/plans/2026-09-06-billing-method.md` |
+| 백엔드 코드 리뷰 수정 6건 (2026-09-05) | ✅ **PR #44~#49 전부 머지됨.** #44 위젯 rate limit `Forwarded` 우회 차단·로그인 요청 제한, #45 채점 실패를 fallback 과 분리(`_run_status`), #46 `/internal` 문서 삭제에 `bot_id` 추가·격리 없는 eval-results 라우트 삭제, #47 마침표 없는 긴 줄의 청크 크기 상한, #48 W1 fallback 검사가 프로덕션과 같은 시스템 프롬프트를 태우게 함, #49 품질 대시보드 상단 지표·문항 스트립이 같은 실행을 보게 함. **🔴 배포 시점 미검증 2건 — `docs/DEPLOY.md` §9 참고**: ① `docker compose ... up -d --force-recreate caddy`(bind mount 는 파일 변경을 재생성 트리거로 안 본다 — 이 단계를 빠뜨리면 #44 가 운영에 <적용조차 안 된다>) ② `Forwarded` 를 바꿔가며 위젯 채팅을 반복 호출해 rate limit 이 종단으로 걸리는지 확인 |
 
 **`api/` 에서 검증된 것 / 안 된 것 (2026-08-01)**
 검증됨: 컴파일, Flyway V1 적용, Hibernate `validate` 통과, `/actuator/health` 200,
@@ -453,6 +455,7 @@ W1 fallback 종단(10/10) · 리랭커 융합 재측정(설정당 3~4회). 각�
 
 **남은 구멍 (알면서 남긴 것)**
 
+- 🔴 **대시보드의 `cancelled` 플래그가 실효 없다** (2026-09-06 확인). `web/app/(dashboard)/dashboard/page.tsx` 의 두 effect 가 `await` **뒤에** 플래그를 검사하는데, `setState` 는 이미 `loadBots`/`loadUsage` **안에서** 끝나 있다. 막는 게 없는 줄이다. **더 나쁜 것은 주석이 사실과 다르다는 것** — 104~105행이 "cancelled 플래그로 그때는 아무것도 하지 않는다" 고 단언한다. 다음 사람이 "이미 처리돼 있다"고 믿는다. React 19 라 실질 피해는 없으니 **버그 수정이 아니라 코드와 주석을 사실과 맞추는 일**이다. 고칠 때 **두 effect 를 함께** 다룰 것(같은 패턴이 복사돼 있다). 계량 작업이 만든 결함이 아니라 기존 `loadBots` 패턴을 따른 것이다.
 - **Spring 은 잘림을 구분하지 못한다.** Python 이 503 을 주면 Spring 은 `AI_SERVICE_UNAVAILABLE`
   ("잠시 후 재시도")로 바꾼다. 그런데 `temperature=0` 이라 **재시도해도 똑같이 잘린다** —
   안내가 사실과 다르다. 맞는 안내는 "질문을 더 좁혀보세요"다.

@@ -492,3 +492,44 @@ export interface Usage {
   periodStart: string;
   periodEnd: string;
 }
+
+/* ───────────────────────── 결제 수단 (요금제 연동 3조각) ───────────────────────── */
+
+/**
+ * 등록된 카드 한 장. Spring 의 `BillingMethodResponse.Card` 와 1:1 로 맞춘 모양이다.
+ *
+ * 🔴 `billingKey` 필드가 <없다>. 백엔드 DTO 에도 없다.
+ *    타입에 자리를 만들어두면 언젠가 그 자리에 값이 실린다. 결제 열쇠는
+ *    우리 DB 밖으로 한 번도 나가지 않는 것이 이 조각의 핵심 주장이다.
+ *
+ * 왜 `issuerCode`("61" 같은 두 자리 코드)가 아니라 `issuerName`("현대") 인가:
+ * 토스는 2024-06-01 버전부터 카드사 <이름>을 안 주고 코드만 준다. 코드→이름 매핑을
+ * 프론트에 두면 백엔드가 아는 것과 프론트가 아는 것이 갈라진다.
+ * 표기 변환은 Spring 책임이라는 이 저장소의 규칙(snake_case → camelCase)과 같은 이유다.
+ */
+export interface BillingCard {
+  /** "현대" · "신한" 등. 모르는 코드는 서버가 "카드" 로 내려준다 */
+  issuerName: string;
+  /** "43301234****123*" — 토스가 마스킹해서 준다. 우리가 자르는 게 아니다 */
+  cardNumberMasked: string;
+  /** 우리 DB 의 created_at. ISO-8601 문자열 */
+  registeredAt: string;
+}
+
+/**
+ * `GET`/`POST /api/billing/method` 의 응답.
+ *
+ * `interface` 로 둔 이유: 백엔드 응답 <객체의 모양>을 그리는 타입이고,
+ * 이 파일의 다른 응답 타입(Bot·Usage·EvalRun)이 전부 interface 라 맞췄다.
+ *
+ * 🔴 `method` 가 `BillingCard | null` 인 것이 핵심이다. `customerKey` 는 카드가 없어도
+ *    <항상> 있다 — 카드보다 오래 사는 값이라 users 테이블에 있기 때문이다.
+ *    이 화면이 결제창을 띄우려면 카드가 없는 상태에서도 customerKey 가 필요하다.
+ *    두 값을 한 덩어리로 묶어 `null` 로 뭉갰다면 "카드 없음" 상태에서 등록을 시작할 수 없다.
+ */
+export interface BillingMethodResponse {
+  /** "bcus_…" — 토스에 넘기는 우리 쪽 고객 이름표. 카드를 빼도 남는다 */
+  customerKey: string;
+  /** 등록된 카드가 없으면 null */
+  method: BillingCard | null;
+}
