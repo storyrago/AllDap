@@ -354,7 +354,8 @@ export const api = {
    * 품질 평가 (F-05, W3)
    *
    * ✅ 2026-08-02: 아래 경로들은 <실제로 구현되어 동작한다>. 추정이 아니다.
-   *    (예외: updateQuestion 과 listUnanswered 는 아직 미구현 — 각 주석 참고)
+   * ✅ 2026-09-07: updateQuestion·listUnanswered 도 구현 완료를 확인했다.
+   *    (예전 주석이 "미구현" 이라고 적어둔 채 낡아 있었다)
    */
   evaluation: {
     /** 테스트 질문 목록 */
@@ -366,7 +367,12 @@ export const api = {
         method: "POST",
         body: { count },
       }),
-    /** ⚠️ 미구현 — Spring 에 PATCH 엔드포인트가 아직 없다. 화면에서 부르지 말 것. */
+    /**
+     * 테스트 질문 수정. Spring `@PatchMapping("/questions/{questionId}")` 로 구현돼 있다.
+     *
+     * ⚠️ 아직 <부르는 화면이 없다> — 품질 대시보드에 수정 UI 를 붙이지 않았다.
+     * 🔴 groundTruth 를 고치면 과거 실행과 비교할 수 없게 된다. 문항을 빼려면 isActive=false.
+     */
     updateQuestion: (
       botId: Uuid,
       questionId: Uuid,
