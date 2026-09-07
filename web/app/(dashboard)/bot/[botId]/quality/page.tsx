@@ -32,7 +32,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { ApiError, api } from "@/lib/api";
-import type { EvalQuestion, EvalResult, EvalRun } from "@/lib/types";
+import type { EvalConfig, EvalQuestion, EvalResult, EvalRun } from "@/lib/types";
 import { PageHeader } from "@/components/PageHeader";
 import { Toggle } from "@/components/Toggle";
 
@@ -69,6 +69,10 @@ export default function QualityPage() {
 
   /* 펼쳐본 실행의 질문별 결과. 목록을 열 때만 불러온다 —
      실행마다 미리 받아두면 안 볼 데이터까지 전부 내려받게 된다. */
+  /* 나란히 볼 실행 2건. 배열인 이유: 순서가 곧 <먼저 고른 것>이라
+     세 번째를 고르면 가장 오래된 선택을 밀어낸다(모달 없이 계속 고를 수 있다). */
+  const [compareIds, setCompareIds] = useState<string[]>([]);
+
   const [openRunId, setOpenRunId] = useState<string | null>(null);
   const [results, setResults] = useState<EvalResult[]>([]);
   const [resultsLoading, setResultsLoading] = useState(false);
@@ -224,6 +228,12 @@ export default function QualityPage() {
           />
           <RunSection
             runs={runs}
+            compareIds={compareIds}
+            onToggleCompare={(id) =>
+              setCompareIds((prev) =>
+                prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id].slice(-2),
+              )
+            }
             openRunId={openRunId}
             results={results}
             resultsLoading={resultsLoading}
@@ -669,11 +679,15 @@ function QuestionRow({
 /** ③ 실행 이력 + ④ 질문별 상세 */
 function RunSection({
   runs,
+  compareIds,
+  onToggleCompare,
   openRunId,
   results,
   resultsLoading,
   onToggle,
 }: {
+  compareIds: string[];
+  onToggleCompare: (runId: string) => void;
   runs: EvalRun[];
   openRunId: string | null;
   results: EvalResult[];
@@ -684,6 +698,14 @@ function RunSection({
     <section className="mb-8">
       <h2 className="mb-2 text-sm font-semibold">실행 이력</h2>
 
+      {compareIds.length === 2 && (
+        <ComparePanel
+          runs={runs}
+          compareIds={compareIds}
+          onClear={() => compareIds.forEach(onToggleCompare)}
+        />
+      )}
+
       {runs.length === 0 ? (
         <p className="rounded-lg border border-subtle px-6 py-8 text-center text-sm text-muted">
           아직 실행 기록이 없습니다.
@@ -692,10 +714,25 @@ function RunSection({
         <ul className="divide-y divide-subtle rounded-lg border border-subtle bg-surface">
           {runs.map((run) => (
             <li key={run.id}>
+              <div className="flex items-center">
+                {/* 여기만 체크박스다. 고르는 즉시 무언가 바뀌는 게 아니라
+                    <둘을 모아> 비교하는 것이라, 스위치가 아니라 체크가 맞다.
+                    완료된 실행만 고를 수 있다 — partial 은 분모가 달라 비교하면 안 된다
+                    (StatusBadge 주석과 같은 이유). */}
+                <label className="flex shrink-0 cursor-pointer items-center py-3 pl-4 pr-1">
+                  <input
+                    type="checkbox"
+                    checked={compareIds.includes(run.id)}
+                    disabled={run.status !== "completed"}
+                    onChange={() => onToggleCompare(run.id)}
+                    aria-label="비교에 넣기"
+                    className="disabled:opacity-30"
+                  />
+                </label>
               <button
                 type="button"
                 onClick={() => onToggle(run.id)}
-                className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-foreground/5"
+                className="flex w-full items-center gap-3 py-3 pl-1 pr-4 text-left hover:bg-foreground/5"
               >
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
@@ -732,6 +769,7 @@ function RunSection({
                 </div>
                 <StatusBadge status={run.status} />
               </button>
+              </div>
 
               {openRunId === run.id && (
                 <div className="border-t border-subtle px-4 py-3">
@@ -751,13 +789,220 @@ function RunSection({
       )}
 
       <p className="mt-2 text-xs text-muted">
-        ★ W4 의 before/after 비교가 이 목록 위에서 만들어집니다. 각 실행이 그때의 검색 설정을 함께
-        저장하고 있어서, 같은 테스트셋으로 &ldquo;벡터 검색만 vs 하이브리드+리랭커&rdquo;를 비교할 수 있습니다.
-      </p>
-      <p className="mt-1 text-xs text-muted">
-        TODO(W4): 두 실행을 체크박스로 골라 좌우로 나란히 놓고 점수 차이를 +/- 로 표시할 것.
+        ★ 왼쪽 칸으로 실행 두 개를 고르면 나란히 놓고 차이를 보여줍니다. 각 실행이 그때의 검색
+        설정을 함께 저장하고 있어서, 같은 테스트셋으로 &ldquo;벡터 검색만 vs 하이브리드+리랭커&rdquo;를
+        비교할 수 있습니다.
       </p>
     </section>
+  );
+}
+
+/** 설정을 한 줄로 접는다. 같은 설정끼리 묶어 <측정 편차>를 재는 데 쓴다. */
+function configKey(run: EvalRun): string {
+  const c = run.config;
+  if (!c) return "none";
+  return `${c.topK}|${c.maxDistance}|${c.hybrid ? 1 : 0}|${c.reranker ? 1 : 0}|${c.model ?? ""}`;
+}
+
+/**
+ * ★ 이 봇의 <측정 편차>.
+ *
+ * 같은 설정·같은 문항 수로 두 번 이상 돌린 실행들의 전체 충실성 폭(max − min).
+ *
+ * <b>왜 이걸 재는가.</b> 설정을 바꾼 뒤 점수가 0.02 올랐다고 해서 그 설정이 나은 게 아니다.
+ * 아무것도 안 바꾸고 두 번 돌려도 그만큼은 흔들린다 — 생성 모델이 같은 근거에서 다른 문장을
+ * 만들기 때문이다. 그래서 <차이>는 <편차>와 나란히 놓아야만 뜻이 생긴다.
+ *
+ * <b>왜 상수로 박지 않는가.</b> 이 값은 코퍼스와 모델에 딸려 있어 봇마다 다르다.
+ * 남의 봇에서 잰 숫자를 여기 적으면 그 자체가 거짓말이다. 그래서 <이 봇의 실행 기록에서>
+ * 직접 잰다. 잴 재료가 없으면 아는 척하지 않고 "모른다" 고 말한다.
+ */
+function measureNoise(runs: EvalRun[]): number | null {
+  const groups = new Map<string, number[]>();
+  for (const r of runs) {
+    if (r.status !== "completed" || r.overallFaithfulness === null) continue;
+    const key = `${configKey(r)}#${r.questionCount ?? "?"}`;
+    groups.set(key, [...(groups.get(key) ?? []), r.overallFaithfulness]);
+  }
+  const spreads = [...groups.values()]
+    .filter((v) => v.length >= 2)
+    .map((v) => Math.max(...v) - Math.min(...v));
+  return spreads.length > 0 ? Math.max(...spreads) : null;
+}
+
+/** 두 설정에서 <달라진 항목만> 뽑는다. 같은 것까지 늘어놓으면 무엇이 원인인지 안 보인다. */
+function configDiff(a: EvalConfig | null, b: EvalConfig | null) {
+  const rows: { label: string; before: string; after: string }[] = [];
+  const on = (v?: boolean) => (v ? "켬" : "끔");
+  const push = (label: string, x: string, y: string) => {
+    if (x !== y) rows.push({ label, before: x, after: y });
+  };
+  push("topK", String(a?.topK ?? "—"), String(b?.topK ?? "—"));
+  push("최대 거리", String(a?.maxDistance ?? "—"), String(b?.maxDistance ?? "—"));
+  push("하이브리드", on(a?.hybrid), on(b?.hybrid));
+  push("리랭커", on(a?.reranker), on(b?.reranker));
+  push("모델", a?.model ?? "—", b?.model ?? "—");
+  return rows;
+}
+
+/**
+ * ★ W4 before/after 비교 — 이 화면의 목적지.
+ *
+ * <b>바닥 델타는 거짓말을 한다.</b> 이 프로젝트가 W4 에서 배운 것이 정확히 그것이라,
+ * 화면이 그 함정을 다시 파지 않도록 세 겹을 건다.
+ *
+ *   ① <문항 수가 다르면 숫자를 아예 안 보여준다.> 테스트셋이 바뀌면 두 점수는
+ *      애초에 같은 자를 쓰지 않은 것이다. 델타를 보여주는 순간 사람은 그걸 읽는다.
+ *   ② <차이를 측정 편차와 나란히 놓는다.> 편차보다 작은 차이는 "개선" 이 아니라 노이즈다.
+ *   ③ <기준값은 전체 충실성이다.> 충실성(avgFaithfulness)은 답을 덜 할수록 올라가므로
+ *      비교에 쓰면 안 된다 — 그래도 함께 보여주되 그 사실을 딱지로 붙인다.
+ */
+function ComparePanel({
+  runs,
+  compareIds,
+  onClear,
+}: {
+  runs: EvalRun[];
+  compareIds: string[];
+  onClear: () => void;
+}) {
+  const picked = compareIds
+    .map((id) => runs.find((r) => r.id === id))
+    .filter((r): r is EvalRun => r !== undefined)
+    /* 고른 순서가 아니라 <시간 순>으로 놓는다. before → after 가 사람이 읽는 방향이다. */
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+
+  if (picked.length !== 2) return null;
+  const [before, after] = picked;
+
+  const sameSet =
+    before.questionCount === null ||
+    after.questionCount === null ||
+    before.questionCount === after.questionCount;
+
+  const noise = measureNoise(runs);
+  const diff = configDiff(before.config, after.config);
+
+  return (
+    <div className="mb-3 rounded-lg border border-subtle bg-surface p-4">
+      <div className="mb-3 flex items-baseline justify-between gap-3">
+        <h3 className="text-sm font-semibold">두 실행 비교</h3>
+        <button type="button" onClick={onClear} className="text-xs text-muted underline">
+          선택 해제
+        </button>
+      </div>
+
+      {!sameSet ? (
+        /* ① 여기서 숫자를 보여주지 않는 것이 핵심이다. */
+        <p className="rounded-md bg-warning-surface px-3 py-2 text-xs text-warning">
+          <b>테스트셋이 달라 비교할 수 없습니다.</b> 문항 수가 {before.questionCount} →{" "}
+          {after.questionCount} 로 바뀌었습니다. 같은 질문으로 돌린 실행끼리 골라주세요.
+        </p>
+      ) : (
+        <>
+          <div className="mb-3 grid grid-cols-[1fr_auto_1fr] items-baseline gap-x-3 text-xs text-muted">
+            <span>{new Date(before.createdAt).toLocaleString("ko-KR")}</span>
+            <span aria-hidden>→</span>
+            <span className="text-right">{new Date(after.createdAt).toLocaleString("ko-KR")}</span>
+          </div>
+
+          <MetricRow
+            label="전체 충실성"
+            before={before.overallFaithfulness}
+            after={after.overallFaithfulness}
+            noise={noise}
+            headline
+          />
+          <MetricRow label="관련성" before={before.avgRelevancy} after={after.avgRelevancy} />
+          <MetricRow label="응답률" before={before.answeredRate} after={after.answeredRate} />
+          <MetricRow
+            label="충실성"
+            note="답을 덜 하면 올라갑니다 — 비교에 쓰지 마세요"
+            before={before.avgFaithfulness}
+            after={after.avgFaithfulness}
+          />
+
+          <div className="mt-3 border-t border-subtle pt-3">
+            <p className="mb-1.5 text-xs text-muted">달라진 설정</p>
+            {diff.length === 0 ? (
+              <p className="text-xs">
+                설정이 같습니다. <span className="text-muted">두 실행의 차이가 곧 <b>측정 편차</b>입니다.</span>
+              </p>
+            ) : (
+              <ul className="space-y-1">
+                {diff.map((d) => (
+                  <li key={d.label} className="flex items-center gap-2 text-xs">
+                    <span className="w-16 shrink-0 text-muted">{d.label}</span>
+                    <ConfigChip label={d.before} />
+                    <span aria-hidden className="text-muted">→</span>
+                    <ConfigChip label={d.after} on />
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+/** 지표 한 줄. 차이는 <편차와 함께> 있을 때만 뜻이 생긴다(headline 인 지표에만 붙인다). */
+function MetricRow({
+  label,
+  note,
+  before,
+  after,
+  noise,
+  headline,
+}: {
+  label: string;
+  note?: string;
+  before: number | null;
+  after: number | null;
+  noise?: number | null;
+  headline?: boolean;
+}) {
+  /* null 은 0 이 아니다 — 한쪽이라도 없으면 차이를 계산하지 않는다. */
+  const delta = before !== null && after !== null ? after - before : null;
+
+  return (
+    <div className="border-t border-subtle py-2 first:border-t-0">
+      <div className="grid grid-cols-[1fr_auto_1fr_auto] items-baseline gap-x-3">
+        <span className={headline ? "text-sm font-medium" : "text-xs text-muted"}>{label}</span>
+        <span className={`tabular-nums ${headline ? "text-base" : "text-xs"}`}>{fmt(before)}</span>
+        <span className={`text-right tabular-nums ${headline ? "text-base font-semibold" : "text-xs"}`}>
+          {fmt(after)}
+        </span>
+        <span
+          className={`w-16 text-right tabular-nums ${headline ? "text-sm" : "text-xs"} ${
+            delta === null || delta === 0 ? "text-muted" : delta > 0 ? "text-success" : "text-danger"
+          }`}
+        >
+          {delta === null ? "—" : `${delta > 0 ? "+" : delta < 0 ? "−" : "±"}${Math.abs(delta).toFixed(3)}`}
+        </span>
+      </div>
+      {note && <p className="mt-0.5 text-[11px] text-warning">⚠ {note}</p>}
+      {/* ② 편차 판정. 이 줄이 없으면 화면은 노이즈를 개선이라고 말하게 된다. */}
+      {headline && delta !== null && (
+        <p className="mt-1 text-[11px] text-muted">
+          {noise === null || noise === undefined ? (
+            <>
+              같은 설정으로 두 번 이상 돌린 기록이 없어 <b>측정 편차를 모릅니다.</b> 설정마다 3회
+              이상 돌리면 이 차이가 진짜인지 판단할 수 있습니다.
+            </>
+          ) : Math.abs(delta) > noise ? (
+            <span className="text-success">
+              이 봇의 측정 편차 ±{noise.toFixed(3)} <b>보다 큽니다.</b>
+            </span>
+          ) : (
+            <span className="text-warning">
+              이 봇의 측정 편차 ±{noise.toFixed(3)} <b>안입니다 — 노이즈와 구별되지 않습니다.</b>
+            </span>
+          )}
+        </p>
+      )}
+    </div>
   );
 }
 
