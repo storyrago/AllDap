@@ -85,14 +85,33 @@ GitHub Actions 가 GHCR 에 올리고 서버는 `pull` 만 한다. 서버에 JDK
 
 ## 2. RDS 먼저 만든다
 
-앱보다 DB 가 먼저 있어야 한다.
+**순서는 사실 상관없다** — EC2 를 먼저 만들어도 된다. 실질 제약은 **AZ 하나**이고,
+먼저 만든 쪽의 AZ 에 나중 것을 맞추면 된다.
+
+> 🔴 **"데이터베이스 생성" 을 누르면 함정이 둘 겹쳐 있다. 2026-09-07 에 실제로 걸렸다.**
+> ① 생성 방식에서 **"전체 구성"** 을 고를 것(콘솔이 라벨을 바꿨다 — 옛 "표준 생성"이 지금 **전체 구성**,
+>    옛 "손쉬운 생성"이 **빠른 구성**이다). "빠른 구성"은 **Aurora Serverless v2** 를 만든다.
+> ② **전체 구성으로 가도 엔진 옵션의 기본 선택이 `Aurora (PostgreSQL Compatible)` 다.**
+>    한 칸 더 내려가 **그냥 `PostgreSQL`** 을 눌러야 한다. 둘이 나란히 있다.
+>
+> **리트머스 시험지: 템플릿에 "프리 티어" 가 보이는가.** Aurora 에는 그 항목이 없다.
+> 안 보이면 Aurora 쪽에 와 있는 것이니 뒤로 갈 것.
 
 - **엔진**: PostgreSQL 16
 - **템플릿**: 프리 티어
 - **인스턴스**: `db.t3.micro` · 스토리지 20GB gp2 · 스토리지 자동 확장 **끔**(과금 방지)
 - **퍼블릭 액세스**: **아니요** ← 중요
 - **AZ**: EC2 와 **같은 AZ** (다른 AZ 면 데이터 전송에 과금된다)
-- **초기 데이터베이스 이름**: `alldap` (안 적으면 DB 가 안 만들어진다)
+- **초기 데이터베이스 이름**: `alldap` — **"추가 구성" 안에 접혀 있다.** 🔴 안 적으면 DB 가
+  만들어지지 않고, 증상은 여기가 아니라 **Spring 기동 실패**로 나타난다(`FlywaySqlUnableToConnectToDbException:
+  database "alldap" does not exist`). 접속·인증은 성공한 뒤 나는 오류라 SG 나 비밀번호를 의심하게 된다.
+  이미 만들어버렸으면 인스턴스를 다시 만들 필요 없다 — EC2 에서 `postgres` DB 로 붙어 만들면 된다:
+  ```bash
+  sudo apt-get install -y postgresql-client
+  psql -h $(grep -m1 '^DB_HOST=' .env.prod | cut -d= -f2) \
+       -U $(grep -m1 '^DB_USERNAME=' .env.prod | cut -d= -f2) \
+       -d postgres -c 'CREATE DATABASE alldap;'
+  ```
 - 마스터 사용자/비밀번호를 `.env.prod` 의 `DB_USERNAME`/`DB_PASSWORD` 에 넣는다
 
 > **pgvector 는 RDS 에서 지원된다**(PostgreSQL 15.2+). `V1__init.sql` 의
@@ -116,6 +135,15 @@ GitHub Actions 가 GHCR 에 올리고 서버는 `pull` 만 한다. 서버에 JDK
 | **RDS SG** | 5432 | **EC2 의 보안 그룹** (IP 가 아니라 SG 를 지정) |
 
 RDS 인바운드에 `0.0.0.0/0` 을 넣지 말 것. SG 를 소스로 지정하면 EC2 IP 가 바뀌어도 계속 맞는다.
+
+> ⚠️ **RDS 생성 마법사가 만든 새 SG 에는 <네 노트북 IP> 가 인바운드로 들어간다.** 그대로 두면
+> EC2 에서 `nc -zv <엔드포인트> 5432` 가 타임아웃난다. 그런데 **그 규칙 행을 고쳐서 SG 참조로
+> 바꿀 수 없다** — `기존 IPv4 CIDR 규칙에 참조된 그룹 ID를 지정할 수 없습니다` 로 거부된다.
+> **행을 삭제하고 "규칙 추가" 로 새로 만들어야 한다.**
+
+> ⚠️ **탄력적 IP 는 재활용된다.** 예전에 그 IP 를 쓰던 서버의 키가 `~/.ssh/known_hosts` 에
+> 남아 있으면 첫 SSH 가 `REMOTE HOST IDENTIFICATION HAS CHANGED` 로 막힌다.
+> 방금 만든 인스턴스라면 정상이다 — `ssh-keygen -R <탄력적IP>` 로 옛 키를 지우면 된다.
 
 > AWS 의 Ubuntu AMI 는 OS 방화벽이 기본으로 열려 있다. 보안 그룹만 맞추면 된다.
 
@@ -236,6 +264,11 @@ TOSS_SECRET_KEY=test_sk_...
 
 - **Root Directory**: `web`
 - **환경변수**: `NEXT_PUBLIC_API_BASE_URL=https://alldap.duckdns.org`
+  ⚠️ **Vercel 이 `web/.env.local.example` 에서 이름을 긁어와 미리 채워 넣는데, 예시값이 그대로 들어간다.**
+  `http://localhost:8080` 인 채로 배포하면 배포된 화면이 <개발자 노트북>을 호출하다 전부 실패한다.
+  값은 마스킹돼 보이므로 👁 아이콘으로 눈으로 확인할 것.
+  ⚠️ 루트 `.env.example` 의 **백엔드 변수**(`JWT_SECRET`·`AI_SERVICE_BASE_URL`·`TOSS_SECRET_KEY`)까지
+  딸려 들어온다. 빈 값이라 빌드는 되지만 **여기 시크릿을 넣을 자리를 만들어두는 셈**이라 지우는 게 낫다.
 - **환경변수**: `NEXT_PUBLIC_TOSS_CLIENT_KEY=test_ck_...` — 토스 카드 등록창을 여는 데 쓴다.
   `NEXT_PUBLIC_` 이라 **브라우저 번들에 그대로 들어간다.** 클라이언트 키는 원래 공개돼도 되는 값이라
   괜찮지만, **시크릿 키(`test_sk_`)를 여기 넣으면 안 된다** — 그러면 누구나 우리 계정으로 API 를 부른다.
