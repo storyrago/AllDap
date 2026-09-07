@@ -258,7 +258,8 @@ export interface Paged<T> {
  * ✅ 2026-08-02: 실제 API 응답과 대조 완료.
  *    Python 의 /internal/eval/* 과 Spring 의 /api/bots/{botId}/eval/* 이 모두 구현됐고,
  *    아래 타입은 <실제로 돌려받은 JSON> 을 보고 고친 것이다(더 이상 추측이 아니다).
- *    다만 `UnansweredQuestion` 만은 여전히 미구현 API 의 약속이다 — 아래 주석 참고.
+   *    ✅ 2026-09-07: `UnansweredQuestion` 도 구현됐다(GET /api/bots/{botId}/eval/unanswered).
+   *       진단 화면이 실제로 쓰고 있다.
  */
 
 /** 테스트 질문 1건 (eval_questions) */
@@ -368,13 +369,13 @@ export interface EvalResult {
 }
 
 /**
- * 미답변(fallback) 집계 1건 — 품질 대시보드의 "미답변 목록 + 보강 제안" 영역.
+ * 미답변(fallback) 집계 1건 — <진단> 화면의 "답하지 못한 질문" 영역.
  *
- * ⚠️ PRD 와의 갭: eval_* 테이블에는 이 데이터가 없다.
- *    실사용 중 fallback 된 질문은 messages(is_fallback = true) 에 쌓인다.
- *    즉 이 목록은 Spring 이 messages 를 집계해서 만들어야 한다 (Python 이 아니라).
- *    "보강 제안" 문장을 누가 생성하는지는 아직 미정.
- * TODO(W3): 집계 API 경로를 확정할 것. 후보: GET /api/bots/{botId}/eval/unanswered
+ * ✅ 구현됨: `GET /api/bots/{botId}/eval/unanswered`.
+ *    eval_* 테이블이 아니라 messages(is_fallback = true) 에서 나오므로
+ *    Python 이 아니라 <Spring 이> 집계한다. LLM 을 안 부르니 비용이 0 이다.
+ *
+ * ⚠️ 남은 것: "보강 제안" 문장을 누가 생성할지는 아직 미정이라 화면에 없다.
  */
 export interface UnansweredQuestion {
   /** 같은 문장끼리 묶은 대표 질문 */

@@ -17,6 +17,7 @@ import { useParams } from "next/navigation";
 import { ApiError, api } from "@/lib/api";
 import type { ChatMessage, ConversationSummary, Paged } from "@/lib/types";
 import { PageHeader } from "@/components/PageHeader";
+import { Toggle } from "@/components/Toggle";
 
 const PAGE_SIZE = 20;
 
@@ -110,12 +111,12 @@ export default function LogsPage() {
       />
 
       <div className="mt-4 flex flex-wrap gap-4 text-sm">
-        <Checkbox
+        <Toggle
           checked={onlyFallback}
           onChange={(v) => changeFilter({ onlyFallback: v })}
           label="미답변만"
         />
-        <Checkbox
+        <Toggle
           checked={onlyThumbsDown}
           onChange={(v) => changeFilter({ onlyThumbsDown: v })}
           label="👎 받은 것만"
@@ -248,26 +249,6 @@ function MessageRow({ message }: { message: ChatMessage }) {
   );
 }
 
-function Checkbox({
-  checked,
-  onChange,
-  label,
-}: {
-  checked: boolean;
-  onChange: (value: boolean) => void;
-  label: string;
-}) {
-  return (
-    <label className="flex items-center gap-2">
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={(e) => onChange(e.target.checked)}
-      />
-      <span>{label}</span>
-    </label>
-  );
-}
 
 /**
  * 서버가 주는 ISO 시각을 한국어로.

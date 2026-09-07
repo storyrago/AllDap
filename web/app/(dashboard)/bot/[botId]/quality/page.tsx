@@ -34,7 +34,6 @@ import { useParams } from "next/navigation";
 import { ApiError, api } from "@/lib/api";
 import type { EvalQuestion, EvalResult, EvalRun } from "@/lib/types";
 import { PageHeader } from "@/components/PageHeader";
-import { Placeholder } from "@/components/Placeholder";
 
 /** 실행이 끝나기를 기다리는 동안 목록을 다시 부르는 간격. 문서 업로드 폴링과 같은 값이다. */
 const POLL_MS = 3000;
@@ -213,7 +212,6 @@ export default function QualityPage() {
             resultsLoading={resultsLoading}
             onToggle={toggleResults}
           />
-          <UnansweredSection />
         </>
       )}
     </>
@@ -497,9 +495,10 @@ function QuestionSection({
         </ul>
       )}
 
-      {/* 켜고 끄기는 아직 서버에 없다. 없는 기능을 있는 것처럼 그리지 않는다. */}
+      {/* 🔴 "API 가 없다" 고 적혀 있던 자리다 — 2026-08-17 에 PATCH 가 붙었으므로 거짓이 됐다.
+          없는 것은 API 가 아니라 <화면>이다. 사실대로 적는다. */}
       <p className="mt-2 text-xs text-muted">
-        TODO(W3): 질문 수정·비활성 토글은 아직 API 가 없습니다 (PATCH 미구현).
+        TODO: 질문 수정·비활성 전환은 API(PATCH)가 준비돼 있고 화면만 없습니다.
       </p>
     </section>
   );
@@ -740,25 +739,3 @@ function ResultTable({ results }: { results: EvalResult[] }) {
   );
 }
 
-/** ⑤ 미답변 목록 — 아직 API 가 없다. 없는 걸 있는 것처럼 그리지 않는다. */
-function UnansweredSection() {
-  return (
-    <section>
-      <h2 className="mb-2 text-sm font-semibold">미답변 목록 + 보강 제안</h2>
-      <Placeholder
-        title="실사용 중 fallback 된 질문들"
-        api="GET /api/bots/{botId}/eval/unanswered (미구현)"
-      >
-        <p>
-          위 ④가 <em>테스트셋</em> 기준이라면 여기는 <em>실사용</em> 기준입니다. 엔드유저가 실제로
-          물었는데 답하지 못한 질문 목록입니다.
-        </p>
-        <p>
-          ⚠️ 데이터 출처가 다릅니다. 이 목록은 eval_* 테이블이 아니라 messages(is_fallback = true)
-          에서 나옵니다. Python 이 아니라 <strong>Spring 이 집계</strong>해야 합니다.
-        </p>
-        <p>TODO(W3): 비슷한 질문 묶기 방식과 &ldquo;보강 제안&rdquo; 문장을 누가 생성할지 정할 것.</p>
-      </Placeholder>
-    </section>
-  );
-}

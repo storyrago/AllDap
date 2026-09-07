@@ -31,6 +31,7 @@ import { API_BASE_URL, ApiError, api } from "@/lib/api";
 import type { Bot } from "@/lib/types";
 import { PageHeader } from "@/components/PageHeader";
 import { Section, TextArea } from "@/components/Form";
+import { Toggle } from "@/components/Toggle";
 
 export default function ExportPage() {
   const { botId } = useParams<{ botId: string }>();
@@ -223,21 +224,12 @@ export default function ExportPage() {
       </form>
 
       <Section title="붙여넣을 코드">
-        <label className="flex items-start gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={customLauncher}
-            onChange={(e) => setCustomLauncher(e.target.checked)}
-            className="mt-0.5"
-          />
-          <span>
-            <b>내 사이트 버튼으로 열기</b>
-            <span className="mt-0.5 block text-xs text-muted">
-              기본 상담 버튼을 끄고, 내 사이트에 이미 있는 버튼으로 채팅창을 엽니다. 사이트에
-              보이는 버튼이 100% 내 디자인이 됩니다. (채팅창 자체는 보안상 바꿀 수 없습니다)
-            </span>
-          </span>
-        </label>
+        <Toggle
+          checked={customLauncher}
+          onChange={setCustomLauncher}
+          label={<b>내 사이트 버튼으로 열기</b>}
+          description="기본 상담 버튼을 끄고, 내 사이트에 이미 있는 버튼으로 채팅창을 엽니다. 사이트에 보이는 버튼이 100% 내 디자인이 됩니다. (채팅창 자체는 보안상 바꿀 수 없습니다)"
+        />
 
         <p className="text-xs text-muted">
           {customLauncher ? (
