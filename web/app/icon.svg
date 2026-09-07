@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- 브랜드 색은 globals.css 와 같은 값을 직접 적는다.
+       파비콘은 CSS 변수를 못 읽고(문서 밖에서 렌더된다), 라이트/다크도 못 가린다. -->
+  <!-- 스쿼클(iOS 식 둥근 사각형). rx 만 준 사각형보다 모서리가 부드럽다. -->
+  <path d="M16 0C28 0 32 4 32 16S28 32 16 32 0 28 0 16 4 0 16 0z" fill="#171514"/>
+  <!-- 두 획으로 그린 A. 왼쪽은 흰색(질문), 오른쪽은 민트(근거 있는 답) —
+       색이 다른 두 획이 꼭짓점에서 만난다 = 질문과 근거가 만나는 지점. -->
+  <path d="M8 25L16 7" stroke="#ffffff" stroke-width="4" stroke-linecap="round"/>
+  <path d="M16 7l8 18" stroke="#7ed0c0" stroke-width="4" stroke-linecap="round"/>
+  <!-- A 의 가로획을 점 하나로 줄였다. 16px 에서 가로선은 뭉개지지만 점은 남는다. -->
+  <circle cx="16" cy="19.5" r="2.2" fill="#ffffff"/>
+</svg>
