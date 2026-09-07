@@ -17,7 +17,7 @@
 
 import type {
   AuthResponse,
-  BillingMethodResponse,
+  BillingMethodsResponse,
   Bot,
   ChatMessage,
   ChatRequest,
@@ -182,7 +182,7 @@ export function getAccessTokenServerSnapshot(): string | null | undefined {
 /* ───────────────────────── 요청 공통부 ───────────────────────── */
 
 interface RequestOptions {
-  method?: "GET" | "POST" | "PATCH" | "DELETE";
+  method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   /** JSON 으로 직렬화해서 보낼 본문 */
   body?: unknown;
   /** 파일 업로드용. 이게 있으면 body 는 무시된다. */
@@ -430,34 +430,43 @@ export const api = {
    * 설계 문서가 고정한 이름이기 때문이다. 짧게 줄이지 말 것.
    */
   billing: {
-    /** 카드가 없어도 customerKey 는 항상 온다 (결제창을 띄우려면 그게 필요하다) */
-    getBillingMethod: () => request<BillingMethodResponse>("/api/billing/method"),
+    /** 카드가 없어도 customerKey 는 항상 온다 (결제창을 띄우려면 그게 필요하다). 카드는 등록 순서대로 */
+    listBillingMethods: () => request<BillingMethodsResponse>("/api/billing/methods"),
     /**
-     * 토스 결제창에서 돌아온 authKey 로 빌링키를 발급받아 저장한다.
+     * 토스 결제창에서 돌아온 authKey 로 빌링키를 발급받아 저장하고 <목록 전체>를 돌려준다.
+     * 등록 직후 다시 GET 할 필요가 없다 — 화면에 보이는 카드의 출처가 이 응답 하나다.
      *
      * 🔴 customerKey 를 같이 보내지만 서버는 그 값을 <신뢰하지 않는다> — 토큰의 주인 것을
      *    DB 에서 읽어 쓰고, 여기 실린 값은 <대조만> 하고 다르면 400 이다.
      *    신뢰했다면 남의 customerKey 를 적어 보내는 것만으로 카드가 남에게 붙는다.
      *    userId 를 @AuthenticationPrincipal 로만 받는 이 저장소의 규칙과 같은 이유다.
      *
-     * 실패 코드가 셋으로 갈린다 — 프론트가 "카드를 바꿔 다시" 와 "우리 버그" 를 구분해
+     * 실패 코드가 넷으로 갈린다 — 프론트가 "카드를 바꿔 다시" 와 "우리 버그" 를 구분해
      * 안내해야 해서다: BILLING_AUTH_FAILED(400) · BILLING_PROVIDER_UNAVAILABLE(503) ·
-     * BILLING_METHOD_ALREADY_EXISTS(409). 셋 다 ApiError.message 에 한국어 안내가 들어 있다.
+     * BILLING_METHOD_LIMIT_EXCEEDED(409, 5장) · BILLING_METHOD_CONFLICT(409, 동시 첫 등록).
+     * 전부 ApiError.message 에 한국어 안내가 들어 있다.
      */
     registerBillingMethod: (authKey: string, customerKey: string) =>
-      request<BillingMethodResponse>("/api/billing/method", {
+      request<BillingMethodsResponse>("/api/billing/methods", {
         method: "POST",
         body: { authKey, customerKey },
       }),
     /**
-     * 204 를 돌려주므로 반환값이 없다. request() 가 204 를 이미 다룬다(본문을 파싱하지 않는다).
+     * 카드 한 장 삭제. 204 라 반환값이 없다. request() 가 204 를 이미 다룬다.
      *
      * ⚠️ 서버는 <토스를 먼저> 부르고 우리 행을 나중에 지운다. 그래서 503 이 오면
      *    카드가 <그대로 남아 있다> — 화면은 그 경우 목록을 다시 부르지 말고
      *    오류만 띄워야 한다(page.tsx 의 handleDelete 참고).
+     * ⚠️ 기본 카드는 다른 카드가 남아 있으면 409(BILLING_DEFAULT_METHOD_IN_USE)다.
+     *    화면은 그 버튼을 미리 비활성화하지만 판단은 서버가 한다.
      */
-    deleteBillingMethod: () =>
-      request<void>("/api/billing/method", { method: "DELETE" }),
+    deleteBillingMethod: (id: string) =>
+      request<void>(`/api/billing/methods/${id}`, { method: "DELETE" }),
+    /**
+     * 그 카드를 기본(청구에 쓸 카드)으로. <목록 전체>를 돌려준다. PUT 이라 연타해도 결과가 같다.
+     */
+    setDefaultBillingMethod: (id: string) =>
+      request<BillingMethodsResponse>(`/api/billing/methods/${id}/default`, { method: "PUT" }),
   },
 
   /**
