@@ -1,25 +1,28 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { Evidence, Framed, PageIntro } from "@/components/Evidence";
+import { Evidence, PageIntro } from "@/components/Evidence";
+import { PLANS } from "@/lib/plans";
 
 /**
  * `/pricing` — 요금제.
  *
- * 🔴 <이 페이지에 금액이 없다. 그게 의도다.>
- * PRD §13.1 은 <무엇에 값을 매길지>(과금축)를 확정했고 <얼마를 받을지>(금액)는
- * "파일럿 4주 후" 로 미뤄뒀다. 실사용 데이터 없이 정하면 근거 없는 숫자가 되기 때문이다.
+ * 🔴 <금액은 전부 가정값이다. 그리고 그 사실을 화면에 그대로 적는다.>
+ * PRD §13.1 은 <무엇에 값을 매길지>(과금축)를 2026-07-31 에 확정했고, <얼마를 받을지>는
+ * "파일럿 4주 후" 로 미뤄뒀었다. 2026-09-07 에 그 결정을 뒤집어 금액을 정했다 —
+ * 포트폴리오에서 결제 흐름을 끝까지 보여주려면 숫자가 필요하고, 파일럿은 현실적으로
+ * 열리지 않기 때문이다(docs/decisions.md 2026-09-07). 숫자는 원가 실측에서 역산했고
+ * 시장 기준점 둘을 참고했다. 그래서 "가정" 태그를 붙인다 — "실측"·"설계" 와 같은 톤으로
+ * 쓰면 그게 과장이다. 이 사이트의 규칙(주장에는 근거의 <성격>까지 댄다)은 그대로다.
  *
- * 그래서 지어낸 가격표를 세우지 않고, <정한 것과 안 정한 것을 구분해서> 적는다.
- * 이 사이트의 규칙(주장에는 근거를 댄다)을 가격에도 그대로 적용한 것이다 —
- * "미정" 태그가 붙은 항목이 그 표시다.
+ * 숫자의 원본은 lib/plans.ts 하나다. 이 파일에 숫자를 직접 적지 않는다.
  *
  * 호출하는 API: 없음.
  */
 export const metadata: Metadata = {
   title: "요금제 — AllDap",
   description:
-    "봇이 답하지 못한 질문에는 요금을 받지 않습니다. 과금 기준은 답변 수와 품질 평가 실행 횟수이며, 금액은 파일럿 이후 공개합니다.",
+    "봇이 답하지 못한 질문에는 요금을 받지 않습니다. 무료(월 200건)와 Pro(월 29,000원 · 3,000건) 두 플랜이며, 금액은 파일럿 전 가정값입니다.",
 };
 
 const AXES = [
@@ -52,25 +55,61 @@ export default function PricingPage() {
         lead="억지로 답하게 만들 이유가 회사 쪽에 생기지 않도록 과금 기준을 정했습니다. 제품이 지키려는 것과 매출이 같은 방향을 봅니다."
       />
 
-      {/* 🔴 이 페이지에서 가장 먼저 말해야 하는 것은 "금액이 아직 없다" 는 사실이다.
-             아래에 축을 설명하고 나서 밝히면 읽는 사람이 속은 기분이 든다. */}
+      {/* 🔴 금액을 <가장 먼저> 보여주고, 바로 아래에 "어디서 나온 숫자인지" 를 붙인다.
+             숫자가 없던 때는 "없다" 를 먼저 말했다. 있는 지금은 근거의 성격을 먼저 말한다.
+             어느 쪽이든 목적은 같다 — 읽는 사람이 속은 기분이 들지 않게.
+             Pro 카드만 진한 테두리: 두 장뿐이라 "추천" 배지 없이 테두리 하나로 충분하다. */}
       <section className="mt-12">
-        <Framed>
-          <div className="bg-surface p-6 sm:p-8">
-            <p className="text-xs font-medium tracking-[0.18em] text-warning">아직 정하지 않았습니다</p>
-            <h2 className="mt-3 text-xl font-bold tracking-[-0.02em] sm:text-2xl">
-              무엇에 값을 매길지는 정했고, 얼마일지는 정하지 않았습니다
-            </h2>
-            <p className="mt-3 max-w-2xl leading-relaxed text-muted">
-              실사용 데이터 없이 금액을 정하면 근거 없는 숫자가 됩니다. 파일럿에서 봇당 월 답변 수와
-              평가 실행 빈도를 재고, 원가를 확인한 다음 공개합니다.
-            </p>
-            <Evidence kind="미정">
-              현재 AllDap 은 포트폴리오·학습 목적으로 만들고 있으며 결제 기능이 없습니다.
-              도입을 검토하신다면 문의를 남겨주세요 — 파일럿 대상에게 먼저 알립니다.
-            </Evidence>
-          </div>
-        </Framed>
+        <div className="grid gap-6 sm:grid-cols-2">
+          {PLANS.map((plan) => (
+            <article
+              key={plan.id}
+              className={`rounded-lg border bg-surface p-6 ${
+                plan.id === "pro" ? "border-foreground" : "border-subtle"
+              }`}
+            >
+              <p className="text-xs font-medium tracking-[0.18em] text-muted">{plan.name}</p>
+              <p className="mt-3 text-3xl font-bold tracking-[-0.02em]">
+                {plan.monthlyPriceKrw.toLocaleString("ko-KR")}원
+                <span className="ml-1 text-sm font-normal text-muted">/월</span>
+              </p>
+              <dl className="mt-5 space-y-2 text-sm">
+                <div className="flex justify-between gap-4">
+                  <dt className="text-muted">답변 (답하지 못한 질문 제외)</dt>
+                  <dd className="font-medium">월 {plan.includedAnswers.toLocaleString("ko-KR")}건</dd>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <dt className="text-muted">품질 평가 실행</dt>
+                  <dd className="font-medium">월 {plan.includedEvalRuns}회</dd>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <dt className="text-muted">포함량 초과 답변</dt>
+                  <dd className="font-medium">
+                    {plan.overageAnswerKrw === null ? "한도에서 멈춤" : `건당 ${plan.overageAnswerKrw}원`}
+                  </dd>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <dt className="text-muted">추가 평가 실행</dt>
+                  <dd className="font-medium">
+                    {plan.extraEvalRunKrw === null
+                      ? "불가"
+                      : `회당 ${plan.extraEvalRunKrw.toLocaleString("ko-KR")}원`}
+                  </dd>
+                </div>
+              </dl>
+            </article>
+          ))}
+        </div>
+        <p className="mt-3 text-xs text-muted">모든 금액은 부가세 별도입니다.</p>
+        <Evidence kind="가정">
+          원가 실측(답변 1건 ≈ 25뉴런 · 평가 1회 804뉴런, Cloudflare 유료 단가로 각각 약 0.4원 · 12원)에서
+          역산하고 Chatbase(월 $40 · 700건)와 채널톡 ALF(대화당 500원)를 기준점으로 삼았습니다.
+          실사용 데이터가 없어 가정값이며, 파일럿 뒤 다시 정합니다.
+        </Evidence>
+        <Evidence kind="미정">
+          결제는 아직 연결되지 않았습니다 — 카드 등록은 되지만 청구는 일어나지 않습니다.
+          도입을 검토하신다면 문의를 남겨주세요.
+        </Evidence>
       </section>
 
       <section className="mt-14">

@@ -16,13 +16,16 @@
  * 브라우저 번들에 들어가지 않는다. 공개 페이지는 SEO 대상이라 그게 유리하다.
  */
 
-type EvidenceKind = "실측" | "설계" | "미정";
+type EvidenceKind = "실측" | "설계" | "가정" | "미정";
 
 /** 근거의 <성격>을 구분한다. 실측과 계획을 같은 톤으로 쓰면 그게 과장이다. */
 const KIND_STYLE: Record<EvidenceKind, string> = {
   실측: "border-success text-success",
   설계: "border-subtle text-muted",
-  // 🔴 아직 정해지지 않은 것을 정해진 것처럼 쓰지 않는다. 가격이 그렇다.
+  // 🔴 정하긴 했지만 <실사용 근거가 없는> 것 — 요금제 금액이 그렇다(2026-09-07).
+  //    "미정" 과 같은 경고색을 쓴다: 둘 다 "실측처럼 읽지 말 것" 이라는 뜻이다.
+  가정: "border-warning text-warning",
+  // 🔴 아직 정해지지 않은 것을 정해진 것처럼 쓰지 않는다. 결제 연결이 그렇다.
   미정: "border-warning text-warning",
 };
 
