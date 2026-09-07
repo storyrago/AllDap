@@ -34,6 +34,7 @@ import { useParams } from "next/navigation";
 import { ApiError, api } from "@/lib/api";
 import type { EvalQuestion, EvalResult, EvalRun } from "@/lib/types";
 import { PageHeader } from "@/components/PageHeader";
+import { Toggle } from "@/components/Toggle";
 
 /** 실행이 끝나기를 기다리는 동안 목록을 다시 부르는 간격. 문서 업로드 폴링과 같은 값이다. */
 const POLL_MS = 3000;
@@ -50,6 +51,21 @@ export default function QualityPage() {
      하나의 boolean 으로 묶으면 질문을 만드는 동안 실행 버튼까지 잠긴다. */
   const [generating, setGenerating] = useState(false);
   const [starting, setStarting] = useState(false);
+
+  /**
+   * 질문 1건 수정. 목록을 통째로 다시 부르지 않고 <그 행만> 갈아끼운다.
+   *
+   * 전체 재조회를 하지 않는 이유: 이 화면은 위쪽 문항 스트립이 <목록의 순번>에 기대고 있다.
+   * 다시 부르는 사이에 순서가 흔들리면 "3번을 고쳤는데 스트립의 3번이 다른 문항" 이 된다.
+   * 서버가 수정된 행을 그대로 돌려주므로 그 자리에 넣으면 순서가 유지된다.
+   */
+  const handleSaveQuestion = useCallback(
+    async (questionId: string, payload: { question?: string; groundTruth?: string; isActive?: boolean }) => {
+      const updated = await api.evaluation.updateQuestion(botId, questionId, payload);
+      setQuestions((prev) => prev.map((q) => (q.id === questionId ? updated : q)));
+    },
+    [botId],
+  );
 
   /* 펼쳐본 실행의 질문별 결과. 목록을 열 때만 불러온다 —
      실행마다 미리 받아두면 안 볼 데이터까지 전부 내려받게 된다. */
@@ -204,6 +220,7 @@ export default function QualityPage() {
             activeCount={activeCount}
             generating={generating}
             onGenerate={handleGenerate}
+            onSave={handleSaveQuestion}
           />
           <RunSection
             runs={runs}
@@ -448,11 +465,16 @@ function QuestionSection({
   activeCount,
   generating,
   onGenerate,
+  onSave,
 }: {
   questions: EvalQuestion[];
   activeCount: number;
   generating: boolean;
   onGenerate: () => void;
+  onSave: (
+    questionId: string,
+    payload: { question?: string; groundTruth?: string; isActive?: boolean },
+  ) => Promise<void>;
 }) {
   return (
     <section className="mb-8">
@@ -477,30 +499,170 @@ function QuestionSection({
       ) : (
         <ul className="divide-y divide-subtle overflow-hidden rounded-lg border border-subtle bg-surface">
           {questions.map((q, i) => (
-            <li key={q.id} className="flex gap-3 px-4 py-3">
-              {/* 번호는 장식이 아니다 — 위 문항 스트립의 <같은 번호 칸>과 같은 문항이다.
-                  스트립에서 못 맞힌 칸을 보고 여기서 그 번호를 찾는 흐름을 위해 붙였다. */}
-              <span className="w-5 shrink-0 pt-0.5 text-xs tabular-nums text-muted">{i + 1}</span>
-              <div className="min-w-0 flex-1">
-                <p className="text-sm">{q.question}</p>
-                <p className="mt-1 text-xs text-muted">기대 답변: {q.groundTruth}</p>
-                {!q.isActive && (
-                  <span className="mt-1 inline-block rounded-full bg-foreground/10 px-2 py-0.5 text-xs text-muted">
-                    비활성 — 평가에서 제외됨
-                  </span>
-                )}
-              </div>
-            </li>
+            <QuestionRow key={q.id} question={q} index={i} onSave={onSave} />
           ))}
         </ul>
       )}
 
-      {/* 🔴 "API 가 없다" 고 적혀 있던 자리다 — 2026-08-17 에 PATCH 가 붙었으므로 거짓이 됐다.
-          없는 것은 API 가 아니라 <화면>이다. 사실대로 적는다. */}
-      <p className="mt-2 text-xs text-muted">
-        TODO: 질문 수정·비활성 전환은 API(PATCH)가 준비돼 있고 화면만 없습니다.
-      </p>
     </section>
+  );
+}
+
+/**
+ * 테스트 질문 한 줄. 평소엔 읽기용이고, "수정" 을 누르면 <그 자리에서> 펼쳐진다.
+ *
+ * <b>왜 모달이 아닌가.</b> 테스트셋은 한 문항만 보는 게 아니라 <다른 문항과 견주며> 고친다
+ * ("이 질문만 대상이 안 적혀 있네"). 모달은 그 이웃을 가린다.
+ *
+ * <b>왜 두 입력칸의 무게가 다른가 — 이 화면의 핵심이다.</b>
+ * 질문 문장을 다듬는 것은 안전하지만, <기대 답변>을 바꾸면 채점 기준 자체가 달라져
+ * 지난 실행과 점수를 나란히 놓을 수 없게 된다. 이 화면이 존재하는 이유가 실행 간 비교인데
+ * 그게 조용히 깨지는 것이다(Spring EvalController 주석이 같은 말을 한다).
+ * 그래서 경고를 <기대 답변이 실제로 바뀐 순간에만> 띄운다. 늘 떠 있으면 벽지가 되어
+ * 아무도 안 읽는다. 그리고 그 자리에서 <안전한 대안>(비활성)을 함께 가리킨다.
+ */
+function QuestionRow({
+  question: q,
+  index,
+  onSave,
+}: {
+  question: EvalQuestion;
+  index: number;
+  onSave: (
+    questionId: string,
+    payload: { question?: string; groundTruth?: string; isActive?: boolean },
+  ) => Promise<void>;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [text, setText] = useState(q.question);
+  const [truth, setTruth] = useState(q.groundTruth);
+  const [active, setActive] = useState(q.isActive);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  /* 서버가 돌려준 값과 비교해 <바뀐 것만> 보낸다.
+     PATCH 는 부분 수정이라, 안 바뀐 필드까지 보내면 "고쳤다" 는 기록만 늘어난다. */
+  const truthChanged = truth.trim() !== q.groundTruth;
+  const changed = text.trim() !== q.question || truthChanged || active !== q.isActive;
+
+  function open() {
+    setText(q.question);
+    setTruth(q.groundTruth);
+    setActive(q.isActive);
+    setError(null);
+    setEditing(true);
+  }
+
+  async function save() {
+    setSaving(true);
+    setError(null);
+    try {
+      await onSave(q.id, {
+        ...(text.trim() !== q.question ? { question: text.trim() } : {}),
+        ...(truthChanged ? { groundTruth: truth.trim() } : {}),
+        ...(active !== q.isActive ? { isActive: active } : {}),
+      });
+      setEditing(false);
+    } catch (e) {
+      /* 실패하면 편집 상태를 <그대로 둔다>. 닫아버리면 방금 쓴 문장이 사라진다. */
+      setError(e instanceof ApiError ? e.message : "저장하지 못했습니다. 잠시 후 다시 시도해주세요.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <li className="flex gap-3 px-4 py-3">
+      {/* 번호는 장식이 아니다 — 위 문항 스트립의 <같은 번호 칸>과 같은 문항이다.
+          스트립에서 못 맞힌 칸을 보고 여기서 그 번호를 찾는 흐름을 위해 붙였다. */}
+      <span className="w-5 shrink-0 pt-0.5 text-xs tabular-nums text-muted">{index + 1}</span>
+
+      {editing ? (
+        <div className="min-w-0 flex-1">
+          <label className="block text-xs text-muted" htmlFor={`q-${q.id}`}>
+            질문
+          </label>
+          <textarea
+            id={`q-${q.id}`}
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            rows={2}
+            className="mt-1 w-full rounded-md border border-subtle bg-background px-3 py-2 text-sm"
+          />
+
+          <label className="mt-3 block text-xs text-muted" htmlFor={`t-${q.id}`}>
+            기대 답변
+          </label>
+          <textarea
+            id={`t-${q.id}`}
+            value={truth}
+            onChange={(e) => setTruth(e.target.value)}
+            rows={2}
+            className={`mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm ${
+              truthChanged ? "border-warning" : "border-subtle"
+            }`}
+          />
+          {/* ★ 이 화면의 서명. 바뀐 순간에만 나타나고, 안전한 대안을 바로 아래 가리킨다. */}
+          {truthChanged && (
+            <p className="mt-1.5 rounded-md bg-warning-surface px-3 py-2 text-xs text-warning">
+              채점 기준이 바뀝니다. 이번 문항은 <b>지난 실행과 점수를 견줄 수 없게 됩니다.</b>{" "}
+              문항을 잠시 빼려는 것이라면 아래에서 평가에 포함을 꺼주세요.
+            </p>
+          )}
+
+          <div className="mt-3">
+            <Toggle
+              checked={active}
+              onChange={setActive}
+              label="평가에 포함"
+              description="끄면 다음 실행부터 제외됩니다. 지난 점수는 그대로 남습니다."
+            />
+          </div>
+
+          <div className="mt-3 flex items-center gap-2">
+            <button
+              type="button"
+              onClick={save}
+              disabled={saving || !changed}
+              className="rounded-md bg-foreground px-3 py-1.5 text-sm text-surface disabled:opacity-40"
+            >
+              {saving ? "저장하는 중…" : "저장"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setEditing(false)}
+              className="rounded-md border border-subtle px-3 py-1.5 text-sm"
+            >
+              취소
+            </button>
+            {error && (
+              <span role="alert" className="text-xs text-danger">
+                {error}
+              </span>
+            )}
+          </div>
+        </div>
+      ) : (
+        <>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm">{q.question}</p>
+            <p className="mt-1 text-xs text-muted">기대 답변: {q.groundTruth}</p>
+            {!q.isActive && (
+              <span className="mt-1 inline-block rounded-full bg-foreground/10 px-2 py-0.5 text-xs text-muted">
+                비활성 — 평가에서 제외됨
+              </span>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={open}
+            className="h-fit shrink-0 rounded-md border border-subtle px-2.5 py-1 text-xs text-muted"
+          >
+            수정
+          </button>
+        </>
+      )}
+    </li>
   );
 }
 
