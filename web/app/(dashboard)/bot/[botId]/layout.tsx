@@ -25,8 +25,9 @@ export default async function BotLayout({
     <div className="flex flex-col gap-6 sm:flex-row">
       <aside>
         {/* 이름만 클라이언트에서 가져온다 — 토큰이 브라우저에만 있어서다(BotName 주석 참고).
-            TODO(W2): 없는 botId 일 때 notFound() 로 404 를 띄우는 처리는 아직 없다.
-            지금은 각 화면이 자기 데이터를 부를 때 오류로 드러난다. */}
+            ✅ 없는 봇(과 남의 봇)의 404 판정도 BotName 이 한다 — 이미 GET /api/bots/{botId} 를
+               부르고 있어 거기 얹으면 요청이 늘지 않는다. 화면은 같은 세그먼트의
+               not-found.tsx 가 그린다. */}
         <BotName botId={botId} />
         <BotNav botId={botId} />
       </aside>
