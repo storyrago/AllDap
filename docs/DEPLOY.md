@@ -308,7 +308,8 @@ free -h && docker stats --no-stream
 `src` 는 `NEXT_PUBLIC_API_BASE_URL`, `data-app-base` 는 Vercel 주소가 나와야 한다.
 
 🔴 **⑦ 결제 수단 종단 1회 — V7(다중 카드, PR #74) 이후 배포에서 <등록 성공 경로>를 브라우저로 본 적이 없다.**
-개발 중에는 토스 샌드박스 iframe 에 자동화 도구가 입력을 못 넣어 DB 에 행을 심고 봤다. `/billing` 화면에서:
+개발 중에는 토스 샌드박스 iframe 에 자동화 도구가 입력을 못 넣어 DB 에 행을 심고 봤다.
+⚠️ 화면 주소가 **`/account`(마이페이지)** 로 바뀌었다 — `/billing` 은 308 리다이렉트만 남아 있다(쿼리스트링은 따라간다). 거기서:
 
 1. **등록 2장** — 토스 테스트 카드로 두 번 등록 (`authKey` 발급 → `POST /api/billing/methods` 200 · 목록 반환).
    첫 장에만 "기본" 배지가 붙는지

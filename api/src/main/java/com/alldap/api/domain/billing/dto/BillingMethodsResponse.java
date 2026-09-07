@@ -25,9 +25,14 @@ public record BillingMethodsResponse(String customerKey, List<Card> methods) {
 
     /**
      * @param id               삭제·기본 지정 때 경로에 실을 식별자
+     * @param issuerCode       토스가 준 발급사 코드("61"). <b>표시용이 아니라 프론트가 카드 면 색을
+     *                         고르는 키</b>다({@code web/lib/cardBrand.ts}). 이름을 키로 쓰면 우리가
+     *                         문구를 "현대" → "현대카드" 로 다듬는 순간 모든 현대 카드가 조용히
+     *                         회색이 된다 — 코드는 토스가 정한 값이라 우리 사정으로 바뀌지 않는다.
+     *                         ⚠️ 코드→<b>이름</b> 변환은 여전히 Spring 책임이다(아래 issuerName).
      * @param issuerName       카드사 <b>이름</b>. 토스는 코드("61")만 주므로 Spring 이 변환한다
-     *                         ({@link CardIssuer}). 프론트에 매핑을 두면 {@code web/lib/types.ts} 가
-     *                         백엔드 응답과 어긋난다.
+     *                         ({@link CardIssuer}). 프론트에 <b>이름</b> 매핑을 두면
+     *                         {@code web/lib/types.ts} 가 백엔드 응답과 어긋난다.
      * @param cardNumberMasked 토스가 마스킹해서 준 번호
      * @param registeredAt     우리 {@code created_at} 을 한국 시간 오프셋으로
      * @param isDefault        청구에 쓰는 카드인가. ⚠️ {@code @JsonProperty} 를 붙인 이유: 접근자가
@@ -35,6 +40,7 @@ public record BillingMethodsResponse(String customerKey, List<Card> methods) {
      *                         프론트 {@code types.ts} 가 {@code isDefault} 를 전제하므로 이름을 못박는다.
      */
     public record Card(UUID id,
+                       String issuerCode,
                        String issuerName,
                        String cardNumberMasked,
                        OffsetDateTime registeredAt,
