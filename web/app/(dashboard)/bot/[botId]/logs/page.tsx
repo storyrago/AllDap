@@ -17,9 +17,19 @@ import { useParams } from "next/navigation";
 import { ApiError, api } from "@/lib/api";
 import type { ChatMessage, ConversationSummary, Paged } from "@/lib/types";
 import { PageHeader } from "@/components/PageHeader";
-import { Toggle } from "@/components/Toggle";
 
 const PAGE_SIZE = 20;
+
+/**
+ * 대화 목록에서 무엇을 볼지. 셋 중 하나만 고른다.
+ * 라벨에 👎 를 쓰지 않는다 — 목록 <안>에서 그 이모지는 "이 답변이 받은 평가" 라는 데이터인데,
+ * 필터 이름에도 같은 기호를 쓰면 무엇을 가리키는 기호인지 흐려진다.
+ */
+const FILTERS = [
+  { label: "전체", onlyFallback: false, onlyThumbsDown: false },
+  { label: "미답변", onlyFallback: true, onlyThumbsDown: false },
+  { label: "부정 평가", onlyFallback: false, onlyThumbsDown: true },
+];
 
 export default function LogsPage() {
   const { botId } = useParams<{ botId: string }>();
@@ -78,9 +88,9 @@ export default function LogsPage() {
    * 3페이지를 보다가 필터를 켜면 결과가 5건뿐인데 3페이지를 요청해서
    * <빈 화면>이 나오고, 사용자는 "필터에 해당하는 게 없다"고 오해한다.
    */
-  function changeFilter(next: { onlyFallback?: boolean; onlyThumbsDown?: boolean }) {
-    if (next.onlyFallback !== undefined) setOnlyFallback(next.onlyFallback);
-    if (next.onlyThumbsDown !== undefined) setOnlyThumbsDown(next.onlyThumbsDown);
+  function changeFilter(next: { onlyFallback: boolean; onlyThumbsDown: boolean }) {
+    setOnlyFallback(next.onlyFallback);
+    setOnlyThumbsDown(next.onlyThumbsDown);
     setPage(0);
     setOpenId(null);
   }
@@ -110,17 +120,33 @@ export default function LogsPage() {
         description="실제로 오간 대화입니다. 답하지 못한 질문은 무엇을 보강해야 하는지 알려줍니다."
       />
 
-      <div className="mt-4 flex flex-wrap gap-4 text-sm">
-        <Toggle
-          checked={onlyFallback}
-          onChange={(v) => changeFilter({ onlyFallback: v })}
-          label="미답변만"
-        />
-        <Toggle
-          checked={onlyThumbsDown}
-          onChange={(v) => changeFilter({ onlyThumbsDown: v })}
-          label="👎 받은 것만"
-        />
+      {/* 🔴 스위치 두 개가 아니라 <하나만 고르는> 필터다.
+          독립된 스위치로 두면 "둘 다 켠" 상태가 만들어지는데, 그건 사실
+          <미답변이면서 부정 평가를 받은> 교집합이다 — 화면만 봐서는 그 뜻이 드러나지 않는다.
+          서버는 AND 를 받아주지만, 거의 쓰이지 않는 조합 하나를 위해
+          <읽히지 않는 상태>를 화면에 남기지 않는다. 묻는 것이 하나면("무엇을 볼까")
+          답도 하나여야 한다. */}
+      <div
+        role="group"
+        aria-label="대화 필터"
+        className="mt-4 inline-flex rounded-lg border border-subtle bg-surface p-0.5"
+      >
+        {FILTERS.map((f) => {
+          const on = onlyFallback === f.onlyFallback && onlyThumbsDown === f.onlyThumbsDown;
+          return (
+            <button
+              key={f.label}
+              type="button"
+              aria-pressed={on}
+              onClick={() => changeFilter(f)}
+              className={`rounded-md px-3 py-1.5 text-sm transition-colors ${
+                on ? "bg-foreground text-surface" : "text-muted"
+              }`}
+            >
+              {f.label}
+            </button>
+          );
+        })}
       </div>
 
       {error && (
