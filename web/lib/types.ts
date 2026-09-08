@@ -509,28 +509,35 @@ export interface Usage {
  * 표기 변환은 Spring 책임이라는 이 저장소의 규칙(snake_case → camelCase)과 같은 이유다.
  */
 export interface BillingCard {
+  /** 삭제·기본 지정 때 경로에 싣는 식별자 (V7, 2026-09-08 부터 카드가 여러 장이라 필요해졌다) */
+  id: string;
   /** "현대" · "신한" 등. 모르는 코드는 서버가 "카드" 로 내려준다 */
   issuerName: string;
   /** "43301234****123*" — 토스가 마스킹해서 준다. 우리가 자르는 게 아니다 */
   cardNumberMasked: string;
   /** 우리 DB 의 created_at. ISO-8601 문자열 */
   registeredAt: string;
+  /**
+   * 청구에 쓰는 카드인가. 카드가 하나라도 있으면 <정확히 하나>가 true 다 — 서버 불변식이고
+   * DB 부분 유니크 인덱스가 보장한다. 프론트는 이 값을 <계산하지 않고> 그대로 그린다.
+   */
+  isDefault: boolean;
 }
 
 /**
- * `GET`/`POST /api/billing/method` 의 응답.
+ * `GET`/`POST /api/billing/methods` · `PUT /api/billing/methods/{id}/default` 의 응답.
+ * 쓰기가 전부 <같은 목록>을 돌려주므로 화면에 보이는 카드의 출처가 이 타입 하나다.
  *
  * `interface` 로 둔 이유: 백엔드 응답 <객체의 모양>을 그리는 타입이고,
  * 이 파일의 다른 응답 타입(Bot·Usage·EvalRun)이 전부 interface 라 맞췄다.
  *
- * 🔴 `method` 가 `BillingCard | null` 인 것이 핵심이다. `customerKey` 는 카드가 없어도
- *    <항상> 있다 — 카드보다 오래 사는 값이라 users 테이블에 있기 때문이다.
- *    이 화면이 결제창을 띄우려면 카드가 없는 상태에서도 customerKey 가 필요하다.
- *    두 값을 한 덩어리로 묶어 `null` 로 뭉갰다면 "카드 없음" 상태에서 등록을 시작할 수 없다.
+ * 🔴 `customerKey` 는 카드가 없어도 <항상> 있다 — 카드보다 오래 사는 값이라 users 테이블에
+ *    있기 때문이다. 이 화면이 결제창을 띄우려면 카드가 없는 상태에서도 customerKey 가 필요하다.
+ *    `methods` 는 카드가 없으면 <빈 배열>이다(null 이 아니다 — 목록은 비어 있음이 곧 없음이다).
  */
-export interface BillingMethodResponse {
+export interface BillingMethodsResponse {
   /** "bcus_…" — 토스에 넘기는 우리 쪽 고객 이름표. 카드를 빼도 남는다 */
   customerKey: string;
-  /** 등록된 카드가 없으면 null */
-  method: BillingCard | null;
+  /** 등록 순서대로. 없으면 [] */
+  methods: BillingCard[];
 }

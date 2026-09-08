@@ -105,10 +105,17 @@ public enum ErrorCode {
             "카드 등록에 실패했습니다. 카드 정보를 확인한 뒤 다시 시도하거나 다른 카드로 등록해주세요."),
     BILLING_PROVIDER_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "BILLING_PROVIDER_UNAVAILABLE",
             "결제 서비스에 일시적으로 연결할 수 없습니다. 잠시 후 다시 시도해주세요."),
-    BILLING_METHOD_ALREADY_EXISTS(HttpStatus.CONFLICT, "BILLING_METHOD_ALREADY_EXISTS",
-            "이미 등록된 카드가 있습니다. 카드를 바꾸려면 등록된 카드를 삭제한 뒤 다시 등록해주세요."),
+    // V7(2026-09-08) 부터 카드는 여러 장이다. 옛 BILLING_METHOD_ALREADY_EXISTS("카드를 바꾸려면 삭제 후 재등록")
+    // 는 이제 거짓 안내라 이름·문구를 바꿨다. 이 코드가 나오는 경우는 <동시 첫 등록 둘> 뿐이다 —
+    // 부분 유니크 인덱스(기본 카드 1장)가 둘째를 거부한 것이고, 다시 시도하면 된다.
+    BILLING_METHOD_CONFLICT(HttpStatus.CONFLICT, "BILLING_METHOD_CONFLICT",
+            "카드 등록 요청이 겹쳐 하나만 저장했습니다. 화면을 새로고침해 등록된 카드를 확인한 뒤, 필요하면 다시 등록해주세요."),
+    BILLING_METHOD_LIMIT_EXCEEDED(HttpStatus.CONFLICT, "BILLING_METHOD_LIMIT_EXCEEDED",
+            "카드는 최대 5장까지 등록할 수 있습니다. 쓰지 않는 카드를 삭제한 뒤 등록해주세요."),
+    BILLING_DEFAULT_METHOD_IN_USE(HttpStatus.CONFLICT, "BILLING_DEFAULT_METHOD_IN_USE",
+            "기본 카드는 삭제할 수 없습니다. 다른 카드를 기본으로 지정한 뒤 삭제해주세요."),
     BILLING_METHOD_NOT_FOUND(HttpStatus.NOT_FOUND, "BILLING_METHOD_NOT_FOUND",
-            "등록된 카드가 없습니다. 결제 수단 화면에서 카드를 먼저 등록해주세요."),
+            "그 카드를 찾을 수 없습니다. 이미 삭제됐을 수 있으니 화면을 새로고침해 확인해주세요."),
 
     // ── 그 외 ───────────────────────────────────────────────────────────
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_ERROR",

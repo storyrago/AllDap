@@ -15,18 +15,21 @@ import lombok.NoArgsConstructor;
 import java.util.UUID;
 
 /**
- * 계정에 등록된 결제 수단(토스 빌링키) 한 장. <b>계정당 최대 1장</b>이다.
+ * 계정에 등록된 결제 수단(토스 빌링키) 한 장. <b>계정당 여러 장</b>이고 그중 <b>기본 카드가 정확히 하나</b>다
+ * (카드가 하나라도 있을 때). 상한 5장은 {@code BillingService} 가 검사한다.
  *
- * <p>스키마 대조 ({@code V6__billing_method.sql}):
+ * <p>스키마 대조 ({@code V6__billing_method.sql} + {@code V7__billing_methods_multi.sql}):
  * <pre>
  * id                 UUID PRIMARY KEY
- * user_id            UUID NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE
+ * user_id            UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE   ← V7 에서 UNIQUE 를 풀었다
  * billing_key_enc    VARCHAR(512) NOT NULL   ← Base64(IV ‖ 암호문 ‖ GCM 태그)
  * issuer_code        VARCHAR(4)   NOT NULL
  * card_number_masked VARCHAR(20)  NOT NULL
+ * is_default         BOOLEAN      NOT NULL   ← V7. 부분 유니크 인덱스 (user_id) WHERE is_default
  * created_at         TIMESTAMPTZ  NOT NULL   ← BaseEntity
  * </pre>
- * updated_at 컬럼은 없다. 카드는 고치는 게 아니라 지우고 다시 등록하는 것이다.
+ * updated_at 컬럼은 없다. 카드 정보는 고치는 게 아니라 지우고 다시 등록하는 것이고,
+ * 유일하게 바뀌는 {@code is_default} 는 "언제 바뀌었나" 를 볼 일이 없다.
  *
  * <p><b>왜 {@code @ManyToOne User} 가 아니라 {@code UUID userId} 인가.</b>
  * {@code UsageEvent} 와 같은 이유다 — 여기서 사용자를 타고 갈 일이 없고,
@@ -35,8 +38,10 @@ import java.util.UUID;
  * <p>🔴 <b>이 엔티티에 빌링키 평문이 들어오는 일은 없다.</b> 필드 이름이 {@code billingKeyEnc} 인 것이
  * 그 약속이다. 복호화는 {@code BillingCrypto} 만 하고, 그 결과는 토스로 나갈 때만 존재한다.
  *
- * <p><b>setter 도 도메인 메서드도 두지 않는다.</b> 카드 정보를 바꾸는 연산이 없기 때문이다
- * (교체 = 삭제 후 재등록). 상태 전이가 없으면 만들지 않는다.
+ * <p><b>setter 는 없고 도메인 메서드는 {@link #markDefault()} 하나다.</b> 카드 정보(번호·발급사)를 바꾸는
+ * 연산은 없고(교체 = 삭제 후 재등록), 상태 전이는 "기본 카드가 된다" 하나뿐이다. 반대 방향("기본에서 내려온다")은
+ * 메서드가 없다 — 그건 항상 <다른 카드가 기본이 되는 것의 결과>라, {@code BillingMethodRepository.clearDefault}
+ * 가 JPQL 로 한 번에 처리한다. 내려오는 메서드를 두면 "기본 카드가 0장" 인 상태를 코드로 만들 수 있게 된다.
  */
 @Getter
 @Entity
@@ -49,7 +54,7 @@ public class BillingMethod extends BaseEntity {
     @Column(name = "id", nullable = false, updatable = false)
     private UUID id;
 
-    @Column(name = "user_id", nullable = false, updatable = false, unique = true)
+    @Column(name = "user_id", nullable = false, updatable = false)
     private UUID userId;
 
     /** Base64(IV 12B ‖ 암호문 ‖ GCM 인증태그 16B). 평문이 아니다. */
@@ -64,13 +69,26 @@ public class BillingMethod extends BaseEntity {
     @Column(name = "card_number_masked", length = 20, nullable = false, updatable = false)
     private String cardNumberMasked;
 
+    /**
+     * 청구에 쓰는 카드인가. 계정당 최대 1장 — V7 의 부분 유니크 인덱스가 보장한다.
+     * Lombok 이 boolean 필드에 만드는 getter 는 {@code isDefault()} 다.
+     */
+    @Column(name = "is_default", nullable = false)
+    private boolean isDefault;
+
     public static BillingMethod create(UUID userId, String billingKeyEnc,
-                                       String issuerCode, String cardNumberMasked) {
+                                       String issuerCode, String cardNumberMasked, boolean isDefault) {
         BillingMethod method = new BillingMethod();
         method.userId = userId;
         method.billingKeyEnc = billingKeyEnc;
         method.issuerCode = issuerCode;
         method.cardNumberMasked = cardNumberMasked;
+        method.isDefault = isDefault;
         return method;
+    }
+
+    /** 이 카드를 기본으로. 호출 전에 같은 계정의 이전 기본을 먼저 해제해야 한다({@code BillingService.setDefault}). */
+    public void markDefault() {
+        this.isDefault = true;
     }
 }

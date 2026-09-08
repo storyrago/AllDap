@@ -27,14 +27,16 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * 결제 수단 등록·조회 통합 테스트. (삭제는 Task 3)
+ * 결제 수단 통합 테스트 — 목록·추가·삭제·기본 지정. V7(2026-09-08) 부터 <b>계정당 여러 장</b>이다.
  *
- * <p><b>여기서 지키려는 주장은 네 개다.</b> 나머지는 배관이다.
+ * <p><b>여기서 지키려는 주장은 여섯 개다.</b> 나머지는 배관이다.
  * <ul>
  *   <li>DB 에 <b>평문 빌링키가 없다</b> — 이 조각의 존재 이유</li>
  *   <li>어떤 응답 본문에도 <b>빌링키가 없다</b> — DTO 에 필드를 두지 않은 것의 실증</li>
  *   <li>쿼리로 온 {@code customerKey} 를 <b>신뢰하지 않는다</b> — 신뢰하면 남의 계정에 카드가 붙는다</li>
  *   <li>연결이 끊기면 <b>같은 멱등키로</b> 재시도한다 — 다른 키로 재시도하면 회수 불가능한 고아가 하나 더 는다</li>
+ *   <li><b>카드가 있으면 기본 카드가 정확히 하나</b>다 — 첫 등록·기본 변경·삭제 어느 경로로도 깨지지 않는다</li>
+ *   <li><b>남의 카드 id 로는 아무것도 못 한다</b> — 404 이고, 토스에 요청이 <b>가지 않는다</b></li>
  * </ul>
  *
  * <p>진짜 톰캣 + 진짜 PostgreSQL + {@link TossStub}(진짜 HTTP) 위에서 돈다.
@@ -47,6 +49,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class BillingIntegrationTest {
 
     private static final String PASSWORD = "correct-password-1234";
+    private static final String METHODS = "/api/billing/methods";
 
     /** 토스가 돌려주는 빌링키. 이 문자열이 DB·응답 어디에도 <그대로> 나오면 안 된다. */
     private static final String 빌링키 = "iQ4y9sTrKp2mBillingKeySecret0001";
@@ -66,12 +69,16 @@ class BillingIntegrationTest {
              "card":{"issuerCode":"61","acquirerCode":"61","number":"43301234****123*",
                      "cardType":"신용","ownerType":"개인"}}""";
 
+    /** 카드를 여러 장 등록하는 검사용 — 발급사·번호를 바꿔 <어느 카드인지> 응답에서 구별할 수 있게. */
+    private static final String 발급성공_카드 = """
+            {"billingKey":"%s","card":{"issuerCode":"%s","number":"%s"}}""";
+
     /** 토스 v1 에러 본문. {@code {"code","message","data"}} 모양이다. */
     private static final String 발급거절 = """
             {"code":"INVALID_CARD_EXPIRATION",
              "message":"카드 유효기간이 올바르지 않습니다.","data":null}""";
 
-    // ── 삭제 검사 전용 (Task 3) ──────────────────────────────────────────
+    // ── 삭제 검사 전용 ──────────────────────────────────────────────────
 
     /**
      * 삭제 검사 전용 발급 응답. <b>빌링키에 {@code /} 와 {@code +} 가 든 것이 의도</b>다 —
@@ -126,8 +133,10 @@ class BillingIntegrationTest {
         customerKey = customerKeyOf(userId);
     }
 
+    // ── 등록 ─────────────────────────────────────────────────────────────
+
     @Test
-    @DisplayName("[결제] 카드를 등록하면 카드사 이름·마스킹 번호·등록일이 돌아온다")
+    @DisplayName("[결제] 카드를 등록하면 카드사 이름·마스킹 번호·등록일이 목록으로 돌아온다")
     void 카드_등록_성공() {
         tossStub.enqueue(200, 발급성공.formatted(customerKey, 빌링키));
 
@@ -136,11 +145,16 @@ class BillingIntegrationTest {
         assertThat(응답.status()).isEqualTo(200);
         JsonNode json = 응답.json();
         assertThat(json.path("customerKey").asString()).isEqualTo(customerKey);
+        JsonNode 카드 = json.path("methods").get(0);
+        assertThat(카드.path("id").asString()).isNotBlank();
         // issuerCode "61" → "현대". 코드→이름 변환이 Spring 책임이라는 것을 여기서 못박는다.
-        assertThat(json.path("method").path("issuerName").asString()).isEqualTo("현대");
-        assertThat(json.path("method").path("cardNumberMasked").asString()).isEqualTo("43301234****123*");
+        assertThat(카드.path("issuerName").asString()).isEqualTo("현대");
+        assertThat(카드.path("cardNumberMasked").asString()).isEqualTo("43301234****123*");
         // KST 오프셋으로 직렬화된다 — UsageResponse.periodStart 와 같은 규칙이다.
-        assertThat(json.path("method").path("registeredAt").asString()).endsWith("+09:00");
+        assertThat(카드.path("registeredAt").asString()).endsWith("+09:00");
+        // 🔴 필드 이름이 "isDefault" 다. record 접근자가 isDefault() 라 Jackson 빈 규칙으로는 "default" 가
+        //    될 수 있어 @JsonProperty 로 못박았다 — 프론트 types.ts 가 isDefault 를 전제한다.
+        assertThat(카드.has("isDefault")).isTrue();
 
         // 우리가 실제로 보낸 요청도 확인한다. 헤더는 소문자로 정규화돼 있다.
         List<TossStub.Recorded> 보낸것 = tossStub.received();
@@ -194,21 +208,6 @@ class BillingIntegrationTest {
     }
 
     @Test
-    @DisplayName("[결제] 이미 카드가 있으면 409 다 (계정당 1장)")
-    void 이미_등록된_카드가_있으면_409() {
-        tossStub.enqueue(200, 발급성공.formatted(customerKey, 빌링키));
-        post(ownerToken, customerKey, "auth-key-1");
-
-        Response 두번째 = post(ownerToken, customerKey, "auth-key-2");
-
-        assertThat(두번째.status()).isEqualTo(409);
-        assertThat(두번째.json().path("error").path("code").asString())
-                .isEqualTo("BILLING_METHOD_ALREADY_EXISTS");
-        // 두 번째는 토스를 부르지 않았어야 한다 — 불렀다면 회수 못 하는 고아 빌링키가 생긴다.
-        assertThat(tossStub.received()).hasSize(1);
-    }
-
-    @Test
     @DisplayName("[결제] 토스가 카드를 거절하면 400 이고 토스의 한국어 문구가 그대로 실린다")
     void 토스가_거절하면_400_에_토스_메시지가_실린다() {
         tossStub.enqueue(400, 발급거절);
@@ -245,11 +244,9 @@ class BillingIntegrationTest {
 
         Response 응답 = post(ownerToken, customerKey, "auth-key-1");
 
-        // 🔴 리뷰 지적 ④가 사는 자리다. 고치기 전에는 401 만 따로 뗐고 429 는 <그 밖의 4xx> 로
-        //    떨어져 400 BILLING_AUTH_FAILED("카드 정보를 확인해주세요")가 나갔다 — 사용자가
-        //    손쓸 수 없는 레이트리밋을 카드 탓으로 돌린 것이다. 같은 429 가 삭제 경로
-        //    (TossClient.deleteBillingKey)에서는 이미 503 이다 — 그 주석이 명시한다:
-        //    "429(레이트리밋)도 '없다'는 뜻이 전혀 아니다." 발급도 같은 기준을 따라야 한다.
+        // 🔴 고치기 전에는 401 만 따로 뗐고 429 는 <그 밖의 4xx> 로 떨어져 400 BILLING_AUTH_FAILED
+        //    ("카드 정보를 확인해주세요")가 나갔다 — 사용자가 손쓸 수 없는 레이트리밋을 카드 탓으로 돌린 것이다.
+        //    같은 429 가 삭제 경로(TossClient.deleteBillingKey)에서는 이미 503 이다. 발급도 같은 기준을 따른다.
         assertThat(응답.status()).isEqualTo(503);
         assertThat(응답.json().path("error").path("code").asString())
                 .isEqualTo("BILLING_PROVIDER_UNAVAILABLE");
@@ -273,15 +270,18 @@ class BillingIntegrationTest {
                 .isEqualTo(보낸것.get(1).header("idempotency-key"));
     }
 
+    // ── 조회 ─────────────────────────────────────────────────────────────
+
     @Test
     @DisplayName("[결제] 카드가 없어도 customerKey 는 내려온다 (결제창을 열려면 필요하다)")
-    void 카드가_없으면_method_는_null_이다() {
+    void 카드가_없으면_methods_는_빈_목록이다() {
         Response 응답 = get(ownerToken);
 
         assertThat(응답.status()).isEqualTo(200);
         assertThat(응답.json().path("customerKey").asString()).isEqualTo(customerKey);
-        // 필드가 <있고 값이 null> 이어야 한다. 통째로 빠지면 프론트가 "아직 안 불러온 것" 과 구별 못 한다.
-        assertThat(응답.json().path("method").isNull()).isTrue();
+        // 필드가 <있고 빈 배열> 이어야 한다. null 이면 프론트가 .map 에서 터진다.
+        assertThat(응답.json().path("methods").isArray()).isTrue();
+        assertThat(응답.json().path("methods")).isEmpty();
     }
 
     @Test
@@ -294,9 +294,123 @@ class BillingIntegrationTest {
         Response 응답 = get(침입자);
 
         assertThat(응답.status()).isEqualTo(200);
-        assertThat(응답.json().path("method").isNull()).isTrue();
+        assertThat(응답.json().path("methods")).isEmpty();
         // customerKey 도 자기 것이어야 한다 — 남의 것을 받으면 남의 계정에 카드를 붙일 수 있다.
         assertThat(응답.json().path("customerKey").asString()).isNotEqualTo(customerKey);
+    }
+
+    // ── 여러 장 · 기본 카드 (V7 의 핵심 주장) ─────────────────────────────
+
+    @Test
+    @DisplayName("[여러 장] 첫 카드는 자동으로 기본이고, 둘째부터는 기본이 아니다")
+    void 첫_카드는_자동으로_기본이다() {
+        String 첫째 = 등록한다("61", "43301234****123*");
+        String 둘째 = 등록한다("41", "55201234****456*");
+
+        JsonNode 목록 = get(ownerToken).json().path("methods");
+        assertThat(목록).hasSize(2);
+        // 등록 순서대로 온다 — 화면이 "먼저 등록한 카드가 위" 로 그린다.
+        assertThat(목록.get(0).path("id").asString()).isEqualTo(첫째);
+        assertThat(목록.get(0).path("isDefault").asBoolean()).isTrue();
+        assertThat(목록.get(1).path("id").asString()).isEqualTo(둘째);
+        assertThat(목록.get(1).path("issuerName").asString()).isEqualTo("신한");
+        // 🔴 방금 넣은 카드가 말없이 청구 카드가 되면 사용자가 놀란다. 둘째는 지정할 때만 기본이 된다.
+        assertThat(목록.get(1).path("isDefault").asBoolean()).isFalse();
+        assertThat(기본_카드_수(userId)).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("[여러 장] 기본을 바꾸면 정확히 하나만 기본이다 — 이미 기본인 카드를 다시 지정해도 그대로다")
+    void 기본_지정하면_정확히_하나만_기본이다() {
+        String 첫째 = 등록한다("61", "43301234****123*");
+        String 둘째 = 등록한다("41", "55201234****456*");
+
+        Response 응답 = request(HttpMethod.PUT, METHODS + "/" + 둘째 + "/default", ownerToken, null);
+
+        assertThat(응답.status()).isEqualTo(200);
+        JsonNode 목록 = 응답.json().path("methods");
+        assertThat(목록.get(0).path("id").asString()).isEqualTo(첫째);
+        assertThat(목록.get(0).path("isDefault").asBoolean()).isFalse();
+        assertThat(목록.get(1).path("isDefault").asBoolean()).isTrue();
+        assertThat(기본_카드_수(userId)).isEqualTo(1);
+
+        // 🔴 <이미 기본인 카드> 를 다시 지정한다. 여기가 함정이 있던 자리다 —
+        //    clearDefault(JPQL) 가 영속성 컨텍스트를 우회하므로, "먼저 해제하고 다시 켠다" 를 순진하게 하면
+        //    엔티티의 낡은 true 때문에 되돌리는 UPDATE 가 안 나가 <기본 카드가 0장> 이 된다.
+        //    서비스는 이미 기본이면 아무것도 안 하는 것으로 피한다. 이 검사가 그걸 못박는다.
+        Response 다시 = request(HttpMethod.PUT, METHODS + "/" + 둘째 + "/default", ownerToken, null);
+        assertThat(다시.status()).isEqualTo(200);
+        assertThat(다시.json().path("methods").get(1).path("isDefault").asBoolean()).isTrue();
+        assertThat(기본_카드_수(userId)).isEqualTo(1);
+        // 기본 지정은 토스를 부르지 않는다.
+        assertThat(tossStub.received()).hasSize(2); // 발급 2회뿐
+    }
+
+    @Test
+    @DisplayName("[여러 장] 기본 카드는 다른 카드가 남아 있으면 삭제 거부(409)이고 토스를 부르지 않는다")
+    void 기본_카드는_다른_카드가_있으면_삭제_거부() {
+        String 첫째 = 등록한다("61", "43301234****123*");
+        등록한다("41", "55201234****456*");
+        tossStub.reset();
+
+        Response 응답 = 삭제(ownerToken, 첫째);
+
+        assertThat(응답.status()).isEqualTo(409);
+        assertThat(응답.json().path("error").path("code").asString())
+                .isEqualTo("BILLING_DEFAULT_METHOD_IN_USE");
+        // 🔴 거부는 토스 호출 <전에> 결정된다. 불렀다면 토스 쪽 빌링키만 폐기되고 우리 행은 남는
+        //    최악의 불일치가 난다(그 행으로 다시 삭제하면 토스가 404 → 그때서야 지워지지만, 그 사이 청구는 실패한다).
+        assertThat(tossStub.received()).isEmpty();
+        assertThat(카드_행수(userId)).isEqualTo(2);
+    }
+
+    @Test
+    @DisplayName("[여러 장] 마지막 한 장은 기본이어도 삭제된다 — 남는 카드가 없으니 불변식이 깨지지 않는다")
+    void 마지막_한_장은_기본이어도_삭제된다() {
+        String 유일 = 등록한다("61", "43301234****123*");
+        tossStub.reset();
+        tossStub.enqueue(200, "");
+
+        assertThat(삭제(ownerToken, 유일).status()).isEqualTo(204);
+        assertThat(카드_행수(userId)).isZero();
+    }
+
+    @Test
+    @DisplayName("[보안] 남의 카드 id 로는 삭제도 기본 지정도 404 이고, 토스에 요청이 가지 않는다")
+    void 남의_카드는_404_이고_토스에_안_간다() {
+        String 내카드 = 등록한다("61", "43301234****123*");
+        String 침입자 = signup("intruder@example.com");
+        tossStub.reset();
+
+        Response 삭제시도 = 삭제(침입자, 내카드);
+        Response 기본시도 = request(HttpMethod.PUT, METHODS + "/" + 내카드 + "/default", 침입자, null);
+
+        // 🔴 403 이 아니라 404 — 403 은 "그 id 의 카드가 존재한다" 를 알려준다. 봇과 같은 기준이다.
+        assertThat(삭제시도.status()).isEqualTo(404);
+        assertThat(기본시도.status()).isEqualTo(404);
+        assertThat(삭제시도.json().path("error").path("code").asString()).isEqualTo("BILLING_METHOD_NOT_FOUND");
+        // "404 가 났다" 가 아니라 <토스까지 가지 않았다> 를 확인한다.
+        assertThat(tossStub.received()).isEmpty();
+        // 내 카드는 그대로, 여전히 기본이다.
+        assertThat(카드_행수(userId)).isEqualTo(1);
+        assertThat(기본_카드_수(userId)).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("[여러 장] 여섯 장째는 409 이고 토스를 부르지 않는다 — 발급 뒤에 막으면 고아가 남는다")
+    void 여섯_장째는_409_이고_토스에_안_간다() {
+        for (int i = 0; i < 5; i++) {
+            등록한다("61", "4330123" + i + "****123*");
+        }
+        tossStub.reset();
+
+        Response 응답 = post(ownerToken, customerKey, "auth-key-6");
+
+        assertThat(응답.status()).isEqualTo(409);
+        assertThat(응답.json().path("error").path("code").asString())
+                .isEqualTo("BILLING_METHOD_LIMIT_EXCEEDED");
+        assertThat(tossStub.received()).isEmpty();
+        assertThat(카드_행수(userId)).isEqualTo(5);
     }
 
     // ── 삭제 (설계 §쓰기 경로 ②) ─────────────────────────────────────────
@@ -304,11 +418,11 @@ class BillingIntegrationTest {
     @Test
     @DisplayName("[삭제] 우리가 저장한 그 빌링키로 토스에 폐기를 요청한다")
     void 삭제는_토스에_그_키를_보낸다() {
-        등록한다();
+        String id = 등록한다();
         tossStub.reset();               // 발급 때의 기록을 지운다 — 아래 검증이 <삭제> 호출만 보게
         tossStub.enqueue(200, "");      // 토스 레퍼런스는 "비어있는 body 에 200" 이라고 한다
 
-        Response 응답 = request(HttpMethod.DELETE, "/api/billing/method", ownerToken, null);
+        Response 응답 = 삭제(ownerToken, id);
 
         assertThat(응답.status()).isEqualTo(204);
 
@@ -323,7 +437,7 @@ class BillingIntegrationTest {
         //    사고를 낸 적이 다섯 번 있다.
         //    ① 인코딩: 스텁의 getPath() 가 퍼센트 인코딩을 풀어 돌려주므로, '/' 를 %2F 로 보냈든
         //       그대로 보냈든 같은 문자열이 된다. 토스가 %2F 를 어떻게 해석하는지는
-        //       설계 §검사 3(테스트 키 브라우저 종단)에서만 알 수 있다.
+        //       테스트 키 브라우저 종단에서만 알 수 있다(2026-09-07 에 확인했다).
         //    ② "먼저": 순서를 증명하는 것은 이 테스트가 아니라 아래 5xx 테스트다.
         //       우리가 먼저 지웠다면 5xx 일 때 행이 남아 있을 수 없다.
     }
@@ -331,10 +445,10 @@ class BillingIntegrationTest {
     @Test
     @DisplayName("[삭제] 토스가 5xx 면 503 이고 <우리 행이 남는다> — 이 Task 의 핵심 주장")
     void 토스_5xx_면_우리_행이_남는다() {
-        등록한다();
+        String id = 등록한다();
         tossStub.enqueue(500, 토스_5xx);
 
-        Response 응답 = request(HttpMethod.DELETE, "/api/billing/method", ownerToken, null);
+        Response 응답 = 삭제(ownerToken, id);
 
         assertThat(응답.status()).isEqualTo(503);
         assertThat(응답.json().path("error").path("code").asString())
@@ -347,17 +461,16 @@ class BillingIntegrationTest {
 
         // 화면에도 그대로 보여야 한다. 행만 남고 조회가 비면 사용자는 "지워졌다"고 믿고
         // 다시 시도하지 않는다 = 고아를 만드는 것과 결과가 같다.
-        assertThat(request(HttpMethod.GET, "/api/billing/method", ownerToken, null)
-                .json().path("method").isNull()).isFalse();
+        assertThat(get(ownerToken).json().path("methods")).hasSize(1);
     }
 
     @Test
-    @DisplayName("[삭제] 연결이 끊기면 503 이고 <우리 행이 남는다> — 리뷰 수정 ①이 사는 자리")
+    @DisplayName("[삭제] 연결이 끊기면 503 이고 <우리 행이 남는다>")
     void 삭제_중_연결이_끊기면_우리_행이_남는다() {
-        등록한다();
+        String id = 등록한다();
         tossStub.enqueueAbort();   // 응답 없이 끊김 — TossClient 가 로그에 URL(빌링키 포함)을 남기면 안 되는 경로
 
-        Response 응답 = request(HttpMethod.DELETE, "/api/billing/method", ownerToken, null);
+        Response 응답 = 삭제(ownerToken, id);
 
         assertThat(응답.status()).isEqualTo(503);
         assertThat(응답.json().path("error").path("code").asString())
@@ -365,53 +478,48 @@ class BillingIntegrationTest {
 
         // 5xx 테스트와 같은 방식으로 행 유지를 증명한다 — DB 행수와 GET 응답 둘 다 본다.
         assertThat(카드_행수(userId)).isEqualTo(1);
-        assertThat(request(HttpMethod.GET, "/api/billing/method", ownerToken, null)
-                .json().path("method").isNull()).isFalse();
+        assertThat(get(ownerToken).json().path("methods")).hasSize(1);
     }
 
     @Test
     @DisplayName("[삭제] 토스가 401 이면 503 이고 <우리 행이 남는다> — 401 은 '없다'가 아니라 '모른다'다")
     void 삭제_중_토스가_401_이면_우리_행이_남는다() {
-        등록한다();
+        String id = 등록한다();
         tossStub.enqueue(401, "{\"code\":\"UNAUTHORIZED_KEY\",\"message\":\"인증되지 않은 요청입니다.\"}");
 
-        Response 응답 = request(HttpMethod.DELETE, "/api/billing/method", ownerToken, null);
+        Response 응답 = 삭제(ownerToken, id);
 
         assertThat(응답.status()).isEqualTo(503);
         assertThat(응답.json().path("error").path("code").asString())
                 .isEqualTo("BILLING_PROVIDER_UNAVAILABLE");
 
         // 🔴 404 만 삼키고 그 밖의 4xx(401 포함)는 우리 행을 지우지 않는다는 것을 못박는다.
-        //    고치기 전(4xx 전부 삼킴)이었다면 이 테스트는 204 + 행수 0 을 보고 실패했을 것이다 —
-        //    시크릿 키가 잘못돼 토스가 빌링키를 쳐다보지도 않았는데 우리만 유일한 사본을 지운 것이다.
+        //    시크릿 키가 잘못돼 토스가 빌링키를 쳐다보지도 않았는데 우리만 유일한 사본을 지우면 안 된다.
         assertThat(카드_행수(userId)).isEqualTo(1);
-        assertThat(request(HttpMethod.GET, "/api/billing/method", ownerToken, null)
-                .json().path("method").isNull()).isFalse();
+        assertThat(get(ownerToken).json().path("methods")).hasSize(1);
     }
 
     @Test
     @DisplayName("[삭제] 토스가 404 면 우리 행은 지운다 (토스 쪽엔 이미 없다는 뜻) — 바로 위 401 테스트와 짝이다")
     void 토스_404_면_우리_행을_지운다() {
-        등록한다();
+        String id = 등록한다();
         tossStub.enqueue(404, 토스_4xx);
 
-        Response 응답 = request(HttpMethod.DELETE, "/api/billing/method", ownerToken, null);
+        Response 응답 = 삭제(ownerToken, id);
 
         assertThat(응답.status()).isEqualTo(204);
         assertThat(카드_행수(userId)).isZero();
 
-        // 바로 위 401 테스트(삭제_중_토스가_401_이면_우리_행이_남는다)와 이 테스트가 함께
-        // 실제 기준을 증명한다 — 갈리는 것은 "4xx 냐 아니냐"가 아니라 <404 냐 아니냐>다.
-        // 401(위)은 행을 남기고, 404(여기)는 행을 지운다.
+        // 바로 위 401 테스트와 이 테스트가 함께 실제 기준을 증명한다 — 갈리는 것은
+        // "4xx 냐 아니냐"가 아니라 <404 냐 아니냐>다. 401(위)은 행을 남기고, 404(여기)는 행을 지운다.
         // 반대로 잡으면(404 도 유지) 사용자가 카드를 <영영 못 지운다>.
         // 이건 해석이지 확인된 사실이 아니다 — 토스 문서에 이 API 의 에러 코드표가 없다.
-        // 해석이 틀리면 토스 쪽에 고아가 남지만, 반대 선택의 대가가 더 크다고 보고 이쪽을 택했다.
     }
 
     @Test
-    @DisplayName("[삭제] 등록된 카드가 없으면 404 이고 토스를 부르지 않는다")
+    @DisplayName("[삭제] 없는 카드 id 면 404 이고 토스를 부르지 않는다")
     void 없는_카드를_지우면_404() {
-        Response 응답 = request(HttpMethod.DELETE, "/api/billing/method", ownerToken, null);
+        Response 응답 = 삭제(ownerToken, UUID.randomUUID().toString());
 
         assertThat(응답.status()).isEqualTo(404);
         assertThat(응답.json().path("error").path("code").asString())
@@ -419,53 +527,58 @@ class BillingIntegrationTest {
 
         // "요청이 토스까지 가지 않았다" 를 확인한다. "404 가 났다" 만 보면
         // <토스가 거절해서 404> 인 경우와 구별되지 않는다.
-        // (AGENTS.md 의 "테스트도 '404 가 났다'가 아니라 '요청이 Python 까지 가지 않았다'를 확인할 것" 그대로)
         assertThat(tossStub.received()).isEmpty();
     }
 
     @Test
     @DisplayName("[종단] 삭제 후 다시 등록된다. customerKey 는 그대로다")
     void 삭제하고_다시_등록된다() {
-        String 처음_customerKey = request(HttpMethod.GET, "/api/billing/method", ownerToken, null)
-                .json().path("customerKey").asString();
+        String 처음_customerKey = get(ownerToken).json().path("customerKey").asString();
 
-        등록한다();
+        String id = 등록한다();
         tossStub.enqueue(200, "");
-        assertThat(request(HttpMethod.DELETE, "/api/billing/method", ownerToken, null).status())
-                .isEqualTo(204);
+        assertThat(삭제(ownerToken, id).status()).isEqualTo(204);
 
-        // 다시 등록한다. 여기서 409 가 나면 삭제가 행을 안 지운 것이다.
+        // 다시 등록한다. 새 카드는 유일하므로 다시 기본이어야 한다.
         등록한다();
 
-        JsonNode 조회 = request(HttpMethod.GET, "/api/billing/method", ownerToken, null).json();
-        assertThat(조회.path("method").path("cardNumberMasked").asString()).isEqualTo("43301234****123*");
+        JsonNode 조회 = get(ownerToken).json();
+        assertThat(조회.path("methods")).hasSize(1);
+        assertThat(조회.path("methods").get(0).path("cardNumberMasked").asString()).isEqualTo("43301234****123*");
+        assertThat(조회.path("methods").get(0).path("isDefault").asBoolean()).isTrue();
 
         // 🔴 customerKey 는 카드보다 오래 산다. 카드를 뺐다 넣어도 같아야 토스 쪽 고객 이력이 이어진다.
-        //    users(customerKey) 와 billing_methods(billingKey) 로 테이블을 나눈 이유가 이것이고,
-        //    "없음 → 있음 → 없음 → 있음" 을 한 바퀴 돌 수 있어야 종단 검증이 성립한다는 것이
-        //    <삭제를 이 조각에 넣은> 이유다(설계 §무엇을 하는가).
+        //    users(customerKey) 와 billing_methods(billingKey) 로 테이블을 나눈 이유가 이것이다.
         assertThat(조회.path("customerKey").asString()).isEqualTo(처음_customerKey);
     }
 
-    // ── 삭제 검사용 보조 ─────────────────────────────────────────────────
+    // ── 보조 ─────────────────────────────────────────────────────────────
 
     /**
-     * 카드 한 장을 등록해 둔다. 삭제 검사의 전제조건이라, 실패하면 그 자리에서 드러나야 한다
-     * (등록이 깨진 채로 "삭제 테스트가 실패했다" 는 로그만 보면 엉뚱한 곳을 파게 된다).
-     *
-     * <p>⚠️ 브리프 원안은 여기서 {@code request(...)} 를 직접 불러 {@code RegisterBillingMethodRequest}
-     * 를 새로 조립했지만, Task 2 가 이미 같은 일을 하는 {@link #post(String, String, String)} 를
-     * 만들어 뒀다(POST 본문을 만들어 보내고 응답을 돌려준다) — 그대로 재사용한다.
-     * customerKey 도 새로 GET 해서 얻지 않고 {@code @BeforeEach} 가 채워둔 클래스 필드를 쓴다.
+     * 카드 한 장(삭제 검사용 base64 빌링키)을 등록하고 <b>그 카드의 id</b> 를 돌려준다.
+     * 삭제·기본 지정 검사의 전제조건이라, 실패하면 그 자리에서 드러나야 한다.
      */
-    private void 등록한다() {
+    private String 등록한다() {
         tossStub.enqueue(200, 발급응답_BASE64키);
+        return 마지막_카드_id(post(ownerToken, customerKey, "test_auth_key_for_delete"));
+    }
 
-        Response 응답 = post(ownerToken, customerKey, "test_auth_key_for_delete");
+    /** 발급사·번호를 지정해 등록한다. 여러 장 검사에서 <어느 카드인지> 를 구별하기 위해서다. */
+    private String 등록한다(String issuerCode, String number) {
+        tossStub.enqueue(200, 발급성공_카드.formatted("key-" + UUID.randomUUID(), issuerCode, number));
+        return 마지막_카드_id(post(ownerToken, customerKey, "auth-" + UUID.randomUUID()));
+    }
 
+    private static String 마지막_카드_id(Response 응답) {
         assertThat(응답.status())
-                .as("등록이 먼저 성공해야 삭제를 검사할 수 있다. 응답 본문=%s", 응답.body())
+                .as("등록이 먼저 성공해야 다음 검사를 할 수 있다. 응답 본문=%s", 응답.body())
                 .isEqualTo(200);
+        JsonNode 목록 = 응답.json().path("methods");
+        return 목록.get(목록.size() - 1).path("id").asString();
+    }
+
+    private Response 삭제(String token, String id) {
+        return request(HttpMethod.DELETE, METHODS + "/" + id, token, null);
     }
 
     private long 카드_행수(UUID userId) {
@@ -474,7 +587,12 @@ class BillingIntegrationTest {
         return n == null ? 0 : n;
     }
 
-    // ── 테스트 보조 ──────────────────────────────────────────────────────
+    /** 불변식 "카드가 있으면 기본이 정확히 하나" 를 <b>DB 에서 직접</b> 센다. 응답만 보면 직렬화 버그와 구별이 안 된다. */
+    private long 기본_카드_수(UUID userId) {
+        Long n = jdbcTemplate.queryForObject(
+                "SELECT count(*) FROM billing_methods WHERE user_id = ? AND is_default", Long.class, userId);
+        return n == null ? 0 : n;
+    }
 
     private String customerKeyOf(UUID userId) {
         return jdbcTemplate.queryForObject(
@@ -482,12 +600,12 @@ class BillingIntegrationTest {
     }
 
     private Response post(String token, String customerKey, String authKey) {
-        return request(HttpMethod.POST, "/api/billing/method", token,
+        return request(HttpMethod.POST, METHODS, token,
                 Map.of("authKey", authKey, "customerKey", customerKey));
     }
 
     private Response get(String token) {
-        return request(HttpMethod.GET, "/api/billing/method", token, null);
+        return request(HttpMethod.GET, METHODS, token, null);
     }
 
     private String signup(String email) {

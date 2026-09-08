@@ -3,7 +3,7 @@ package com.alldap.api.domain.billing.dto;
 import jakarta.validation.constraints.NotBlank;
 
 /**
- * {@code POST /api/billing/method} 요청 본문.
+ * {@code POST /api/billing/methods} 요청 본문.
  *
  * <p>🔴 <b>{@code customerKey} 를 받으면서도 신뢰하지 않는다.</b> 토스가 리다이렉트 쿼리로
  * 돌려준 값을 브라우저가 그대로 실어 보내는 것이라, 신뢰하면 남의 {@code customerKey} 를
