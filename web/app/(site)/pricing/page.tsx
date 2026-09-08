@@ -69,29 +69,44 @@ export default function PricingPage() {
       <section id="plans" className="mt-12 scroll-mt-8">
         <PlanCards />
         <p className="mt-3 text-xs text-muted">모든 금액은 부가세 별도입니다.</p>
+        {/* 🔴 "가정" 만 여기 남는다. 이건 <위 금액의 각주>다 — 숫자 바로 아래가 제 자리다.
+               "미정"(결제 미연결)은 아래 CTA 옆으로 옮겼다. 둘을 나란히 두면 요금표와
+               과금 기준 사이에 회색 글씨 벽이 생겨, 요금 카드의 두 행("답변" · "품질 평가 실행")과
+               그 두 행을 정의하는 아래 과금 기준이 서로 끊긴다. */}
         <Evidence kind="가정">
           원가 실측(답변 1건 ≈ 25뉴런 · 평가 1회 804뉴런, Cloudflare 유료 단가로 각각 약 0.4원 · 12원)에서
           역산하고 Chatbase(월 $40 · 700건)와 채널톡 ALF(대화당 500원)를 기준점으로 삼았습니다.
           실사용 데이터가 없어 가정값이며, 파일럿 뒤 다시 정합니다.
         </Evidence>
-        <Evidence kind="미정">
-          결제는 아직 연결되지 않았습니다 — 카드 등록은 되지만 청구는 일어나지 않습니다.
-          도입을 검토하신다면 문의를 남겨주세요.
-        </Evidence>
       </section>
 
+      {/*
+        ── 왜 카드가 아니라 <목록>인가 (2026-09-08 배치 개편) ─────────────────
+        전에는 이 두 축이 위 요금제 카드와 똑같은 상자였다(`rounded-lg border bg-surface p-6`).
+        그래서 페이지가 "비슷한 상자 넷"으로 읽혔는데, 위 둘과 여기 둘은 성격이 아예 다르다 —
+        위는 <고르는 상품>이고 여기는 <용어의 정의>다. 같은 모양이면 같은 무게로 읽힌다.
+
+        대신 `/features` 가 이미 쓰는 리듬(왼쪽 라벨 · 오른쪽 주장+설명+근거)을 가져왔다.
+        새 스타일을 만들지 않으므로 두 페이지가 같은 몸짓을 공유하고, 상자가 사라져
+        위 요금표와 확실히 구별된다.
+
+        ⚠️ 축 이름("답변 수" · "품질 평가 실행")은 위 요금 카드의 행 이름과 <짝이다.>
+           한쪽 문구를 다듬으면 반대쪽도 함께 볼 것 — 어긋나면 정의가 무엇을 정의하는지 사라진다.
+      */}
       <section className="mt-14">
         <h2 className="text-xs font-medium tracking-[0.22em] text-muted">과금 기준</h2>
-        <div className="mt-6 grid gap-6 sm:grid-cols-2">
+        <ul className="mt-6 divide-y divide-subtle border-t border-subtle">
           {AXES.map((a) => (
-            <article key={a.axis} className="rounded-lg border border-subtle bg-surface p-6">
-              <p className="text-xs font-medium tracking-[0.18em] text-muted">{a.axis}</p>
-              <h3 className="mt-3 text-lg font-bold leading-snug tracking-[-0.02em]">{a.headline}</h3>
-              <p className="mt-3 text-sm leading-relaxed text-muted">{a.body}</p>
-              <Evidence kind={a.evidenceKind}>{a.evidence}</Evidence>
-            </article>
+            <li key={a.axis} className="grid gap-x-8 gap-y-2 py-7 sm:grid-cols-[9rem_1fr]">
+              <p className="pt-1 text-xs font-medium tracking-[0.18em] text-muted">{a.axis}</p>
+              <div className="min-w-0">
+                <h3 className="text-lg font-bold leading-snug tracking-[-0.02em]">{a.headline}</h3>
+                <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted">{a.body}</p>
+                <Evidence kind={a.evidenceKind}>{a.evidence}</Evidence>
+              </div>
+            </li>
           ))}
-        </div>
+        </ul>
       </section>
 
       {/* 🔴 여기 있던 "답변 수로 과금하면서 못 답한 것은 빼는 이유" 섹션을 지웠다 (2026-09-08).
@@ -99,10 +114,17 @@ export default function PricingPage() {
              "답하지 못한 질문은 세지 않습니다" 가 이미 <규칙>으로 같은 말을 한다. 규칙을 읽은
              사람에게 그 규칙의 정당성을 다시 설명하는 것은 읽는 사람이 아니라 만든 사람을 위한
              글이다. CTA 만 남겨 이 자리를 <다음 행동>으로 되돌린다. */}
+      {/* 🔴 "미정" 근거가 여기로 내려왔다. 위 요금표 아래에 있을 때는 <다음에 할 일>이
+             페이지 반대편에 떨어져 있었다 — 원문이 "도입을 검토하신다면 문의를 남겨주세요" 로
+             끝나는데 그 문의 버튼이 스크롤 두 번 아래였다. 한 문장이 화면 위아래로 쪼개져 있던 것이다.
+             버튼과 붙이면서 그 마지막 문장은 지웠다: 바로 아래 버튼이 같은 말을 한다. */}
       <div className="mt-14 border-t border-subtle pt-10">
+        <Evidence kind="미정">
+          결제는 아직 연결되지 않았습니다 — 카드 등록은 되지만 청구는 일어나지 않습니다.
+        </Evidence>
         <Link
           href="/auth"
-          className="inline-flex rounded-lg bg-foreground px-6 py-3 text-sm font-semibold text-surface"
+          className="mt-5 inline-flex rounded-lg bg-foreground px-6 py-3 text-sm font-semibold text-surface"
         >
           도입 문의하기
         </Link>
