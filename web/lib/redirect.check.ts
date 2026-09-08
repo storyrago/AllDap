@@ -9,8 +9,11 @@ import { DEFAULT_AFTER_AUTH, safeRedirectPath } from "./redirect";
 
 const ORIGIN = "https://alldap.example";
 let failed = 0;
+/* 통과 개수를 손으로 적어두면 케이스를 늘릴 때마다 어긋난다. 실제로 "12가지" 로 굳어 있었다. */
+let total = 0;
 
 function check(label: string, raw: string | null, expected: string) {
+  total++;
   const got = safeRedirectPath(raw, ORIGIN);
   const ok = got === expected;
   if (!ok) failed++;
@@ -59,5 +62,5 @@ check("같은 호스트 다른 포트", `${ORIGIN}:8443/x`, DEFAULT_AFTER_AUTH);
 check("대문자 스킴", "HTTPS://EVIL.COM", DEFAULT_AFTER_AUTH);
 check("blob: 스킴", "blob:https://evil.com/x", DEFAULT_AFTER_AUTH);
 
-console.log(failed === 0 ? "\nOK — 22가지 통과" : `\n🔴 ${failed}건 실패`);
+console.log(failed === 0 ? `\nOK: ${total}가지 통과` : `\n🔴 ${failed}건 실패`);
 if (failed) process.exit(1);

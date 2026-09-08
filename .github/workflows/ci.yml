@@ -141,6 +141,13 @@ jobs:
       - name: 린트
         run: npm run lint
 
+      # 🔴 이 단계가 없어서 2026-09-08 까지 오픈 리다이렉트가 살아 있었다.
+      # lib/redirect.check.ts 는 그전부터 있었지만 아무 데서도 돌지 않았다.
+      # 검사를 짜두는 것과 검사가 도는 것은 다른 일이다.
+      # 실패하면 그 파일이 process.exit(1) 을 하므로 잡이 빨간불이 된다.
+      - name: 로직 안전성 검사
+        run: npm run check
+
       # NEXT_PUBLIC_API_BASE_URL 은 web/lib/api.ts 에 기본값(http://localhost:8080)이
       # 있어서 CI 에서 따로 주입하지 않아도 빌드가 통과한다.
       - name: 빌드
