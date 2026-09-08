@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { Evidence, PageIntro } from "@/components/Evidence";
-import { PLANS } from "@/lib/plans";
+import { PlanCards } from "@/components/PlanCards";
 
 /**
  * `/pricing` — 요금제.
@@ -17,7 +17,13 @@ import { PLANS } from "@/lib/plans";
  *
  * 숫자의 원본은 lib/plans.ts 하나다. 이 파일에 숫자를 직접 적지 않는다.
  *
- * 호출하는 API: 없음.
+ * ⚠️ 요금제 카드는 `components/PlanCards.tsx` 로 나갔다(2026-09-08). 로그인한 사람에게는
+ *    같은 카드가 <고르는> 카드가 되어야 하는데, 그러려면 토큰을 봐야 하고 그건 브라우저에만
+ *    있기 때문이다. 이 페이지는 metadata 를 내보내는 서버 컴포넌트로 남는다.
+ *    ⚠️ 마이페이지(`/account`)는 이제 요금제를 <그리지 않는다> — 확인만 하고 여기로 보낸다.
+ *       같은 카드를 두 곳에 두면 한쪽만 고치는 사고가 난다.
+ *
+ * 호출하는 API: 없음 (PlanCards 가 로그인 상태에서만 /api/plan 을 부른다).
  */
 export const metadata: Metadata = {
   title: "요금제 — AllDap",
@@ -58,48 +64,11 @@ export default function PricingPage() {
       {/* 🔴 금액을 <가장 먼저> 보여주고, 바로 아래에 "어디서 나온 숫자인지" 를 붙인다.
              숫자가 없던 때는 "없다" 를 먼저 말했다. 있는 지금은 근거의 성격을 먼저 말한다.
              어느 쪽이든 목적은 같다 — 읽는 사람이 속은 기분이 들지 않게.
-             Pro 카드만 진한 테두리: 두 장뿐이라 "추천" 배지 없이 테두리 하나로 충분하다. */}
-      <section className="mt-12">
-        <div className="grid gap-6 sm:grid-cols-2">
-          {PLANS.map((plan) => (
-            <article
-              key={plan.id}
-              className={`rounded-lg border bg-surface p-6 ${
-                plan.id === "pro" ? "border-foreground" : "border-subtle"
-              }`}
-            >
-              <p className="text-xs font-medium tracking-[0.18em] text-muted">{plan.name}</p>
-              <p className="mt-3 text-3xl font-bold tracking-[-0.02em]">
-                {plan.monthlyPriceKrw.toLocaleString("ko-KR")}원
-                <span className="ml-1 text-sm font-normal text-muted">/월</span>
-              </p>
-              <dl className="mt-5 space-y-2 text-sm">
-                <div className="flex justify-between gap-4">
-                  <dt className="text-muted">답변 (답하지 못한 질문 제외)</dt>
-                  <dd className="font-medium">월 {plan.includedAnswers.toLocaleString("ko-KR")}건</dd>
-                </div>
-                <div className="flex justify-between gap-4">
-                  <dt className="text-muted">품질 평가 실행</dt>
-                  <dd className="font-medium">월 {plan.includedEvalRuns}회</dd>
-                </div>
-                <div className="flex justify-between gap-4">
-                  <dt className="text-muted">포함량 초과 답변</dt>
-                  <dd className="font-medium">
-                    {plan.overageAnswerKrw === null ? "한도에서 멈춤" : `건당 ${plan.overageAnswerKrw}원`}
-                  </dd>
-                </div>
-                <div className="flex justify-between gap-4">
-                  <dt className="text-muted">추가 평가 실행</dt>
-                  <dd className="font-medium">
-                    {plan.extraEvalRunKrw === null
-                      ? "불가"
-                      : `회당 ${plan.extraEvalRunKrw.toLocaleString("ko-KR")}원`}
-                  </dd>
-                </div>
-              </dl>
-            </article>
-          ))}
-        </div>
+
+             id="plans" — 마이페이지의 "요금제 바꾸기" 가 이 자리로 바로 내려꽂는다.
+             페이지 맨 위로 보내면 마케팅 문구부터 다시 읽게 되는데, 그 사람은 이미 고르러 온 것이다. */}
+      <section id="plans" className="mt-12 scroll-mt-8">
+        <PlanCards />
         <p className="mt-3 text-xs text-muted">모든 금액은 부가세 별도입니다.</p>
         <Evidence kind="가정">
           원가 실측(답변 1건 ≈ 25뉴런 · 평가 1회 804뉴런, Cloudflare 유료 단가로 각각 약 0.4원 · 12원)에서
