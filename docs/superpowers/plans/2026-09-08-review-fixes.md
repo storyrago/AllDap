@@ -29,8 +29,8 @@
 |---|---|---|
 | `web/lib/redirect.ts` | `?next=` 값을 같은 사이트 경로로만 좁히는 순수 함수 | 1 |
 | `web/lib/redirect.check.ts` | 위 함수의 자체 점검. 실패하면 `process.exit(1)` | 1, 2 |
-| `web/package.json` | `tsx` devDependency 와 `check:redirect` 스크립트 | 2 |
-| `.github/workflows/ci.yml` | web 잡에 리다이렉트 검사 단계 | 2 |
+| `web/package.json` | `tsx` devDependency 와 `check` 스크립트 | 2, 5 |
+| `.github/workflows/ci.yml` | web 잡에 로직 검사 단계 | 2 |
 | `web/app/(site)/auth/page.tsx` | 로그인 화면. 이동 중 문구 | 3 |
 | `web/components/AuthLink.tsx` | 공개 헤더의 로그인/대시보드 버튼. `?next=` 를 붙이는 유일한 곳 | 3 |
 | `AGENTS.md` | `?next=` 항목의 사실과 한계 | 3 |
@@ -203,7 +203,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 **Interfaces:**
 - Consumes: Task 1 이 고친 `redirect.check.ts`
-- Produces: `npm run check:redirect` 스크립트. CI 의 web 잡이 이걸 돌린다.
+- Produces: `npm run check` 스크립트. CI 의 web 잡이 이걸 돌린다.
 
 **배경:** `redirect.check.ts` 는 있었지만 **아무 데서도 돌지 않았다.** `tsx` 가 의존성에 없고 CI web 잡은 `npm ci` / `npm run lint` / `npm run build` 셋뿐이었다. 이 사고의 구조적 원인은 검사를 안 짠 것이 아니라 짜둔 검사가 안 돈 것이므로, 수정과 같은 PR 에 둔다. 나누면 "고쳤는데 안 도는 검사" 가 남는다.
 
@@ -216,7 +216,7 @@ npm install --save-dev tsx
 
 Expected: `package.json` 의 `devDependencies` 에 `"tsx": "^4.x.x"` 가 생기고 `package-lock.json` 이 갱신된다.
 
-- [ ] **Step 2: `check:redirect` 스크립트를 추가한다**
+- [ ] **Step 2: `check` 스크립트를 추가한다**
 
 `web/package.json` 의 `scripts` 를 아래로 바꾼다.
 
@@ -226,13 +226,13 @@ Expected: `package.json` 의 `devDependencies` 에 `"tsx": "^4.x.x"` 가 생기�
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "check:redirect": "tsx lib/redirect.check.ts"
+    "check": "tsx lib/redirect.check.ts"
   },
 ```
 
 - [ ] **Step 3: 스크립트가 도는지 확인한다**
 
-Run: `cd web && npm run check:redirect`
+Run: `cd web && npm run check`
 Expected: 22줄 전부 `✅`, 종료코드 0.
 
 - [ ] **Step 4: 손으로 적은 개수를 카운터로 바꾼다**
@@ -284,13 +284,13 @@ console.log(failed === 0 ? `\nOK: ${total}가지 통과` : `\n🔴 ${failed}건 
       # lib/redirect.check.ts 는 그전부터 있었지만 아무 데서도 돌지 않았다.
       # 검사를 짜두는 것과 검사가 도는 것은 다른 일이다.
       # 실패하면 그 파일이 process.exit(1) 을 하므로 잡이 빨간불이 된다.
-      - name: 리다이렉트 안전성 검사
-        run: npm run check:redirect
+      - name: 로직 안전성 검사
+        run: npm run check
 ```
 
 - [ ] **Step 6: 로컬 검사를 통과시킨다**
 
-Run: `cd web && npx tsc --noEmit && npm run lint && npm run check:redirect`
+Run: `cd web && npx tsc --noEmit && npm run lint && npm run check`
 Expected: 셋 다 종료코드 0.
 
 - [ ] **Step 7: 커밋**
@@ -305,7 +305,7 @@ CI 의 web 잡은 npm ci / lint / build 셋뿐이었다. 그래서 이 검사는
 저장소에 존재하기만 하고 한 번도 돌지 않았다.
 
 앞 커밋이 막은 구멍이 배포까지 간 원인이 이것이다.
-tsx 를 devDependency 로 넣고 check:redirect 스크립트를 만들어
+tsx 를 devDependency 로 넣고 check 스크립트를 만들어
 CI 의 lint 다음에 걸었다.
 
 통과 개수를 손으로 적어둔 것(\"12가지\")도 카운터로 바꿨다.
@@ -401,7 +401,7 @@ Expected: `ok` 출력.
 
 - [ ] **Step 5: 로컬 검사를 통과시킨다**
 
-Run: `cd web && npx tsc --noEmit && npm run lint && npm run check:redirect`
+Run: `cd web && npx tsc --noEmit && npm run lint && npm run check`
 Expected: 셋 다 종료코드 0.
 
 - [ ] **Step 6: 커밋하고 밀기**
@@ -506,7 +506,7 @@ return path;
 
 이 파일이 세운 원칙이 *"직접 파싱하지 않고 브라우저의 URL 파서에게 판정을 맡긴다"* 인데, 그 원칙을 **입력에만 적용하고 출력에는 적용하지 않은 것**이 구멍의 정체다. 그래서 같은 원칙으로 메웠다.
 
-**③ 검사를 CI 에 연결했다.** `tsx` 를 devDependency 에 넣고 `check:redirect` 스크립트를 만들어 web 잡의 lint 다음에 걸었다. `redirect.check.ts` 에 `process.exit(1)` 이 이미 있어 실패하면 빨간불이 된다.
+**③ 검사를 CI 에 연결했다.** `tsx` 를 devDependency 에 넣고 `check` 스크립트를 만들어 web 잡의 lint 다음에 걸었다. `redirect.check.ts` 에 `process.exit(1)` 이 이미 있어 실패하면 빨간불이 된다.
 
 **④ 통과 개수를 카운터로 바꿨다.** `"12가지"` 라고 손으로 적혀 있어서 케이스를 늘리면 어긋난다.
 
@@ -519,7 +519,7 @@ $ cd web && npx tsx lib/redirect.check.ts   # 수정 전
   ... (5건)
 🔴 5건 실패                                  # 종료코드 1
 
-$ cd web && npm run check:redirect          # 수정 후
+$ cd web && npm run check          # 수정 후
   ✅ ... (22줄)
 OK: 22가지 통과                               # 종료코드 0
 ```
@@ -723,36 +723,306 @@ git push origin main
 
 ---
 
-## Task 5: 카드가 안 보이거나 서랍에 숨던 것을 고친다 (B-3, B-5)
+## Task 5: 카드 지갑의 분기를 순수 함수로 뽑고 TDD 로 고친다 (B-3, B-5)
 
 **Files:**
-- Modify: `web/app/(dashboard)/account/page.tsx:461-568` 부근 (JSX 재배치)
+- Create: `web/lib/wallet.ts`
+- Create: `web/lib/wallet.check.ts`
+- Modify: `web/app/(dashboard)/account/page.tsx:60-64`(`MAX_METHODS` 이사), `:385-390`, `:461-568` 부근
+- Modify: `web/package.json` (`check` 스크립트에 붙인다)
 
 **Interfaces:**
-- Consumes: 없음
-- Produces: `<details>` 가 `billed` 분기 밖으로 나오고 `open={justAddedId !== null || !billed}` 를 갖는다. Task 7 이 같은 파일의 `CardItem` 을 고친다.
+- Consumes: Task 2 가 만든 `npm run check` 스크립트와 `tsx` devDependency
+- Produces:
+  ```ts
+  // web/lib/wallet.ts
+  export const MAX_METHODS = 5;
+  export interface WalletView {
+    billed: BillingCard | undefined;
+    others: BillingCard[];
+    warnNoDefault: boolean;
+    showDrawer: boolean;
+    drawerOpen: boolean;
+    full: boolean;
+  }
+  export function walletView(methods: BillingCard[], justAddedId: string | null): WalletView;
+  ```
+  Task 7 이 같은 파일(`account/page.tsx`)의 `CardItem` 을 고친다.
 
-**두 버그를 한 Task 로 묶는 이유:** B-3 과 B-5 가 <같은 `<details>` 줄>을 고친다. 나누면 한 PR 안에서 같은 줄을 두 번 바꾸는 커밋이 남고, 리뷰어는 첫 번째 버전을 읽을 이유가 없다.
+🔴 **선행 조건: PR① 이 `main` 에 머지돼 있어야 한다.** Task 2 가 `tsx` 와 `check` 스크립트를 `web/package.json` 에 넣었고 이 Task 가 거기에 한 줄을 더한다. 머지 전에 브랜치를 따면 **같은 파일 같은 줄에서 충돌한다.** `AGENTS.md` 가 2026-09-08 에 겪은 스택 브랜치 함정이 그것이다. 머지가 안 됐으면 먼저 머지하고 시작한다.
 
-**B-5 배경:** 첫 카드만 `isDefault=true` 라 2번째부터는 전부 `others` 행인데 `<details>` 에 `open` 이 없다. **등록 직후 닫힌 서랍 안으로 사라진다.** 등록에 성공해도 화면에 아무 변화가 없어 실패한 것처럼 보인다. 부작용으로 `justAddedId` + `alldap-card-in` 등장 애니메이션이 첫 카드에서만 동작한다(`globals.css:151-152` 가 설명하는 코드가 사실상 죽어 있다).
+**왜 순수 함수로 뽑는가.** 원래 계획은 JSX 를 재배치하고 브라우저로 눈으로 보는 것이었다. 그러면 **CI 가 아무것도 지키지 않는다.** 다음에 누가 그 블록을 건드리면 조용히 다시 깨진다. 이 PR 묶음의 핵심 교훈이 *"짜둔 검사가 안 돌고 있었다"* 인데, 같은 묶음에서 검사 없는 수정을 하는 것은 앞뒤가 안 맞는다.
+뽑아낼 값어치가 있는 이유는 **깨진 것이 정확히 <분기 판단>이기 때문**이다. 마크업이 아니라 "어떤 상태에서 무엇을 그릴지" 가 틀렸다. 그 판단은 렌더러 없이 잴 수 있다.
+이 저장소에 이미 같은 방식이 여섯 개 있다: `redirect.check.ts` · `retriever_check.py` · `evaluator_check.py` · `answerable_check.py` · `bot_prompt_check.py` · `fallback_e2e_check.py`. 새 관례가 아니다.
 
-**B-3 배경:** `billed = data.methods.find(m => m.isDefault)` 다. 카드는 있는데 기본이 하나도 없으면 `billed` 가 `undefined` 라 **`else` 분기로 떨어져 카드 등록 타일만 그린다.** 사용자는 자기 카드를 보지도 지우지도 못하고 토스에는 빌링키가 남는다. V7 부분 유니크 인덱스는 "기본 1장 이하" 만 보장하고 "1장 이상" 은 앱 코드가 지키는데 `BillingService.register` 에 TOCTOU 경합이 있다. 같은 분기의 `AddCardTile` 에는 `full` 가드도 없다.
-
+**B-3 배경:** `billed = data.methods.find((m) => m.isDefault)` 다. 카드는 있는데 기본이 하나도 없으면 `billed` 가 `undefined` 라 **`else` 분기로 떨어져 카드 등록 타일만 그린다.** 사용자는 자기 카드를 보지도 지우지도 못하고 토스에는 빌링키가 남는다. V7 부분 유니크 인덱스는 "기본 1장 이하" 만 보장하고 "1장 이상" 은 앱 코드가 지키는데 `BillingService.register` 에 TOCTOU 경합이 있다. 같은 분기의 `AddCardTile` 에는 `full` 가드도 없다.
 ⚠️ 경합 자체는 재현하지 않았다. **프론트가 그 상태에서 어떻게 그려지는지만 코드로 확인했다.**
 
-**고치는 방식:** 카드 목록(`<details>`)을 `billed` 분기 **밖으로** 꺼낸다. 조건이 `data.methods.length > 0` 이 되므로 기본이 없어도 카드가 보이고, `full` 가드는 이미 서랍 안에 있으므로 저절로 따라온다. 마크업을 복제하지 않는 것이 핵심이다.
+**B-5 배경:** 첫 카드만 `isDefault=true` 라 2번째부터는 전부 `others` 행인데 `<details>` 에 `open` 이 없다. **등록 직후 닫힌 서랍 안으로 사라진다.** 등록에 성공해도 화면에 변화가 없어 실패한 것처럼 보인다. 부작용으로 `justAddedId` + `alldap-card-in` 등장 애니메이션이 첫 카드에서만 동작한다(`globals.css:151-152` 가 설명하는 코드가 사실상 죽어 있다).
+
+**두 버그를 한 Task 로 묶는 이유:** 둘 다 같은 `<details>` 줄을 고친다. 나누면 한 PR 안에서 같은 줄을 두 번 바꾸는 커밋이 남고, 리뷰어는 첫 번째 버전을 읽을 이유가 없다.
 
 - [ ] **Step 1: 브랜치를 딴다**
 
 ```bash
 cd /Users/cheonjamin/projects/AllDap
 git switch main && git pull
+grep -q '"check"' web/package.json && echo "PR1 머지됨, 진행" || echo "🔴 멈출 것: PR1 을 먼저 머지한다"
 git switch -c fix/account-card-states
 ```
 
-- [ ] **Step 2: 청구 카드 블록과 서랍을 분리한다**
+Expected: `PR1 머지됨, 진행`. 아니면 멈춘다.
 
-`web/app/(dashboard)/account/page.tsx` 에서 아래 줄
+- [ ] **Step 2: 검사를 먼저 쓴다**
+
+`web/lib/wallet.check.ts` 를 새로 만든다. **아직 `wallet.ts` 가 없으므로 이 파일은 지금 돌지 않는다.** 그게 맞다.
+
+```ts
+/**
+ * walletView 의 자체 점검. `npm run check` 가 돌린다.
+ *
+ * 왜 이 파일이 있나: 2026-09-08 코드 리뷰에서 나온 두 버그가 전부 <분기 판단>이었다.
+ * 기본 카드가 없으면 카드가 통째로 안 보였고, 2번째 카드는 닫힌 서랍에 숨었다.
+ * 마크업이 아니라 "어떤 상태에서 무엇을 그릴지" 가 틀린 것이라 렌더러 없이 잴 수 있다.
+ * 🔴 브라우저로만 확인하면 CI 가 아무것도 지키지 않는다. 이 저장소는 이미
+ *    "짜둔 검사가 안 돌아서" 오픈 리다이렉트를 배포까지 보냈다.
+ */
+import type { BillingCard } from "./types";
+import { MAX_METHODS, walletView } from "./wallet";
+
+let failed = 0;
+let total = 0;
+
+function card(id: string, isDefault: boolean): BillingCard {
+  return {
+    id,
+    issuerCode: "61",
+    issuerName: "현대",
+    cardNumberMasked: "43301234****123*",
+    registeredAt: "2026-09-08T00:00:00Z",
+    isDefault,
+  };
+}
+
+function check(label: string, got: unknown, expected: unknown) {
+  total++;
+  const ok = JSON.stringify(got) === JSON.stringify(expected);
+  if (!ok) failed++;
+  console.log(`  ${ok ? "✅" : "❌"} ${label}${ok ? "" : `\n       받음: ${JSON.stringify(got)}  기대: ${JSON.stringify(expected)}`}`);
+}
+
+console.log("walletView: 카드 상태별로 무엇을 그리는가\n");
+
+// ── 정상 상태 ───────────────────────────────────────────────────────
+{
+  const v = walletView([], null);
+  check("0장: 서랍을 안 그린다", v.showDrawer, false);
+  check("0장: 청구 카드가 없다", v.billed, undefined);
+  check("0장: 경고하지 않는다", v.warnNoDefault, false);
+  check("0장: 상한이 아니다", v.full, false);
+}
+{
+  const a = card("a", true);
+  const v = walletView([a], null);
+  check("1장: 그 카드가 청구 카드다", v.billed?.id, "a");
+  check("1장: 서랍은 비어 있다", v.others, []);
+  check("1장: 서랍은 닫혀 있다", v.drawerOpen, false);
+}
+{
+  const [a, b] = [card("a", true), card("b", false)];
+  const v = walletView([a, b], null);
+  check("2장: 청구 카드는 서랍에 없다", v.others.map((c) => c.id), ["b"]);
+  check("2장: 서랍은 닫혀 있다", v.drawerOpen, false);
+}
+{
+  const v = walletView([card("a", true), card("b", false), card("c", false), card("d", false), card("e", false)], null);
+  check(`${MAX_METHODS}장: 상한에 닿았다`, v.full, true);
+}
+
+// ── 🔴 리뷰에서 나온 버그 두 개 ─────────────────────────────────────
+// B-3: 기본 카드가 없는데 카드는 있는 상태. 서버 불변식이 깨진 것이고
+//      (V7 인덱스는 "기본 1장 이하" 만 보장한다) 전에는 이때 목록이
+//      통째로 안 그려져 사용자가 자기 카드를 보지도 지우지도 못했다.
+{
+  const [a, b] = [card("a", false), card("b", false)];
+  const v = walletView([a, b], null);
+  check("기본 없음: 서랍을 그린다", v.showDrawer, true);
+  check("기본 없음: 두 장 다 서랍에 있다", v.others.map((c) => c.id), ["a", "b"]);
+  check("기본 없음: 경고한다", v.warnNoDefault, true);
+  check("기본 없음: 서랍을 열어둔다", v.drawerOpen, true);
+  check("기본 없음: 청구 카드가 없다", v.billed, undefined);
+}
+{
+  const v = walletView([card("a", false), card("b", false), card("c", false), card("d", false), card("e", false)], null);
+  check("기본 없음 + 상한: full 가드가 살아 있다", v.full, true);
+}
+
+// B-5: 방금 추가한 카드는 첫 장이 아니면 전부 서랍 행이라,
+//      서랍이 닫혀 있으면 등록에 성공해도 화면에 아무 변화가 없다.
+{
+  const v = walletView([card("a", true), card("b", false)], "b");
+  check("방금 추가: 서랍을 열어둔다", v.drawerOpen, true);
+}
+{
+  const v = walletView([card("a", true)], "a");
+  check("방금 추가한 것이 청구 카드면 서랍을 억지로 열지 않는다", v.drawerOpen, false);
+}
+
+console.log(failed === 0 ? `\nOK: ${total}가지 통과` : `\n🔴 ${failed}건 실패`);
+if (failed) process.exit(1);
+```
+
+- [ ] **Step 3: 지금 화면이 하는 일 그대로를 `wallet.ts` 에 옮긴다**
+
+🔴 **일부러 <고치지 않고> 옮긴다.** 검사가 실제 버그를 잡는지 먼저 봐야 한다. 아래는 `account/page.tsx:385-390` 과 `:509` 의 현재 동작을 그대로 옮긴 것이다.
+
+`web/lib/wallet.ts` 를 새로 만든다.
+
+```ts
+import type { BillingCard } from "./types";
+
+/**
+ * 계정당 카드 상한. 서버(`BillingService.MAX_METHODS`)와 같은 값이다.
+ * 화면(`app/(dashboard)/account/page.tsx`)에서 여기로 옮겼다. 판단이 이 파일로 왔기 때문이다.
+ */
+export const MAX_METHODS = 5;
+
+/** 카드 상태에서 화면이 무엇을 그릴지. 마크업이 아니라 <판단>만 담는다. */
+export interface WalletView {
+  /** 청구에 쓰이는 카드. 없을 수 있다 */
+  billed: BillingCard | undefined;
+  /** 서랍에 들어갈 카드. 청구 카드는 빠진다 (두 번 그리면 혼동이 돌아온다) */
+  others: BillingCard[];
+  /** 카드는 있는데 기본이 없다. 서버 불변식이 깨진 상태다 */
+  warnNoDefault: boolean;
+  /** 서랍을 그리는가. 아니면 등록 자리만 그린다 */
+  showDrawer: boolean;
+  /** 서랍을 열어둘 것인가 */
+  drawerOpen: boolean;
+  /** 상한에 닿았는가 */
+  full: boolean;
+}
+
+export function walletView(methods: BillingCard[], justAddedId: string | null): WalletView {
+  const billed = methods.find((m) => m.isDefault);
+  const others = methods.filter((m) => m.id !== billed?.id);
+  return {
+    billed,
+    others,
+    warnNoDefault: false,
+    showDrawer: billed !== undefined,
+    drawerOpen: false,
+    full: methods.length >= MAX_METHODS,
+  };
+}
+```
+
+- [ ] **Step 4: 검사를 돌려 빨간불을 확인한다**
+
+`web/package.json` 의 `check` 스크립트에 먼저 붙인다.
+
+```json
+    "check": "tsx lib/redirect.check.ts && tsx lib/wallet.check.ts"
+```
+
+Run: `cd web && npm run check`
+
+Expected: 종료코드 1. `redirect.check.ts` 는 22가지 통과하고, `wallet.check.ts` 는 **18가지 중 4건**이 `❌` 다. **이 숫자는 실측했다** (같은 로직을 스크래치패드에서 돌려 확인).
+
+```
+  ❌ 기본 없음: 서랍을 그린다
+       받음: false  기대: true
+  ❌ 기본 없음: 경고한다
+  ❌ 기본 없음: 서랍을 열어둔다
+  ❌ 방금 추가: 서랍을 열어둔다
+🔴 4건 실패
+```
+
+⚠️ **통과할 것 같은데 통과하는 케이스 둘을 미리 적어둔다.** 처음에 이 둘도 빨간불일 것이라 예측했다가 돌려보고 틀린 것을 알았다.
+
+- `"기본 없음: 두 장 다 서랍에 있다"` → **지금도 통과한다.** `others` 는 `m.id !== billed?.id` 로 거르는데 `billed` 가 `undefined` 면 `undefined?.id` 도 `undefined` 라 아무것도 안 걸러진다. 값은 이미 맞았고, **그 값을 쓰는 분기에 도달하지 못한 것**이 버그였다.
+- `"기본 없음 + 상한: full 가드가 살아 있다"` → **지금도 통과한다.** 같은 이유다. `full` 계산은 맞았고 `full` 을 읽는 JSX 가 그려지지 않았다.
+
+두 케이스를 지우지 않고 남기는 이유: `showDrawer` 를 고친 뒤에야 <의미>가 생기는 검사다. 회귀가 나면 여기서 잡힌다.
+
+🔴 **4건이 아니면 멈춘다.** 하나도 실패하지 않으면 검사가 버그를 재현하지 못한 것이고, 더 많이 실패하면 기대값을 잘못 적은 것이다. 둘 다 Step 2 를 다시 봐야 한다.
+
+- [ ] **Step 5: `walletView` 를 고친다**
+
+`web/lib/wallet.ts` 의 함수 본문을 아래로 바꾼다.
+
+```ts
+export function walletView(methods: BillingCard[], justAddedId: string | null): WalletView {
+  const billed = methods.find((m) => m.isDefault);
+  /* 청구 카드는 서랍에 <다시> 넣지 않는다. 두 번 그리면 "왜 같은 카드가 두 개지" 가 되고,
+     지갑 구조가 없애려던 혼동이 그대로 돌아온다. */
+  const others = methods.filter((m) => m.id !== billed?.id);
+  /* 🔴 카드는 있는데 기본이 없는 상태. V7 부분 유니크 인덱스는 "기본 1장 이하" 만 보장하고
+     "1장 이상" 은 앱 코드가 지킨다(BillingService.register 에 TOCTOU 경합이 있다).
+     전에는 이때 목록을 통째로 안 그려서, 사용자가 자기 카드를 보지도 지우지도 못하는데
+     토스에는 빌링키가 남았다. 어느 카드로 청구되는지는 우리도 모른다. 그렇게 말하고
+     지정할 수 있게 열어준다. 아무 카드나 청구 카드로 그리는 것은 모르는 것을 아는 척하는 것이다. */
+  const warnNoDefault = billed === undefined && methods.length > 0;
+  return {
+    billed,
+    others,
+    warnNoDefault,
+    /* 서랍의 조건은 <카드가 있는가> 다. billed 가 아니다. 이 한 줄이 B-3 의 전부다. */
+    showDrawer: methods.length > 0,
+    /* 방금 추가했으면 연다(안 열면 2번째부터 등록한 카드가 닫힌 서랍 안으로 사라진다).
+       기본이 없을 때도 연다(거기서 지정해야 한다). */
+    drawerOpen: (justAddedId !== null && others.some((c) => c.id === justAddedId)) || warnNoDefault,
+    full: methods.length >= MAX_METHODS,
+  };
+}
+```
+
+- [ ] **Step 6: 검사를 돌려 초록불을 확인한다**
+
+Run: `cd web && npm run check`
+Expected: 종료코드 0. `redirect.check.ts` 22가지 + `wallet.check.ts` 18가지 전부 `✅`.
+
+- [ ] **Step 7: 화면이 `walletView` 를 쓰게 한다**
+
+`web/app/(dashboard)/account/page.tsx` 의 상수 정의
+
+```tsx
+const MAX_METHODS = 5;
+```
+
+를 지우고(주석 포함) 파일 상단 import 에 붙인다.
+
+```tsx
+import { MAX_METHODS, walletView } from "@/lib/wallet";
+```
+
+그 다음 아래 블록
+
+```tsx
+  const full = data.methods.length >= MAX_METHODS;
+  /* 청구에 쓰이는 카드 = 기본 카드. 서버가 "카드가 있으면 기본이 정확히 하나" 를 보장하므로
+     (V7 의 부분 유니크 인덱스) 여기서 여러 장을 걱정할 필요가 없다. */
+  const billed = data.methods.find((m) => m.isDefault);
+  /* 서랍에 들어갈 카드 = 청구 카드를 뺀 나머지. 청구 카드를 여기 다시 넣으면 같은 카드가
+     화면에 두 번 그려져, 이번 개편이 없애려던 혼동이 그대로 돌아온다. */
+  const others = data.methods.filter((m) => m.id !== billed?.id);
+```
+
+를 아래로 바꾼다.
+
+```tsx
+  /* 무엇을 그릴지에 대한 판단은 전부 lib/wallet.ts 에 있다. 여기는 그리기만 한다.
+     판단을 화면에서 빼낸 이유: 2026-09-08 리뷰에서 나온 두 버그가 전부 분기 판단이었고,
+     화면 안에 있으면 브라우저로 눈으로 보는 것 말고는 잴 방법이 없다(lib/wallet.check.ts). */
+  const { billed, others, warnNoDefault, showDrawer, drawerOpen, full } = walletView(
+    data.methods,
+    justAddedId,
+  );
+```
+
+- [ ] **Step 8: JSX 를 그 판단에 맞춰 재배치한다**
+
+아래 줄
 
 ```tsx
         {billed ? (
@@ -760,16 +1030,14 @@ git switch -c fix/account-card-states
             <div className="mt-5 rounded-xl border border-subtle bg-surface p-5">
 ```
 
-를 아래로 바꾼다.
+를 바꾼다.
 
 ```tsx
         {billed && (
           <div className="mt-5 rounded-xl border border-subtle bg-surface p-5">
 ```
 
-- [ ] **Step 3: 청구 카드 블록의 닫는 태그를 맞추고, 경고와 서랍 조건을 새로 쓴다**
-
-같은 파일에서 청구 카드 블록이 닫히고 서랍이 시작하는 자리, 즉
+청구 카드 블록이 닫히고 서랍이 시작하는 자리, 즉
 
 ```tsx
               </div>
@@ -779,60 +1047,46 @@ git switch -c fix/account-card-states
               ── 왜 <details> 인가 (직접 만든 토글이 아니라) ──────────────────────
 ```
 
-를 아래로 바꾼다.
+를 바꾼다.
 
 ```tsx
               </div>
           </div>
         )}
 
-        {/*
-          🔴 카드는 있는데 <기본이 하나도 없는> 상태 (2026-09-08 코드 리뷰).
-          V7 의 부분 유니크 인덱스는 "기본 1장 이하" 만 보장하고 "1장 이상" 은 앱 코드가 지킨다
-          (BillingService.register 에 TOCTOU 경합이 있다). 전에는 이때 아래 목록이 통째로
-          안 그려져서, 사용자가 <자기 카드를 보지도 지우지도 못하는데 토스에는 빌링키가 남았다.>
-          어느 카드로 청구되는지는 우리도 모른다. 그 사실을 그대로 말하고, 지정할 수 있게 열어둔다.
-          ⚠️ 아무 카드나 골라 "청구 카드" 라고 그리면 안 된다. 그건 모르는 것을 아는 척하는 것이다.
-        */}
-        {!billed && data.methods.length > 0 && (
+        {warnNoDefault && (
           <p role="alert" className="mt-5 text-sm text-danger">
             청구에 쓸 카드가 지정돼 있지 않습니다. 아래 목록에서 카드 하나를 “기본으로” 지정해주세요.
           </p>
         )}
 
-        {data.methods.length > 0 ? (
+        {showDrawer ? (
           <>
             {/*
               ── 왜 <details> 인가 (직접 만든 토글이 아니라) ──────────────────────
 ```
 
-- [ ] **Step 4: 서랍의 `open` 조건과 요약 문구를 고친다**
-
-아래 줄
+서랍 여는 줄
 
 ```tsx
             <details className="group mt-4 rounded-xl border border-subtle bg-surface">
 ```
 
-을 아래로 바꾼다. `open` 이 두 가지 일을 한다: 방금 카드를 추가했으면 열고(B-5), 청구 카드가 없으면 열어서 기본을 지정할 수 있게 한다(B-3).
+를 바꾼다.
 
 ```tsx
-            {/* 방금 카드를 추가했으면 서랍을 열어둔다. 안 열면 2번째부터 등록한 카드가
-                <닫힌 서랍 안으로 사라진다> (첫 카드만 기본이라 나머지는 전부 여기 들어간다).
-                등장 애니메이션(globals.css 의 alldap-card-in)도 그때만 보인다.
-                청구 카드가 없을 때도 연다. 그때는 사용자가 여기서 기본을 지정해야 한다.
-                제어 컴포넌트가 아니다. React 는 이 prop 이 <바뀔 때만> DOM 을 건드리므로
-                사용자가 손으로 닫으면 그대로 닫혀 있다. */}
-            <details open={justAddedId !== null || !billed} className="group mt-4 rounded-xl border border-subtle bg-surface">
+            {/* open 은 제어 컴포넌트가 아니다. React 는 이 prop 이 <바뀔 때만> DOM 을
+                건드리므로 사용자가 손으로 닫으면 그대로 닫혀 있다. */}
+            <details open={drawerOpen} className="group mt-4 rounded-xl border border-subtle bg-surface">
 ```
 
-그리고 요약 문구
+요약 문구
 
 ```tsx
                   {others.length > 0 ? `다른 카드 ${others.length}장` : "다른 카드 없음"}
 ```
 
-를 아래로 바꾼다. 청구 카드가 없으면 "다른" 이라 부를 기준이 없다.
+를 바꾼다. 청구 카드가 없으면 "다른" 이라 부를 기준이 없다.
 
 ```tsx
                   {others.length > 0
@@ -840,7 +1094,7 @@ git switch -c fix/account-card-states
                     : "다른 카드 없음"}
 ```
 
-- [ ] **Step 5: 0장 분기의 닫는 태그를 맞춘다**
+마지막으로 0장 분기
 
 ```tsx
             </details>
@@ -854,23 +1108,24 @@ git switch -c fix/account-card-states
         )}
 ```
 
-이 부분은 **그대로 둔다.** Step 2 에서 바깥 조건을 `data.methods.length > 0` 로 바꿨으므로 `else` 는 이제 진짜 "카드 0장" 이고, 그때는 `full` 이 참일 수 없어 가드가 필요 없다.
+는 **그대로 둔다.** 바깥 조건이 `showDrawer` 로 바뀌었으므로 `else` 는 이제 진짜 "카드 0장" 이고, 그때는 `full` 이 참일 수 없어 가드가 필요 없다.
 
-- [ ] **Step 6: 타입과 린트로 JSX 구조가 맞는지 확인한다**
+- [ ] **Step 9: 로컬 검사를 전부 통과시킨다**
 
-Run: `cd web && npx tsc --noEmit && npm run lint`
-Expected: 종료코드 0.
+Run: `cd web && npx tsc --noEmit && npm run lint && npm run check`
+Expected: 셋 다 종료코드 0.
 
-🔴 **여기서 JSX 닫는 태그 오류가 나면 Step 1, 2, 4 의 들여쓰기와 괄호를 다시 맞춘다.** 조각을 옮기는 작업이라 이 검사가 유일한 안전망이다.
+🔴 JSX 닫는 태그 오류가 나면 Step 8 의 들여쓰기와 괄호를 다시 맞춘다. 조각을 옮기는 작업이라 `tsc` 가 유일한 안전망이다.
 
-- [ ] **Step 7: 브라우저로 확인한다**
+- [ ] **Step 10: 브라우저로 확인한다**
 
 `preview_start` 로 `web` 을 띄운다. **Bash 로 dev 서버를 띄우지 않는다.**
 
-확인할 것:
+검사가 판단을 지키므로 여기서 볼 것은 **판단이 마크업으로 옳게 이어졌는가** 하나다.
+
 1. 카드 0장: 등록 타일 하나만 보인다.
 2. 카드 1장: 청구 카드 블록이 펼쳐져 있고 서랍은 "다른 카드 없음 · 카드 추가".
-3. 카드 2장: 두 번째 카드가 **닫히지 않은 서랍 안에** 보인다 (전에는 닫힌 서랍에 숨었다).
+3. 카드 2장: 두 번째 카드가 **닫히지 않은 서랍 안에** 보인다.
 
 기본 카드가 없는 상태는 정상 경로로 만들 수 없다. DB 로 직접 만든다.
 
@@ -878,7 +1133,7 @@ Expected: 종료코드 0.
 docker exec -i $(docker ps -qf name=postgres) psql -U alldap -d alldap -c "UPDATE billing_methods SET is_default = false WHERE user_id = (SELECT id FROM users WHERE email = '<테스트계정>');"
 ```
 
-Expected: 화면에 빨간 경고 한 줄과 **카드 목록이 펼쳐진 서랍**이 보인다. 각 카드에 "기본으로" 버튼이 있다.
+Expected: 빨간 경고 한 줄과 **펼쳐진 서랍 안의 카드 목록.** 각 카드에 "기본으로" 버튼이 있다.
 
 되돌린다.
 
@@ -888,27 +1143,26 @@ docker exec -i $(docker ps -qf name=postgres) psql -U alldap -d alldap -c "UPDAT
 
 ⚠️ 테스트 계정은 끝나고 지운다: `DELETE FROM users WHERE email LIKE '<패턴>'`.
 
-- [ ] **Step 8: 커밋**
+- [ ] **Step 11: 커밋**
 
 ```bash
 cd /Users/cheonjamin/projects/AllDap
-git add "web/app/(dashboard)/account/page.tsx"
-git commit -m "fix: 카드가 안 보이거나 닫힌 서랍에 숨던 것을 고친다
+git add web/lib/wallet.ts web/lib/wallet.check.ts web/package.json "web/app/(dashboard)/account/page.tsx"
+git commit -m "fix: 카드 지갑의 분기를 순수 함수로 뽑고 두 버그를 고친다
 
-billed 는 is_default 인 카드를 찾는데, 카드는 있고 기본이 없으면 undefined 라
-\"카드 0장\" 분기로 떨어졌다. 그 상태의 사용자는 자기 카드를 보지도 지우지도 못하고
-토스에는 빌링키가 남는다. V7 의 부분 유니크 인덱스는 \"기본 1장 이하\" 만 보장하고
-\"1장 이상\" 은 앱 코드가 지키는데 register 에 TOCTOU 경합이 있다.
+깨진 것이 마크업이 아니라 분기 판단이었다. 판단을 lib/wallet.ts 로 빼고
+lib/wallet.check.ts 를 먼저 빨간불로 만든 뒤 고쳤다.
 
-카드 목록을 billed 분기 밖으로 꺼내 조건을 methods.length > 0 으로 바꿨다.
-마크업을 복제하지 않으려는 것이고, 덕분에 그 분기에 없던 full 가드도 따라온다.
-어느 카드로 청구되는지 모르는 상태이므로 아무 카드나 청구 카드라고 그리지 않고,
-모른다고 말한 뒤 기본을 지정할 수 있게 서랍을 열어둔다.
+B-3: billed 는 is_default 인 카드를 찾는데, 카드는 있고 기본이 없으면 undefined 라
+  \"카드 0장\" 분기로 떨어졌다. 그 상태의 사용자는 자기 카드를 보지도 지우지도 못하고
+  토스에는 빌링키가 남는다. 서랍의 조건을 methods.length > 0 으로 바꿨다.
+  덕분에 그 분기에 없던 full 가드도 따라온다. 어느 카드로 청구되는지는 모르므로
+  아무 카드나 청구 카드라고 그리지 않고, 모른다고 말한 뒤 지정할 수 있게 열어둔다.
+B-5: <details> 에 open 이 없어 2번째부터 등록한 카드가 닫힌 서랍에 숨었다.
+  등록에 성공해도 화면에 변화가 없어 실패한 것처럼 보인다.
 
-같은 <details> 줄에 있던 두 번째 버그도 함께 고쳤다. open 이 없어서
-2번째부터 등록한 카드가 닫힌 서랍 안으로 사라졌다. 등록에 성공해도 화면에
-변화가 없어 실패한 것처럼 보였고, globals.css 의 등장 애니메이션도
-첫 카드에서만 동작하고 있었다.
+브라우저로만 확인하면 CI 가 아무것도 지키지 않는다. 이 저장소는 이미
+짜둔 검사가 안 돌아서 오픈 리다이렉트를 배포까지 보냈다.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 ```
@@ -1259,10 +1513,10 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 - [ ] **Step 2: 전체 검사를 다시 돌린다**
 
-Run: `cd web && npx tsc --noEmit && npm run lint && npm run check:redirect`
+Run: `cd web && npx tsc --noEmit && npm run lint && npm run check`
 Expected: 셋 다 종료코드 0.
 
-🔴 `check:redirect` 는 이 브랜치에 없을 수 있다. Task 2 가 PR① 브랜치에서 추가했고 아직 머지 전이면 `npm run check:redirect` 가 "Missing script" 로 실패한다. 그때는 이 명령만 빼고 나머지 둘을 돌린다.
+🔴 `npm run check` 는 `redirect.check.ts` 와 `wallet.check.ts` 를 <둘 다> 돌린다. Task 5 가 뒤쪽을 붙였다.
 
 - [ ] **Step 3: 커밋하고 민다**
 
