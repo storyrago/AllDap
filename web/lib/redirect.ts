@@ -42,5 +42,19 @@ export function safeRedirectPath(raw: string | null, origin: string): string {
   if (url.pathname === "/auth") return DEFAULT_AFTER_AUTH;
 
   // pathname 부터 다시 조립한다. 원본 문자열을 그대로 쓰면 위에서 정규화한 것이 무의미해진다.
-  return url.pathname + url.search + url.hash;
+  const path = url.pathname + url.search + url.hash;
+
+  // 🔴 조립한 <결과>를 한 번 더 파서에게 물어본다 (2026-09-08 코드 리뷰).
+  //    위 판정을 통과해도 url.pathname 이 "//" 로 시작할 수 있다. "/..//evil.com" 이 그렇다:
+  //    파서가 ".." 로 한 단계 올라가면서 남은 "//evil.com" 이 통째로 경로가 된다.
+  //    그 값을 라우터가 다시 해석하면 프로토콜 상대 URL 이라 https://evil.com 으로 나간다.
+  //    입력에 쓴 원칙("모양을 우리가 판정하지 않고 파서에게 맡긴다")을 출력에도 그대로 적용한다.
+  //    startsWith("//") 한 줄로도 막히지만, 그건 이 파일이 명시적으로 기각한 방식이다.
+  try {
+    if (new URL(path, origin).origin !== origin) return DEFAULT_AFTER_AUTH;
+  } catch {
+    return DEFAULT_AFTER_AUTH;
+  }
+
+  return path;
 }

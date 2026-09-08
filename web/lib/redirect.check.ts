@@ -40,5 +40,24 @@ check("빈 문자열", "", DEFAULT_AFTER_AUTH);
 // 로그인 화면으로 되돌리면 무한 왕복처럼 보인다
 check("로그인 화면 자기 자신", "/auth", DEFAULT_AFTER_AUTH);
 
-console.log(failed === 0 ? "\nOK — 12가지 통과" : `\n🔴 ${failed}건 실패`);
+// ── 🔴 2026-09-08 코드 리뷰에서 나온 구멍 ──────────────────────────────
+// 입력은 파서에게 맡겨놓고 <출력>을 검사하지 않아서, url.pathname 이 "//" 로 시작하면
+// 반환값이 프로토콜 상대 URL 이 됐다. 라우터가 그걸 다시 해석하면 외부로 나간다.
+// 이 케이스들이 없어서 구멍이 배포까지 갔다. 이 파일이 먼저 빨간불이 되어야 한다.
+check("경로 탈출 뒤 프로토콜 상대", "/..//evil.com", DEFAULT_AFTER_AUTH);
+check("점 세그먼트를 섞은 변형", "/./..//evil.com", DEFAULT_AFTER_AUTH);
+check("탈출 + 경로 + 쿼리", "/..//evil.com/login?x=1", DEFAULT_AFTER_AUTH);
+check("우리 origin 뒤에 슬래시 둘", `${ORIGIN}//evil.com`, DEFAULT_AFTER_AUTH);
+check("우리 origin 뒤에 역슬래시", `${ORIGIN}/\\/evil.com`, DEFAULT_AFTER_AUTH);
+
+// ── 지금도 통과하지만 회귀하면 안 되는 것 ──────────────────────────────
+// 전부 "우리 도메인처럼 보이는 남의 호스트" 다. 파서가 이미 갈라주고 있다는 것을
+// 검사로 굳혀둔다. 나중에 판정을 손볼 때 이 줄들이 안전망이 된다.
+check("userinfo 로 위장한 호스트", "https://alldap.example@evil.com", DEFAULT_AFTER_AUTH);
+check("접미사로 위장한 호스트", "https://alldap.example.evil.com", DEFAULT_AFTER_AUTH);
+check("같은 호스트 다른 포트", `${ORIGIN}:8443/x`, DEFAULT_AFTER_AUTH);
+check("대문자 스킴", "HTTPS://EVIL.COM", DEFAULT_AFTER_AUTH);
+check("blob: 스킴", "blob:https://evil.com/x", DEFAULT_AFTER_AUTH);
+
+console.log(failed === 0 ? "\nOK — 22가지 통과" : `\n🔴 ${failed}건 실패`);
 if (failed) process.exit(1);
