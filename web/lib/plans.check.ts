@@ -28,6 +28,9 @@ check("아는 요금제는 그 정의를 준다", resolvePlan(PLANS[0].id)?.id, 
 check("모르는 id 는 undefined 다", resolvePlan("enterprise"), undefined);
 // 위 둘을 각각 통과해도 <서로 같은 값>이면 화면은 구별하지 못한다. 그것까지 못박는다.
 check("모르는 id 와 못 불러옴이 같은 값이 아니다", resolvePlan("enterprise") === resolvePlan(null), false);
+// 🔴 `plan === null` 을 `!plan` 으로 쓰는 실수를 잡는 줄이다. 그러면 빈 문자열이
+//    "모르는 id" 에서 "못 불러옴" 으로 <다시 뭉개진다>. 이 파일이 막으려는 그 부류다.
+check("빈 문자열도 모르는 id 다", resolvePlan(""), undefined);
 
 console.log(failed === 0 ? `\nOK: ${total}가지 통과` : `\n🔴 ${failed}건 실패`);
 if (failed) process.exit(1);

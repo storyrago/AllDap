@@ -39,7 +39,7 @@ import {
   getAccessTokenServerSnapshot,
   subscribeAccessToken,
 } from "@/lib/api";
-import { PLANS } from "@/lib/plans";
+import { PLANS, resolvePlan } from "@/lib/plans";
 import type { PlanId } from "@/lib/types";
 
 export function PlanCards() {
@@ -115,6 +115,19 @@ export function PlanCards() {
     }
   }
 
+  /*
+   * 🔴 `plan` 을 그대로 비교하지 않고 `resolvePlan` 을 통과시킨다 (2026-09-08 최종 검토).
+   *    `plan` 의 타입은 PlanId 지만 값은 <네트워크에서> 온다. 서버가 우리보다 새 버전이면
+   *    우리가 모르는 id 가 오는데, 그때 `plan !== null` 은 참이라 아래 버튼 조건이
+   *    두 카드 모두에서 성립한다 = "네 요금제를 모른다" 면서 "무료로 바꾸기" 를 권하게 된다.
+   *    세 갈래를 가르는 판단은 lib/plans.ts 한 곳에 있고 lib/plans.check.ts 가 지킨다.
+   */
+  const known = resolvePlan(plan);
+  /* "아는 요금제인가" 하나로 좁힌 값. null(못 불러옴)과 undefined(모르는 id)는 둘 다 거짓이다.
+     `!= null`(느슨한 비교)로 쓰지 않고 두 번 비교한다. eslint 의 eqeqeq 를 건드리지 않고,
+     무엇과 무엇을 가르는지가 글자로 남는다. */
+  const knownPlan = known !== null && known !== undefined;
+
   return (
     <>
       {error && (
@@ -139,6 +152,15 @@ export function PlanCards() {
           그대로 보실 수 있습니다.
         </p>
       )}
+      {/* 🔴 planFailed 배너를 재사용하면 안 된다. 그 문구("새로고침하면 다시 시도합니다")는
+             모르는 id 인 사람에게 <영원히 안 통한다>. /account 가 같은 상황에 쓰는 문구와 맞춘다.
+             `known === undefined` 는 plan 이 null 일 때 거짓이므로(resolvePlan(null) 이 null),
+             위 배너와 동시에 뜨지 않는다. */}
+      {signedIn && known === undefined && (
+        <p role="status" className="mb-4 text-sm text-danger">
+          알 수 없는 요금제입니다 ({plan}). 새로고침해도 달라지지 않으니 문의해주세요.
+        </p>
+      )}
 
       <div className="grid gap-6 sm:grid-cols-2">
         {PLANS.map((p) => {
@@ -147,9 +169,9 @@ export function PlanCards() {
            * 진한 테두리가 <가리키는 대상이 사람에 따라 다르다.>
            *   비로그인 방문자 → Pro (이게 추천이다)
            *   로그인 사용자   → 지금 쓰는 요금제 (추천보다 "내가 어디 있나" 가 급하다)
-           * 요금제를 아직 못 불러왔으면 로그인해도 비로그인과 같게 둔다 — 모르면 추측하지 않는다.
+           * 요금제를 모르면(못 불러왔거나 모르는 id) 로그인해도 비로그인과 같게 둔다. 추측하지 않는다.
            */
-          const emphasized = signedIn && plan !== null ? current : p.id === "pro";
+          const emphasized = signedIn && knownPlan ? current : p.id === "pro";
           return (
             <article
               key={p.id}
@@ -197,7 +219,7 @@ export function PlanCards() {
               {/* 버튼은 <두 장 중 한 장에만> 붙는다(지금 쓰는 요금제에는 바꿀 것이 없다).
                   그리드가 두 카드의 높이를 맞추므로 mt-auto 로 카드 바닥에 내려붙여야
                   버튼이 카드 한가운데 떠 있지 않는다. pt-6 은 dl 과의 최소 간격이다. */}
-              {signedIn && plan !== null && !current && (
+              {signedIn && knownPlan && !current && (
                 <div className="mt-auto pt-6">
                   <button
                     type="button"
