@@ -1,8 +1,10 @@
 import Link from "next/link";
+import { AuthLink } from "@/components/AuthLink";
 
 /**
  * 공개 화면(`/auth`, `/features`, `/pricing`, `/faq`) 공통 레이아웃.
- * 로그인 전 사용자가 보는 화면이므로 관리자 네비게이션을 넣지 않는다.
+ * 관리자 네비게이션은 넣지 않는다. 다만 로그인한 사람도 이 화면에 온다(대시보드 헤더의
+ * "소개" → 랜딩 → 기능 페이지). 그래서 오른쪽 끝 버튼만 로그인 여부를 안다(`AuthLink`).
  *
  * ⚠️ 랜딩(`/`)은 이 그룹에 <없다>. 히어로가 자기 헤더를 갖고 화면 전체를 쓰는
  *    스크롤 무대라 이 크롬을 씌우면 헤더가 두 개가 된다(app/page.tsx 주석 참고).
@@ -40,9 +42,7 @@ export default function SiteLayout({
                 {label}
               </Link>
             ))}
-            <Link href="/auth" className="ml-2 rounded-lg bg-foreground px-4 py-2 font-medium text-surface">
-              로그인
-            </Link>
+            <AuthLink />
           </nav>
         </div>
       </header>
