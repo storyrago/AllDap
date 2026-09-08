@@ -154,10 +154,7 @@ export default function DocumentsPage() {
 
   return (
     <>
-      <PageHeader
-        title="문서 관리"
-        description="올린 문서만 답변의 근거가 됩니다. 문서에 없는 내용은 지어내지 않고 거절합니다."
-      />
+      <PageHeader title="문서 관리" />
 
       <div className="mt-6 rounded-lg border border-dashed border-subtle p-6 text-center">
         <input
