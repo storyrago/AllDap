@@ -32,9 +32,27 @@ import {
   setAccessToken,
   subscribeAccessToken,
 } from "@/lib/api";
+import { safeRedirectPath } from "@/lib/redirect";
 
 /** 로그인 탭인가 가입 탭인가. 값이 둘뿐이라 문자열 유니온으로 좁혀 오타를 컴파일 단계에서 잡는다. */
 type Mode = "login" | "signup";
+
+/**
+ * 이 화면을 떠날 때 갈 곳. `?next=` 가 있으면 <있던 자리로> 돌려보낸다.
+ *
+ * 🔴 이 화면에서 나가는 길이 둘인데(방금 로그인함 · 이미 로그인해 있었음) 둘 다 이 함수를 쓴다.
+ *    한쪽만 `?next=` 를 보면, 로그인한 채 `/auth?next=/faq` 링크를 누른 사람만 대시보드로
+ *    떨어지는 <설명할 수 없는 차이>가 생긴다. 판정은 한 곳에 둔다.
+ *
+ * ⚠️ `useSearchParams` 훅을 쓰지 않는다. 그 훅은 프리렌더된 트리에서 Suspense 경계를
+ *    요구한다(Next 16 문서). 이 함수는 effect 와 제출 핸들러 안에서만 불리므로 브라우저인
+ *    것이 확실하다 — window 를 직접 읽으면 그 제약을 질 이유가 없다.
+ * 🔴 값을 그대로 쓰지 않는다. 오픈 리다이렉트를 막는 판정은 `lib/redirect.ts` 에 있다.
+ */
+function nextPath(): string {
+  const raw = new URLSearchParams(window.location.search).get("next");
+  return safeRedirectPath(raw, window.location.origin);
+}
 
 export default function AuthPage() {
   /*
@@ -77,7 +95,7 @@ export default function AuthPage() {
      * replace 인 이유는 로그인 성공 뒤 이동과 같다: push 면 대시보드에서 뒤로 가기를
      * 눌렀을 때 로그인 화면으로 돌아오고, 그 화면이 다시 대시보드로 보내 <뒤로 가기가 막힌다>.
      */
-    if (token) router.replace("/dashboard");
+    if (token) router.replace(nextPath());
   }, [token, router]);
 
   const [mode, setMode] = useState<Mode>("login");
@@ -115,7 +133,7 @@ export default function AuthPage() {
        * push 는 히스토리에 쌓여서, 대시보드에서 <뒤로 가기>를 누르면 로그인 화면으로 돌아온다.
        * 이미 로그인한 사람에게 로그인 화면은 의미가 없다. replace 는 현재 항목을 대체해 그 문제를 없앤다.
        */
-      router.replace("/dashboard");
+      router.replace(nextPath());
     } catch (e) {
       // ApiError 는 서버가 규약대로 준 에러다. 그 외(네트워크 단절 등)는 우리가 문구를 만들어야 한다.
       setError(
