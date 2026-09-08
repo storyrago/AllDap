@@ -93,7 +93,6 @@ export default function FeaturesPage() {
       <PageIntro
         eyebrow="기능"
         title="문서를 읽고, 출처를 대고, 모르면 모른다고 합니다."
-        lead="오답이 CS 사고가 되는 곳에서 쓰는 챗봇입니다. 그래서 답을 많이 하는 것보다 틀리지 않는 것을 먼저 맞췄습니다."
       />
 
       {/*
@@ -122,12 +121,12 @@ export default function FeaturesPage() {
             <h2 className="text-lg font-bold tracking-[-0.02em]">
               같은 질문으로 다시 재서, 좋아졌는지 확인합니다
             </h2>
-            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted">
-              검색 방식을 바꾸면 점수가 어떻게 달라지는지 나란히 볼 수 있습니다. 아래는 이 제품을
-              만들면서 실제로 나온 비교표입니다.
-            </p>
+            {/* 🔴 제목과 표 사이에 있던 "아래는 이 제품을 만들면서 실제로 나온 비교표입니다"
+                   한 문단을 지웠다 (2026-09-08). 표의 머리글(검색 방식 / 전체 충실성 / 회당 오답)이
+                   이미 무엇을 보는 표인지 말하고, 출처는 아래 근거 태그가 댄다. 표를 앞에서
+                   말로 한 번 더 소개하는 것은 표를 못 믿는다는 뜻이 된다.
 
-            {/* 표가 좁은 화면에서 페이지를 밀지 않도록 자기 안에서 스크롤한다 */}
+                   표가 좁은 화면에서 페이지를 밀지 않도록 자기 안에서 스크롤한다 */}
             <div className="mt-6 overflow-x-auto">
               <table className="w-full min-w-[30rem] text-left text-sm">
                 <thead className="text-xs text-muted">
@@ -152,10 +151,12 @@ export default function FeaturesPage() {
               </table>
             </div>
 
+            {/* 🔴 뒤에 붙어 있던 "답을 못 하는 것은 안전한 실패지만 틀린 답은 사용자가 그것을
+                   믿게 됩니다" 를 지웠다 (2026-09-08). 표에 <회당 오답 1.75건 → 0건> 이 이미
+                   찍혀 있고, 그게 왜 중요한지는 이 표를 보러 온 사람이 판단할 몫이다.
+                   근거 태그는 <수치의 출처>를 대는 자리이지 그 수치의 의미를 설득하는 자리가 아니다. */}
             <Evidence>
               16문항 · 설정당 3회 이상 · 같은 테스트셋. 측정 편차가 0.032 라서 +0.094 는 그 3배입니다.
-              <strong className="font-semibold text-foreground"> 평균보다 중요한 것은 오답이 0 이 된 것</strong>
-              입니다 — 답을 못 하는 것은 안전한 실패지만, 틀린 답은 사용자가 그것을 믿게 됩니다.
             </Evidence>
           </div>
         </Framed>

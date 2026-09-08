@@ -12,8 +12,20 @@ import { PlanCards } from "@/components/PlanCards";
  * "파일럿 4주 후" 로 미뤄뒀었다. 2026-09-07 에 그 결정을 뒤집어 금액을 정했다 —
  * 포트폴리오에서 결제 흐름을 끝까지 보여주려면 숫자가 필요하고, 파일럿은 현실적으로
  * 열리지 않기 때문이다(docs/decisions.md 2026-09-07). 숫자는 원가 실측에서 역산했고
- * 시장 기준점 둘을 참고했다. 그래서 "가정" 태그를 붙인다 — "실측"·"설계" 와 같은 톤으로
- * 쓰면 그게 과장이다. 이 사이트의 규칙(주장에는 근거의 <성격>까지 댄다)은 그대로다.
+ * 시장 기준점 둘을 참고했다.
+ *
+ * 🔴 <그 사실을 화면에 적던 "가정" 태그는 2026-09-08 에 뺐다.> 그때까지의 규칙은
+ *    "이 숫자를 보여주는 자리에는 반드시 가정 태그를 붙인다" 였는데, 요금제 페이지에서
+ *    자기 값을 스스로 "추측" 이라 부르는 것은 <읽는 사람에게 아무 선택지도 주지 않으면서>
+ *    값만 못 믿게 만든다. 값이 가정이라는 사실은 그대로이고(lib/plans.ts), 파일럿 뒤에
+ *    다시 정한다는 계획도 그대로다 — 방문자에게 말하지 않을 뿐이다.
+ *    ⚠️ 같은 날 "미정"(결제 미연결) 태그도 뺐다. 그 경고가 정말 필요한 자리는 <돈이 움직이는
+ *       모양의 버튼 옆>이고, 거기에는 그대로 남아 있다 — components/PlanCards.tsx 의
+ *       "요금제를 바꿔도 청구는 일어나지 않습니다", /account 의 같은 경고와 카드 등록
+ *       테스트 환경 경고. 이 페이지의 비로그인 방문자가 할 수 있는 일은 <문의>뿐이다.
+ *    🔴 결제가 붙으면 저 세 경고를 함께 지울 것. 여기에는 지울 것이 남아 있지 않다.
+ *
+ * 이 사이트의 규칙(주장에는 근거의 <성격>까지 댄다)은 과금 기준에 그대로 살아 있다.
  *
  * 숫자의 원본은 lib/plans.ts 하나다. 이 파일에 숫자를 직접 적지 않는다.
  *
@@ -58,7 +70,6 @@ export default function PricingPage() {
       <PageIntro
         eyebrow="요금제"
         title="봇이 답하지 못한 질문에는 요금을 받지 않습니다."
-        lead="억지로 답하게 만들 이유가 회사 쪽에 생기지 않도록 과금 기준을 정했습니다. 제품이 지키려는 것과 매출이 같은 방향을 봅니다."
       />
 
       {/* 🔴 금액을 <가장 먼저> 보여주고, 바로 아래에 "어디서 나온 숫자인지" 를 붙인다.
@@ -70,53 +81,50 @@ export default function PricingPage() {
       <section id="plans" className="mt-12 scroll-mt-8">
         <PlanCards />
         <p className="mt-3 text-xs text-muted">모든 금액은 부가세 별도입니다.</p>
-        <Evidence kind="가정">
-          원가 실측(답변 1건 ≈ 25뉴런 · 평가 1회 804뉴런, Cloudflare 유료 단가로 각각 약 0.4원 · 12원)에서
-          역산하고 Chatbase(월 $40 · 700건)와 채널톡 ALF(대화당 500원)를 기준점으로 삼았습니다.
-          실사용 데이터가 없어 가정값이며, 파일럿 뒤 다시 정합니다.
-        </Evidence>
-        <Evidence kind="미정">
-          결제는 아직 연결되지 않았습니다 — 카드 등록은 되지만 청구는 일어나지 않습니다.
-          도입을 검토하신다면 문의를 남겨주세요.
-        </Evidence>
       </section>
 
+      {/*
+        ── 왜 카드가 아니라 <목록>인가 (2026-09-08 배치 개편) ─────────────────
+        전에는 이 두 축이 위 요금제 카드와 똑같은 상자였다(`rounded-lg border bg-surface p-6`).
+        그래서 페이지가 "비슷한 상자 넷"으로 읽혔는데, 위 둘과 여기 둘은 성격이 아예 다르다 —
+        위는 <고르는 상품>이고 여기는 <용어의 정의>다. 같은 모양이면 같은 무게로 읽힌다.
+
+        대신 `/features` 가 이미 쓰는 리듬(왼쪽 라벨 · 오른쪽 주장+설명+근거)을 가져왔다.
+        새 스타일을 만들지 않으므로 두 페이지가 같은 몸짓을 공유하고, 상자가 사라져
+        위 요금표와 확실히 구별된다.
+
+        ⚠️ 축 이름("답변 수" · "품질 평가 실행")은 위 요금 카드의 행 이름과 <짝이다.>
+           한쪽 문구를 다듬으면 반대쪽도 함께 볼 것 — 어긋나면 정의가 무엇을 정의하는지 사라진다.
+      */}
       <section className="mt-14">
         <h2 className="text-xs font-medium tracking-[0.22em] text-muted">과금 기준</h2>
-        <div className="mt-6 grid gap-6 sm:grid-cols-2">
+        <ul className="mt-6 divide-y divide-subtle border-t border-subtle">
           {AXES.map((a) => (
-            <article key={a.axis} className="rounded-lg border border-subtle bg-surface p-6">
-              <p className="text-xs font-medium tracking-[0.18em] text-muted">{a.axis}</p>
-              <h3 className="mt-3 text-lg font-bold leading-snug tracking-[-0.02em]">{a.headline}</h3>
-              <p className="mt-3 text-sm leading-relaxed text-muted">{a.body}</p>
-              <Evidence kind={a.evidenceKind}>{a.evidence}</Evidence>
-            </article>
+            <li key={a.axis} className="grid gap-x-8 gap-y-2 py-7 sm:grid-cols-[9rem_1fr]">
+              <p className="pt-1 text-xs font-medium tracking-[0.18em] text-muted">{a.axis}</p>
+              <div className="min-w-0">
+                <h3 className="text-lg font-bold leading-snug tracking-[-0.02em]">{a.headline}</h3>
+                <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted">{a.body}</p>
+                <Evidence kind={a.evidenceKind}>{a.evidence}</Evidence>
+              </div>
+            </li>
           ))}
-        </div>
+        </ul>
       </section>
 
-      {/* 과금 기준이 제품 철학과 어떻게 이어지는지 — 이게 이 페이지의 논지다 */}
-      <section className="mt-14 border-t border-subtle pt-10">
-        <h2 className="max-w-3xl text-xl font-bold leading-snug tracking-[-0.025em] sm:text-2xl">
-          답변 수로 과금하면서 “못 답한 것은 빼는” 이유
-        </h2>
-        <p className="mt-4 max-w-2xl leading-relaxed text-muted">
-          답변 수만 세면, 봇이 근거 없이도 뭐라도 답하게 만드는 편이 회사에 이득이 됩니다. 그러면
-          이 제품이 팔려는 것(근거 없으면 답하지 않는다)과 매출이 서로 반대 방향을 봅니다. 못 답한
-          것을 과금에서 빼면 그 충돌이 사라집니다.
-        </p>
-        <Evidence kind="설계">
-          거절 여부는 대화 로그에 이미 기록됩니다. 관리자 화면에서 “답하지 못한 질문” 을 모아 보여주므로,
-          요금이 줄어드는 지점이 곧 <strong className="font-semibold text-foreground">문서를 보강할 지점</strong>이 됩니다.
-        </Evidence>
-
+      {/* 🔴 여기 있던 "답변 수로 과금하면서 못 답한 것은 빼는 이유" 섹션을 지웠다 (2026-09-08).
+             과금 기준이 제품 철학과 어떻게 이어지는지를 문단으로 설득하는 자리였는데, 바로 위
+             "답하지 못한 질문은 세지 않습니다" 가 이미 <규칙>으로 같은 말을 한다. 규칙을 읽은
+             사람에게 그 규칙의 정당성을 다시 설명하는 것은 읽는 사람이 아니라 만든 사람을 위한
+             글이다. CTA 만 남겨 이 자리를 <다음 행동>으로 되돌린다. */}
+      <div className="mt-14 border-t border-subtle pt-10">
         <Link
           href="/auth"
-          className="mt-8 inline-flex rounded-lg bg-foreground px-6 py-3 text-sm font-semibold text-surface"
+          className="inline-flex rounded-lg bg-foreground px-6 py-3 text-sm font-semibold text-surface"
         >
           도입 문의하기
         </Link>
-      </section>
+      </div>
     </div>
   );
 }

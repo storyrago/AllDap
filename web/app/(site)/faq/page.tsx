@@ -84,7 +84,6 @@ export default function FaqPage() {
       <PageIntro
         eyebrow="자주 묻는 질문"
         title="아직 안 되는 것도 함께 적었습니다."
-        lead="지금 동작하는 것만 현재형으로 썼습니다. 계획이거나 정해지지 않은 것은 그렇다고 표시했습니다."
       />
 
       {/* 질문 목록이므로 ul/li 다. div 나열이면 스크린리더가 "6개 중 3번째" 를 못 읽어준다.

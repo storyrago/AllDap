@@ -360,10 +360,6 @@ export function DemoConsole({ docs }: { docs: CorpusDoc[] }) {
           </div>
         </div>
 
-        <p className="mt-3 text-xs leading-relaxed text-muted">
-          답변은 실제 서비스와 같은 경로로 만들어집니다. 검색·생성·거절 판정이 모두 그대로
-          동작합니다.
-        </p>
       </aside>
     </div>
   );
