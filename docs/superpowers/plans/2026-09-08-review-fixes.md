@@ -4,7 +4,7 @@
 
 **Goal:** 운영에 배포된 오픈 리다이렉트를 닫고, 그것이 통과한 원인(짜둔 검사가 안 돌던 것)을 CI 로 막고, `/account` 화면 결함 세 건과 낡은 주석을 정리한다.
 
-**Architecture:** 설계(`docs/superpowers/specs/2026-09-08-review-fixes-design.md`)의 네 묶음을 그대로 따른다. 묶음 ①은 브랜치 `fix/redirect-open-redirect` 에서 Task 1~3, 묶음 ②는 `main` 직행으로 Task 4, 묶음 ③·④는 브랜치 `fix/account-card-states` 에서 Task 5~9.
+**Architecture:** 설계(`docs/superpowers/specs/2026-09-08-review-fixes-design.md`)의 네 묶음을 그대로 따른다. 묶음 ①은 브랜치 `fix/redirect-open-redirect` 에서 Task 1~3, 묶음 ②는 `main` 직행으로 Task 4, 묶음 ③·④는 브랜치 `fix/account-card-states` 에서 Task 5~8.
 
 **Tech Stack:** Next.js 16.2.12 / React 19.2.4 / TypeScript 5 (`web/`), Spring Boot 4 / Java 21 (`api/`), GitHub Actions (`.github/workflows/ci.yml`)
 
@@ -35,12 +35,12 @@
 | `web/components/AuthLink.tsx` | 공개 헤더의 로그인/대시보드 버튼. `?next=` 를 붙이는 유일한 곳 | 3 |
 | `AGENTS.md` | `?next=` 항목의 사실과 한계 | 3 |
 | `web/lib/plans.ts` | 요금제 정의. 숫자의 유일한 원본 | 4 |
-| `web/app/(site)/pricing/page.tsx` | 요금제 페이지. 머리 주석, metadata, 앵커 섹션 | 4, 8 |
+| `web/app/(site)/pricing/page.tsx` | 요금제 페이지. 머리 주석(4), metadata·앵커 섹션(7) | 4, 7 |
 | `web/app/(site)/layout.tsx` | 공개 화면 공통 레이아웃 | 4 |
 | `api/src/main/java/com/alldap/api/global/exception/ErrorCode.java` | 에러 코드와 안내 문구 | 4 |
-| `web/app/(dashboard)/account/page.tsx` | 마이페이지. 카드 지갑과 요금제 확인 | 4, 5, 6, 8 |
-| `web/components/PlanCards.tsx` | `/pricing` 의 요금제 카드. 로그인 시 고르기 | 7 |
-| `docs/decisions.md` | 결정 로그 | 3, 9 |
+| `web/app/(dashboard)/account/page.tsx` | 마이페이지. 카드 지갑과 요금제 확인 | 4, 5, 7 |
+| `web/components/PlanCards.tsx` | `/pricing` 의 요금제 카드. 로그인 시 고르기 | 6 |
+| `docs/decisions.md` | 결정 로그 | 3, 8 |
 
 ---
 
@@ -55,6 +55,18 @@
 - Produces: `safeRedirectPath(raw: string | null, origin: string): string` 의 동작이 바뀐다. 반환값은 항상 `origin` 기준으로 다시 해석해도 `origin` 을 벗어나지 않는 경로다. Task 2 가 이 파일을 CI 에 연결한다.
 
 **배경:** `redirect.ts` 는 입력을 URL 파서에 맡겨 판정하는데, **출력을 검사하지 않는다.** `url.pathname` 이 `//` 로 시작할 수 있어(`/..//evil.com` 이 그렇다) 반환값이 프로토콜 상대 URL 이 되고, 라우터가 다시 해석하면 외부 도메인으로 나간다. 이 취약점은 지금 `https://all-dap.vercel.app` 에 배포돼 있다.
+
+🔴 **브라우저로 실제 항해까지 확인했다 (2026-09-08).** 함수 반환값만 보고 "취약점" 이라 부르지 않기 위해 dev 서버에서 끝까지 눌러봤다.
+
+```
+localStorage.setItem('alldap.token', 'fake.jwt.token')
+  → http://localhost:3000/auth?next=/..//example.com
+  → location.href === "https://example.com/"     (탭 제목 "Example Domain")
+
+대조군: /auth?next=/faq  →  http://localhost:3000/faq   (정상)
+```
+
+`/auth` 의 로그인 가드는 토큰이 <있기만> 하면 `router.replace(nextPath())` 를 부르므로 가짜 토큰으로 재현된다. **Next 라우터가 `//example.com` 을 프로토콜 상대 URL 로 해석해 외부 도메인까지 실제로 나간다.**
 
 - [ ] **Step 1: 브랜치를 딴다**
 
@@ -435,6 +447,18 @@ cat > /tmp/pr1-body.md <<'BODY'
 
 이 파일 머리 주석이 *"주소창이 우리 도메인이었으므로 사용자는 그 사이트를 우리 것으로 믿는다"* 고 적어둔 바로 그 공격이다. **막으려던 것을 막지 못했다.**
 
+🔴 **함수 반환값에서 멈추지 않고 브라우저로 끝까지 눌러봤다.** 이 저장소의 반복된 교훈이 *"진짜 상대와 붙여보기 전까지는 검증했다고 말하지 말 것"* 이라, 라우터가 실제로 나가는지를 확인해야 "결함" 과 "취약점" 을 가를 수 있다.
+
+```
+localStorage.setItem('alldap.token', 'fake.jwt.token')
+  → http://localhost:3000/auth?next=/..//example.com
+  → location.href === "https://example.com/"     (탭 제목 "Example Domain")
+
+대조군: /auth?next=/faq  →  http://localhost:3000/faq   (정상)
+```
+
+**나간다.** 결함이 아니라 취약점이다.
+
 🔴 **운영에 배포돼 있다.**
 
 ```
@@ -506,7 +530,8 @@ OK: 22가지 통과                               # 종료코드 0
 
 ## 이 PR의 한계 & 트레이드오프
 
-- 🔴 **함수가 `//evil.com` 을 반환하는 것까지만 실측했다.** 그 값으로 Next 라우터가 **실제로 외부 도메인까지 항해하는지는 브라우저로 재보지 않았다.** 출력이 프로토콜 상대 URL 인 것 자체가 결함이라 수정은 정당하지만, "실제로 피싱이 성립했다" 고까지는 말할 수 없다. 재보지 않은 것과 안 나는 것은 다르다.
+- **실측은 로컬 dev 서버에서 했다.** 운영(Vercel)에서 직접 눌러보지는 않았다. 같은 코드가 같은 라우터로 도는 것이 근거이고, 운영에서 시도하면 실제 사용자 계정과 로그가 얽힌다. `?next=` 가 운영에 배포된 것은 `curl` 로 따로 확인했다.
+- **가짜 토큰으로 재현했다.** `/auth` 의 로그인 가드가 토큰의 유효성을 보지 않고 존재만 보기 때문에 성립한다. 진짜 로그인 직후 경로(`router.replace` 호출지 둘 중 나머지 하나)는 같은 `nextPath()` 를 쓰므로 같은 결과지만, 그쪽은 따로 누르지 않았다.
 - **검사는 순수 함수만 본다.** 라우터가 그 반환값을 어떻게 쓰는지는 검사 범위 밖이다. 호출부가 늘면 같은 부류의 구멍이 다시 생길 수 있다.
 - **A-2 는 안 고쳤다.** 대시보드 세션 만료 가드(`app/(dashboard)/layout.tsx`)는 `?next=` 를 안 붙인다. 붙이면 봇 화면 북마크 복귀가 되지만 **비로그인 상태의 주소창에 봇 UUID 가 남는다.** 한계로만 적었다.
 - **`AuthLink` 의 `usePathname()` 은 쿼리와 해시를 버린다.** `/pricing#plans` 에서 로그인하면 `/pricing` 으로 온다. 지금 실해가 없어 주석만 남겼다.
@@ -569,11 +594,11 @@ git switch main
 
 ---
 
-## Task 4: 낡은 주석 5건과 metadata 를 `main` 에 직접 고친다
+## Task 4: 낡은 주석 5건을 `main` 에 직접 고친다
 
 **Files:**
 - Modify: `web/lib/plans.ts:11-13`
-- Modify: `web/app/(site)/pricing/page.tsx:10` 부근, `:43` 부근
+- Modify: `web/app/(site)/pricing/page.tsx:10` 부근
 - Modify: `web/app/(site)/layout.tsx:6-7`
 - Modify: `web/app/(dashboard)/account/page.tsx:8`
 - Modify: `api/src/main/java/com/alldap/api/global/exception/ErrorCode.java:124`
@@ -584,7 +609,9 @@ git switch main
 
 **왜 `main` 직행인가:** 전부 한 줄이고, 바꾸기 전에 이유를 설명할 필요가 없으며, 틀려도 한 줄 되돌리면 끝난다. `AGENTS.md` 의 "간단한 수정" 기준 그대로다.
 
-🔴 **`main` 푸시는 Vercel 자동 배포다.** Step 6 의 로컬 검사를 반드시 통과시킨 뒤 민다.
+🔴 **`pricing` 의 metadata 는 여기서 뺐다 (2026-09-08 자기검토).** 처음에는 "문구 한 줄" 이라고 여기 넣었는데, 그것을 왜 바꾸는지 설명하는 데 세 줄이 들었다(숫자가 두 벌 · 화면에서 뺀 주장이 남아 있음 · 이 파일이 스스로 금지한 규칙). **설명이 필요하면 PR 이라는 것이 이 저장소의 기준**이고, 그 기준이 프로젝트 1순위 목적(무엇을 왜 바꿨는지가 PR 단위로 읽힌다)과 직결된다. Task 7 로 옮겼다.
+
+🔴 **`main` 푸시는 Vercel 자동 배포다.** Step 5 의 로컬 검사를 반드시 통과시킨 뒤 민다.
 
 - [ ] **Step 1: `plans.ts` 의 거짓 단언을 고친다**
 
@@ -620,32 +647,7 @@ git switch main
  * 🔴 <금액은 전부 가정값이다. 다만 그 사실을 화면에 적지는 않는다(아래 참고).>
 ```
 
-- [ ] **Step 3: `pricing` 의 metadata 에서 숫자와 낡은 주장을 뺀다**
-
-같은 파일의
-
-```ts
-export const metadata: Metadata = {
-  title: "요금제 — AllDap",
-  description:
-    "봇이 답하지 못한 질문에는 요금을 받지 않습니다. 무료(월 200건)와 Pro(월 29,000원 · 3,000건) 두 플랜이며, 금액은 파일럿 전 가정값입니다.",
-};
-```
-
-를 아래로 바꾼다. 이 파일은 스스로 "숫자의 원본은 lib/plans.ts 하나다. 이 파일에 숫자를 직접 적지 않는다" 고 적어놓고 metadata 에서만 어기고 있었다. 그리고 "가정값입니다" 는 화면에서 뺀 주장이라 검색 결과에만 남아 있었다.
-
-```ts
-export const metadata: Metadata = {
-  title: "요금제 — AllDap",
-  /* 숫자를 적지 않는다. 이 파일의 규칙이 그렇고(원본은 lib/plans.ts 하나),
-     두 벌이 되면 요금이 바뀔 때 한쪽만 고치는 사고가 난다. */
-  description: "봇이 답하지 못한 질문에는 요금을 받지 않습니다. 무료와 Pro 두 요금제가 있습니다.",
-};
-```
-
-⚠️ `title` 의 문자는 원래 있던 것이라 건드리지 않는다.
-
-- [ ] **Step 4: 지워진 링크를 설명하는 주석 두 개를 고친다**
+- [ ] **Step 3: 지워진 링크를 설명하는 주석 두 개를 고친다**
 
 `web/app/(site)/layout.tsx` 의
 
@@ -675,7 +677,7 @@ export const metadata: Metadata = {
  * 이 화면에 넘긴다. 쿼리스트링이 따라가므로 옛 주소로 온 `authKey` 도 안 샌다.
 ```
 
-- [ ] **Step 5: `ErrorCode` 의 안내가 가리키는 자리를 고친다**
+- [ ] **Step 4: `ErrorCode` 의 안내가 가리키는 자리를 고친다**
 
 `api/src/main/java/com/alldap/api/global/exception/ErrorCode.java` 의
 
@@ -691,7 +693,7 @@ export const metadata: Metadata = {
             "유료 요금제를 쓰는 동안에는 마지막 카드를 삭제할 수 없습니다. 다른 카드를 먼저 등록하거나, 요금제 페이지에서 무료로 바꾼 뒤 삭제해주세요."),
 ```
 
-- [ ] **Step 6: 로컬 검사를 통과시킨다**
+- [ ] **Step 5: 로컬 검사를 통과시킨다**
 
 Run: `cd web && npx tsc --noEmit && npm run lint`
 Expected: 종료코드 0.
@@ -701,18 +703,16 @@ Expected: `BUILD SUCCESSFUL`, 164건 통과.
 
 🔴 **`ErrorCode` 문구를 검증하는 테스트가 있으면 여기서 빨간불이 난다.** 그러면 테스트의 기대 문자열도 함께 고친다.
 
-- [ ] **Step 7: 커밋하고 민다**
+- [ ] **Step 6: 커밋하고 민다**
 
 ```bash
 cd /Users/cheonjamin/projects/AllDap
 git add web/lib/plans.ts "web/app/(site)/pricing/page.tsx" "web/app/(site)/layout.tsx" "web/app/(dashboard)/account/page.tsx" api/src/main/java/com/alldap/api/global/exception/ErrorCode.java
-git commit -m "docs: 사실과 어긋난 주석 다섯 곳과 요금제 metadata 를 고친다
+git commit -m "docs: 사실과 어긋난 주석 다섯 곳을 고친다
 
 plans.ts: \"2번 조각 미구현\" 은 PR #76 에서 끝나 거짓이 됐다.
   다만 숫자가 여기에만 있는 것은 그대로라, 그 이유를 대신 적었다.
 pricing: 머리 주석 첫 문장을 같은 주석 일곱 줄 뒤가 부정하고 있었다.
-pricing metadata: 이 파일이 스스로 금지한 \"숫자 직접 적기\" 를 어기고 있었고,
-  화면에서 뺀 \"가정값\" 주장이 검색 결과에만 남아 있었다.
 (site)/layout: 대시보드 헤더의 \"소개\" 는 \"봇 목록\" 으로 바뀌었다.
 account: 없는 파일을 가리켰다. 리다이렉트는 next.config.ts 에 있다.
 ErrorCode: 요금제를 바꾸는 자리가 /account 에서 /pricing 으로 옮겨졌다.
@@ -723,16 +723,24 @@ git push origin main
 
 ---
 
-## Task 5: 서랍이 닫힌 채로 카드가 숨는 것을 고친다 (B-5)
+## Task 5: 카드가 안 보이거나 서랍에 숨던 것을 고친다 (B-3, B-5)
 
 **Files:**
-- Modify: `web/app/(dashboard)/account/page.tsx:509` 부근
+- Modify: `web/app/(dashboard)/account/page.tsx:461-568` 부근 (JSX 재배치)
 
 **Interfaces:**
 - Consumes: 없음
-- Produces: 없음. Task 6 이 같은 JSX 블록을 재배치하므로 **Task 5 를 먼저 한다.**
+- Produces: `<details>` 가 `billed` 분기 밖으로 나오고 `open={justAddedId !== null || !billed}` 를 갖는다. Task 7 이 같은 파일의 `CardItem` 을 고친다.
 
-**배경:** 첫 카드만 `isDefault=true` 라 2번째부터는 `others` 행이고, `<details>` 에 `open` 이 없어 **등록 직후 닫힌 서랍 안에 들어간다.** 부작용으로 `justAddedId` + `alldap-card-in` 등장 애니메이션이 첫 카드에서만 동작한다(`globals.css:151-152` 가 설명하는 코드가 사실상 죽어 있다).
+**두 버그를 한 Task 로 묶는 이유:** B-3 과 B-5 가 <같은 `<details>` 줄>을 고친다. 나누면 한 PR 안에서 같은 줄을 두 번 바꾸는 커밋이 남고, 리뷰어는 첫 번째 버전을 읽을 이유가 없다.
+
+**B-5 배경:** 첫 카드만 `isDefault=true` 라 2번째부터는 전부 `others` 행인데 `<details>` 에 `open` 이 없다. **등록 직후 닫힌 서랍 안으로 사라진다.** 등록에 성공해도 화면에 아무 변화가 없어 실패한 것처럼 보인다. 부작용으로 `justAddedId` + `alldap-card-in` 등장 애니메이션이 첫 카드에서만 동작한다(`globals.css:151-152` 가 설명하는 코드가 사실상 죽어 있다).
+
+**B-3 배경:** `billed = data.methods.find(m => m.isDefault)` 다. 카드는 있는데 기본이 하나도 없으면 `billed` 가 `undefined` 라 **`else` 분기로 떨어져 카드 등록 타일만 그린다.** 사용자는 자기 카드를 보지도 지우지도 못하고 토스에는 빌링키가 남는다. V7 부분 유니크 인덱스는 "기본 1장 이하" 만 보장하고 "1장 이상" 은 앱 코드가 지키는데 `BillingService.register` 에 TOCTOU 경합이 있다. 같은 분기의 `AddCardTile` 에는 `full` 가드도 없다.
+
+⚠️ 경합 자체는 재현하지 않았다. **프론트가 그 상태에서 어떻게 그려지는지만 코드로 확인했다.**
+
+**고치는 방식:** 카드 목록(`<details>`)을 `billed` 분기 **밖으로** 꺼낸다. 조건이 `data.methods.length > 0` 이 되므로 기본이 없어도 카드가 보이고, `full` 가드는 이미 서랍 안에 있으므로 저절로 따라온다. 마크업을 복제하지 않는 것이 핵심이다.
 
 - [ ] **Step 1: 브랜치를 딴다**
 
@@ -742,62 +750,7 @@ git switch main && git pull
 git switch -c fix/account-card-states
 ```
 
-- [ ] **Step 2: `<details>` 에 `open` 을 붙인다**
-
-`web/app/(dashboard)/account/page.tsx` 의
-
-```tsx
-            <details className="group mt-4 rounded-xl border border-subtle bg-surface">
-```
-
-를 아래로 바꾼다.
-
-```tsx
-            {/* 방금 카드를 추가했으면 서랍을 열어둔다. 안 열면 2번째부터 등록한 카드가
-                <닫힌 서랍 안으로 사라진다> (첫 카드만 기본이라 나머지는 전부 여기 들어간다).
-                등장 애니메이션(globals.css 의 alldap-card-in)도 그때만 보인다.
-                제어 컴포넌트가 아니다. React 는 이 prop 이 <바뀔 때만> DOM 을 건드리므로
-                사용자가 손으로 닫으면 그대로 닫혀 있다. */}
-            <details open={justAddedId !== null} className="group mt-4 rounded-xl border border-subtle bg-surface">
-```
-
-- [ ] **Step 3: 로컬 검사를 통과시킨다**
-
-Run: `cd web && npx tsc --noEmit && npm run lint`
-Expected: 종료코드 0.
-
-- [ ] **Step 4: 커밋**
-
-```bash
-cd /Users/cheonjamin/projects/AllDap
-git add "web/app/(dashboard)/account/page.tsx"
-git commit -m "fix: 두 번째부터 등록한 카드가 닫힌 서랍에 숨던 것을 고친다
-
-첫 카드만 기본이라 2번째부터는 전부 서랍 행인데 <details> 에 open 이 없었다.
-등록에 성공해도 화면에 아무 변화가 없어 실패한 것처럼 보인다.
-globals.css 의 등장 애니메이션도 첫 카드에서만 동작하고 있었다.
-
-Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
-```
-
----
-
-## Task 6: 기본 카드가 없을 때 카드가 통째로 사라지던 것을 고친다 (B-3)
-
-**Files:**
-- Modify: `web/app/(dashboard)/account/page.tsx:461-568` 부근 (JSX 재배치)
-
-**Interfaces:**
-- Consumes: Task 5 가 붙인 `open={justAddedId !== null}`
-- Produces: `<details>` 의 `open` 조건이 `justAddedId !== null || !billed` 로 바뀐다. Task 8 이 같은 파일의 `CardItem` 을 고친다.
-
-**배경:** `billed = data.methods.find(m => m.isDefault)` 다. 카드는 있는데 기본이 하나도 없으면 `billed` 가 `undefined` 라 **`else` 분기로 떨어져 카드 등록 타일만 그린다.** 사용자는 자기 카드를 보지도 지우지도 못하고 토스에는 빌링키가 남는다. V7 부분 유니크 인덱스는 "기본 1장 이하" 만 보장하고 "1장 이상" 은 앱 코드가 지키는데 `BillingService.register` 에 TOCTOU 경합이 있다. 같은 분기의 `AddCardTile` 에는 `full` 가드도 없다.
-
-⚠️ 경합 자체는 재현하지 않았다. **프론트가 그 상태에서 어떻게 그려지는지만 코드로 확인했다.**
-
-**고치는 방식:** 카드 목록(`<details>`)을 `billed` 분기 **밖으로** 꺼낸다. 조건이 `data.methods.length > 0` 이 되므로 기본이 없어도 카드가 보이고, `full` 가드는 이미 서랍 안에 있으므로 저절로 따라온다. 마크업을 복제하지 않는 것이 핵심이다.
-
-- [ ] **Step 1: 청구 카드 블록과 서랍을 분리한다**
+- [ ] **Step 2: 청구 카드 블록과 서랍을 분리한다**
 
 `web/app/(dashboard)/account/page.tsx` 에서 아래 줄
 
@@ -814,7 +767,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
           <div className="mt-5 rounded-xl border border-subtle bg-surface p-5">
 ```
 
-- [ ] **Step 2: 청구 카드 블록의 닫는 태그를 맞추고, 경고와 서랍 조건을 새로 쓴다**
+- [ ] **Step 3: 청구 카드 블록의 닫는 태그를 맞추고, 경고와 서랍 조건을 새로 쓴다**
 
 같은 파일에서 청구 카드 블록이 닫히고 서랍이 시작하는 자리, 즉
 
@@ -853,17 +806,23 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
               ── 왜 <details> 인가 (직접 만든 토글이 아니라) ──────────────────────
 ```
 
-- [ ] **Step 3: 서랍의 `open` 조건과 요약 문구를 고친다**
+- [ ] **Step 4: 서랍의 `open` 조건과 요약 문구를 고친다**
 
-Task 5 에서 고친 줄
+아래 줄
 
 ```tsx
-            <details open={justAddedId !== null} className="group mt-4 rounded-xl border border-subtle bg-surface">
+            <details className="group mt-4 rounded-xl border border-subtle bg-surface">
 ```
 
-을 아래로 바꾼다.
+을 아래로 바꾼다. `open` 이 두 가지 일을 한다: 방금 카드를 추가했으면 열고(B-5), 청구 카드가 없으면 열어서 기본을 지정할 수 있게 한다(B-3).
 
 ```tsx
+            {/* 방금 카드를 추가했으면 서랍을 열어둔다. 안 열면 2번째부터 등록한 카드가
+                <닫힌 서랍 안으로 사라진다> (첫 카드만 기본이라 나머지는 전부 여기 들어간다).
+                등장 애니메이션(globals.css 의 alldap-card-in)도 그때만 보인다.
+                청구 카드가 없을 때도 연다. 그때는 사용자가 여기서 기본을 지정해야 한다.
+                제어 컴포넌트가 아니다. React 는 이 prop 이 <바뀔 때만> DOM 을 건드리므로
+                사용자가 손으로 닫으면 그대로 닫혀 있다. */}
             <details open={justAddedId !== null || !billed} className="group mt-4 rounded-xl border border-subtle bg-surface">
 ```
 
@@ -881,7 +840,7 @@ Task 5 에서 고친 줄
                     : "다른 카드 없음"}
 ```
 
-- [ ] **Step 4: 0장 분기의 닫는 태그를 맞춘다**
+- [ ] **Step 5: 0장 분기의 닫는 태그를 맞춘다**
 
 ```tsx
             </details>
@@ -897,21 +856,21 @@ Task 5 에서 고친 줄
 
 이 부분은 **그대로 둔다.** Step 2 에서 바깥 조건을 `data.methods.length > 0` 로 바꿨으므로 `else` 는 이제 진짜 "카드 0장" 이고, 그때는 `full` 이 참일 수 없어 가드가 필요 없다.
 
-- [ ] **Step 5: 타입과 린트로 JSX 구조가 맞는지 확인한다**
+- [ ] **Step 6: 타입과 린트로 JSX 구조가 맞는지 확인한다**
 
 Run: `cd web && npx tsc --noEmit && npm run lint`
 Expected: 종료코드 0.
 
 🔴 **여기서 JSX 닫는 태그 오류가 나면 Step 1, 2, 4 의 들여쓰기와 괄호를 다시 맞춘다.** 조각을 옮기는 작업이라 이 검사가 유일한 안전망이다.
 
-- [ ] **Step 6: 브라우저로 확인한다**
+- [ ] **Step 7: 브라우저로 확인한다**
 
 `preview_start` 로 `web` 을 띄운다. **Bash 로 dev 서버를 띄우지 않는다.**
 
 확인할 것:
 1. 카드 0장: 등록 타일 하나만 보인다.
 2. 카드 1장: 청구 카드 블록이 펼쳐져 있고 서랍은 "다른 카드 없음 · 카드 추가".
-3. 카드 2장: 두 번째 카드가 **닫히지 않은 서랍 안에** 보인다 (Task 5 의 효과).
+3. 카드 2장: 두 번째 카드가 **닫히지 않은 서랍 안에** 보인다 (전에는 닫힌 서랍에 숨었다).
 
 기본 카드가 없는 상태는 정상 경로로 만들 수 없다. DB 로 직접 만든다.
 
@@ -929,12 +888,12 @@ docker exec -i $(docker ps -qf name=postgres) psql -U alldap -d alldap -c "UPDAT
 
 ⚠️ 테스트 계정은 끝나고 지운다: `DELETE FROM users WHERE email LIKE '<패턴>'`.
 
-- [ ] **Step 7: 커밋**
+- [ ] **Step 8: 커밋**
 
 ```bash
 cd /Users/cheonjamin/projects/AllDap
 git add "web/app/(dashboard)/account/page.tsx"
-git commit -m "fix: 기본 카드가 없으면 카드가 통째로 안 보이던 것을 고친다
+git commit -m "fix: 카드가 안 보이거나 닫힌 서랍에 숨던 것을 고친다
 
 billed 는 is_default 인 카드를 찾는데, 카드는 있고 기본이 없으면 undefined 라
 \"카드 0장\" 분기로 떨어졌다. 그 상태의 사용자는 자기 카드를 보지도 지우지도 못하고
@@ -946,12 +905,17 @@ billed 는 is_default 인 카드를 찾는데, 카드는 있고 기본이 없으
 어느 카드로 청구되는지 모르는 상태이므로 아무 카드나 청구 카드라고 그리지 않고,
 모른다고 말한 뒤 기본을 지정할 수 있게 서랍을 열어둔다.
 
+같은 <details> 줄에 있던 두 번째 버그도 함께 고쳤다. open 이 없어서
+2번째부터 등록한 카드가 닫힌 서랍 안으로 사라졌다. 등록에 성공해도 화면에
+변화가 없어 실패한 것처럼 보였고, globals.css 의 등장 애니메이션도
+첫 카드에서만 동작하고 있었다.
+
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 ```
 
 ---
 
-## Task 7: 요금제를 "못 불러옴" 과 "아직 안 불러옴" 으로 가른다 (B-4)
+## Task 6: 요금제를 "못 불러옴" 과 "아직 안 불러옴" 으로 가른다 (B-4)
 
 **Files:**
 - Modify: `web/components/PlanCards.tsx:57-88` 부근, `:110-125` 부근
@@ -1074,14 +1038,14 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 ---
 
-## Task 8: 접근성 세 곳과 모르는 요금제 id 를 고친다
+## Task 7: 접근성 세 곳, 요금제 metadata, 모르는 요금제 id
 
 **Files:**
 - Modify: `web/app/(dashboard)/account/page.tsx:394` 부근, `:598` 부근, `:733-760` 부근
-- Modify: `web/app/(site)/pricing/page.tsx:81` 부근
+- Modify: `web/app/(site)/pricing/page.tsx:43` 부근, `:81` 부근
 
 **Interfaces:**
-- Consumes: Task 6 이 재배치한 JSX (같은 파일이지만 다른 블록이다)
+- Consumes: Task 5 가 재배치한 JSX (같은 파일이지만 다른 블록이다)
 - Produces: 없음
 
 - [ ] **Step 1: 비활성 삭제 버튼의 이유를 보이는 문장으로 바꾼다**
@@ -1164,7 +1128,34 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
       <section id="plans" aria-label="요금제" className="mt-12 scroll-mt-8">
 ```
 
-- [ ] **Step 3: 모르는 요금제 id 를 "새로고침" 으로 뭉개지 않는다**
+🔴 **이 단계는 원래 Task 4(`main` 직행)에 있었다.** 바꾸는 이유를 설명하는 데 세 줄이 드는 것을 보고 옮겼다. 설명이 필요하면 PR 이라는 것이 이 저장소의 기준이다.
+
+- [ ] **Step 3: `pricing` 의 metadata 에서 숫자와 낡은 주장을 뺀다**
+
+`web/app/(site)/pricing/page.tsx` 의
+
+```ts
+export const metadata: Metadata = {
+  title: "요금제 — AllDap",
+  description:
+    "봇이 답하지 못한 질문에는 요금을 받지 않습니다. 무료(월 200건)와 Pro(월 29,000원 · 3,000건) 두 플랜이며, 금액은 파일럿 전 가정값입니다.",
+};
+```
+
+를 아래로 바꾼다. 이 파일은 스스로 "숫자의 원본은 lib/plans.ts 하나다. 이 파일에 숫자를 직접 적지 않는다" 고 적어놓고 metadata 에서만 어기고 있었다. 그리고 "가정값입니다" 는 화면에서 뺀 주장이라 검색 결과에만 남아 있었다.
+
+```ts
+export const metadata: Metadata = {
+  title: "요금제 — AllDap",
+  /* 숫자를 적지 않는다. 이 파일의 규칙이 그렇고(원본은 lib/plans.ts 하나),
+     두 벌이 되면 요금이 바뀔 때 한쪽만 고치는 사고가 난다. */
+  description: "봇이 답하지 못한 질문에는 요금을 받지 않습니다. 무료와 Pro 두 요금제가 있습니다.",
+};
+```
+
+⚠️ `title` 의 문자는 원래 있던 것이라 건드리지 않는다.
+
+- [ ] **Step 4: 모르는 요금제 id 를 "새로고침" 으로 뭉개지 않는다**
 
 `web/app/(dashboard)/account/page.tsx` 의
 
@@ -1185,7 +1176,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
   const current = plan === null ? null : PLANS.find((p) => p.id === plan);
 ```
 
-- [ ] **Step 4: 그 세 번째 갈래를 화면에 그린다**
+- [ ] **Step 5: 그 세 번째 갈래를 화면에 그린다**
 
 같은 파일의
 
@@ -1215,14 +1206,14 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
         ) : (
 ```
 
-- [ ] **Step 5: 로컬 검사를 통과시킨다**
+- [ ] **Step 6: 로컬 검사를 통과시킨다**
 
 Run: `cd web && npx tsc --noEmit && npm run lint`
 Expected: 종료코드 0.
 
 🔴 `current` 의 타입이 `Plan | null | undefined` 가 되므로 아래쪽에서 `current.name` 등을 쓰는 자리가 좁혀지는지 `tsc` 가 확인해준다. 빨간불이 나면 삼항 순서(`null` 먼저, `undefined` 다음)를 다시 본다.
 
-- [ ] **Step 6: 커밋**
+- [ ] **Step 7: 커밋**
 
 ```bash
 cd /Users/cheonjamin/projects/AllDap
@@ -1234,6 +1225,10 @@ git commit -m "fix: 카드 버튼 접근성 셋과 모르는 요금제 id 안내
 \"기본으로\" 버튼에는 aria-label 이 없어 같은 카드사 카드가 여럿일 때 구별되지 않았다.
 /pricing 의 앵커 도착지 section 에 이름을 줬다. /account 가 이 자리를 직접 겨냥한다.
 
+/pricing 의 metadata description 도 고쳤다. 이 파일이 스스로 \"숫자를 직접 적지 않는다\"
+고 적어놓고 metadata 에서만 어기고 있었고, 화면에서 뺀 \"가정값\" 주장이 검색 결과에만
+남아 있었다.
+
 그리고 PLANS.find 의 결과를 ?? null 로 뭉개던 것을 갈랐다.
 서버가 우리가 모르는 요금제 id 를 주면 \"새로고침하세요\" 가 나가는데
 그건 영원히 안 통한다.
@@ -1243,13 +1238,13 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 ---
 
-## Task 9: 결정을 기록하고 PR② 를 올린다
+## Task 8: 결정을 기록하고 PR② 를 올린다
 
 **Files:**
 - Modify: `docs/decisions.md`
 
 **Interfaces:**
-- Consumes: Task 5~8 의 커밋
+- Consumes: Task 5~7 의 커밋
 - Produces: PR 번호 하나. 이 계획의 마지막이다.
 
 - [ ] **Step 1: `docs/decisions.md` 에 두 줄을 추가한다**
@@ -1321,13 +1316,17 @@ cat > /tmp/pr2-body.md <<'BODY'
 **①** 카드 목록(`<details>`)을 `billed` 분기 **밖으로** 꺼내 조건을 `data.methods.length > 0` 으로 바꿨다. 경고와 목록을 그 분기 안에 새로 쓰면 마크업이 두 벌이 되는데, 이 저장소는 이미 그 이유로 `AddCardTile` 을 따로 뺐다. 조건만 바꾸면 마크업은 한 벌 그대로고 **그 분기에 없던 `full` 가드도 저절로 따라온다.**
 어느 카드로 청구되는지는 우리도 모르므로 **아무 카드나 청구 카드로 그리지 않는다.** 모른다고 말하고 서랍을 열어 기본을 지정할 수 있게 한다.
 
-**②** `<details open={justAddedId !== null || !billed}>`. 제어 컴포넌트가 아니다. React 는 이 prop 이 바뀔 때만 DOM 을 건드리므로 사용자가 손으로 닫으면 그대로 닫혀 있다.
+**②** `<details open={justAddedId !== null || !billed}>`. ①과 **같은 줄**이라 한 커밋으로 묶었다. 나누면 한 PR 안에서 같은 줄을 두 번 바꾸는 커밋이 남고, 리뷰어는 첫 번째 버전을 읽을 이유가 없다.
+제어 컴포넌트가 아니다. React 는 이 prop 이 바뀔 때만 DOM 을 건드리므로 사용자가 손으로 닫으면 그대로 닫혀 있다.
 
 **③** `planFailed` 를 따로 두고, 실패했을 때 버튼이 사라진 이유를 화면에 적는다.
 
 **접근성 셋**: 비활성 삭제 버튼의 이유를 `title` 에서 **보이는 문장**으로 옮겼다(비활성 버튼은 초점을 못 받아 키보드·스크린리더가 `title` 에 도달할 방법이 아예 없다). "기본으로" 버튼에 `aria-label` 을 붙였다(서랍에 같은 카드사 카드가 최대 4장이라 구별이 안 됐다). `/pricing` 의 앵커 도착지 `<section id="plans">` 에 이름을 줬다.
 
 **뭉갠 값 하나**: `PLANS.find(...) ?? null` 을 걷어냈다. 서버가 우리가 모르는 요금제 id 를 주면 "새로고침하세요" 가 나갔는데 그건 영원히 안 통한다.
+
+**`/pricing` 의 metadata description**: 이 파일이 스스로 *"숫자의 원본은 lib/plans.ts 하나다. 이 파일에 숫자를 직접 적지 않는다"* 고 적어놓고 metadata 에서만 어기고 있었다. 그리고 화면에서 뺀 "가정값" 주장이 검색 결과에만 남아 있었다. 숫자를 뺐다.
+⚠️ **처음에는 이걸 `main` 직행으로 분류했다가 옮겼다.** 바꾸는 이유를 설명하는 데 세 줄이 드는 것을 보고 기준을 다시 봤다. 설명이 필요하면 PR 이라는 것이 이 저장소의 기준이고, 그 기준이 프로젝트 1순위 목적과 직결된다.
 
 ### 검증
 
@@ -1385,7 +1384,7 @@ cat > /tmp/pr2-body.md <<'BODY'
 | 🔴 | `web/app/(dashboard)/account/page.tsx` 카드 목록 블록 | JSX 를 옮긴 작업이다. 세 상태(0장 / 정상 / 기본 없음)가 전부 맞게 그려지는가. 청구 카드가 서랍에 **두 번** 그려지지 않는가 |
 | 🟡 | `web/components/PlanCards.tsx` | `planFailed` 가 토큰이 바뀔 때 초기화되는가. 실패 안내가 마케팅 본문을 가리지 않는가 |
 | 🟡 | `account/page.tsx` 의 `current` 삼항 | `null`(못 불러옴)과 `undefined`(모르는 id)의 순서. 뒤집으면 안내가 서로 바뀐다 |
-| 🟢 | 접근성 세 곳, `/pricing` 의 `aria-label` | 문구와 속성 |
+| 🟢 | 접근성 세 곳, `/pricing` 의 `aria-label` 과 metadata | 문구와 속성 |
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
 
