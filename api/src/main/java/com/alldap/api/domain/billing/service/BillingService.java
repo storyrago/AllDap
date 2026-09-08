@@ -6,6 +6,8 @@ import com.alldap.api.domain.billing.dto.BillingMethodsResponse;
 import com.alldap.api.domain.billing.dto.RegisterBillingMethodRequest;
 import com.alldap.api.domain.billing.entity.BillingMethod;
 import com.alldap.api.domain.billing.repository.BillingMethodRepository;
+import com.alldap.api.domain.plan.Plan;
+import com.alldap.api.domain.user.entity.User;
 import com.alldap.api.domain.user.repository.UserRepository;
 import com.alldap.api.global.crypto.BillingCrypto;
 import com.alldap.api.global.exception.ApiException;
@@ -111,6 +113,13 @@ public class BillingService {
      * 카드 삭제. <b>토스 먼저, 우리 나중.</b> {@code @Transactional} 없음. (둘 다 V6 때의 설계 그대로다 —
      * 이유는 이 클래스 javadoc 과 {@code docs/superpowers/specs/2026-09-06-billing-method-design.md})
      *
+     * <h2>🔴 유료 요금제의 <b>마지막</b> 카드는 지우지 않는다 (409)</h2>
+     * 지우면 "카드 없는 유료 계정" 이 된다. 같은 불변식을 {@code PlanService.changePlan} 이
+     * 반대 방향에서도 막는다(카드 0장이면 유료로 못 바꾼다) — <b>한쪽만 막으면 규칙이 없는 것과
+     * 같기 때문</b>이다(유료로 바꾼 뒤 카드를 지우면 그만이다).
+     * ⚠️ 지금은 청구가 없어 이 상태가 당장 사고를 내지는 않는다. 그럼에도 지금 막는 이유는
+     * 4번 조각(청구)이 이 불변식 위에 얹히기 때문이다 — 나중에 넣으면 이미 어긴 계정부터 정리해야 한다.
+     *
      * <h2>🔴 기본 카드는 다른 카드가 남아 있으면 지우지 않는다 (409)</h2>
      * 지우면 "카드는 있는데 기본이 없는" 상태가 된다. 대안이었던 <b>자동 승계</b>(가장 최근 카드를 기본으로)는
      * 토스 호출 <b>뒤에</b> DB 쓰기가 두 번(삭제 + 승계)이 되어 그 둘을 묶을 트랜잭션이 필요해진다 —
@@ -129,7 +138,14 @@ public class BillingService {
         BillingMethod method = billingMethodRepository.findByIdAndUserId(methodId, userId)
                 .orElseThrow(() -> new ApiException(ErrorCode.BILLING_METHOD_NOT_FOUND));
 
-        if (method.isDefault() && billingMethodRepository.countByUserId(userId) > 1) {
+        // 두 검사 모두 토스를 부르기 <전에> 끝난다. 부른 뒤 거부하면 토스 쪽 빌링키만 폐기되고
+        // 우리 행은 남는 최악의 불일치가 난다.
+        long owned = billingMethodRepository.countByUserId(userId);
+
+        if (owned == 1 && planOf(userId).isPaid()) {
+            throw new ApiException(ErrorCode.BILLING_METHOD_REQUIRED_BY_PLAN);
+        }
+        if (method.isDefault() && owned > 1) {
             throw new ApiException(ErrorCode.BILLING_DEFAULT_METHOD_IN_USE);
         }
 
@@ -186,6 +202,16 @@ public class BillingService {
                 // UsageService 가 기간 경계를 KST 로 내려주는 것과 같은 방식이다.
                 method.getCreatedAt().atZone(BILLING_ZONE).toOffsetDateTime(),
                 method.isDefault());
+    }
+
+    /**
+     * 이 계정의 요금제. 카드 삭제를 막을지 판단하는 데만 쓴다.
+     * ⚠️ 계정이 그 사이 지워졌다면 {@code INVALID_TOKEN} 이 아니라 <b>무료로 본다</b> —
+     * 여기서 예외를 던지면 "카드를 지우려 했더니 토큰이 이상하다" 는 엉뚱한 안내가 나가고,
+     * 어차피 바로 아래에서 토스 호출과 행 삭제가 이어져 계정 유무는 그 경로가 판단한다.
+     */
+    private Plan planOf(UUID userId) {
+        return userRepository.findById(userId).map(User::getPlan).orElse(Plan.FREE);
     }
 
     private String billingCustomerKey(UUID userId) {

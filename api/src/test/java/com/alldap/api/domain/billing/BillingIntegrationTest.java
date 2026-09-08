@@ -368,6 +368,41 @@ class BillingIntegrationTest {
     }
 
     @Test
+    @DisplayName("[요금제] 🔴 유료 요금제의 마지막 카드는 삭제 거부(409)이고 토스를 부르지 않는다")
+    void 유료_요금제의_마지막_카드는_못_지운다() {
+        String 유일 = 등록한다("61", "43301234****123*");
+        assertThat(request(HttpMethod.PUT, "/api/plan", ownerToken, Map.of("plan", "pro")).status())
+                .isEqualTo(200);
+        tossStub.reset();
+
+        Response 응답 = 삭제(ownerToken, 유일);
+
+        assertThat(응답.status()).isEqualTo(409);
+        assertThat(응답.json().path("error").path("code").asString())
+                .isEqualTo("BILLING_METHOD_REQUIRED_BY_PLAN");
+        // 🔴 이 검사가 <PlanService 의 반쪽>이다. 거기서는 "카드 0장이면 유료로 못 바꾼다" 를 막고,
+        //    여기서는 "유료인데 마지막 카드를 지우는 것" 을 막는다. 한쪽만 두면 유료로 바꾼 뒤
+        //    카드를 지워서 규칙을 우회할 수 있어 <규칙이 없는 것과 같아진다>.
+        assertThat(tossStub.received()).isEmpty();
+        assertThat(카드_행수(userId)).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("[요금제] 유료라도 카드가 두 장이면 기본이 아닌 쪽은 지워진다")
+    void 유료라도_카드가_둘이면_지워진다() {
+        등록한다("61", "43301234****123*");
+        String 둘째 = 등록한다("41", "55201234****456*");
+        assertThat(request(HttpMethod.PUT, "/api/plan", ownerToken, Map.of("plan", "pro")).status())
+                .isEqualTo(200);
+        tossStub.reset();
+        tossStub.enqueue(200, "");
+
+        assertThat(삭제(ownerToken, 둘째).status()).isEqualTo(204);
+        // 유료 계정에 카드가 한 장 남았다 — 불변식이 지켜진 상태다.
+        assertThat(카드_행수(userId)).isEqualTo(1);
+    }
+
+    @Test
     @DisplayName("[여러 장] 마지막 한 장은 기본이어도 삭제된다 — 남는 카드가 없으니 불변식이 깨지지 않는다")
     void 마지막_한_장은_기본이어도_삭제된다() {
         String 유일 = 등록한다("61", "43301234****123*");

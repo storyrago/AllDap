@@ -18,6 +18,8 @@
 import type {
   AuthResponse,
   BillingMethodsResponse,
+  PlanId,
+  PlanResponse,
   Bot,
   ChatMessage,
   ChatRequest,
@@ -467,6 +469,27 @@ export const api = {
      */
     setDefaultBillingMethod: (id: string) =>
       request<BillingMethodsResponse>(`/api/billing/methods/${id}/default`, { method: "PUT" }),
+  },
+
+  /**
+   * 요금제 (요금제 연동 4조각 중 2번).
+   *
+   * 🔴 <이 호출로 돈이 나가지 않는다.> 서버가 하는 일은 users.plan 한 칸을 읽고 쓰는 것이
+   *    전부이고, 청구는 4번 조각이라 아직 없다. 화면도 그렇게 안내한다.
+   *
+   * botId 를 받지 않는 이유: 요금제는 <계정>에 붙는다. 봇을 여러 개 만들어도 요금제는 하나다.
+   * 위 usage·billing 과 같다.
+   */
+  plan: {
+    getPlan: () => request<PlanResponse>("/api/plan"),
+    /**
+     * 요금제 변경. PUT 이라 같은 값을 몇 번 보내도 결과가 같다(버튼 연타가 안전하다).
+     *
+     * 🔴 카드가 한 장도 없는데 유료로 바꾸려 하면 409(PLAN_REQUIRES_BILLING_METHOD)다.
+     *    ApiError.message 에 "카드를 등록한 뒤 다시 선택해주세요" 가 들어 있으니 그대로 보여주면 된다.
+     */
+    changePlan: (plan: PlanId) =>
+      request<PlanResponse>("/api/plan", { method: "PUT", body: { plan } }),
   },
 
   /**

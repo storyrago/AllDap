@@ -1,5 +1,6 @@
 package com.alldap.api.domain.user.entity;
 
+import com.alldap.api.domain.plan.Plan;
 import com.alldap.api.global.common.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -96,6 +97,19 @@ public class User extends BaseEntity {
     private String billingCustomerKey;
 
     /**
+     * 이 계정이 고른 요금제 (V8, 2026-09-08). 새 계정은 {@code FREE} — DB 의 DEFAULT 가 정한다.
+     *
+     * <p>🔴 <b>이 값은 아직 아무것도 청구하지 않는다.</b> 요금제 연동 4조각 중 2번이고
+     * 청구(4번)가 없다. 지금 하는 일은 "무엇을 골랐나" 를 기억하는 것뿐이다.
+     *
+     * <p>{@code @Enumerated} 가 없는 것은 실수가 아니다 — {@code Plan.JpaConverter} 가
+     * {@code autoApply = true} 라 자동으로 붙는다. 그래야 DB 에도 소문자({@code "free"})로 들어가
+     * JSON·프론트와 표기가 같아진다({@code Plan} javadoc 참고).
+     */
+    @Column(name = "plan", length = 16, nullable = false)
+    private Plan plan;
+
+    /**
      * 정적 팩토리. {@code @Builder} 대신 이걸 쓰는 이유:
      * 빌더는 "이메일 없이 사용자 만들기" 같은 불완전한 객체 생성을 컴파일 단계에서 막지 못한다.
      * 정적 팩토리는 필수값을 파라미터로 강제하고, 이름으로 생성 의도를 드러낸다.
@@ -112,6 +126,9 @@ public class User extends BaseEntity {
         // 컬럼이 NOT NULL 이라 그런 행은 DB 가 거절하지만, 거절은 <가입 실패>로 사용자에게 간다.
         // 불변식은 그것을 지켜야 하는 객체 안에서 지키는 게 맞다.
         user.billingCustomerKey = generateBillingCustomerKey();
+        // DB 에도 DEFAULT 'free' 가 있지만 여기서도 넣는다 — Hibernate 는 INSERT 에 이 컬럼을
+        // 포함시키므로(nullable = false), 비워두면 DEFAULT 가 아니라 NULL 이 들어가 NOT NULL 위반이다.
+        user.plan = Plan.FREE;
         return user;
     }
 
@@ -119,6 +136,18 @@ public class User extends BaseEntity {
         byte[] bytes = new byte[BILLING_CUSTOMER_KEY_RANDOM_BYTES];
         RANDOM.nextBytes(bytes);
         return BILLING_CUSTOMER_KEY_PREFIX + HexFormat.of().formatHex(bytes);
+    }
+
+    /**
+     * 요금제 변경. {@code @Setter} 대신 이름 있는 메서드인 이유는 이 클래스의 다른 필드와 같다 —
+     * "무엇을 왜 바꾸는지" 가 호출부에서 읽혀야 한다.
+     *
+     * <p>🔴 <b>여기서 카드 유무를 검사하지 않는다.</b> 그건 {@code PlanService} 의 일이다 —
+     * 엔티티가 다른 테이블(billing_methods)을 조회할 수는 없기 때문이다.
+     * 이 메서드는 "바꾼다" 만 하고, "바꿔도 되는가" 는 서비스가 판단한다.
+     */
+    public void changePlan(Plan plan) {
+        this.plan = plan;
     }
 
     // TODO(W2): 비밀번호 변경·이름 변경이 필요해지면 changePassword(String newHash) 처럼
