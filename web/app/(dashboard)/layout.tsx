@@ -93,12 +93,20 @@ export default function DashboardLayout({
             AllDap
           </Link>
           {/* 사용자 이름을 띄우려면 GET /api/auth/me 가 필요한데 아직 없다.
-              지금은 계정 메뉴 자리에 결제 수단과 로그아웃 둘만 둔다.
+              지금은 계정 메뉴 자리에 소개·결제 수단·로그아웃 셋만 둔다.
+
+              "소개"(→ 랜딩)가 있는 이유: 로그인하면 랜딩·기능 페이지로 돌아갈 길이 없었다
+              (2026-09-07 테스트에서 발견). 랜딩에 "기능" 메뉴가 있고 기능 페이지 상단에서
+              요금제·FAQ 로 이어지므로 링크 하나면 공개 페이지 전부에 닿는다.
+              반대 방향(마케팅 헤더 → 대시보드)은 components/AuthLink.tsx 가 맡는다.
 
               결제 수단이 <봇 화면이 아니라 헤더>에 있는 이유: 청구 대상이 계정이라
               봇을 여러 개 만들어도 카드는 한 장이다. 봇 하위에 두면 "봇마다 카드가
               따로인가?" 라는 잘못된 인상을 준다. 사용량 카드가 /dashboard 에 있는 것과 같은 판단이다. */}
           <div className="flex items-center gap-4">
+            <Link href="/" className="text-xs text-muted hover:text-foreground">
+              소개
+            </Link>
             <Link
               href="/billing"
               className="text-xs text-muted hover:text-foreground"

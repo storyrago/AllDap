@@ -142,10 +142,7 @@ export default function DashboardPage() {
 
   return (
     <>
-      <PageHeader
-        title="내 봇"
-        description="봇 단위로 문서와 대화가 완전히 격리됩니다. 다른 봇의 문서는 절대 검색되지 않습니다."
-      />
+      <PageHeader title="내 봇" />
 
       <form onSubmit={handleCreate} className="mt-6 flex gap-2">
         <input
