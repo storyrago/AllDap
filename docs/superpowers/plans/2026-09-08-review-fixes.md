@@ -14,7 +14,8 @@
 - 코드 주석과 사용자에게 보이는 에러 메시지는 **한국어**로 쓴다. 에러는 "무엇을 어떻게 하면 되는지"까지 담는다.
 - 커밋 메시지 형식: `<타입>: <한국어 요약>` (feat / fix / refactor / test / docs / chore / review). 본문 끝에 `Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>`.
 - PR 본문은 `.github/PULL_REQUEST_TEMPLATE.md` 를 채운다. "한계 & 트레이드오프" 와 "검토한 대안" 두 칸이 핵심이다. 끝에 `🤖 Generated with [Claude Code](https://claude.com/claude-code)`.
-- 프론트 로컬 검사: `cd web && npx tsc --noEmit && npm run lint`
+- 프론트 로컬 검사: `cd web && npx tsc --noEmit && npm run lint && npm run check`
+  (`check` 는 Task 2 가 만든다. 그 전에는 마지막 명령을 뺀다)
 - 백엔드 로컬 검사: `cd api && ./gradlew test`
 - **`main` 푸시는 Vercel 자동 배포다.** Task 4 는 밀기 전에 반드시 로컬 검사를 통과시킨다.
 - **PR 은 올리기만 하고 CI 결과를 기다리지 않는다.** `gh pr create` 까지가 범위다.
@@ -29,12 +30,15 @@
 |---|---|---|
 | `web/lib/redirect.ts` | `?next=` 값을 같은 사이트 경로로만 좁히는 순수 함수 | 1 |
 | `web/lib/redirect.check.ts` | 위 함수의 자체 점검. 실패하면 `process.exit(1)` | 1, 2 |
-| `web/package.json` | `tsx` devDependency 와 `check` 스크립트 | 2, 5 |
+| `web/package.json` | `tsx` devDependency 와 `check` 스크립트 | 2, 5, 7 |
 | `.github/workflows/ci.yml` | web 잡에 로직 검사 단계 | 2 |
 | `web/app/(site)/auth/page.tsx` | 로그인 화면. 이동 중 문구 | 3 |
 | `web/components/AuthLink.tsx` | 공개 헤더의 로그인/대시보드 버튼. `?next=` 를 붙이는 유일한 곳 | 3 |
 | `AGENTS.md` | `?next=` 항목의 사실과 한계 | 3 |
-| `web/lib/plans.ts` | 요금제 정의. 숫자의 유일한 원본 | 4 |
+| `web/lib/plans.ts` | 요금제 정의(숫자의 유일한 원본)와 `resolvePlan` | 4, 7 |
+| `web/lib/plans.check.ts` | `resolvePlan` 의 세 갈래가 안 뭉개지는지 | 7 |
+| `web/lib/wallet.ts` | 카드 상태에서 <무엇을 그릴지> 판단만. 마크업 없음 | 5 |
+| `web/lib/wallet.check.ts` | 위 판단의 자체 점검 | 5 |
 | `web/app/(site)/pricing/page.tsx` | 요금제 페이지. 머리 주석(4), metadata·앵커 섹션(7) | 4, 7 |
 | `web/app/(site)/layout.tsx` | 공개 화면 공통 레이아웃 | 4 |
 | `api/src/main/java/com/alldap/api/global/exception/ErrorCode.java` | 에러 코드와 안내 문구 | 4 |
@@ -1178,6 +1182,9 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - Consumes: 없음
 - Produces: 없음
 
+🔴 **이 Task 에는 자동 검사를 안 붙인다. 사용자 승인을 받은 예외다.** 판단이 `signedIn && planFailed` 한 줄이라 순수 함수로 뽑아도 조건 하나짜리 껍데기가 되고, 실제로 재려면 렌더러(testing-library 등)가 필요한데 이 저장소에는 프론트 테스트 러너가 없다. 러너 도입은 이 PR 의 범위를 넘는다.
+**대가**: 이 수정은 Step 5 의 브라우저 확인으로만 지켜진다. 나중에 누가 `planFailed` 분기를 지워도 CI 는 모른다. Task 5·7 처럼 판단이 <여러 갈래>로 늘어나면 그때 뽑아낸다.
+
 **배경:** `plan` 이 `PlanId | null` 하나라 **"아직 안 불러옴" 과 "못 불러옴" 이 같은 값**이다. `GET /api/plan` 이 실패하면 바꾸기 버튼이 **이유 없이 사라진다.** `/account` 에서 "요금제 바꾸기" 로 온 사람이 정확히 이 화면을 만난다. `/account` 는 같은 상황을 `loading` 으로 갈라 안내한다(`account/page.tsx:596-600`).
 
 이 저장소가 반복해 내는 부류다. `AGENTS.md` 의 "낸 버그 5건" 이 전부 **원인이 다른 두 사실을 같은 값으로 뭉갠 것**이다.
@@ -1292,17 +1299,147 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 ---
 
-## Task 7: 접근성 세 곳, 요금제 metadata, 모르는 요금제 id
+## Task 7: 모르는 요금제 id(TDD), 접근성 세 곳, 요금제 metadata
 
 **Files:**
+- Create: `web/lib/plans.check.ts`
+- Modify: `web/lib/plans.ts` (`resolvePlan` 추가)
+- Modify: `web/package.json` (`check` 스크립트에 붙인다)
 - Modify: `web/app/(dashboard)/account/page.tsx:394` 부근, `:598` 부근, `:733-760` 부근
 - Modify: `web/app/(site)/pricing/page.tsx:43` 부근, `:81` 부근
 
 **Interfaces:**
-- Consumes: Task 5 가 재배치한 JSX (같은 파일이지만 다른 블록이다)
-- Produces: 없음
+- Consumes: Task 5 가 재배치한 JSX (같은 파일이지만 다른 블록이다), Task 5 가 늘린 `check` 스크립트
+- Produces: `resolvePlan(plan: string | null): Plan | null | undefined`
 
-- [ ] **Step 1: 비활성 삭제 버튼의 이유를 보이는 문장으로 바꾼다**
+🔴 **TDD 로 하는 것과 안 하는 것을 갈라 적는다.** Step 1~6(`resolvePlan`)은 검사를 먼저 빨간불로 만든다. Step 7~9(접근성 속성, metadata 문자열)에는 **자동 검사를 안 붙인다.** 렌더러가 필요하고 이 저장소에 프론트 테스트 러너가 없다. 사용자 승인을 받은 예외이며, 그 대가는 브라우저와 눈으로만 지켜진다는 것이다.
+
+- [ ] **Step 1: 검사를 먼저 쓴다**
+
+`web/lib/plans.check.ts` 를 새로 만든다. 아직 `resolvePlan` 이 없으므로 지금은 돌지 않는다. 그게 맞다.
+
+```ts
+/**
+ * resolvePlan 의 자체 점검. `npm run check` 가 돌린다.
+ *
+ * 재는 것은 하나다: <세 갈래가 뭉개지지 않는가.>
+ *   null       서버 응답을 못 받았다 (새로고침하면 될 수도 있다)
+ *   undefined  서버는 답했는데 우리가 모르는 요금제 id 다 (새로고침해도 그대로다)
+ *   Plan       알아냈다
+ * 🔴 이 저장소가 낸 버그가 전부 <원인이 다른 사실을 한 값으로 뭉갠 것>이다
+ *    (AGENTS.md "낸 버그 5건"). 그 규칙을 적어둔 파일 안에서 다섯 번째가 났다.
+ *    그래서 규칙을 글로 적는 대신 검사로 못박는다.
+ */
+import { PLANS, resolvePlan } from "./plans";
+
+let failed = 0;
+let total = 0;
+
+function check(label: string, got: unknown, expected: unknown) {
+  total++;
+  const ok = JSON.stringify(got) === JSON.stringify(expected);
+  if (!ok) failed++;
+  console.log(`  ${ok ? "✅" : "❌"} ${label}${ok ? "" : `\n       받음: ${JSON.stringify(got)}  기대: ${JSON.stringify(expected)}`}`);
+}
+
+console.log("resolvePlan: 세 갈래가 뭉개지지 않는가\n");
+
+check("못 불러옴은 null 이다", resolvePlan(null), null);
+check("아는 요금제는 그 정의를 준다", resolvePlan(PLANS[0].id)?.id, PLANS[0].id);
+check("모르는 id 는 undefined 다", resolvePlan("enterprise"), undefined);
+// 위 둘을 각각 통과해도 <서로 같은 값>이면 화면은 구별하지 못한다. 그것까지 못박는다.
+check("모르는 id 와 못 불러옴이 같은 값이 아니다", resolvePlan("enterprise") === resolvePlan(null), false);
+
+console.log(failed === 0 ? `\nOK: ${total}가지 통과` : `\n🔴 ${failed}건 실패`);
+if (failed) process.exit(1);
+```
+
+- [ ] **Step 2: 지금 화면이 하는 일 그대로를 `plans.ts` 에 옮긴다**
+
+🔴 **일부러 고치지 않고 옮긴다.** `account/page.tsx:394` 의 현재 식(`?? null`)을 그대로 쓴다. 검사가 실제 버그를 잡는지 먼저 봐야 한다.
+
+`web/lib/plans.ts` 끝에 붙인다.
+
+```ts
+/**
+ * 요금제 id 를 그 정의로 바꾼다.
+ *
+ * ⚠️ 인자가 `PlanId` 가 아니라 `string | null` 이다. 값이 <네트워크에서> 오기 때문이다.
+ *    서버가 우리보다 새 버전이면 우리가 모르는 id 를 준다. 타입에 `PlanId` 라고 적는 것과
+ *    런타임이 그 약속을 지키는 것은 다른 일이다.
+ */
+export function resolvePlan(plan: string | null): Plan | null | undefined {
+  return plan === null ? null : (PLANS.find((p) => p.id === plan) ?? null);
+}
+```
+
+`web/package.json` 의 `check` 스크립트에 붙인다.
+
+```json
+    "check": "tsx lib/redirect.check.ts && tsx lib/wallet.check.ts && tsx lib/plans.check.ts"
+```
+
+- [ ] **Step 3: 검사를 돌려 빨간불을 확인한다**
+
+Run: `cd web && npm run check`
+
+Expected: 종료코드 1. 앞의 두 검사는 통과하고 `plans.check.ts` 는 **4가지 중 2건**이 `❌` 다. **이 숫자는 실측했다.**
+
+```
+  ❌ 모르는 id 는 undefined 다
+       받음: null  기대: undefined
+  ❌ 모르는 id 와 못 불러옴이 같은 값이 아니다
+       받음: true  기대: false
+🔴 2건 실패
+```
+
+🔴 **2건이 아니면 멈춘다.** Step 1 의 기대값이나 Step 2 의 옮겨 적기를 다시 본다.
+
+- [ ] **Step 4: `resolvePlan` 을 고친다**
+
+`?? null` 한 조각을 걷어낸다. 그게 뭉개던 자리다.
+
+```ts
+export function resolvePlan(plan: string | null): Plan | null | undefined {
+  /* 🔴 `?? null` 을 쓰지 않는다. 그러면 "모르는 id" 가 "못 불러옴" 으로 둔갑하고,
+     화면이 그 사람에게 <영원히 안 통하는> "새로고침하세요" 를 안내하게 된다.
+     `find` 가 주는 undefined 를 그대로 흘려보내는 것이 세 번째 갈래다. */
+  return plan === null ? null : PLANS.find((p) => p.id === plan);
+}
+```
+
+- [ ] **Step 5: 검사를 돌려 초록불을 확인한다**
+
+Run: `cd web && npm run check`
+Expected: 종료코드 0. `redirect` 22가지 + `wallet` 18가지 + `plans` 4가지 전부 `✅`.
+
+- [ ] **Step 6: 화면이 `resolvePlan` 을 쓰게 한다**
+
+`web/app/(dashboard)/account/page.tsx` 의
+
+```tsx
+  /* 지금 요금제의 정의(이름·금액·포함량). plan 이 null 이면 <모른다>는 뜻이라 null 로 둔다 —
+     `?? PLANS[0]` 같은 기본값을 쓰면 못 불러온 것을 "무료 요금제" 라고 <거짓말>하게 된다. */
+  const current = plan === null ? null : (PLANS.find((p) => p.id === plan) ?? null);
+```
+
+를 아래로 바꾼다.
+
+```tsx
+  /* 지금 요금제의 정의(이름·금액·포함량). 세 갈래를 <가른다>: null 은 못 불러온 것,
+     undefined 는 서버가 우리가 모르는 id 를 준 것, 나머지는 알아낸 것.
+     `?? PLANS[0]` 같은 기본값을 쓰면 못 불러온 것을 "무료 요금제" 라고 <거짓말>하게 된다.
+     판단은 lib/plans.ts 에 있고 lib/plans.check.ts 가 지킨다. */
+  const current = resolvePlan(plan);
+```
+
+import 를 맞춘다. `PLANS` 를 이 파일에서 더 쓰지 않으면 함께 정리한다(`tsc` 가 알려준다).
+
+```tsx
+import { resolvePlan } from "@/lib/plans";
+```
+
+- [ ] **Step 7: 비활성 삭제 버튼의 이유를 보이는 문장으로 바꾼다**
 
 `web/app/(dashboard)/account/page.tsx` 의 `CardItem` 안
 
@@ -1366,7 +1503,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 ⚠️ `!card.isDefault` 와 `!deletable` 는 동시에 참이 되지 않는다. `deletable` 이 거짓인 경우는 "기본 카드인데 다른 카드가 남아 있을 때" 하나뿐이다.
 
-- [ ] **Step 2: 앵커 도착지에 이름을 준다**
+- [ ] **Step 8: 앵커 도착지에 이름을 준다**
 
 `web/app/(site)/pricing/page.tsx` 의
 
@@ -1384,7 +1521,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 🔴 **이 단계는 원래 Task 4(`main` 직행)에 있었다.** 바꾸는 이유를 설명하는 데 세 줄이 드는 것을 보고 옮겼다. 설명이 필요하면 PR 이라는 것이 이 저장소의 기준이다.
 
-- [ ] **Step 3: `pricing` 의 metadata 에서 숫자와 낡은 주장을 뺀다**
+- [ ] **Step 9: `pricing` 의 metadata 에서 숫자와 낡은 주장을 뺀다**
 
 `web/app/(site)/pricing/page.tsx` 의
 
@@ -1409,28 +1546,7 @@ export const metadata: Metadata = {
 
 ⚠️ `title` 의 문자는 원래 있던 것이라 건드리지 않는다.
 
-- [ ] **Step 4: 모르는 요금제 id 를 "새로고침" 으로 뭉개지 않는다**
-
-`web/app/(dashboard)/account/page.tsx` 의
-
-```tsx
-  /* 지금 요금제의 정의(이름·금액·포함량). plan 이 null 이면 <모른다>는 뜻이라 null 로 둔다 —
-     `?? PLANS[0]` 같은 기본값을 쓰면 못 불러온 것을 "무료 요금제" 라고 <거짓말>하게 된다. */
-  const current = plan === null ? null : (PLANS.find((p) => p.id === plan) ?? null);
-```
-
-를 아래로 바꾼다.
-
-```tsx
-  /* 지금 요금제의 정의(이름·금액·포함량). `?? PLANS[0]` 같은 기본값을 쓰면 못 불러온 것을
-     "무료 요금제" 라고 <거짓말>하게 된다.
-     🔴 세 갈래를 <가른다>: null 은 못 불러온 것, undefined 는 서버가 우리가 모르는 id 를
-        준 것, 나머지는 알아낸 것. 뭉개면 세 번째 사람에게 "새로고침하세요" 라고 안내하게
-        되는데 그건 영원히 안 통한다. */
-  const current = plan === null ? null : PLANS.find((p) => p.id === plan);
-```
-
-- [ ] **Step 5: 그 세 번째 갈래를 화면에 그린다**
+- [ ] **Step 10: 그 세 번째 갈래를 화면에 그린다**
 
 같은 파일의
 
@@ -1460,19 +1576,19 @@ export const metadata: Metadata = {
         ) : (
 ```
 
-- [ ] **Step 6: 로컬 검사를 통과시킨다**
+- [ ] **Step 11: 로컬 검사를 통과시킨다**
 
-Run: `cd web && npx tsc --noEmit && npm run lint`
-Expected: 종료코드 0.
+Run: `cd web && npx tsc --noEmit && npm run lint && npm run check`
+Expected: 셋 다 종료코드 0.
 
 🔴 `current` 의 타입이 `Plan | null | undefined` 가 되므로 아래쪽에서 `current.name` 등을 쓰는 자리가 좁혀지는지 `tsc` 가 확인해준다. 빨간불이 나면 삼항 순서(`null` 먼저, `undefined` 다음)를 다시 본다.
 
-- [ ] **Step 7: 커밋**
+- [ ] **Step 12: 커밋**
 
 ```bash
 cd /Users/cheonjamin/projects/AllDap
-git add "web/app/(dashboard)/account/page.tsx" "web/app/(site)/pricing/page.tsx"
-git commit -m "fix: 카드 버튼 접근성 셋과 모르는 요금제 id 안내를 고친다
+git add web/lib/plans.ts web/lib/plans.check.ts web/package.json "web/app/(dashboard)/account/page.tsx" "web/app/(site)/pricing/page.tsx"
+git commit -m "fix: 모르는 요금제 id 를 가르고, 카드 버튼 접근성 셋을 고친다
 
 비활성 삭제 버튼의 이유가 title 에만 있었다. 비활성 버튼은 초점을 못 받아
 키보드와 스크린리더가 도달할 방법이 없다. 늘 보이는 문장으로 바꿨다.
@@ -1483,9 +1599,10 @@ git commit -m "fix: 카드 버튼 접근성 셋과 모르는 요금제 id 안내
 고 적어놓고 metadata 에서만 어기고 있었고, 화면에서 뺀 \"가정값\" 주장이 검색 결과에만
 남아 있었다.
 
-그리고 PLANS.find 의 결과를 ?? null 로 뭉개던 것을 갈랐다.
-서버가 우리가 모르는 요금제 id 를 주면 \"새로고침하세요\" 가 나가는데
-그건 영원히 안 통한다.
+PLANS.find 의 결과를 ?? null 로 뭉개던 것을 lib/plans.ts 의 resolvePlan 으로
+옮기고 세 갈래를 갈랐다. 서버가 우리가 모르는 요금제 id 를 주면
+\"새로고침하세요\" 가 나가는데 그건 영원히 안 통한다.
+lib/plans.check.ts 를 먼저 빨간불(2건)로 만든 뒤 고쳤다.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 ```
@@ -1516,7 +1633,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 Run: `cd web && npx tsc --noEmit && npm run lint && npm run check`
 Expected: 셋 다 종료코드 0.
 
-🔴 `npm run check` 는 `redirect.check.ts` 와 `wallet.check.ts` 를 <둘 다> 돌린다. Task 5 가 뒤쪽을 붙였다.
+🔴 `npm run check` 는 이제 셋을 돌린다: `redirect.check.ts`(22) · `wallet.check.ts`(18) · `plans.check.ts`(4). Task 5 와 7 이 차례로 붙였다.
 
 - [ ] **Step 3: 커밋하고 민다**
 
@@ -1584,6 +1701,24 @@ cat > /tmp/pr2-body.md <<'BODY'
 
 ### 검증
 
+**①과 ②는 TDD 로 했다.** 깨진 것이 마크업이 아니라 <분기 판단>이라 렌더러 없이 잴 수 있다. 판단을 `lib/wallet.ts` 로 빼고 `lib/wallet.check.ts` 를 **먼저 빨간불로** 만든 뒤 고쳤다.
+
+```
+$ cd web && npm run check      # 수정 전
+  ❌ 기본 없음: 서랍을 그린다        받음: false  기대: true
+  ❌ 기본 없음: 경고한다
+  ❌ 기본 없음: 서랍을 열어둔다
+  ❌ 방금 추가: 서랍을 열어둔다
+🔴 4건 실패                       # 종료코드 1
+
+$ cd web && npm run check      # 수정 후
+OK: 18가지 통과                   # 종료코드 0
+```
+
+🔴 **예측이 두 군데 틀렸다는 것이 이 방식의 값어치다.** 처음에는 6건이 빨간불일 것이라 봤는데 실제로는 4건이었다. `"기본 없음: 두 장 다 서랍에 있다"` 와 `full` 가드는 **지금 코드에서도 통과한다** (`others` 는 `m.id !== billed?.id` 로 거르는데 `billed` 가 `undefined` 면 아무것도 안 걸러진다). **값은 이미 맞았고, 그 값을 쓰는 분기에 도달하지 못한 것**이 버그였다. 짐작만 했으면 엉뚱한 곳을 고쳤을 것이다.
+
+`resolvePlan` 도 같은 방식이다: `plans.check.ts` 4가지 중 2건 빨간불 → 고침 → 4가지 통과.
+
 `npx tsc --noEmit` · `npm run lint` 통과.
 
 브라우저 실측 (`preview_start` 로 띄운 dev 서버):
@@ -1598,6 +1733,7 @@ cat > /tmp/pr2-body.md <<'BODY'
 
 - 🔴 **①의 뿌리인 `BillingService.register` 의 TOCTOU 경합은 안 고쳤다.** 프론트가 그 상태를 견디게만 했다. **경합 자체는 재현하지 않았고**, 코드를 읽어 가능하다고 판단한 것이다. 서버 수정은 별도 슬라이스다.
 - **`<details open={...}>` 는 제어 컴포넌트가 아니다.** 사용자가 손으로 닫으면 그대로 닫혀 있고, 우리는 `justAddedId` 나 `billed` 가 **바뀔 때만** 연다. 의도한 동작이지만 "왜 다시 안 열리지" 로 읽힐 여지가 있다.
+- 🔴 **③(`planFailed`)과 접근성·metadata 에는 자동 검사가 없다.** 판단이 렌더 가드라 순수 함수로 뽑아도 조건 하나짜리 껍데기가 되고, 실제로 재려면 렌더러가 필요한데 이 저장소에 프론트 테스트 러너가 없다. 러너 도입은 별도 슬라이스다. **대가는 그 셋이 브라우저와 눈으로만 지켜진다는 것**이고, 나중에 누가 지워도 CI 는 모른다.
 - **접근성 수정을 스크린리더로 실제 검증하지 않았다.** 코드 수준의 개선이고, `title` 을 보이는 문장으로 바꾼 것은 눈으로 확인했다.
 - **리뷰 Minor 중 넷은 판정만 하고 안 고쳤다**: `/pricing`·`/faq`·`ReceptionHero` 의 CTA 문구와 목적지(카피 결정이라 별도), `EvidenceKind` 유니온 3벌 중복(파일 계열이 다르다), `DemoConsole.tsx:362` 빈 줄(값어치 없음), `auth/page.tsx` 의 `nextPath()` 이중 호출 경합(**실측으로 재현되지 않았다**). 값어치 판단으로 미룬 것이지 반증한 것이 아니다.
 - **B-6 은 고치지 않기로 결정했다.** `/pricing` 의 "결제 미연결" 문구를 되살리자는 제안인데, 사용자가 명시적으로 제거를 지시한 결정이고 돈이 나갈 경로도 없다.
@@ -1635,6 +1771,7 @@ cat > /tmp/pr2-body.md <<'BODY'
 
 | Risk | 파일 / 영역 | 봐야 할 것 |
 |---|---|---|
+| 🔴 | `web/lib/wallet.ts` | 판단이 여기로 다 왔는가. 화면에 남은 조건문이 없는가 |
 | 🔴 | `web/app/(dashboard)/account/page.tsx` 카드 목록 블록 | JSX 를 옮긴 작업이다. 세 상태(0장 / 정상 / 기본 없음)가 전부 맞게 그려지는가. 청구 카드가 서랍에 **두 번** 그려지지 않는가 |
 | 🟡 | `web/components/PlanCards.tsx` | `planFailed` 가 토큰이 바뀔 때 초기화되는가. 실패 안내가 마케팅 본문을 가리지 않는가 |
 | 🟡 | `account/page.tsx` 의 `current` 삼항 | `null`(못 불러옴)과 `undefined`(모르는 id)의 순서. 뒤집으면 안내가 서로 바뀐다 |
