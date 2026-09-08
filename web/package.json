@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "check": "tsx lib/redirect.check.ts"
+    "check": "tsx lib/redirect.check.ts && tsx lib/wallet.check.ts"
   },
   "dependencies": {
     "@tosspayments/tosspayments-sdk": "^2.8.1",
