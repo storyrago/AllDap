@@ -58,3 +58,17 @@ export const PLANS: readonly Plan[] = [
     extraEvalRunKrw: 2_000,
   },
 ];
+
+/**
+ * 요금제 id 를 그 정의로 바꾼다.
+ *
+ * ⚠️ 인자가 `PlanId` 가 아니라 `string | null` 이다. 값이 <네트워크에서> 오기 때문이다.
+ *    서버가 우리보다 새 버전이면 우리가 모르는 id 를 준다. 타입에 `PlanId` 라고 적는 것과
+ *    런타임이 그 약속을 지키는 것은 다른 일이다.
+ */
+export function resolvePlan(plan: string | null): Plan | null | undefined {
+  /* 🔴 `?? null` 을 쓰지 않는다. 그러면 "모르는 id" 가 "못 불러옴" 으로 둔갑하고,
+     화면이 그 사람에게 <영원히 안 통하는> "새로고침하세요" 를 안내하게 된다.
+     `find` 가 주는 undefined 를 그대로 흘려보내는 것이 세 번째 갈래다. */
+  return plan === null ? null : PLANS.find((p) => p.id === plan);
+}

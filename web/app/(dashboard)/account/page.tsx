@@ -44,7 +44,7 @@ import Link from "next/link";
 import { loadTossPayments } from "@tosspayments/tosspayments-sdk";
 import { ApiError, api } from "@/lib/api";
 import type { BillingCard, BillingMethodsResponse, PlanId } from "@/lib/types";
-import { PLANS } from "@/lib/plans";
+import { resolvePlan } from "@/lib/plans";
 import { MAX_METHODS, walletView } from "@/lib/wallet";
 import { PageHeader } from "@/components/PageHeader";
 import { CardFace } from "@/components/CardFace";
@@ -384,9 +384,11 @@ export default function AccountPage() {
     data.methods,
     justAddedId,
   );
-  /* 지금 요금제의 정의(이름·금액·포함량). plan 이 null 이면 <모른다>는 뜻이라 null 로 둔다 —
-     `?? PLANS[0]` 같은 기본값을 쓰면 못 불러온 것을 "무료 요금제" 라고 <거짓말>하게 된다. */
-  const current = plan === null ? null : (PLANS.find((p) => p.id === plan) ?? null);
+  /* 지금 요금제의 정의(이름·금액·포함량). 세 갈래를 <가른다>: null 은 못 불러온 것,
+     undefined 는 서버가 우리가 모르는 id 를 준 것, 나머지는 알아낸 것.
+     `?? PLANS[0]` 같은 기본값을 쓰면 못 불러온 것을 "무료 요금제" 라고 <거짓말>하게 된다.
+     판단은 lib/plans.ts 에 있고 lib/plans.check.ts 가 지킨다. */
+  const current = resolvePlan(plan);
 
   return (
     <>
@@ -605,6 +607,12 @@ export default function AccountPage() {
             요금제를 불러오지 못했습니다. 화면을 새로고침해주세요. (카드 관리는 위에서 계속 쓸 수
             있습니다)
           </p>
+        ) : current === undefined ? (
+          /* 서버는 답했는데 우리가 모르는 요금제 id 다. 새로고침해도 그대로다.
+             할 수 있는 일이 문의뿐이라 그렇게 안내한다. */
+          <p role="alert" className="mt-4 text-sm text-danger">
+            알 수 없는 요금제입니다 ({plan}). 새로고침해도 달라지지 않으니 문의해주세요.
+          </p>
         ) : (
           <>
             <div className="mt-4 rounded-xl border border-subtle bg-surface p-5">
@@ -749,17 +757,27 @@ function CardItem({
               type="button"
               onClick={onSetDefault}
               disabled={busy}
+              /* 서랍에는 같은 카드사 카드가 최대 4장까지 들어간다. "기본으로" 라는 글자만으로는
+                 스크린리더 사용자가 어느 카드의 버튼인지 알 수 없다. 삭제 버튼과 같은 label 을 쓴다. */
+              aria-label={`${label} 기본으로 지정`}
               className="text-xs text-muted underline hover:text-foreground disabled:opacity-50"
             >
               기본으로
             </button>
+          )}
+          {!deletable && (
+            /* 왜 title 이 아니라 <보이는 문장>인가: 비활성 버튼은 초점을 받지 못해
+               키보드·스크린리더 사용자가 title 에 도달할 방법이 아예 없다. 눈으로 보는
+               사람도 마우스를 올려야만 읽을 수 있었다. 이유는 늘 보이는 편이 낫다. */
+            <span className="text-xs text-muted">
+              다른 카드를 기본으로 지정한 뒤 삭제할 수 있습니다.
+            </span>
           )}
           <button
             type="button"
             onClick={onArm}
             disabled={busy || !deletable}
             aria-label={`${label} 삭제`}
-            title={deletable ? undefined : "다른 카드를 기본으로 지정한 뒤 삭제할 수 있습니다."}
             className="ml-auto text-xs text-danger underline disabled:opacity-40 disabled:no-underline"
           >
             삭제
