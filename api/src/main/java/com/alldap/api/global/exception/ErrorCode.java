@@ -114,6 +114,14 @@ public enum ErrorCode {
             "카드는 최대 5장까지 등록할 수 있습니다. 쓰지 않는 카드를 삭제한 뒤 등록해주세요."),
     BILLING_DEFAULT_METHOD_IN_USE(HttpStatus.CONFLICT, "BILLING_DEFAULT_METHOD_IN_USE",
             "기본 카드는 삭제할 수 없습니다. 다른 카드를 기본으로 지정한 뒤 삭제해주세요."),
+
+    // 🔴 아래 둘은 <같은 불변식>("유료 요금제에는 카드가 있어야 한다")을 양쪽 방향에서 막는다.
+    //    한쪽만 두면 규칙이 없는 것과 같다 — 유료로 바꾼 뒤 카드를 지우면 그만이기 때문이다.
+    //    (PlanService javadoc 참고)
+    PLAN_REQUIRES_BILLING_METHOD(HttpStatus.CONFLICT, "PLAN_REQUIRES_BILLING_METHOD",
+            "유료 요금제로 바꾸려면 결제 카드가 먼저 필요합니다. 마이페이지에서 카드를 등록한 뒤 다시 선택해주세요."),
+    BILLING_METHOD_REQUIRED_BY_PLAN(HttpStatus.CONFLICT, "BILLING_METHOD_REQUIRED_BY_PLAN",
+            "유료 요금제를 쓰는 동안에는 마지막 카드를 삭제할 수 없습니다. 다른 카드를 먼저 등록하거나, 요금제를 무료로 바꾼 뒤 삭제해주세요."),
     BILLING_METHOD_NOT_FOUND(HttpStatus.NOT_FOUND, "BILLING_METHOD_NOT_FOUND",
             "그 카드를 찾을 수 없습니다. 이미 삭제됐을 수 있으니 화면을 새로고침해 확인해주세요."),
 

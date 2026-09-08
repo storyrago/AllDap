@@ -36,7 +36,8 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { loadTossPayments } from "@tosspayments/tosspayments-sdk";
 import { ApiError, api } from "@/lib/api";
-import type { BillingCard, BillingMethodsResponse } from "@/lib/types";
+import type { BillingCard, BillingMethodsResponse, PlanId } from "@/lib/types";
+import { PLANS } from "@/lib/plans";
 import { PageHeader } from "@/components/PageHeader";
 import { CardFace } from "@/components/CardFace";
 
@@ -94,6 +95,16 @@ export default function AccountPage() {
   const [justAddedId, setJustAddedId] = useState<string | null>(null);
 
   /*
+   * 지금 요금제. 카드 목록과 <따로> 들고 있는 이유: 출처가 다른 API 이고(GET /api/plan),
+   * 한쪽이 실패해도 다른 쪽은 보여줘야 하기 때문이다 — 카드를 못 불러온 것과 요금제를 못 불러온 것은
+   * 사용자가 할 수 있는 일이 다르다.
+   * `null` 은 <아직/못 불러옴> 이다. 로딩이 끝난 뒤에도 null 이면 요금제 칸만 안내 문구로 바뀐다.
+   */
+  const [plan, setPlan] = useState<PlanId | null>(null);
+  /* 요금제 변경 요청이 나가 있는 동안. 두 버튼을 함께 잠근다 — 어느 쪽을 눌러도 같은 값을 바꾼다. */
+  const [planBusy, setPlanBusy] = useState(false);
+
+  /*
    * 착지 처리를 이미 했는가. <상태가 아니라 ref 다> — 이 값이 바뀐다고 화면을 다시 그릴
    * 필요가 없고, 오히려 다시 그리면 안 된다.
    *
@@ -137,6 +148,17 @@ export default function AccountPage() {
        * 우리가 필요한 건 "돌아온 직후 딱 한 번 읽고 즉시 지우는" 것뿐이라 구독이 필요 없다.
        * effect 안이므로 여기는 반드시 브라우저다 — window 가 없을 걱정이 없다.
        */
+      /*
+       * 요금제 조회를 <먼저 띄워두고> 카드 쪽 일을 한다. 두 요청이 겹쳐 돌아 화면이 한 번에 뜬다.
+       * ⚠️ `.catch` 를 <이 자리에서> 붙이는 것이 중요하다. 아래에서 await 할 때까지 미뤄두면
+       *    그 사이 거절된 프로미스가 "처리되지 않은 거부" 로 콘솔에 오류를 남긴다.
+       *    실패는 null 로 바꿔 요금제 칸에서만 안내한다 — 카드 화면까지 같이 죽이지 않는다.
+       */
+      const planPromise = api.plan
+        .getPlan()
+        .then((r) => r.plan)
+        .catch(() => null);
+
       const params = new URLSearchParams(window.location.search);
       const authKey = params.get("authKey");
       const failCode = params.get("code");
@@ -200,6 +222,7 @@ export default function AccountPage() {
       } else {
         await load();
       }
+      setPlan(await planPromise);
       setLoading(false);
       if (landedError) setError(landedError);
       if (landedNotice) setNotice(landedNotice);
@@ -346,6 +369,29 @@ export default function AccountPage() {
     }
   }
 
+  /*
+   * 요금제 변경. 응답이 바뀐 요금제를 돌려주므로 다시 조회하지 않는다.
+   *
+   * 🔴 실패는 대부분 409(카드가 없는데 유료로 바꾸려 함)인데, 서버 문구가 이미
+   *    "카드를 등록한 뒤 다시 선택해주세요" 라고 <다음에 할 일>까지 알려준다. 우리가 다시 쓰지 않는다.
+   */
+  async function handleChangePlan(next: PlanId) {
+    setPlanBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const changed = await api.plan.changePlan(next);
+      setPlan(changed.plan);
+      // 조사는 "로" 로 고정한다 — 요금제 이름이 "무료"·"Pro" 라 둘 다 받침이 없어 "으로" 가 필요 없다.
+      // 받침 있는 이름을 추가하면 이 줄을 함께 봐야 한다.
+      setNotice(`요금제를 ${PLANS.find((p) => p.id === changed.plan)?.name ?? changed.plan}로 바꿨습니다.`);
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : "요금제를 바꾸지 못했습니다.");
+    } finally {
+      setPlanBusy(false);
+    }
+  }
+
   if (loading) return <p className="text-sm text-muted">불러오는 중…</p>;
   if (!data) {
     return (
@@ -356,6 +402,9 @@ export default function AccountPage() {
   }
 
   const full = data.methods.length >= MAX_METHODS;
+  /* 청구에 쓰이는 카드 = 기본 카드. 서버가 "카드가 있으면 기본이 정확히 하나" 를 보장하므로
+     (V7 의 부분 유니크 인덱스) 여기서 여러 장을 걱정할 필요가 없다. */
+  const billed = data.methods.find((m) => m.isDefault);
 
   return (
     <>
@@ -466,18 +515,117 @@ export default function AccountPage() {
         </div>
 
         {/*
-          🔴 여기에 <금액을 적지 않는다.> 플랜 테이블도 한도 검사도 청구도 아직 없어서
-             (요금제 연동 4조각 중 2·4번), 금액을 적으면 청구되지 않을 돈이 청구될 것처럼 읽힌다.
-             /dashboard 의 사용량 카드가 금액을 계산하지 않는 것과 같은 판단이다.
-             요금제 선택 UI 는 다음 슬라이스에서 이 자리에 들어온다.
+          🔴 이 자리에는 이제 <금액이 있다.> B2 까지는 "청구되지 않을 돈이 청구될 것처럼 읽힌다" 며
+             금액을 뺐는데, 요금제를 <고르는> 화면에서 값을 감추면 무엇을 고르는지 알 수 없다.
+             대신 <청구가 없다는 사실>을 아래 경고로 같은 자리에 붙인다 — 감추는 대신 말한다.
+             ⚠️ /dashboard 의 사용량 카드는 여전히 금액을 <계산하지> 않는다. 거기서 금액이 나오면
+                "이번 달에 이만큼 나간다" 로 읽히는데 그건 사실이 아니다. 고르는 값과 청구되는 값은 다르다.
+
+             숫자의 원본은 lib/plans.ts 하나다. 여기에 숫자를 직접 적지 않는다 —
+             /pricing 과 이 화면이 다른 금액을 말하는 일이 생길 자리를 만들지 않는다.
         */}
-        <div className="mt-4 rounded-lg border border-subtle bg-surface p-5">
-          <p className="text-sm font-medium">무료</p>
-          <p className="mt-1 text-sm text-muted">
-            요금제 선택과 청구는 아직 연결되지 않았습니다. 지금은 모든 계정이 무료로 동작하며, 등록한
-            카드로 결제되는 일도 없습니다.
+        {plan === null ? (
+          <p className="mt-4 text-sm text-muted">
+            요금제를 불러오지 못했습니다. 화면을 새로고침해주세요. (카드 관리는 위에서 계속 쓸 수 있습니다)
           </p>
-        </div>
+        ) : (
+          <>
+            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+              {PLANS.map((p) => {
+                const current = p.id === plan;
+                /* 카드가 없으면 유료로 못 바꾼다 — 서버 규칙(409)을 버튼에 미리 반영한다.
+                   판단은 서버가 하고, 여기는 왜 안 되는지를 앞당겨 알려줄 뿐이다. */
+                const blocked = p.monthlyPriceKrw > 0 && data.methods.length === 0;
+                return (
+                  <article
+                    key={p.id}
+                    className={`rounded-lg border bg-surface p-5 ${
+                      current ? "border-foreground" : "border-subtle"
+                    }`}
+                  >
+                    <div className="flex items-baseline justify-between">
+                      <p className="text-xs font-medium tracking-[0.18em] text-muted">{p.name}</p>
+                      {current && (
+                        <span className="rounded border border-success px-1.5 py-0.5 text-xs font-medium text-success">
+                          사용 중
+                        </span>
+                      )}
+                    </div>
+                    <p className="mt-2 text-2xl font-bold tracking-[-0.02em]">
+                      {p.monthlyPriceKrw.toLocaleString("ko-KR")}원
+                      <span className="ml-1 text-sm font-normal text-muted">/월</span>
+                    </p>
+                    <dl className="mt-4 space-y-1.5 text-sm">
+                      <div className="flex justify-between gap-4">
+                        <dt className="text-muted">답변</dt>
+                        <dd className="font-medium">
+                          월 {p.includedAnswers.toLocaleString("ko-KR")}건
+                        </dd>
+                      </div>
+                      <div className="flex justify-between gap-4">
+                        <dt className="text-muted">품질 평가</dt>
+                        <dd className="font-medium">월 {p.includedEvalRuns}회</dd>
+                      </div>
+                      <div className="flex justify-between gap-4">
+                        <dt className="text-muted">포함량 초과 답변</dt>
+                        <dd className="font-medium">
+                          {p.overageAnswerKrw === null
+                            ? "한도에서 멈춤"
+                            : `건당 ${p.overageAnswerKrw}원`}
+                        </dd>
+                      </div>
+                    </dl>
+
+                    {!current && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => handleChangePlan(p.id)}
+                          disabled={planBusy || blocked}
+                          className="mt-4 w-full rounded-md bg-foreground px-4 py-2 text-sm font-medium text-surface disabled:opacity-50"
+                        >
+                          {planBusy ? "바꾸는 중…" : `${p.name}로 바꾸기`}
+                        </button>
+                        {blocked && (
+                          <p className="mt-2 text-xs text-muted">
+                            유료 요금제로 바꾸려면 카드를 먼저 등록해주세요.
+                          </p>
+                        )}
+                      </>
+                    )}
+                  </article>
+                );
+              })}
+            </div>
+
+            <p className="mt-3 text-xs text-muted">모든 금액은 부가세 별도입니다.</p>
+
+            {/* 어느 카드로 청구되는지를 <요금제 칸에서> 보여준다. 위 결제 수단에도 같은 표시가 있지만,
+                "요금제를 고르는 순간" 사용자가 알고 싶은 것이 그것이라 여기서 한 번 더 말한다.
+                기본 카드가 곧 청구 카드다 — 개념이 하나라 두 화면이 어긋날 수 없다(V7 설계). */}
+            {billed && (
+              <p className="mt-3 text-sm text-muted">
+                청구 카드 ·{" "}
+                <b className="font-medium text-foreground">
+                  {billed.issuerName} {billed.cardNumberMasked}
+                </b>{" "}
+                — 위 결제 수단에서 기본 카드를 바꾸면 청구 카드도 함께 바뀝니다.
+              </p>
+            )}
+
+            {/*
+              🔴 거짓 완성 금지. 이 화면에서 가장 중요한 한 줄이다 — 위 카드들이 금액을 보여주므로
+                 이 문구가 없으면 사용자는 "Pro 를 눌렀으니 29,000원이 나간다" 고 믿는다.
+                 실제로는 users.plan 한 칸이 바뀔 뿐이고 청구는 4번 조각이라 아직 없다.
+                 청구가 붙으면 <반드시 이 문구를 지울 것.> (봇 설정의 낡은 경고를 2026-09-07 에
+                 뒤늦게 고친 전례가 있다 — 기능이 붙으면 그 기능을 <설명하는 자리>도 함께 고친다)
+            */}
+            <p className="mt-3 rounded-md border border-warning bg-warning-surface px-3 py-2 text-xs text-warning">
+              ⚠️ 요금제를 바꿔도 <b>청구는 일어나지 않습니다.</b> 지금은 선택만 저장되며, 실제 결제와
+              사용량 한도는 아직 연결되지 않았습니다.
+            </p>
+          </>
+        )}
       </section>
     </>
   );
