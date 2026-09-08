@@ -89,24 +89,39 @@ export default function DashboardLayout({
     <div className="flex min-h-dvh flex-col">
       <header className="border-b border-subtle bg-surface">
         <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-3">
-          <Link href="/dashboard" className="text-base font-semibold">
+          {/*
+            🔴 로고는 `/dashboard` 가 아니라 <랜딩>으로 간다 (2026-09-08).
+               사용자가 봇 목록에서 로고를 눌렀는데 아무 일도 안 일어나 겪은 문제다 —
+               이미 `/dashboard` 에 있으니 제자리 링크였다. 웹에서 워드마크는 <사이트의
+               처음 화면>으로 가는 것이 보편 관례이고, 공개 페이지 헤더(`(site)/layout.tsx`)의
+               같은 로고가 이미 `/` 로 간다. 두 헤더가 같은 글자로 다른 곳에 가면 안 된다.
+
+               ⚠️ 대신 <봇 목록으로 돌아가는 길을 새로 내야 했다.> 이 로고가 그 유일한
+                  길이었다(`BotNav` 에는 목록 링크가 없다). 아래 "봇 목록" 이 그것이다 —
+                  로고를 옮기기만 하고 이 링크를 안 만들면 봇 상세에 <갇힌다.>
+          */}
+          <Link href="/" className="text-base font-semibold">
             AllDap
           </Link>
           {/* 사용자 이름을 띄우려면 GET /api/auth/me 가 필요한데 아직 없다.
               지금은 계정 메뉴 자리에 소개·마이페이지·로그아웃 셋만 둔다.
 
-              "소개"(→ 랜딩)가 있는 이유: 로그인하면 랜딩·기능 페이지로 돌아갈 길이 없었다
-              (2026-09-07 테스트에서 발견). 랜딩에 "기능" 메뉴가 있고 기능 페이지 상단에서
-              요금제·FAQ 로 이어지므로 링크 하나면 공개 페이지 전부에 닿는다.
-              반대 방향(마케팅 헤더 → 대시보드)은 components/AuthLink.tsx 가 맡는다.
+              공개 페이지로 돌아갈 길은 <로고>가 맡는다(2026-09-08 에 "소개" 링크에서 옮겼다).
+              랜딩에 "기능" 메뉴가 있고 기능 페이지 상단에서 요금제·FAQ 로 이어지므로
+              링크 하나면 공개 페이지 전부에 닿는다.
+              반대 방향(마케팅 헤더 → 대시보드)은 components/AuthLink.tsx 가 맡고,
+              공개 페이지의 CTA 들은 `/auth` 가 스스로 로그인 여부를 보고 되돌려보낸다.
 
               마이페이지가 <봇 화면이 아니라 헤더>에 있는 이유: 결제도 요금제도 대상이 계정이라
               봇을 여러 개 만들어도 카드와 요금제는 계정 하나에 붙는다. 봇 하위에 두면
               "봇마다 따로인가?" 라는 잘못된 인상을 준다. 사용량 카드가 /dashboard 에 있는 것과 같은 판단이다.
               ⚠️ 2026-09-08 에 /billing 을 /account 로 옮겼다. 옛 주소에는 리다이렉트만 남아 있다. */}
           <div className="flex items-center gap-4">
-            <Link href="/" className="text-xs text-muted hover:text-foreground">
-              소개
+            {/* 🔴 "소개"(→ `/`) 자리를 "봇 목록"(→ `/dashboard`)이 대신한다. 로고가 랜딩을
+                   맡았으므로 소개는 같은 곳으로 가는 두 번째 링크가 되어 지웠고, 대신 로고가
+                   내려놓은 <봇 목록> 을 여기서 받는다. 링크 개수는 그대로다. */}
+            <Link href="/dashboard" className="text-xs text-muted hover:text-foreground">
+              봇 목록
             </Link>
             <Link
               href="/account"

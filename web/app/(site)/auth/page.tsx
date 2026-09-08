@@ -22,9 +22,16 @@
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
-import { useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
-import { ApiError, api, setAccessToken } from "@/lib/api";
+import {
+  ApiError,
+  api,
+  getAccessToken,
+  getAccessTokenServerSnapshot,
+  setAccessToken,
+  subscribeAccessToken,
+} from "@/lib/api";
 
 /** 로그인 탭인가 가입 탭인가. 값이 둘뿐이라 문자열 유니온으로 좁혀 오타를 컴파일 단계에서 잡는다. */
 type Mode = "login" | "signup";
@@ -36,6 +43,42 @@ export default function AuthPage() {
    * 화면에 보이는 링크라면 <Link> 가 낫고, 여기처럼 "로그인 성공 후 이동" 은 이 훅이 맞다.
    */
   const router = useRouter();
+
+  /*
+   * ─────────────────────────────────────────────────────────────────────────
+   * 🔴 이미 로그인한 사람이 여기 오면 대시보드로 보낸다 (2026-09-08)
+   * ─────────────────────────────────────────────────────────────────────────
+   * 없을 때 무슨 일이 났나: 로그인한 채로 랜딩에 가서 "고용하기" 를 누르면 <로그인 창이
+   * 다시 떴다.> 사용자가 실제로 겪은 경로다. 헤더 버튼(components/AuthLink.tsx)만
+   * 로그인 여부를 보고 갈래를 타고 있었고, 나머지 세 곳은 `/auth` 로 직행했다 —
+   * 랜딩 히어로의 "고용하기", `/pricing` 의 "도입 문의하기", `/faq` 의 "문의를 남겨주세요".
+   *
+   * 🔴 링크 세 개를 각각 고치지 않고 <도착지 한 곳>에서 막는다. 링크마다 고치면
+   *    ① 세 곳 모두 토큰을 읽어야 해서 공개 페이지 셋이 클라이언트 컴포넌트가 되고
+   *    ② 나중에 `/auth` 로 보내는 링크를 하나 더 만드는 순간 같은 버그가 되살아난다.
+   *    "로그인 화면은 로그인하지 않은 사람만 본다" 는 <이 화면의 성질>이지 링크의 성질이 아니다.
+   *
+   * ⚠️ 첫 렌더는 반드시 <비로그인 모습>이어야 한다. 서버 스냅샷이 undefined 를 주므로
+   *    서버 HTML 과 하이드레이션 첫 렌더가 "폼" 으로 일치한다(불일치면 React 가 화면을 깨뜨린다).
+   *    그 다음 실제 토큰을 읽어 갈라진다 — AuthLink·대시보드 레이아웃과 같은 방식이다.
+   */
+  const token = useSyncExternalStore(
+    subscribeAccessToken,
+    getAccessToken,
+    getAccessTokenServerSnapshot,
+  );
+
+  useEffect(() => {
+    /*
+     * `=== null` 이 아니라 `token` 인 것에 주의. 여기서 갈라야 하는 것은 <있다>이고,
+     * undefined(아직 못 읽음)와 null(확실히 없음)은 <둘 다 폼을 보여준다>. 대시보드
+     * 가드는 반대라 `=== null` 을 썼다 — 거기서는 "아직 모름" 에 튕기면 안 됐다.
+     *
+     * replace 인 이유는 로그인 성공 뒤 이동과 같다: push 면 대시보드에서 뒤로 가기를
+     * 눌렀을 때 로그인 화면으로 돌아오고, 그 화면이 다시 대시보드로 보내 <뒤로 가기가 막힌다>.
+     */
+    if (token) router.replace("/dashboard");
+  }, [token, router]);
 
   const [mode, setMode] = useState<Mode>("login");
   const [email, setEmail] = useState("");
@@ -91,6 +134,13 @@ export default function AuthPage() {
     // 탭을 바꾸면 이전 탭에서 난 에러는 더 이상 맞지 않는다. 남겨두면 사용자가 혼란스럽다.
     setError(null);
   }
+
+  /*
+   * 이동하는 동안 폼을 그리지 않는다. 그리면 로그인한 사람에게 로그인 창이 한 번 번쩍이는데,
+   * 그게 정확히 이 수정이 없애려는 증상이다. (훅을 전부 부른 <뒤>에 반환해야 한다 —
+   * 조건부로 훅을 건너뛰면 React 가 훅 순서를 잃는다)
+   */
+  if (token) return <p className="px-6 py-16 text-sm text-muted">대시보드로 이동합니다…</p>;
 
   return (
     <div className="mx-auto w-full max-w-md px-6 py-16">
