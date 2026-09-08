@@ -52,6 +52,12 @@ export function Evidence({
  * 페이지 제목 블록. 히어로의 큰 타이포(웨이트 800 · 좁은 자간)를 이어받되
  * 크기를 낮춘다 — 히어로는 극장이고 이 페이지들은 <안내문>이다.
  * 같은 폰트를 쓰면서 역할 차이를 크기로만 두는 것이 이 사이트의 위계다.
+ *
+ * ⚠️ `lead` 는 <선택>이다 (2026-09-08). 네 페이지가 전부 제목 아래에 제품 철학을 한 문장씩
+ *    달고 있었는데("제품이 지키려는 것과 매출이 같은 방향을 봅니다" 류), 읽는 사람이 알아야
+ *    할 것을 하나도 더 주지 않으면서 제목의 힘만 깎았다. 지금 lead 가 남은 곳은 `/demo`
+ *    하나이고, 거기서도 <문서 몇 개를 학습했는지>라는 사실과 사용법만 말한다.
+ *    새 페이지에 lead 를 넣으려거든 먼저 물을 것: 이 문장이 없으면 독자가 무엇을 못 하는가?
  */
 export function PageIntro({
   eyebrow,
@@ -60,7 +66,7 @@ export function PageIntro({
 }: {
   eyebrow: string;
   title: string;
-  lead: string;
+  lead?: string;
 }) {
   return (
     <div className="border-b border-subtle pb-10">
@@ -69,7 +75,9 @@ export function PageIntro({
       <h1 className="mt-4 text-4xl font-extrabold leading-tight tracking-[-0.035em] sm:text-5xl">
         {title}
       </h1>
-      <p className="mt-5 max-w-2xl text-base leading-relaxed text-muted sm:text-lg">{lead}</p>
+      {lead && (
+        <p className="mt-5 max-w-2xl text-base leading-relaxed text-muted sm:text-lg">{lead}</p>
+      )}
     </div>
   );
 }

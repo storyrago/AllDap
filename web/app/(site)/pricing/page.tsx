@@ -58,7 +58,6 @@ export default function PricingPage() {
       <PageIntro
         eyebrow="요금제"
         title="봇이 답하지 못한 질문에는 요금을 받지 않습니다."
-        lead="억지로 답하게 만들 이유가 회사 쪽에 생기지 않도록 과금 기준을 정했습니다. 제품이 지키려는 것과 매출이 같은 방향을 봅니다."
       />
 
       {/* 🔴 금액을 <가장 먼저> 보여주고, 바로 아래에 "어디서 나온 숫자인지" 를 붙인다.
@@ -95,28 +94,19 @@ export default function PricingPage() {
         </div>
       </section>
 
-      {/* 과금 기준이 제품 철학과 어떻게 이어지는지 — 이게 이 페이지의 논지다 */}
-      <section className="mt-14 border-t border-subtle pt-10">
-        <h2 className="max-w-3xl text-xl font-bold leading-snug tracking-[-0.025em] sm:text-2xl">
-          답변 수로 과금하면서 “못 답한 것은 빼는” 이유
-        </h2>
-        <p className="mt-4 max-w-2xl leading-relaxed text-muted">
-          답변 수만 세면, 봇이 근거 없이도 뭐라도 답하게 만드는 편이 회사에 이득이 됩니다. 그러면
-          이 제품이 팔려는 것(근거 없으면 답하지 않는다)과 매출이 서로 반대 방향을 봅니다. 못 답한
-          것을 과금에서 빼면 그 충돌이 사라집니다.
-        </p>
-        <Evidence kind="설계">
-          거절 여부는 대화 로그에 이미 기록됩니다. 관리자 화면에서 “답하지 못한 질문” 을 모아 보여주므로,
-          요금이 줄어드는 지점이 곧 <strong className="font-semibold text-foreground">문서를 보강할 지점</strong>이 됩니다.
-        </Evidence>
-
+      {/* 🔴 여기 있던 "답변 수로 과금하면서 못 답한 것은 빼는 이유" 섹션을 지웠다 (2026-09-08).
+             과금 기준이 제품 철학과 어떻게 이어지는지를 문단으로 설득하는 자리였는데, 바로 위
+             "답하지 못한 질문은 세지 않습니다" 가 이미 <규칙>으로 같은 말을 한다. 규칙을 읽은
+             사람에게 그 규칙의 정당성을 다시 설명하는 것은 읽는 사람이 아니라 만든 사람을 위한
+             글이다. CTA 만 남겨 이 자리를 <다음 행동>으로 되돌린다. */}
+      <div className="mt-14 border-t border-subtle pt-10">
         <Link
           href="/auth"
-          className="mt-8 inline-flex rounded-lg bg-foreground px-6 py-3 text-sm font-semibold text-surface"
+          className="inline-flex rounded-lg bg-foreground px-6 py-3 text-sm font-semibold text-surface"
         >
           도입 문의하기
         </Link>
-      </section>
+      </div>
     </div>
   );
 }
