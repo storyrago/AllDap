@@ -143,9 +143,9 @@ B-3 과 B-4 는 같은 부류다: **원인이 다른 두 사실을 한 값에 �
 
 | 항목 | 판정 |
 |---|---|
-| `account/page.tsx:394` 의 `PLANS.find(...) ?? null` | 서버가 모르는 플랜 id 를 주면 "새로고침하세요" 라고 안내하는데 새로고침은 영원히 안 통한다. 묶음 ③ 과 같은 부류라 거기서 함께 고친다 |
+| `account/page.tsx:394` 의 `PLANS.find(...) ?? null` | 서버가 모르는 플랜 id 를 주면 "새로고침하세요" 라고 안내하는데 새로고침은 영원히 안 통한다. B-4 와 같은 부류라 묶음 ③ 에서 함께 고친다 |
 | `/pricing:122`, `/faq:117`, `ReceptionHero:1022` 의 CTA | 도착지 가드는 옳다. 고칠 자리는 CTA 문구와 목적지인데, 그건 카피 결정이라 별도 슬라이스다. 안 고친다 |
-| `pricing/page.tsx:43` metadata description | 숫자 3개를 `lib/plans.ts` 와 두 벌로 적고, 화면에서 뺀 "가정값" 을 계속 말한다. 문구만 손본다 |
+| `pricing/page.tsx:43` metadata description | 숫자 3개를 `lib/plans.ts` 와 두 벌로 적고, 화면에서 뺀 "가정값" 을 계속 말한다. 문구 한 줄이라 묶음 ② 에 넣는다 |
 | `DemoConsole.tsx:362` 빈 줄 | 안 고친다. 값어치가 없다 |
 | `EvidenceKind` 유니온 3벌 중복 | `Evidence.tsx` 에서 export 하면 풀린다. 묶음 ③ 과 파일 계열이 달라 별도로 둔다 |
 | `auth/page.tsx` 의 `nextPath()` 이중 호출 경합 | **실측으로 재현되지 않았다**(React 스케줄링이 막는다). 안 고친다. 이유를 주석으로 남긴다 |
