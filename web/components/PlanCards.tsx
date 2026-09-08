@@ -53,10 +53,16 @@ export function PlanCards() {
   const signedIn = Boolean(token);
 
   /*
-   * 지금 요금제. `null` 은 <아직 못 불러왔거나 실패했다>는 뜻이고, 그때는 배지도 버튼도
-   * 그리지 않는다. 모르는 채로 "사용 중" 을 아무 카드에나 붙이면 그게 거짓말이다.
+   * 지금 요금제. `null` 은 <모른다>는 뜻이고, 그때는 배지도 버튼도 그리지 않는다.
+   * 모르는 채로 "사용 중" 을 아무 카드에나 붙이면 그게 거짓말이다.
+   *
+   * 🔴 "아직 안 불러왔다" 와 "불러오려다 실패했다" 를 <가른다> (2026-09-08 코드 리뷰).
+   *    전에는 둘 다 null 이라, 요청이 실패하면 바꾸기 버튼이 <이유 없이> 사라졌다.
+   *    /account 의 "요금제 바꾸기" 로 온 사람이 정확히 이 화면을 만난다.
+   *    이 저장소가 반복해 낸 부류다 (AGENTS.md "낸 버그 5건" 은 전부 이 모양이다).
    */
   const [plan, setPlan] = useState<PlanId | null>(null);
+  const [planFailed, setPlanFailed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -75,9 +81,12 @@ export function PlanCards() {
     void (async () => {
       try {
         setPlan((await api.plan.getPlan()).plan);
+        setPlanFailed(false);
       } catch {
-        /* 못 불러와도 마케팅 본문은 그대로 보여야 한다. 요금제 표시만 조용히 접는다. */
+        /* 못 불러와도 마케팅 본문은 그대로 보여야 한다. 요금제 표시만 접되,
+           <조용히> 접지는 않는다. 버튼이 사라진 이유를 아래에서 말한다. */
         setPlan(null);
+        setPlanFailed(true);
       }
     })();
   }, [token]);
@@ -120,6 +129,14 @@ export function PlanCards() {
       {notice && (
         <p role="status" className="mb-4 text-sm text-success">
           {notice}
+        </p>
+      )}
+      {/* 🔴 버튼이 사라진 이유를 말한다. 안 말하면 사용자는 <기능이 없는 화면>이라고 읽는다.
+             role="alert" 은 쓰지 않는다: 급한 오류가 아니고 마케팅 본문은 그대로 읽을 수 있다. */}
+      {signedIn && planFailed && (
+        <p role="status" className="mb-4 text-sm text-danger">
+          지금 쓰는 요금제를 불러오지 못했습니다. 화면을 새로고침하면 다시 시도합니다. 아래 내용은
+          그대로 보실 수 있습니다.
         </p>
       )}
 
