@@ -149,7 +149,7 @@ export default function SettingsPage() {
 
   return (
     <>
-      <PageHeader title="봇 설정" description="봇 이름과 사용자에게 보이는 문구를 관리합니다." />
+      <PageHeader title="봇 설정" />
 
       <form onSubmit={handleSave}>
         <Section title="기본 정보">
