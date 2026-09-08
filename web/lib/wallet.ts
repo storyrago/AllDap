@@ -3,6 +3,8 @@ import type { BillingCard } from "./types";
 /**
  * 계정당 카드 상한. 서버(`BillingService.MAX_METHODS`)와 같은 값이다.
  * 화면(`app/(dashboard)/account/page.tsx`)에서 여기로 옮겼다. 판단이 이 파일로 왔기 때문이다.
+ * 여기 두는 이유는 <버튼을 미리 감추기> 위해서일 뿐, 판단은 서버가 한다(넘으면 409).
+ * 두 값이 어긋나면 화면이 허용한 등록을 서버가 거부하는 것으로 드러난다. 조용히 틀리진 않는다.
  */
 export const MAX_METHODS = 5;
 

@@ -47,6 +47,8 @@ console.log("walletView: 카드 상태별로 무엇을 그리는가\n");
   check("1장: 그 카드가 청구 카드다", v.billed?.id, "a");
   check("1장: 서랍은 비어 있다", v.others, []);
   check("1장: 서랍은 닫혀 있다", v.drawerOpen, false);
+  // 1장짜리 서랍은 비어 있지 않다. "카드 추가" 타일이 그 안에 있다.
+  check("1장: 서랍을 그린다", v.showDrawer, true);
 }
 {
   const [a, b] = [card("a", true), card("b", false)];
@@ -71,6 +73,17 @@ console.log("walletView: 카드 상태별로 무엇을 그리는가\n");
   check("기본 없음: 경고한다", v.warnNoDefault, true);
   check("기본 없음: 서랍을 열어둔다", v.drawerOpen, true);
   check("기본 없음: 청구 카드가 없다", v.billed, undefined);
+}
+{
+  // 🔴 TOCTOU 경합의 가장 흔한 결과물: <첫 카드 한 장>이 기본이 아닌 채로 남는다.
+  //    2장 케이스만 있으면 `methods.length > 1` 같은 실수가 검사를 그대로 통과한다
+  //    (실제로 뮤테이션 테스트에서 살아남았다). 그때 사용자는 카드 한 장을
+  //    보지도 지우지도 못하는데 CI 는 초록불이다.
+  const v = walletView([card("a", false)], null);
+  check("기본 없음 1장: 서랍을 그린다", v.showDrawer, true);
+  check("기본 없음 1장: 경고한다", v.warnNoDefault, true);
+  check("기본 없음 1장: 서랍을 열어둔다", v.drawerOpen, true);
+  check("기본 없음 1장: 그 카드가 서랍에 있다", v.others.map((c) => c.id), ["a"]);
 }
 {
   const v = walletView([card("a", false), card("b", false), card("c", false), card("d", false), card("e", false)], null);
