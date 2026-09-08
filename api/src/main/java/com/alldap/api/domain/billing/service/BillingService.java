@@ -180,6 +180,7 @@ public class BillingService {
     private BillingMethodsResponse.Card toCard(BillingMethod method) {
         return new BillingMethodsResponse.Card(
                 method.getId(),
+                method.getIssuerCode(),
                 CardIssuer.nameOf(method.getIssuerCode()),
                 method.getCardNumberMasked(),
                 // UsageService 가 기간 경계를 KST 로 내려주는 것과 같은 방식이다.

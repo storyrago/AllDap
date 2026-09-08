@@ -130,6 +130,37 @@ html {
   100% { transform: translateY(11px); opacity: 0; }
 }
 
+/* ─────────────────────────────────────────────────────────────────────────────
+   결제 수단 카드(/account)의 등장·퇴장
+   ─────────────────────────────────────────────────────────────────────────────
+   여기 있는 이유는 위 히어로 애니메이션과 같다 — 키프레임은 인라인 style 로 못 쓴다.
+
+   ⚠️ 퇴장(alldap-card-out)은 <요청이 나가 있는 동안> 돈다. 삭제는 토스 호출이라 1초 안팎이
+      걸리고, 그 시간이 곧 애니메이션 시간이다. "지워지는 척" 이 아니라 실제로 지워지는 중이다.
+      실패하면(503 — 카드가 그대로 남는다) 클래스가 떨어지며 카드가 도로 보인다. 그게 맞다.
+   ⚠️ 등장은 <방금 등록한 카드 한 장>에만 붙인다. 화면에 들어올 때마다 전부 튀어오르면
+      목록을 읽으러 온 사람에게는 방해일 뿐이다. */
+@keyframes adCardIn {
+  from { opacity: 0; transform: translateY(14px) scale(0.96); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes adCardOut {
+  to { opacity: 0; transform: translateY(6px) scale(0.93); }
+}
+.alldap-card-in { animation: adCardIn 460ms cubic-bezier(0.2, 0.85, 0.25, 1) both; }
+.alldap-card-out { animation: adCardOut 280ms ease-in both; }
+
+/* 카드를 <집어 드는> 느낌. hover 는 인라인 style 로 표현할 수 없어 여기 있다. */
+.alldap-card { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+.alldap-card:hover { transform: translateY(-3px); }
+
+/* 움직임을 줄여달라고 한 사용자에게는 전부 끈다. 카드는 그냥 나타나고 사라진다. */
+@media (prefers-reduced-motion: reduce) {
+  .alldap-card-in,
+  .alldap-card-out,
+  .alldap-card { animation: none; transition: none; }
+}
+
 .alldap-caret { animation: adCaret 1.05s step-end infinite; }
 .alldap-wheel { animation: adWheel 1.6s ease-in-out infinite; }
 

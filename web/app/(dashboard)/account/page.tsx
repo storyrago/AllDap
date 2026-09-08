@@ -1,8 +1,11 @@
 "use client";
 
 /*
- * `/billing` — 결제 수단(카드) 목록 · 추가 · 삭제 · 기본 카드 지정.
- * V7(2026-09-08) 부터 <계정당 최대 5장>이고, 그중 <기본 카드> 하나가 청구에 쓰인다.
+ * `/account` — 마이페이지. 결제 수단(카드)과 요금제를 한 화면에서 관리한다.
+ *
+ * 2026-09-08 에 `/billing` 에서 옮겨 왔다. 옮긴 이유: 카드와 요금제는 <같은 결정>의 앞뒤다 —
+ * "어떤 요금제를 쓸지" 를 고르면 곧바로 "어느 카드로 낼지" 가 따라온다. 화면이 둘로 나뉘어 있으면
+ * 사용자가 그 사이를 오가야 한다. 옛 주소는 이 화면으로 넘긴다(`app/(dashboard)/billing/page.tsx`).
  *
  * ─────────────────────────────────────────────────────────────────────────────
  * 왜 이 파일에 "use client" 가 붙는가 (서버 컴포넌트와의 경계)
@@ -22,20 +25,20 @@
  * ─────────────────────────────────────────────────────────────────────────────
  * 호출하는 Spring API
  *   GET    /api/billing/methods               → BillingMethodsResponse
- *   POST   /api/billing/methods               → BillingMethodsResponse  (authKey 로 빌링키 발급, 목록 반환)
+ *   POST   /api/billing/methods               → BillingMethodsResponse  (authKey 로 빌링키 발급)
  *   DELETE /api/billing/methods/{id}          → 204
  *   PUT    /api/billing/methods/{id}/default  → BillingMethodsResponse
  * ─────────────────────────────────────────────────────────────────────────────
- * ⚠️ 이 화면은 <기능만> 맞춘 것이다. 실물 카드 모양·카드사 색·모션·/account 이동은 다음 PR(B2)다.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { loadTossPayments } from "@tosspayments/tosspayments-sdk";
 import { ApiError, api } from "@/lib/api";
 import type { BillingCard, BillingMethodsResponse } from "@/lib/types";
 import { PageHeader } from "@/components/PageHeader";
-import { Section } from "@/components/Form";
+import { CardFace } from "@/components/CardFace";
 
 /*
  * 빌드 시점에 값이 그대로 박힌다(NEXT_PUBLIC_ 접두사의 뜻). lib/api.ts 의 API_BASE_URL 과 같은 방식.
@@ -48,7 +51,7 @@ const TOSS_CLIENT_KEY = process.env.NEXT_PUBLIC_TOSS_CLIENT_KEY ?? "";
 
 /*
  * 계정당 카드 상한. 서버(BillingService.MAX_METHODS)와 같은 값이다.
- * 여기 두는 이유는 <버튼을 미리 비활성화>하기 위해서일 뿐, 판단은 서버가 한다(넘으면 409).
+ * 여기 두는 이유는 <버튼을 미리 감추기> 위해서일 뿐, 판단은 서버가 한다(넘으면 409).
  * 두 값이 어긋나면 화면이 허용한 등록을 서버가 거부하는 것으로 드러난다 — 조용히 틀리진 않는다.
  */
 const MAX_METHODS = 5;
@@ -64,13 +67,12 @@ const MAX_METHODS = 5;
  */
 const CANCEL_CODES = new Set(["USER_CANCEL", "PAY_PROCESS_CANCELED"]);
 
-export default function BillingPage() {
+export default function AccountPage() {
   const router = useRouter();
 
   /*
    * 상태를 뭉치지 않고 나눈 이유는 대시보드 화면과 같다 —
    * "아직 안 불러옴" 과 "불러왔는데 카드가 없음" 은 화면에 다르게 보여야 한다.
-   * 전자는 "불러오는 중…", 후자는 "아직 등록된 카드가 없습니다" + 등록 버튼이다.
    */
   const [data, setData] = useState<BillingMethodsResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -79,13 +81,17 @@ export default function BillingPage() {
   /* 결제창을 여는 중. 연타로 창이 두 번 뜨는 것을 막는다. */
   const [opening, setOpening] = useState(false);
   /*
-   * 삭제 확인 패널이 열린 카드의 id. window.confirm 을 대신한다(handleDelete 주석 참고).
+   * 삭제 확인이 열린 카드의 id. window.confirm 을 대신한다(handleDelete 주석 참고).
    * 카드가 여러 장이라 boolean 이 아니라 <어느 카드인지> 를 들고 있어야 한다 — boolean 이면
-   * 패널이 모든 카드 아래에 동시에 열린다.
+   * 확인 패널이 모든 카드 아래에 동시에 열린다.
    */
   const [armedId, setArmedId] = useState<string | null>(null);
-  /* 삭제·기본 지정 요청이 나가 있는 카드의 id. 그 카드의 버튼만 잠근다. */
+  /* 요청이 나가 있는 카드의 id. 그 카드의 버튼만 잠근다 — 목록 전체를 잠그면 무관한 카드까지 멈춘다. */
   const [busyId, setBusyId] = useState<string | null>(null);
+  /* 지금 지우는 중인 카드. 퇴장 애니메이션을 <요청이 나가 있는 동안> 돌리는 데만 쓴다. */
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  /* 방금 등록한 카드. 그 한 장에만 등장 애니메이션을 붙인다(globals.css 주석 참고). */
+  const [justAddedId, setJustAddedId] = useState<string | null>(null);
 
   /*
    * 착지 처리를 이미 했는가. <상태가 아니라 ref 다> — 이 값이 바뀐다고 화면을 다시 그릴
@@ -144,7 +150,7 @@ export default function BillingPage() {
        *    비워도 <클로저> 안의 값은 그대로 살아 있다. 같은 라우트로의 replace 라 컴포넌트도
        *    다시 마운트되지 않는다(= landedRef 가드가 다시 걸릴 일도 없다).
        */
-      if (failCode || authKey) router.replace("/billing");
+      if (failCode || authKey) router.replace("/account");
 
       /*
        * 착지 결과를 <먼저 계산>하고 setState 는 아래 await 뒤에 몰아서 한다.
@@ -168,7 +174,7 @@ export default function BillingPage() {
           // 토스가 실패 사유를 한국어 message 로 실어 보낸다. 우리가 다시 쓰지 않고 그대로 보여준다.
           landedError =
             params.get("message") ??
-            "카드 등록에 실패했습니다. 카드를 확인한 뒤 다시 시도해주세요.";
+            "카드를 등록하지 못했습니다. 카드를 확인한 뒤 다시 시도해주세요.";
         }
       } else if (authKey) {
         try {
@@ -186,8 +192,14 @@ export default function BillingPage() {
         }
       }
 
-      if (landedData) setData(landedData);
-      else await load();
+      if (landedData) {
+        setData(landedData);
+        /* 방금 등록한 카드는 <목록의 마지막>이다 — 서버가 등록 순서대로 내려준다. */
+        const added = landedData.methods.at(-1);
+        if (added) setJustAddedId(added.id);
+      } else {
+        await load();
+      }
       setLoading(false);
       if (landedError) setError(landedError);
       if (landedNotice) setNotice(landedNotice);
@@ -240,8 +252,8 @@ export default function BillingPage() {
          *    화면을 나누면 같은 로직을 두 벌 갖게 된다.
          *    성공이면 ?customerKey=..&authKey=.. , 실패면 ?code=..&message=.. 가 붙어 온다.
          */
-        successUrl: `${window.location.origin}/billing`,
-        failUrl: `${window.location.origin}/billing`,
+        successUrl: `${window.location.origin}/account`,
+        failUrl: `${window.location.origin}/account`,
       });
     } catch (e) {
       /*
@@ -275,7 +287,7 @@ export default function BillingPage() {
    * 크롬은 같은 페이지에서 대화상자가 반복되면 "추가 대화상자를 만들지 않도록 차단"
    * 체크박스를 띄운다. 켜지면 confirm() 은 <항상 false> 를 돌려주고, 요청조차 안 나가고,
    * 오류도 안 뜬다. 밖에서 보면 "버튼이 고장났다" 와 구별할 수 없다.
-   * 그래서 봇 삭제(settings)와 같은 <인라인 패널>을 쓴다.
+   * 그래서 봇 삭제(settings)와 같은 <인라인 확인>을 쓴다.
    *
    * ⚠️ 실패해도 기본은 load() 를 부르지 않는다. 서버는 <토스를 먼저> 부르고 우리 행을 나중에
    *    지우므로, 503(토스 5xx)이면 카드가 그대로 남아 있다. 다시 조회하면 같은 카드가 다시
@@ -289,6 +301,7 @@ export default function BillingPage() {
    */
   async function handleDelete(id: string) {
     setBusyId(id);
+    setDeletingId(id);
     setError(null);
     setNotice(null);
     try {
@@ -305,6 +318,8 @@ export default function BillingPage() {
     } finally {
       setArmedId(null);
       setBusyId(null);
+      // 실패했으면 카드가 그대로 남아 있다. 퇴장 애니메이션을 걷어 도로 보이게 한다.
+      setDeletingId(null);
     }
   }
 
@@ -344,29 +359,12 @@ export default function BillingPage() {
 
   return (
     <>
-      <PageHeader
-        title="결제 수단"
-        description={`자동결제에 쓸 카드를 최대 ${MAX_METHODS}장 등록하고, 청구에 쓸 기본 카드를 고릅니다. 카드 번호는 토스페이먼츠 결제창에서만 입력되며 AllDap 서버에는 저장되지 않습니다.`}
-      />
-
-      {/*
-        🔴 거짓 완성 금지. 지금은 토스 <테스트 키>로만 동작한다 — 라이브 전환에는
-        전자결제 계약 + 자동결제 추가 계약이 필요하고 둘 다 사업자등록이 전제다.
-        적어두지 않으면 사용자는 진짜 카드를 넣고 결제가 된다고 믿는다.
-        같은 이유로 이 화면에는 <금액이 한 글자도 없다> — 금액은 /pricing 에 있지만(2026-09-07,
-        가정값) 청구(4번 조각)가 없어서, 여기서 금액을 보여주면 청구될 것처럼 읽힌다.
-        ⚠️ 선례로 들던 봇 설정의 "저장만 되고 답변에는 반영되지 않습니다" 경고는 2026-09-07 에
-        없어졌다 — 기능이 붙었는데 문구를 안 고쳐 <되는 기능을 안 된다고> 안내하고 있었다.
-        여기 경고도 같은 운명을 맞아야 한다: 라이브 전환이 끝나면 <반드시 이 문구를 지울 것.>
-      */}
-      <p className="mt-4 rounded-md border border-warning bg-warning-surface px-3 py-2 text-xs text-warning">
-        ⚠️ 지금은 <b>테스트 환경</b>입니다. 카드를 등록해도 <b>실제로 결제되지 않습니다.</b>
-      </p>
+      <PageHeader title="마이페이지" />
 
       {error && (
         <p
           role="alert"
-          className="mt-4 rounded-md border border-danger bg-danger-surface px-3 py-2 text-sm text-danger"
+          className="mb-6 rounded-md border border-danger bg-danger-surface px-3 py-2 text-sm text-danger"
         >
           {error}
         </p>
@@ -374,65 +372,134 @@ export default function BillingPage() {
       {/* role="status" — alert 이 아니다. 급한 오류가 아니라 상태 변화(등록·삭제 완료) 안내라
           스크린리더가 현재 흐름을 방해하지 않고 조용히 읽어주는 쪽이 맞다. */}
       {notice && (
-        <p role="status" className="mt-4 text-sm text-success">
+        <p role="status" className="mb-6 text-sm text-success">
           {notice}
         </p>
       )}
 
-      <Section title={`등록된 카드 (${data.methods.length}/${MAX_METHODS})`}>
-        {data.methods.length === 0 ? (
-          <p className="text-sm text-muted">아직 등록된 카드가 없습니다.</p>
-        ) : (
-          <ul className="divide-y divide-subtle">
-            {data.methods.map((card) => (
-              <CardRow
-                key={card.id}
-                card={card}
-                /* 기본 카드는 다른 카드가 남아 있으면 못 지운다 — 서버 규칙을 버튼에 미리 반영한다.
-                   판단은 서버가 하고(409), 여기는 안내를 앞당길 뿐이다. */
-                deletable={!card.isDefault || data.methods.length === 1}
-                armed={armedId === card.id}
-                busy={busyId === card.id}
-                onArm={() => setArmedId(armedId === card.id ? null : card.id)}
-                onDelete={() => handleDelete(card.id)}
-                onSetDefault={() => handleSetDefault(card.id)}
-              />
-            ))}
-          </ul>
-        )}
-
-        <div className="mt-4 flex items-center gap-3">
-          <button
-            type="button"
-            onClick={handleOpenBillingWindow}
-            disabled={opening || full}
-            className="rounded-md bg-foreground px-4 py-2 text-sm font-medium text-surface disabled:opacity-50"
-          >
-            {opening ? "결제창을 여는 중…" : "카드 추가"}
-          </button>
-          {full && (
-            <p className="text-xs text-muted">
-              카드는 최대 {MAX_METHODS}장까지 등록할 수 있습니다. 쓰지 않는 카드를 삭제한 뒤 추가해주세요.
-            </p>
-          )}
+      <section aria-labelledby="methods-heading">
+        <div className="flex items-baseline justify-between border-b border-subtle pb-2">
+          <h2 id="methods-heading" className="text-base font-semibold">
+            결제 수단
+          </h2>
+          <span className="text-xs text-muted">
+            {data.methods.length} / {MAX_METHODS}장
+          </span>
         </div>
-      </Section>
+
+        <p className="mt-3 text-sm text-muted">
+          청구는 <b className="font-medium text-foreground">기본</b> 카드로 한 장에만 이뤄집니다. 카드
+          번호는 토스페이먼츠 결제창에서만 입력되며 AllDap 서버에는 저장되지 않습니다.
+        </p>
+
+        {/*
+          🔴 거짓 완성 금지. 지금은 토스 <테스트 키>로만 동작한다 — 라이브 전환에는
+          전자결제 계약 + 자동결제 추가 계약이 필요하고 둘 다 사업자등록이 전제다.
+          적어두지 않으면 사용자는 진짜 카드를 넣고 결제가 된다고 믿는다.
+          ⚠️ 선례로 들던 봇 설정의 "저장만 되고 답변에는 반영되지 않습니다" 경고는 2026-09-07 에
+          없어졌다 — 기능이 붙었는데 문구를 안 고쳐 <되는 기능을 안 된다고> 안내하고 있었다.
+          여기 경고도 같은 운명을 맞아야 한다: 라이브 전환이 끝나면 <반드시 이 문구를 지울 것.>
+        */}
+        <p className="mt-3 rounded-md border border-warning bg-warning-surface px-3 py-2 text-xs text-warning">
+          ⚠️ 지금은 <b>테스트 환경</b>입니다. 카드를 등록해도 <b>실제로 결제되지 않습니다.</b>
+        </p>
+
+        {/*
+          auto-fill + minmax 로 열 수를 정한다 — sm:/lg: 중단점을 쓰지 않는 이유는 카드가
+          <고정 비율>이라 폭이 곧 높이이기 때문이다. 중단점으로 열을 정하면 화면 폭에 따라
+          카드가 어정쩡하게 커지는 구간이 생긴다. minmax 는 "이보다 작아지면 한 장 줄인다" 라
+          카드 크기가 항상 읽기 좋은 범위에 머문다.
+        */}
+        <ul className="mt-5 grid list-none grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-5">
+          {data.methods.map((card) => (
+            <CardItem
+              key={card.id}
+              card={card}
+              /* 기본 카드는 다른 카드가 남아 있으면 못 지운다 — 서버 규칙을 버튼에 미리 반영한다.
+                 판단은 서버가 하고(409), 여기는 안내를 앞당길 뿐이다. */
+              deletable={!card.isDefault || data.methods.length === 1}
+              armed={armedId === card.id}
+              busy={busyId === card.id}
+              leaving={deletingId === card.id}
+              entering={justAddedId === card.id}
+              onArm={() => setArmedId(armedId === card.id ? null : card.id)}
+              onDelete={() => handleDelete(card.id)}
+              onSetDefault={() => handleSetDefault(card.id)}
+            />
+          ))}
+
+          {!full && (
+            <li>
+              {/*
+                "추가" 를 목록 밖의 버튼이 아니라 <카드 자리> 로 둔다. 실제로 생길 물건의 크기와
+                자리를 미리 보여주므로 무엇이 추가되는지가 분명하고, 그리드 리듬도 안 깨진다.
+              */}
+              <button
+                type="button"
+                onClick={handleOpenBillingWindow}
+                disabled={opening}
+                className="flex aspect-[1.586] w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-subtle text-sm text-muted transition-colors hover:border-foreground hover:text-foreground disabled:opacity-50"
+              >
+                <span aria-hidden className="text-2xl leading-none">
+                  +
+                </span>
+                {opening ? "결제창을 여는 중…" : "카드 추가"}
+              </button>
+            </li>
+          )}
+        </ul>
+
+        {full && (
+          <p className="mt-4 text-xs text-muted">
+            카드는 최대 {MAX_METHODS}장까지 등록할 수 있습니다. 쓰지 않는 카드를 삭제하면 추가할 수
+            있습니다.
+          </p>
+        )}
+      </section>
+
+      <section aria-labelledby="plan-heading" className="mt-12">
+        <div className="flex items-baseline justify-between border-b border-subtle pb-2">
+          <h2 id="plan-heading" className="text-base font-semibold">
+            요금제
+          </h2>
+          <Link href="/pricing" className="text-xs text-muted underline hover:text-foreground">
+            요금제 보기
+          </Link>
+        </div>
+
+        {/*
+          🔴 여기에 <금액을 적지 않는다.> 플랜 테이블도 한도 검사도 청구도 아직 없어서
+             (요금제 연동 4조각 중 2·4번), 금액을 적으면 청구되지 않을 돈이 청구될 것처럼 읽힌다.
+             /dashboard 의 사용량 카드가 금액을 계산하지 않는 것과 같은 판단이다.
+             요금제 선택 UI 는 다음 슬라이스에서 이 자리에 들어온다.
+        */}
+        <div className="mt-4 rounded-lg border border-subtle bg-surface p-5">
+          <p className="text-sm font-medium">무료</p>
+          <p className="mt-1 text-sm text-muted">
+            요금제 선택과 청구는 아직 연결되지 않았습니다. 지금은 모든 계정이 무료로 동작하며, 등록한
+            카드로 결제되는 일도 없습니다.
+          </p>
+        </div>
+      </section>
     </>
   );
 }
 
 /*
- * 카드 한 줄. 별도 파일로 빼지 않은 이유: 이 화면 밖에서 쓸 일이 없고, B2(실물 카드 모양)에서
- * 통째로 다시 그려질 자리다. 지금은 <기능이 맞는지> 만 본다.
+ * 카드 한 장과 그 아래 조작 줄. 별도 파일로 빼지 않은 이유: 이 화면 밖에서 쓸 일이 없고,
+ * 부모의 상태(어느 카드가 열렸나·바쁜가)와 짝이라 같이 읽는 편이 낫다.
+ * <카드 면>은 다르다 — 그건 순수 표시라 components/CardFace.tsx 로 나가 있다.
  *
  * props 로 콜백을 받는 이유: 이 컴포넌트는 서버를 모른다. "삭제" 를 눌렀을 때 무엇이 일어나는지는
- * 부모(BillingPage)가 정한다 — 그래야 요청 상태(busy)·오류·목록 갱신이 한 곳에 모인다.
+ * 부모(AccountPage)가 정한다 — 그래야 요청 상태·오류·목록 갱신이 한 곳에 모인다.
  */
-function CardRow({
+function CardItem({
   card,
   deletable,
   armed,
   busy,
+  leaving,
+  entering,
   onArm,
   onDelete,
   onSetDefault,
@@ -441,58 +508,33 @@ function CardRow({
   deletable: boolean;
   armed: boolean;
   busy: boolean;
+  leaving: boolean;
+  entering: boolean;
   onArm: () => void;
   onDelete: () => void;
   onSetDefault: () => void;
 }) {
+  /* 카드사 이름을 버튼 레이블에 넣는다 — 카드가 여러 장이라 "삭제" 만으로는
+     스크린리더 사용자가 <어느 카드의> 삭제인지 알 수 없다. */
+  const label = `${card.issuerName} ${card.cardNumberMasked}`;
+
   return (
-    <li className="py-3">
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-        <span className="text-sm font-medium">{card.issuerName}</span>
-        <span className="font-mono text-sm">{card.cardNumberMasked}</span>
-        <span className="text-xs text-muted">
-          {new Date(card.registeredAt).toLocaleDateString("ko-KR")} 등록
-        </span>
-        {card.isDefault ? (
-          <span className="rounded border border-success px-1.5 py-0.5 text-xs font-medium text-success">
-            기본
-          </span>
-        ) : (
-          <button
-            type="button"
-            onClick={onSetDefault}
-            disabled={busy}
-            className="text-xs text-muted underline hover:text-foreground disabled:opacity-50"
-          >
-            기본으로
-          </button>
-        )}
-        <span className="ml-auto">
-          <button
-            type="button"
-            onClick={onArm}
-            disabled={busy || !deletable}
-            title={deletable ? undefined : "다른 카드를 기본으로 지정한 뒤 삭제할 수 있습니다."}
-            className="text-xs text-danger underline disabled:opacity-50 disabled:no-underline"
-          >
-            삭제
-          </button>
-        </span>
+    <li className={leaving ? "alldap-card-out" : entering ? "alldap-card-in" : undefined}>
+      <div className="alldap-card">
+        <CardFace card={card} />
       </div>
-      {!deletable && (
-        <p className="mt-1 text-xs text-muted">기본 카드는 다른 카드를 기본으로 지정한 뒤 삭제할 수 있습니다.</p>
-      )}
-      {armed && (
-        <div className="mt-2 rounded-md border border-danger bg-danger-surface p-3">
-          <p className="text-sm text-danger">
-            이 카드를 삭제할까요? 토스페이먼츠에 등록된 결제 정보도 함께 삭제됩니다.
-          </p>
+
+      {armed ? (
+        /* 확인은 <카드 아래 같은 자리>에 그린다. 카드 위에 겹치면 무엇을 지우는지 가리고,
+           카드 밖 새 영역에 띄우면 그리드 칸 높이가 흔들려 옆 카드까지 밀린다. */
+        <div className="mt-2">
+          <p className="text-xs text-danger">토스페이먼츠에 등록된 결제 정보도 함께 삭제됩니다.</p>
           <div className="mt-2 flex gap-2">
             <button
               type="button"
               onClick={onDelete}
               disabled={busy}
-              className="rounded-md bg-danger px-3 py-1.5 text-sm font-medium text-surface disabled:opacity-50"
+              className="rounded-md bg-danger px-3 py-1 text-xs font-medium text-surface disabled:opacity-50"
             >
               {busy ? "삭제하는 중…" : "삭제"}
             </button>
@@ -500,11 +542,38 @@ function CardRow({
               type="button"
               onClick={onArm}
               disabled={busy}
-              className="rounded-md border border-subtle px-3 py-1.5 text-sm"
+              className="rounded-md border border-subtle px-3 py-1 text-xs"
             >
               취소
             </button>
           </div>
+        </div>
+      ) : (
+        <div className="mt-2 flex items-center gap-3">
+          {card.isDefault ? (
+            /* 기본이라는 사실은 <카드 면>이 이미 말한다. 여기서 또 배지를 달면 같은 말이 두 번이라,
+               대신 이 카드가 무엇을 하는 카드인지를 문장으로 적는다. */
+            <span className="text-xs text-muted">이 카드로 청구됩니다</span>
+          ) : (
+            <button
+              type="button"
+              onClick={onSetDefault}
+              disabled={busy}
+              className="text-xs text-muted underline hover:text-foreground disabled:opacity-50"
+            >
+              기본으로
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={onArm}
+            disabled={busy || !deletable}
+            aria-label={`${label} 삭제`}
+            title={deletable ? undefined : "다른 카드를 기본으로 지정한 뒤 삭제할 수 있습니다."}
+            className="ml-auto text-xs text-danger underline disabled:opacity-40 disabled:no-underline"
+          >
+            삭제
+          </button>
         </div>
       )}
     </li>

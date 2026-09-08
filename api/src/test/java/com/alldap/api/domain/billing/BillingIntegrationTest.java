@@ -149,6 +149,9 @@ class BillingIntegrationTest {
         assertThat(카드.path("id").asString()).isNotBlank();
         // issuerCode "61" → "현대". 코드→이름 변환이 Spring 책임이라는 것을 여기서 못박는다.
         assertThat(카드.path("issuerName").asString()).isEqualTo("현대");
+        // 코드도 <함께> 내려간다. 프론트가 카드 면 색을 고르는 키다(web/lib/cardBrand.ts) —
+        // 이름을 키로 쓰면 문구를 다듬는 순간 색이 조용히 사라진다.
+        assertThat(카드.path("issuerCode").asString()).isEqualTo("61");
         assertThat(카드.path("cardNumberMasked").asString()).isEqualTo("43301234****123*");
         // KST 오프셋으로 직렬화된다 — UsageResponse.periodStart 와 같은 규칙이다.
         assertThat(카드.path("registeredAt").asString()).endsWith("+09:00");
