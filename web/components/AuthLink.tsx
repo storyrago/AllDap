@@ -67,6 +67,13 @@ export function AuthLink() {
    * (`safeRedirectPath` 도 `/auth` 를 기본값으로 되돌리지만, 애초에 안 실어 보내는 편이 낫다:
    *  주소창에 의미 없는 쿼리가 남지 않는다)
    */
+  /*
+   * ⚠️ 알고 남긴 한계: `usePathname()` 은 쿼리스트링과 해시를 버린다(Next 16 문서).
+   *    그래서 `/pricing#plans` 에서 로그인하면 `/pricing` 으로 돌아온다. 해시가 사라진다.
+   *    지금은 실해가 없어서 두었다. 해시로 특정 자리를 겨냥하는 링크가 늘면
+   *    `window.location` 을 읽어야 하는데, 그러면 이 컴포넌트가 서버에서 그려질 때
+   *    쓸 값이 없어져 하이드레이션을 다시 따져야 한다. 값어치가 생기면 그때 한다.
+   */
   const href =
     pathname && pathname !== "/auth" ? `/auth?next=${encodeURIComponent(pathname)}` : "/auth";
 

@@ -158,7 +158,8 @@ export default function AuthPage() {
    * 그게 정확히 이 수정이 없애려는 증상이다. (훅을 전부 부른 <뒤>에 반환해야 한다 —
    * 조건부로 훅을 건너뛰면 React 가 훅 순서를 잃는다)
    */
-  if (token) return <p className="px-6 py-16 text-sm text-muted">대시보드로 이동합니다…</p>;
+  /* 목적지를 적지 않는다. `?next=` 가 있으면 대시보드가 아니라 있던 자리로 간다. */
+  if (token) return <p className="px-6 py-16 text-sm text-muted">이동합니다…</p>;
 
   return (
     <div className="mx-auto w-full max-w-md px-6 py-16">
