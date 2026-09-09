@@ -41,6 +41,7 @@ import type {
   Uuid,
   WidgetConfig,
 } from "./types";
+import { isTokenExpired } from "./token";
 
 /**
  * 백엔드 주소. .env.local 에서 주입한다 (.env.local.example 참고).
@@ -116,10 +117,53 @@ async function toApiError(response: Response): Promise<ApiError> {
  */
 const TOKEN_STORAGE_KEY = "alldap.token";
 
+/**
+ * <b>쓸 수 있는</b> 토큰을 돌려준다. 보관돼 있어도 <b>기한이 지났으면 null</b> 이다.
+ *
+ * <h2>왜 "보관된 값" 이 아니라 "쓸 수 있는 값" 인가</h2>
+ * 예전에는 localStorage 의 문자열을 그대로 돌려줬다. 그런데 이 값을 읽는 곳이 전부
+ * <b>"지금 로그인 상태인가"</b> 를 묻는 자리다(대시보드 가드 · AuthLink · 로그인 화면의
+ * 되돌리기 · PlanCards · 요청 헤더). 만료된 토큰은 그 질문에 <b>"아니오"</b> 다.
+ * 문자열이 남아 있다는 사실 자체는 아무도 궁금해하지 않는다.
+ *
+ * 그래서 판정을 <b>여기 한 곳</b>에 둔다. 부르는 쪽마다 만료를 따로 검사하게 하면
+ * 다섯 곳 중 한 곳을 빠뜨리고, 그러면 <b>화면들이 서로 다른 로그인 상태를 믿는다</b>
+ * (헤더는 "로그인됨" 인데 대시보드는 튕기는 식).
+ *
+ * <h2>⚠️ 이건 서명 검증이 <아니다>. 프론트가 하는 것은 추정이다</h2>
+ * 페이로드의 `exp` 만 읽는다. 서명은 확인하지 않고 <b>할 수도 없다</b>: 비밀키는 서버에만 있고,
+ * 브라우저에 두면 그 순간 비밀이 아니게 된다. 즉 사용자가 localStorage 를 직접 고쳐
+ * `exp` 를 미래로 바꾸면 이 함수는 속는다.
+ * <b>그래도 된다.</b> 진짜 판정은 서버가 하고(`JwtService` 가 서명과 exp 를 다시 본다)
+ * 위조 토큰은 401 로 떨어진다. 여기 검사의 목적은 보안이 아니라 <b>화면을 정직하게 만드는 것</b>이다:
+ * 이미 못 쓰는 토큰으로 "대시보드" 버튼을 띄워놓고, 눌러 들어가면 401 을 보게 하지 않는 것.
+ *
+ * <h2>⚠️ 사용자 기기의 시계에 딸려 있다</h2>
+ * `Date.now()` 는 <b>그 기기의</b> 시계다. 기기 시계가 24시간 이상 앞서 있으면(토큰 TTL 이 24h)
+ * 갓 받은 토큰도 만료로 보여 로그인 직후 튕긴다. 그 정도로 틀어진 기기는 HTTPS 인증서부터
+ * 깨지므로 실제로 겪을 가능성이 낮다고 보고 보정을 넣지 않았다. 넣는다면 여유(skew)를 두는 것이
+ * 아니라 <b>서버 시각을 받아 맞추는</b> 쪽이 맞다. 여유는 "얼마나?" 에 근거가 없다.
+ *
+ * <h2>⚠️ useSyncExternalStore 와의 관계 (알고 남긴 것)</h2>
+ * 이 함수는 `getSnapshot` 자리에 쓰인다. 그 자리는 원래 <b>같은 값을 돌려줘야</b> 하는데
+ * 이 함수의 결과는 <b>시간에 딸려 있다</b>: 만료되는 그 순간을 사이에 두고 두 번 불리면
+ * 문자열과 null 로 갈릴 수 있다. 실제로는 24시간에 한 번, 1밀리초 폭의 경계이고
+ * 걸려도 결과는 React 의 개발 경고와 렌더 한 번이지 무한 루프가 아니다
+ * (매번 새 객체를 만들어 진짜로 루프를 내는 경우와 달리 여기는 원시값이다).
+ * 이 위험보다 <b>다섯 곳이 서로 다른 로그인 상태를 믿는 것</b>이 훨씬 나쁘다고 판단했다.
+ */
 export function getAccessToken(): string | null {
   // 서버 컴포넌트에서는 window 가 없다. 그래서 방어한다.
   if (typeof window === "undefined") return null;
-  return window.localStorage.getItem(TOKEN_STORAGE_KEY);
+
+  const token = window.localStorage.getItem(TOKEN_STORAGE_KEY);
+  if (token === null) return null;
+
+  // 🔴 "만료됐다" 와 "읽을 수 없다" 를 같은 null 로 뭉갠다. 이 저장소가 반복해 낸 버그가
+  //    <원인이 다른 두 사실을 같은 값으로 뭉개는 것> 이라 일부러 짚어둔다:
+  //    여기서 뭉개도 되는 이유는 부르는 쪽이 알고 싶은 것이 "지금 쓸 수 있나" 하나뿐이고,
+  //    두 경우의 <다음 행동이 똑같이 "로그인 화면으로"> 이기 때문이다.
+  return isTokenExpired(token) ? null : token;
 }
 
 export function setAccessToken(token: string): void {
