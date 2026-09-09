@@ -31,8 +31,6 @@
  * 길이 없어진다(주소를 직접 치는 수밖에 없다).
  */
 
-import Link from "next/link";
-
 export default function DashboardError({
   error,
   reset,
@@ -81,7 +79,19 @@ export default function DashboardError({
         다른 화면으로 이동하거나, 아래 오류 정보를 첨부해 문의해주세요.
       </p>
 
-      <div className="mt-5 flex items-center justify-center gap-2">
+      {/*
+        🔴 여기에 "내 봇 목록으로"(→ `/dashboard`) 링크를 두지 않는다. 2026-09-08 에 사이드바
+           로고로 겪은 <제자리 링크>와 같은 것이라, 실제로 재보고 지웠다:
+           `/dashboard` 에서 에러가 나면 그 링크는 자기 자신을 가리키고,
+           **눌러도 아무 일도 일어나지 않는다**(측정함: 클릭 뒤에도 에러 화면 그대로,
+           전체 새로고침도 아니라 window 값이 그대로 살아있었다).
+
+           조건부로 숨기는 방법(`usePathname() !== "/dashboard"`)도 있지만 안 골랐다.
+           **이 경계의 존재 이유 자체가 "헤더가 살아남는 것"**이고, 그 헤더에 이미
+           봇 목록·마이페이지·로그아웃이 있다. 즉 이 링크는 <봇 화면에서도> 헤더와 중복이다.
+           중복을 조건부로 만드는 것보다 지우는 편이 짧고, 아래 문구가 그 길을 안내한다.
+      */}
+      <div className="mt-5">
         <button
           type="button"
           onClick={reset}
@@ -89,12 +99,6 @@ export default function DashboardError({
         >
           다시 시도
         </button>
-        <Link
-          href="/dashboard"
-          className="rounded-md border border-subtle px-4 py-2 text-sm font-medium"
-        >
-          내 봇 목록으로
-        </Link>
       </div>
 
       {/*
