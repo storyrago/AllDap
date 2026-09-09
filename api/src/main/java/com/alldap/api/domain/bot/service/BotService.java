@@ -1,6 +1,7 @@
 package com.alldap.api.domain.bot.service;
 
 import com.alldap.api.domain.bot.dto.BotResponse;
+import com.alldap.api.domain.bot.dto.BotSummaryResponse;
 import com.alldap.api.domain.bot.dto.CreateBotRequest;
 import com.alldap.api.domain.bot.dto.UpdateBotRequest;
 import com.alldap.api.domain.bot.entity.Bot;
@@ -15,8 +16,13 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * 봇 도메인 서비스.
@@ -35,14 +41,44 @@ public class BotService {
     private final UserRepository userRepository;
     private final UsageEventRepository usageEventRepository;
 
-    public List<BotResponse> findMyBots(UUID userId) {
-        return botRepository.findAllByUserIdOrderByCreatedAtDesc(userId).stream()
-                .map(BotResponse::from)
-                .toList();
+    /**
+     * "주간 대화 수" 의 창 길이. <b>달력 주가 아니라 지금으로부터 168시간</b>이다.
+     *
+     * <p><b>왜 달력 기준이 아닌가.</b> 달력으로 정하면 "오늘 포함 7일" 의 경계가 <b>어느 시간대의
+     * 자정인가</b>에 달라진다. 대화 로그 화면은 그 문제를 KST 로 못박아 풀었지만
+     * ({@code ConversationLogService.LOG_ZONE}), 거기서는 <b>사용자가 날짜를 입력하기 때문에</b>
+     * 시간대를 정하는 것 말고 방법이 없었다. 카드 숫자는 입력이 없어 그 제약이 없고,
+     * 롤링 창으로 두면 시간대 결정 자체가 사라진다. 해외 고객이 생겨도 무효가 되지 않는다.
+     *
+     * <p>대가: 자정을 넘겨도 숫자가 딱 떨어지게 바뀌지 않고 조금씩 흐른다.
+     * 카드의 용도가 "요즘 이 봇이 쓰이고 있나" 라 그 정밀도로 충분하다.
+     * 로그 화면의 날짜 필터와 숫자가 완전히 같지 않을 수 있다는 뜻이기도 해서, 화면에 그렇게 적었다.
+     */
+    private static final Duration WEEKLY_WINDOW = Duration.ofDays(7);
 
-        // TODO(W2 대시보드 슬라이스): PRD §8 의 봇 카드는 문서 수·주간 대화 수·최근 평가 점수까지 요구한다.
-        //   지금은 붙일 화면이 없어 봇 자체만 내려준다. 집계를 넣을 때 봇마다 count 쿼리를 돌리면
-        //   N+1 이 되므로 group by 한 번으로 가져와 조립할 것. (BotResponse 주석 참고)
+    /**
+     * 대시보드 봇 목록 (PRD §8 봇 카드).
+     *
+     * <p><b>쿼리가 정확히 2번 나간다 (봇이 몇 개든).</b>
+     * ① 내 봇 목록 ② 그 봇들의 집계(문서 수·주간 대화 수·최근 평가 점수)를 한 번에.
+     * 카드마다 세 번씩 세면 봇이 N개일 때 3N+1 번이 된다.
+     * 대화 로그 목록이 쓰는 방식과 같다({@code ConversationLogService.findLogs}).
+     */
+    public List<BotSummaryResponse> findMyBots(UUID userId) {
+        List<Bot> bots = botRepository.findAllByUserIdOrderByCreatedAtDesc(userId);
+        if (bots.isEmpty()) {
+            return List.of();   // 집계 쿼리를 보낼 이유가 없다
+        }
+
+        // 집계도 userId 로 좁혀 나온다. 여기서 봇 id 로 다시 거를 필요가 없다는 뜻이 아니라,
+        // 애초에 남의 봇이 결과에 들어올 수 없다는 뜻이다(BotRepository.aggregateMetrics 주석).
+        Map<UUID, BotRepository.BotMetrics> metrics =
+                botRepository.aggregateMetrics(userId, Instant.now().minus(WEEKLY_WINDOW)).stream()
+                        .collect(Collectors.toMap(BotRepository.BotMetrics::getBotId, Function.identity()));
+
+        return bots.stream()
+                .map(bot -> BotSummaryResponse.of(bot, metrics.get(bot.getId())))
+                .toList();
     }
 
     public BotResponse findMyBot(UUID userId, UUID botId) {
