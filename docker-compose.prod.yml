@@ -55,7 +55,10 @@ services:
         -XX:MaxMetaspaceSize=128m
         -XX:+ExitOnOutOfMemoryError
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/actuator/health || exit 1"]
+      # 🔴 8080 이 아니라 8081 이다. actuator 가 management 포트로 옮겨갔다.
+      #    안 고치면 헬스체크가 영원히 실패하고, ai-service 가
+      #    depends_on: service_healthy 에 걸려 <영영 안 뜬다.>
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8081/actuator/health || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 40

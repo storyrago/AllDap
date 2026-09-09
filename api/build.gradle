@@ -19,6 +19,9 @@ repositories {
 
 dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-actuator'
+	// Prometheus 스크레이프 포맷(/actuator/prometheus)을 내보낸다.
+	// 버전은 Boot 의 dependency-management 가 관리하므로 적지 않는다(적으면 Boot 를 올릴 때 어긋난다).
+	implementation 'io.micrometer:micrometer-registry-prometheus'
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 	implementation 'org.springframework.boot:spring-boot-starter-security'
 	implementation 'org.springframework.boot:spring-boot-starter-validation'

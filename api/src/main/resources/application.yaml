@@ -43,16 +43,53 @@ spring:
 
 server:
   port: 8080
+  tomcat:
+    mbeanregistry:
+      # 🔴 이게 없으면 tomcat.threads.* 지표가 <에러 없이 그냥 안 나온다.>
+      #    부하테스트의 1순위 판정 근거가 "스레드가 몇 개 바쁜가" 라서 반드시 켠다.
+      #    비용은 MBean 등록 몇 개다.
+      enabled: true
 
 management:
+  server:
+    # 🔴 서비스 포트(8080)와 <분리>한다. 이유는 두 가지다.
+    #   ① 운영에서 actuator 를 껐다 켜는 편법 없이 상시 켜둘 수 있다.
+    #      안전한 근거는 docker-compose.prod.yml 이 8081 을 ports: 에 안 여는 것이다.
+    #      "방화벽으로 막는다" 가 아니라 애초에 호스트에 뜨지 않게 하는 쪽이 강하다.
+    #      (Spring Security 규칙 한 줄의 오타에 기대는 것보다 훨씬 강하다)
+    #   ② 부하테스트 중 서비스 포트가 포화돼도 지표는 계속 긁힌다.
+    #      같은 포트면 톰캣 스레드가 마르는 순간 관측도 함께 멎어, 정작 알고 싶은
+    #      "포화된 순간" 의 지표가 비어버린다.
+    # ✅ 이 포트에도 SecurityConfig 의 필터 체인이 <붙는다>. 별도 자식 컨텍스트인데도 Boot 4 가
+    #    부모의 SecurityFilterChain 을 자식에 등록한다(문서로 확언할 수 없어 실측했다 —
+    #    ManagementPortIntegrationTest). 그래서 /actuator/metrics 는 인증 없이 부르면 401 이고,
+    #    Prometheus 가 긁을 수 있도록 SecurityConfig 에서 /actuator/prometheus 만 permitAll 로 열었다.
+    #    ⚠️ 그래도 방어를 필터 체인 하나에 기대지 않는다. docker-compose.prod.yml 이 이 포트를
+    #       ports: 에 안 여는 것이 여전히 첫 번째 방어선이다(규칙 한 줄의 오타보다 강하다).
+    port: 8081
+  prometheus:
+    metrics:
+      export:
+        # 🔴 Boot 4 부터 지표 <내보내기>가 기본으로 꺼져 있다(management.defaults.metrics.export.enabled).
+        #    켜지 않으면 PrometheusMetricsExportAutoConfiguration 이 아예 안 돌아
+        #    /actuator/prometheus 가 <에러 없이 그냥 없는 경로>가 된다(exposure 에 적어도 소용없다).
+        #    Boot 3 예제를 그대로 옮기면 여기서 막힌다. 실측으로 확인했다.
+        enabled: true
   endpoints:
     web:
       exposure:
-        # /actuator/health 만 공개. 나머지는 닫아둔다(정보 노출 방지).
-        include: health
+        # 포트가 분리돼 인터넷에서 닿지 않으므로 부하테스트에 필요한 만큼 연다.
+        include: health,metrics,prometheus
   endpoint:
     health:
       show-details: never
+  metrics:
+    distribution:
+      percentiles-histogram:
+        # p95·p99 를 Grafana 에서 계산하려면 히스토그램 버킷이 필요하다.
+        # 이게 없으면 count/sum 만 나와 <평균밖에> 못 그린다.
+        # 평균은 느린 꼬리를 감춘다(avg_faithfulness 로 이미 데인 부류다).
+        http.server.requests: true
 
 app:
   ai-service:
