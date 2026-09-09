@@ -1,6 +1,7 @@
 package com.alldap.api.domain.bot.controller;
 
 import com.alldap.api.domain.bot.dto.BotResponse;
+import com.alldap.api.domain.bot.dto.BotSummaryResponse;
 import com.alldap.api.domain.bot.dto.CreateBotRequest;
 import com.alldap.api.domain.bot.dto.UpdateBotRequest;
 import com.alldap.api.domain.bot.service.BotService;
@@ -45,9 +46,14 @@ public class BotController {
 
     private final BotService botService;
 
-    /** GET /api/bots — 내 봇 목록 */
+    /**
+     * GET /api/bots (내 봇 목록).
+     *
+     * <p>상세 조회와 달리 {@link BotSummaryResponse} 다. 카드에 얹을 집계(문서 수·주간 대화 수·
+     * 최근 평가 점수)가 붙는다. 두 응답의 타입을 나눈 이유는 그 DTO 주석 참고.
+     */
     @GetMapping
-    public ResponseEntity<List<BotResponse>> getMyBots(@AuthenticationPrincipal UUID userId) {
+    public ResponseEntity<List<BotSummaryResponse>> getMyBots(@AuthenticationPrincipal UUID userId) {
         return ResponseEntity.ok(botService.findMyBots(userId));
     }
 

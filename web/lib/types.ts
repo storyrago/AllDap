@@ -94,21 +94,26 @@ export interface Bot {
 }
 
 /**
- * GET /api/bots — 봇 목록 카드에 필요한 집계까지 얹은 형태.
- * PRD §8 "봇 카드(문서 수·주간 대화 수·최근 평가 점수)" 요구사항에서 나온 타입.
- * TODO(W2): 이 집계를 Spring 이 한 번에 내려줄지, 별도 API 로 뺄지 결정할 것.
- */
-/**
- * ⚠️ **서버가 아직 이 모양으로 내려주지 않는다.** `GET /api/bots` 는 집계 없이 {@link Bot} 배열을 준다.
- * 집계를 붙이려면 봇마다 count 를 돌리지 않고 group by 한 번으로 가져와야 해서 별도 작업이다.
- * 그때까지 이 타입을 화면에서 쓰지 말 것 — 없는 필드를 있다고 믿게 만든다.
+ * `GET /api/bots` 응답 한 건. 봇 카드에 필요한 집계까지 얹은 형태다
+ * (PRD §8 "봇 카드(문서 수·주간 대화 수·최근 평가 점수)").
+ *
+ * 상세 조회(`GET /api/bots/{botId}`)는 이 집계를 내려주지 않는다. 서버에서도 DTO 가 갈라져 있고
+ * (`BotSummaryResponse`), 한 타입으로 합치면 상세 응답에서 세 값이 전부 `undefined` 가 되어
+ * "집계가 0 이다" 와 "이 응답에는 집계가 없다" 를 화면이 구분할 수 없게 된다.
  */
 export interface BotSummary extends Bot {
+  /** 이 봇에 올라간 문서 수. 처리 중·실패 문서도 포함한다(문서 관리 화면 목록 길이와 같다). */
   documentCount: number;
-  /** 최근 7일 대화 수 */
+  /** 최근 7일(168시간) 안에 시작된 대화 수. 위젯·관리자 테스트 채팅을 모두 센다. */
   weeklyConversationCount: number;
-  /** 가장 최근 평가 실행의 충실성 평균. 평가를 한 번도 안 돌렸으면 null */
-  latestFaithfulness: number | null;
+  /**
+   * 가장 최근 **완료된** 평가 실행의 **전체 충실성**(`avg × scored / total`).
+   * 평가를 한 번도 완주하지 못했으면 null 이다. 0 으로 채우지 않는다.
+   *
+   * 🔴 충실성 **평균**(`avgFaithfulness`)이 아니다. 평균은 채점된 질문만 분모로 삼아
+   * **답을 덜 할수록 올라간다**(생존 편향). 품질 대시보드가 쓰는 지표와 같은 것을 쓴다.
+   */
+  latestOverallFaithfulness: number | null;
 }
 
 /** POST /api/bots 요청 본문 */
