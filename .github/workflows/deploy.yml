@@ -1,0 +1,128 @@
+name: Deploy to EC2
+
+# 왜 이 파일이 있나
+# ─────────────────────────────────────────────────────────────────────────────
+# 프론트(Vercel)는 main 푸시마다 자동 배포되는데 백엔드(EC2)는 사람이 SSH 로 4단계를
+# 돌려야 했다. 그 비대칭이 2026-09-08 과 2026-09-09 에 두 번 운영을 깨뜨렸다:
+# 새 프론트가 옛 백엔드에 없는 필드·경로를 부르고, 그 실패는 500 INTERNAL_ERROR
+# ("잠시 후 다시 시도해주세요")로 뭉개져 원인이 가려진다. 재시도로는 안 풀린다.
+# 문서(docs/DEPLOY.md §9)로 막아보려 했지만 두 번째가 났으므로 자동화한다.
+#
+# 이 워크플로가 하는 일은 docs/DEPLOY.md §9 의 수동 4단계를 그대로 옮긴 것이다.
+# 순서·이유는 그 절의 주석과 같다. 한쪽만 고치면 어긋나므로 함께 볼 것.
+
+on:
+  # ① 이미지 빌드(publish.yml)가 <성공한 뒤에만> 돈다.
+  #    push 로 같이 걸면 두 워크플로가 병렬로 돌아, EC2 가 아직 GHCR 에 없는
+  #    이미지를 pull 한다(옛 latest 를 받고 "배포 성공" 이라고 말한다).
+  workflow_run:
+    workflows: ["Publish images"]
+    types: [completed]
+  # ② 이미지가 안 바뀌는 변경(Caddyfile·compose)은 publish.yml 의 paths 에 걸리지
+  #    않아 ①이 아예 안 돈다. 그런데 Caddyfile 은 bind mount 라 서버 디스크의 파일이
+  #    곧 설정이다 — 배포하지 않으면 rate limit 의 `header_up -Forwarded` 같은
+  #    방어가 저장소에만 있고 운영에는 없는 상태가 된다.
+  push:
+    branches: [main]
+    paths:
+      - 'Caddyfile'
+      - 'docker-compose.prod.yml'
+      - '.github/workflows/deploy.yml'
+  # ③ 손으로 다시 밀 때(배포 실패 재시도·서버를 새로 만든 직후).
+  workflow_dispatch:
+
+# 배포는 겹치면 안 된다. 앞의 배포가 끝나고 다음이 시작하게 큐에 세운다.
+# cancel-in-progress 를 켜면 docker compose 가 컨테이너를 갈아끼우는 중간에
+# 러너가 죽어 <반만 갱신된 상태>로 남을 수 있다.
+concurrency:
+  group: deploy-ec2
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # workflow_run 은 publish 가 <실패했을 때도> 돈다. 성공한 경우만 통과시킨다.
+    # push·workflow_dispatch 로 들어온 실행에는 conclusion 이 없으므로 함께 허용한다.
+    if: >-
+      github.event_name != 'workflow_run' ||
+      github.event.workflow_run.conclusion == 'success'
+
+    env:
+      # 서버의 저장소 경로. docs/DEPLOY.md §6 의 `git clone ... && cd AllDap` 기준.
+      APP_DIR: /home/ubuntu/AllDap
+      COMPOSE: docker compose -f docker-compose.prod.yml --env-file .env.prod
+
+    steps:
+      # 러너에서 저장소를 체크아웃하지 않는다. 배포에 필요한 파일은 전부
+      # 서버가 자기 디스크에서 git pull 로 받고, 이미지는 GHCR 에서 받는다.
+      - name: SSH 키·호스트키 준비
+        env:
+          SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.EC2_SSH_KNOWN_HOSTS }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          # 🔴 ssh-keyscan 을 여기서 돌리지 않는다. 매 실행마다 "처음 보는 호스트를
+          #    그냥 믿는" 것이라 중간자 공격을 하나도 막지 못한다(TOFU 가 아니라 무검증).
+          #    사람이 한 번 뽑아 Secrets 에 박아둔 값하고만 대조한다.
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      # docs/DEPLOY.md §9 의 4단계를 그대로 옮긴 것이다. 순서가 전부 이유가 있다.
+      # docs/DEPLOY.md §9 의 4단계를 그대로 옮긴 것이다. 순서가 전부 이유가 있다.
+      - name: 배포 (git pull → image pull → up -d → caddy 강제 재생성)
+        env:
+          EC2_TARGET: ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}
+        run: |
+          ssh -i ~/.ssh/id_deploy -o BatchMode=yes "$EC2_TARGET" \
+            "APP_DIR='$APP_DIR' bash -seuo pipefail" <<'REMOTE'
+          cd "$APP_DIR"
+          C="docker compose -f docker-compose.prod.yml --env-file .env.prod"
+
+          # 1. git pull 이 먼저다. Caddyfile 은 bind mount(docker-compose.prod.yml 의
+          #    `./Caddyfile:/etc/caddy/Caddyfile:ro`)라 이미지가 아니라 서버 디스크의
+          #    파일을 읽는다. 서버에 새 Caddyfile 이 없으면 아래 무엇을 해도 옛 설정이다.
+          #    --ff-only: 서버에서 손으로 고친 것이 있으면 조용히 머지하지 말고 실패해야 한다.
+          git pull --ff-only
+
+          # 2. 이미지 갱신. 빌드는 CI 가 한다, t3.micro(1GB)에서 Gradle 은 OOM 이다.
+          $C pull
+
+          # 3. api·ai-service 를 같이 올린다. 내부 경로가 서로 물려 있어 한쪽만 올리면
+          #    그 사이 요청이 502 가 난다(재시도하면 풀리는 종류다).
+          $C up -d
+
+          # 4. 🔴 Caddy 강제 재생성은 <별도 단계>다. bind mount 는 "파일 내용이 바뀌었다"를
+          #    Compose 의 재생성 트리거로 보지 않는다. caddy:2-alpine 태그가 그때그때 다른
+          #    이미지를 가리켜서, 2번의 pull 이 우연히 새 이미지를 받아오면 재생성되고
+          #    아니면 안 된다. 즉 생략하면 Caddyfile 갱신이 "가끔 되고 가끔 안 된다".
+          $C up -d --force-recreate caddy
+
+          $C ps
+          REMOTE
+
+      # 배포 명령이 성공했다고 서비스가 살아난 것은 아니다. 컨테이너가 부팅 중에
+      # 죽으면 restart: unless-stopped 가 계속 되살려서 ps 는 그럴듯해 보인다.
+      # 밖에서 실제로 200 UP 이 나오는지를 본다. 실패하면 잡이 빨간불이어야 한다.
+      - name: 헬스체크 (밖에서 HTTPS 로)
+        run: |
+          # t3.micro 는 느려서 Spring 기동에 2~3분 걸린다(compose 의 start_period: 180s).
+          # 15초 간격 24회 = 최대 6분까지 기다린다.
+          for i in $(seq 1 24); do
+            body=$(curl -fsS -m 10 "https://$API_DOMAIN/actuator/health" || true)
+            case "$body" in
+              *'"status":"UP"'*) echo "OK ($i번째): $body"; exit 0 ;;
+            esac
+            echo "$i/24 대기 중... ($body)"
+            sleep 15
+          done
+          echo "::error::배포 후 6분 동안 https://$API_DOMAIN/actuator/health 가 UP 이 되지 않았다."
+          echo "서버에서 확인할 것: docker compose -f docker-compose.prod.yml --env-file .env.prod logs api"
+          exit 1
+        env:
+          API_DOMAIN: alldap.duckdns.org
