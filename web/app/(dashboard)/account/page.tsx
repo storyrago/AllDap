@@ -377,7 +377,9 @@ export default function AccountPage() {
     );
   }
 
-  /* 무엇을 그릴지에 대한 판단은 전부 lib/wallet.ts 에 있다. 여기는 그리기만 한다.
+  /* 카드 목록의 분기 판단(무엇을 어디에 그릴지)은 전부 lib/wallet.ts 에 있다.
+     ⚠️ <전부>는 아니다. 카드 한 장을 지울 수 있는지(`deletable`)는 아래 CardItem 호출부에
+     남아 있다. 그건 목록 모양이 아니라 서버 규칙(409)을 버튼에 앞당긴 것이라 그 자리가 맞다.
      판단을 화면에서 빼낸 이유: 2026-09-08 리뷰에서 나온 두 버그가 전부 분기 판단이었고,
      화면 안에 있으면 브라우저로 눈으로 보는 것 말고는 잴 방법이 없다(lib/wallet.check.ts). */
   const { billed, others, warnNoDefault, showDrawer, drawerOpen, full } = walletView(
@@ -757,7 +759,7 @@ function CardItem({
               type="button"
               onClick={onSetDefault}
               disabled={busy}
-              /* 서랍에는 같은 카드사 카드가 최대 4장까지 들어간다. "기본으로" 라는 글자만으로는
+              /* 서랍에는 같은 카드사 카드가 여러 장 들어갈 수 있다. "기본으로" 라는 글자만으로는
                  스크린리더 사용자가 어느 카드의 버튼인지 알 수 없다. 삭제 버튼과 같은 label 을 쓴다. */
               aria-label={`${label} 기본으로 지정`}
               className="text-xs text-muted underline hover:text-foreground disabled:opacity-50"
