@@ -118,10 +118,6 @@ public class EvalController {
         return ResponseEntity.ok(evalService.findResults(userId, botId, runId));
     }
 
-    // TODO(W3): 미답변(fallback) 집계 API 경로를 확정할 것. 후보: GET /api/bots/{botId}/eval/unanswered
-    //   ⚠️ 이 데이터는 eval_* 테이블에 없다. 실사용 로그(messages.is_fallback)를 집계해야 한다.
-    //      즉 Python 이 아니라 Spring 이 만드는 값이다(MessageRepository TODO 참고).
-
     /**
      * PATCH /api/bots/{botId}/eval/questions/{questionId} — 테스트 질문 수정.
      *
@@ -149,9 +145,28 @@ public class EvalController {
     /**
      * GET /api/bots/{botId}/eval/unanswered — 봇이 거절한 질문 모음.
      *
-     * <p>경로가 {@code /eval} 아래인 이유: 프론트({@code web/lib/api.ts})와 PRD 가 이미 이 주소를
-     * 약속해뒀다. <b>화면은 "진단" 이지만 API 는 여기 산다</b> — 화면 배치와 API 경로가
-     * 꼭 같아야 하는 것은 아니고, 굳이 옮기면 약속된 경로만 하나 깨진다.
+     * <p><b>경로 확정 (2026-09-09).</b> 후보였던 이 주소를 그대로 굳혔다. 프론트
+     * ({@code web/lib/api.ts})와 PRD 가 이미 이 주소를 약속해뒀고, 옮겨서 얻는 것이 없다.
+     * <b>화면은 "진단" 이지만 API 는 {@code /eval} 아래 산다</b>: 화면 배치와 API 경로가
+     * 꼭 같아야 하는 것은 아니고, 굳이 옮기면 이미 도는 경로만 하나 깨진다.
+     * 데이터 출처가 {@code eval_*} 가 아니라 실사용 로그({@code messages})라는 점도 그대로 둔다.
+     * 두 화면 모두 "이 봇의 품질" 을 묻는 자리이고, 출처가 다르다고 주소를 갈라야 할 이유는 없다.
+     *
+     * <h2>🔴 무엇이 목록에 들어가고 무엇이 빠지는가</h2>
+     * 이 저장소는 <b>원인이 다른 두 사실을 같은 값으로 뭉개는</b> 버그를 다섯 번 냈다.
+     * 여기가 정확히 그 지뢰밭이라, 세 갈래를 못박아 둔다.
+     * <ul>
+     *   <li><b>{@code items} 에 들어간다</b>: user 질문 <b>다음</b>에 온 첫 assistant 메시지가
+     *       {@code is_fallback = true} 인 것. "물어봤고 답했는데 문서에 없었다" = 진짜 미답변.
+     *       같은 문장끼리 묶어 횟수를 센다(비슷한 질문 묶기는 임베딩이 필요해 Python 의 일이다).</li>
+     *   <li><b>{@code failedTurns} 로 따로 센다</b>: 그 다음 assistant 메시지가 <b>아예 없는</b> 것.
+     *       Python 이 죽었거나 타임아웃이라 "물어보지도 못했다" 이지 미답변이 아니다.
+     *       섞으면 서버가 죽은 날이 문서가 부실한 날로 둔갑한다.</li>
+     *   <li><b>어느 쪽에도 안 들어간다</b>: 정상 답변({@code is_fallback = false}),
+     *       그리고 assistant 메시지 자체(집계는 {@code role = 'user'} 만 본다).</li>
+     * </ul>
+     * 관리자 테스트 채팅({@code channel = 'test'})은 <b>포함</b>한다. 거기서 난 fallback 도
+     * "문서에 없다" 는 신호는 맞다. 화면이 그 사실을 안내한다.
      *
      * <p>LLM 을 부르지 않으므로 비용이 0 이고, 그래서 화면이 마음껏 다시 불러도 된다.
      *
