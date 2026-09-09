@@ -391,26 +391,55 @@ docker compose -f docker-compose.prod.yml exec -T api sh -c 'apt-get install -y 
 ### rate limit 종단 확인 (4번 이후 매번 할 것)
 
 `Forwarded` 헤더 제거는 자동 테스트로 검증할 수 없다 — 진짜 Caddy 를 거쳐야만 재현되는
-문제이기 때문이다. 배포마다 직접 확인한다. `$API_DOMAIN` 은 실제 배포 도메인,
-`<publicKey>` 는 아무 봇의 공개 위젯 키로 바꿔서 돌릴 것.
+문제이기 때문이다. 배포마다 직접 확인한다. `$API_DOMAIN` 은 실제 배포 도메인으로 바꿀 것.
 
 ```bash
+# 🔴 분 경계 직후에 시작한다 (아래 ③ 참고). 25번이 2초면 끝난다.
+S=$(date +%S); sleep $(( (60 - 10#$S) % 60 ))
+
+KEY="pk_zzzzzzzzzzzzzzzzzzzzzz"   # 형식만 맞고 존재하지 않는 키 (아래 ② 참고)
 for i in $(seq 1 25); do
+  printf "%2d " "$i"
   curl -s -o /dev/null -w "%{http_code}\n" \
-    -X POST "https://$API_DOMAIN/api/w/<publicKey>/chat" \
+    -X POST "https://$API_DOMAIN/api/w/$KEY/chat" \
     -H "Content-Type: application/json" \
     -H "Forwarded: for=203.0.113.$i" \
-    -d '{"message":"test"}'
+    -d "{\"message\":\"probe\",\"sessionId\":\"probe-$i\"}"
 done
 ```
 
-25번 중 뒤쪽에서 `429` 가 나와야 정상이다. **25개가 전부 `200`(또는 동일 코드)이면
-4번(`--force-recreate caddy`)이 이번 배포에 실제로 적용되지 않은 것이다** — 컨테이너가
-재생성됐는지(`docker compose ps` 의 `caddy` 생성 시각)부터 다시 확인할 것.
+**정상: 1~20 번이 `404`, 21~25 번이 `429`.** 위조 IP 25개가 전부 같은 버킷으로 셌다는 뜻이고,
+그것이 `header_up -Forwarded` 가 실제로 도는지를 보는 유일한 신호다.
+
+**25개가 전부 같은 코드(429 가 하나도 없음)면 4번(`--force-recreate caddy`)이 이번 배포에
+적용되지 않은 것이다.** 컨테이너가 재생성됐는지(`docker compose ps` 의 `caddy` 생성 시각,
+또는 `docker exec alldap-caddy-1 grep header_up /etc/caddy/Caddyfile`)부터 다시 확인할 것.
+
+> 🔴 **이 명령은 2026-09-09 에 세 번 고쳤다. 세 가지가 전부 "돌아가는데 아무것도 검증하지
+> 않는" 결과를 냈다.** 임의로 줄이지 말 것.
+>
+> **① 본문에 `sessionId` 가 반드시 있어야 한다.** 옛 명령은 `-d '{"message":"test"}'` 였는데
+> `ChatRequest` 는 `sessionId` 도 `@NotBlank` 다. 검증(`@Valid`)이 컨트롤러 본문보다 먼저 돌아
+> **`rateLimiter.check` 를 지나가지도 못하고 25번 전부 `400`** 이 된다. 그런데 옛 판정 기준이
+> "전부 같은 코드면 실패"라, **이 점검은 언제나 실패를 보고했다.** 잡으려는 것을 원리적으로
+> 못 잡는 검사였다(이 저장소가 안 도는 `redirect.check.ts` 로 이미 겪은 부류다).
+>
+> **② 진짜 `publicKey` 를 쓰지 않는다.** `WidgetController` 의 순서는
+> `형식 검사 → rate limit → findByPublicKey` 다. 그래서 **형식만 맞고 존재하지 않는 키**
+> (`pk_` + 아무 22자 = 25자)면 카운터는 그대로 세면서 `404` 로 끝난다:
+> **LLM 호출 0건 · 대화 로그 0건.** 진짜 키를 쓰면 배포마다 LLM 을 20번 부르고
+> 운영 대화 로그에 쓰레기 20건이 쌓인다.
+>
+> **③ 25번이 <같은 1분> 안에 끝나야 한다.** `RateLimiter` 는 고정 윈도우(`now / 60000`)라
+> 도중에 분이 바뀌면 카운터가 둘로 갈려 **한도에 안 걸린다.** 실제로 이것 때문에 429 가 안 나와
+> "방어가 뚫렸다"로 오독할 뻔했다. 그래서 맨 앞에 분 경계까지 기다리는 줄이 있다.
 
 ## 알려진 구멍 (배포 후 처리)
 
 - **1GB 는 여유가 없다.** 문서 업로드 시 pymupdf 가 파일을 통째로 메모리에 올린다.
+  ⚠️ **실측(2026-09-09, 유휴 상태)**: `Mem 911Mi 중 사용 607Mi · available 303Mi`,
+  **`Swap 506Mi 사용 중`**. 컨테이너 합은 250MiB 뿐인데(api 222 · caddy 17 · ai-service 10)
+  이미 스왑을 쓰고 있다 = 아무도 안 쓰는 상태에서도 여유가 넉넉하지 않다는 뜻이다.
   `.env.prod` 의 `UPLOAD_MAX_SIZE`/`UPLOAD_MAX_BYTES` 를 10MB 로 낮춰뒀지만,
   큰 PDF 가 몰리면 여전히 위험하다. `docker stats` 로 지켜볼 것.
 - **rate limit 이 인메모리다.** 인스턴스를 늘리면 각자 세므로 실질 한도가 배가 된다.
