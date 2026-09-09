@@ -39,8 +39,9 @@ import { PlanCards } from "@/components/PlanCards";
  */
 export const metadata: Metadata = {
   title: "요금제 — AllDap",
-  description:
-    "봇이 답하지 못한 질문에는 요금을 받지 않습니다. 무료(월 200건)와 Pro(월 29,000원 · 3,000건) 두 플랜이며, 금액은 파일럿 전 가정값입니다.",
+  /* 숫자를 적지 않는다. 이 파일의 규칙이 그렇고(원본은 lib/plans.ts 하나),
+     두 벌이 되면 요금이 바뀔 때 한쪽만 고치는 사고가 난다. */
+  description: "봇이 답하지 못한 질문에는 요금을 받지 않습니다. 무료와 Pro 두 요금제가 있습니다.",
 };
 
 const AXES = [
@@ -78,7 +79,9 @@ export default function PricingPage() {
 
              id="plans" — 마이페이지의 "요금제 바꾸기" 가 이 자리로 바로 내려꽂는다.
              페이지 맨 위로 보내면 마케팅 문구부터 다시 읽게 되는데, 그 사람은 이미 고르러 온 것이다. */}
-      <section id="plans" className="mt-12 scroll-mt-8">
+      {/* aria-label 을 붙이는 이유: /account 의 "요금제 바꾸기" 가 이 자리로 바로 내려꽂는데,
+          제목 없는 section 은 랜드마크 목록에서 이름 없는 칸으로만 보인다. */}
+      <section id="plans" aria-label="요금제" className="mt-12 scroll-mt-8">
         <PlanCards />
         <p className="mt-3 text-xs text-muted">모든 금액은 부가세 별도입니다.</p>
       </section>

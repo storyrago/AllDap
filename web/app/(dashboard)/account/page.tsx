@@ -44,7 +44,8 @@ import Link from "next/link";
 import { loadTossPayments } from "@tosspayments/tosspayments-sdk";
 import { ApiError, api } from "@/lib/api";
 import type { BillingCard, BillingMethodsResponse, PlanId } from "@/lib/types";
-import { PLANS } from "@/lib/plans";
+import { resolvePlan } from "@/lib/plans";
+import { MAX_METHODS, walletView } from "@/lib/wallet";
 import { PageHeader } from "@/components/PageHeader";
 import { CardFace } from "@/components/CardFace";
 
@@ -56,13 +57,6 @@ import { CardFace } from "@/components/CardFace";
  * ⚠️ 값을 바꾸면 dev 서버를 다시 띄워야 반영된다.
  */
 const TOSS_CLIENT_KEY = process.env.NEXT_PUBLIC_TOSS_CLIENT_KEY ?? "";
-
-/*
- * 계정당 카드 상한. 서버(BillingService.MAX_METHODS)와 같은 값이다.
- * 여기 두는 이유는 <버튼을 미리 감추기> 위해서일 뿐, 판단은 서버가 한다(넘으면 409).
- * 두 값이 어긋나면 화면이 허용한 등록을 서버가 거부하는 것으로 드러난다 — 조용히 틀리진 않는다.
- */
-const MAX_METHODS = 5;
 
 /*
  * "취소"라는 같은 사용자 의도가 두 개의 다른 경로로 들어온다 — 하나로 묶어 <한 번만 판정>한다.
@@ -383,16 +377,18 @@ export default function AccountPage() {
     );
   }
 
-  const full = data.methods.length >= MAX_METHODS;
-  /* 청구에 쓰이는 카드 = 기본 카드. 서버가 "카드가 있으면 기본이 정확히 하나" 를 보장하므로
-     (V7 의 부분 유니크 인덱스) 여기서 여러 장을 걱정할 필요가 없다. */
-  const billed = data.methods.find((m) => m.isDefault);
-  /* 서랍에 들어갈 카드 = 청구 카드를 뺀 나머지. 청구 카드를 여기 다시 넣으면 같은 카드가
-     화면에 두 번 그려져, 이번 개편이 없애려던 혼동이 그대로 돌아온다. */
-  const others = data.methods.filter((m) => m.id !== billed?.id);
-  /* 지금 요금제의 정의(이름·금액·포함량). plan 이 null 이면 <모른다>는 뜻이라 null 로 둔다 —
-     `?? PLANS[0]` 같은 기본값을 쓰면 못 불러온 것을 "무료 요금제" 라고 <거짓말>하게 된다. */
-  const current = plan === null ? null : (PLANS.find((p) => p.id === plan) ?? null);
+  /* 무엇을 그릴지에 대한 판단은 전부 lib/wallet.ts 에 있다. 여기는 그리기만 한다.
+     판단을 화면에서 빼낸 이유: 2026-09-08 리뷰에서 나온 두 버그가 전부 분기 판단이었고,
+     화면 안에 있으면 브라우저로 눈으로 보는 것 말고는 잴 방법이 없다(lib/wallet.check.ts). */
+  const { billed, others, warnNoDefault, showDrawer, drawerOpen, full } = walletView(
+    data.methods,
+    justAddedId,
+  );
+  /* 지금 요금제의 정의(이름·금액·포함량). 세 갈래를 <가른다>: null 은 못 불러온 것,
+     undefined 는 서버가 우리가 모르는 id 를 준 것, 나머지는 알아낸 것.
+     `?? PLANS[0]` 같은 기본값을 쓰면 못 불러온 것을 "무료 요금제" 라고 <거짓말>하게 된다.
+     판단은 lib/plans.ts 에 있고 lib/plans.check.ts 가 지킨다. */
+  const current = resolvePlan(plan);
 
   return (
     <>
@@ -458,48 +454,56 @@ export default function AccountPage() {
           ⚠️ 청구 카드는 서랍 안에 <다시 그리지 않는다>. 두 번 그리면 "왜 같은 카드가 두 개지"
              가 되고, 방금 없앤 혼동이 그대로 돌아온다.
         */}
-        {billed ? (
-          <>
-            <div className="mt-5 rounded-xl border border-subtle bg-surface p-5">
-              <div className="flex flex-wrap items-start gap-6">
-                {/* 카드 면은 여기서 폭을 <고정>한다. 서랍 카드보다 크게 두면 "이게 그 카드다" 가
-                    크기만으로도 읽힌다. 아래 서랍은 240px 최소폭이라 이쪽이 조금 더 크다. */}
-                <ul className="w-[260px] shrink-0 list-none">
-                  <CardItem
-                    card={billed}
-                    /* 기본 카드는 다른 카드가 남아 있으면 못 지운다 — 서버 규칙(409)을 버튼에
-                       미리 반영한다. 판단은 서버가 하고, 여기는 안내를 앞당길 뿐이다. */
-                    deletable={data.methods.length === 1}
-                    armed={armedId === billed.id}
-                    busy={busyId === billed.id}
-                    leaving={deletingId === billed.id}
-                    entering={justAddedId === billed.id}
-                    onArm={() => setArmedId(armedId === billed.id ? null : billed.id)}
-                    onDelete={() => handleDelete(billed.id)}
-                    onSetDefault={() => handleSetDefault(billed.id)}
-                  />
-                </ul>
+        {billed && (
+          <div className="mt-5 rounded-xl border border-subtle bg-surface p-5">
+            <div className="flex flex-wrap items-start gap-6">
+              {/* 카드 면은 여기서 폭을 <고정>한다. 서랍 카드보다 크게 두면 "이게 그 카드다" 가
+                  크기만으로도 읽힌다. 아래 서랍은 240px 최소폭이라 이쪽이 조금 더 크다. */}
+              <ul className="w-[260px] shrink-0 list-none">
+                <CardItem
+                  card={billed}
+                  /* 기본 카드는 다른 카드가 남아 있으면 못 지운다 — 서버 규칙(409)을 버튼에
+                     미리 반영한다. 판단은 서버가 하고, 여기는 안내를 앞당길 뿐이다. */
+                  deletable={data.methods.length === 1}
+                  armed={armedId === billed.id}
+                  busy={busyId === billed.id}
+                  leaving={deletingId === billed.id}
+                  entering={justAddedId === billed.id}
+                  onArm={() => setArmedId(armedId === billed.id ? null : billed.id)}
+                  onDelete={() => handleDelete(billed.id)}
+                  onSetDefault={() => handleSetDefault(billed.id)}
+                />
+              </ul>
 
-                <div className="min-w-[15rem] flex-1">
-                  <p className="text-xs font-medium tracking-[0.18em] text-muted">청구 카드</p>
-                  <p className="mt-2 text-xl font-bold tracking-[-0.02em]">
-                    {billed.issuerName}{" "}
-                    <span className="font-mono text-base font-semibold tracking-[0.06em]">
-                      {billed.cardNumberMasked}
-                    </span>
-                  </p>
-                  <p className="mt-1 text-sm text-muted">
-                    {new Date(billed.registeredAt).toLocaleDateString("ko-KR")} 등록
-                  </p>
-                  <p className="mt-4 text-sm leading-relaxed text-muted">
-                    {others.length === 0
-                      ? "요금은 이 카드 한 장에만 청구됩니다."
-                      : "요금은 이 카드 한 장에만 청구됩니다. 아래 목록을 열어 다른 카드를 “기본으로” 지정하면 청구 카드가 바뀝니다."}
-                  </p>
-                </div>
+              <div className="min-w-[15rem] flex-1">
+                <p className="text-xs font-medium tracking-[0.18em] text-muted">청구 카드</p>
+                <p className="mt-2 text-xl font-bold tracking-[-0.02em]">
+                  {billed.issuerName}{" "}
+                  <span className="font-mono text-base font-semibold tracking-[0.06em]">
+                    {billed.cardNumberMasked}
+                  </span>
+                </p>
+                <p className="mt-1 text-sm text-muted">
+                  {new Date(billed.registeredAt).toLocaleDateString("ko-KR")} 등록
+                </p>
+                <p className="mt-4 text-sm leading-relaxed text-muted">
+                  {others.length === 0
+                    ? "요금은 이 카드 한 장에만 청구됩니다."
+                    : "요금은 이 카드 한 장에만 청구됩니다. 아래 목록을 열어 다른 카드를 “기본으로” 지정하면 청구 카드가 바뀝니다."}
+                </p>
               </div>
             </div>
+          </div>
+        )}
 
+        {warnNoDefault && (
+          <p role="alert" className="mt-5 text-sm text-danger">
+            청구에 쓸 카드가 지정돼 있지 않습니다. 아래 목록에서 카드 하나를 “기본으로” 지정해주세요.
+          </p>
+        )}
+
+        {showDrawer ? (
+          <>
             {/*
               ── 왜 <details> 인가 (직접 만든 토글이 아니라) ──────────────────────
               `/faq` 와 같은 판단이다. 브라우저 기본 요소가 펼침 상태·키보드 조작(Enter·Space)·
@@ -507,10 +511,14 @@ export default function AccountPage() {
               aria-expanded 를 손으로 맞춰야 하고 대개 한 군데를 빠뜨린다.
               여기서는 상태를 안 늘리는 이득이 특히 크다 — 이 화면은 이미 상태가 여덟 개다.
             */}
-            <details className="group mt-4 rounded-xl border border-subtle bg-surface">
+            {/* open 은 제어 컴포넌트가 아니다. React 는 이 prop 이 <바뀔 때만> DOM 을
+                건드리므로 사용자가 손으로 닫으면 그대로 닫혀 있다. */}
+            <details open={drawerOpen} className="group mt-4 rounded-xl border border-subtle bg-surface">
               <summary className="flex cursor-pointer list-none items-center justify-between gap-4 rounded-xl px-5 py-3 text-sm font-medium marker:content-none hover:bg-background/50">
                 <span>
-                  {others.length > 0 ? `다른 카드 ${others.length}장` : "다른 카드 없음"}
+                  {others.length > 0
+                    ? `${billed ? "다른 카드" : "카드"} ${others.length}장`
+                    : "다른 카드 없음"}
                   {!full && " · 카드 추가"}
                 </span>
                 {/* 펼침 표시. group-open 으로 45도 돌려 +를 ×로 만든다 — 아이콘 두 개를
@@ -598,6 +606,12 @@ export default function AccountPage() {
           <p className="mt-4 text-sm text-muted">
             요금제를 불러오지 못했습니다. 화면을 새로고침해주세요. (카드 관리는 위에서 계속 쓸 수
             있습니다)
+          </p>
+        ) : current === undefined ? (
+          /* 서버는 답했는데 우리가 모르는 요금제 id 다. 새로고침해도 그대로다.
+             할 수 있는 일이 문의뿐이라 그렇게 안내한다. */
+          <p role="alert" className="mt-4 text-sm text-danger">
+            알 수 없는 요금제입니다 ({plan}). 새로고침해도 달라지지 않으니 문의해주세요.
           </p>
         ) : (
           <>
@@ -743,17 +757,27 @@ function CardItem({
               type="button"
               onClick={onSetDefault}
               disabled={busy}
+              /* 서랍에는 같은 카드사 카드가 최대 4장까지 들어간다. "기본으로" 라는 글자만으로는
+                 스크린리더 사용자가 어느 카드의 버튼인지 알 수 없다. 삭제 버튼과 같은 label 을 쓴다. */
+              aria-label={`${label} 기본으로 지정`}
               className="text-xs text-muted underline hover:text-foreground disabled:opacity-50"
             >
               기본으로
             </button>
+          )}
+          {!deletable && (
+            /* 왜 title 이 아니라 <보이는 문장>인가: 비활성 버튼은 초점을 받지 못해
+               키보드·스크린리더 사용자가 title 에 도달할 방법이 아예 없다. 눈으로 보는
+               사람도 마우스를 올려야만 읽을 수 있었다. 이유는 늘 보이는 편이 낫다. */
+            <span className="text-xs text-muted">
+              다른 카드를 기본으로 지정한 뒤 삭제할 수 있습니다.
+            </span>
           )}
           <button
             type="button"
             onClick={onArm}
             disabled={busy || !deletable}
             aria-label={`${label} 삭제`}
-            title={deletable ? undefined : "다른 카드를 기본으로 지정한 뒤 삭제할 수 있습니다."}
             className="ml-auto text-xs text-danger underline disabled:opacity-40 disabled:no-underline"
           >
             삭제
