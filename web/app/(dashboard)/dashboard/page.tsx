@@ -14,7 +14,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { ApiError, api } from "@/lib/api";
-import type { Bot, Usage } from "@/lib/types";
+import type { BotSummary, Usage } from "@/lib/types";
 import { PageHeader } from "@/components/PageHeader";
 
 export default function DashboardPage() {
@@ -23,7 +23,7 @@ export default function DashboardPage() {
    * 하나의 값으로 뭉치면 "불러오는 중" 과 "불러왔는데 0건" 을 구분할 수 없다.
    * 그 둘은 화면에 다르게 보여야 한다 — 후자에만 "첫 봇을 만들어보세요" 를 띄운다.
    */
-  const [bots, setBots] = useState<Bot[]>([]);
+  const [bots, setBots] = useState<BotSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -131,7 +131,20 @@ export default function DashboardPage() {
        * setBots(prev => ...) 형태로 쓰는 이유: 지금 화면에 그려진 bots 가 아니라
        * <가장 최신 값>을 기준으로 계산하기 위해서다. 연달아 만들 때 하나가 사라지는 사고를 막는다.
        */
-      setBots((prev) => [created, ...prev]);
+      /*
+       * POST 응답은 집계가 없는 Bot 이라 카드 타입(BotSummary)으로 맞춰준다.
+       * 0 과 null 을 여기서 채워도 거짓이 아니다. 방금 만든 봇은 문서도 대화도 있을 수 없고,
+       * 평가는 돌린 적이 없다. 목록을 다시 부르면 서버가 같은 값을 돌려줄 뿐이다.
+       */
+      setBots((prev) => [
+        {
+          ...created,
+          documentCount: 0,
+          weeklyConversationCount: 0,
+          latestOverallFaithfulness: null,
+        },
+        ...prev,
+      ]);
       setNewName("");
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "봇을 만들지 못했습니다.");
@@ -236,6 +249,43 @@ export default function DashboardPage() {
                   <p className="mt-1 font-mono text-xs text-muted">
                     {bot.publicKey}
                   </p>
+
+                  {/*
+                   * PRD §8 의 봇 카드 세 숫자. dl 로 쓰는 이유는 "이름표 + 값" 이 정확히
+                   * 정의 목록의 뜻이라서다. div 로 쌓으면 화면은 같아 보여도 스크린 리더에는
+                   * 숫자만 흩어져 읽힌다.
+                   */}
+                  <dl className="mt-3 grid grid-cols-3 gap-2 border-t border-subtle pt-3">
+                    <div>
+                      <dt className="text-xs text-muted">문서</dt>
+                      <dd className="mt-0.5 text-sm font-medium">
+                        {bot.documentCount.toLocaleString("ko-KR")}개
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs text-muted">최근 7일 대화</dt>
+                      <dd className="mt-0.5 text-sm font-medium">
+                        {bot.weeklyConversationCount.toLocaleString("ko-KR")}건
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs text-muted">전체 충실성</dt>
+                      {/*
+                       * null 은 "0점" 이 아니라 "아직 잰 적이 없다" 이다. 0 으로 채워 보여주면
+                       * 멀쩡한 봇이 최악의 점수를 받은 것처럼 보인다. 그래서 문구로 가른다.
+                       * toFixed(3) 인 이유: 이 프로젝트의 개선 폭(측정 편차 0.032)이
+                       * 소수 셋째 자리에서 갈린다. 반올림해 두 자리로 보여주면 그 차이가 사라진다.
+                       */}
+                      <dd className="mt-0.5 text-sm font-medium">
+                        {bot.latestOverallFaithfulness === null ? (
+                          <span className="text-muted">평가 전</span>
+                        ) : (
+                          bot.latestOverallFaithfulness.toFixed(3)
+                        )}
+                      </dd>
+                    </div>
+                  </dl>
+
                   <p className="mt-3 text-xs text-muted">
                     {bot.allowedOrigins.length === 0
                       ? "허용 도메인 미설정 — 위젯이 아직 동작하지 않습니다"
@@ -248,8 +298,14 @@ export default function DashboardPage() {
         )}
       </div>
 
-      {/* 봇 카드의 문서 수·주간 대화 수·최근 평가 점수(PRD §8)는 아직 서버가 내려주지 않는다.
-          집계를 붙이려면 group by 쿼리가 필요하다 — lib/types.ts 의 BotSummary 주석 참고. */}
+      {/* 카드 숫자의 기준을 화면에도 적는다. 특히 "전체 충실성" 은 품질 대시보드가 쓰는 것과
+          같은 지표라는 사실이 보여야, 카드와 대시보드의 숫자가 달라 보일 때 헷갈리지 않는다. */}
+      {bots.length > 0 && (
+        <p className="mt-4 text-xs text-muted">
+          대화 수는 지금으로부터 최근 7일치이며 관리자 테스트 채팅도 포함합니다. 전체 충실성은
+          가장 최근 완료된 평가 실행의 값으로, 답하지 못한 질문까지 분모에 넣은 지표입니다.
+        </p>
+      )}
     </>
   );
 }

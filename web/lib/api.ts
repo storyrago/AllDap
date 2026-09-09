@@ -21,6 +21,7 @@ import type {
   PlanId,
   PlanResponse,
   Bot,
+  BotSummary,
   ChatMessage,
   ChatRequest,
   ChatResponse,
@@ -265,17 +266,12 @@ export const api = {
   /** 봇 (F-06) */
   bots: {
     /**
-     * ⚠️ 반환 타입이 {@link BotSummary} 가 아니라 {@link Bot} 이다.
+     * 목록만 {@link BotSummary} 다. 카드에 얹을 집계(문서 수·주간 대화 수·최근 평가 점수)가 붙는다.
+     * 상세·생성·수정은 집계 없는 {@link Bot} 이고, 서버 DTO 도 같은 기준으로 갈라져 있다.
      *
-     * 뼈대에서는 `BotSummary[]`(문서 수·주간 대화 수·최근 평가 점수 포함)로 적어뒀지만,
-     * <b>서버는 그 집계를 아직 내려주지 않는다.</b> 집계를 붙이려면 봇마다 count 를 돌리게 되어
-     * N+1 이 되므로 group by 한 번으로 가져오는 쿼리가 필요한데, 그건 별도 작업이다.
-     *
-     * 타입을 `BotSummary[]` 로 두면 <b>화면 코드가 없는 필드를 있다고 믿게 된다</b> —
-     * 컴파일은 통과하고 런타임에 `undefined` 가 화면에 찍힌다.
-     * 실제로 내려오는 것만 타입에 적는 편이 안전하다.
+     * 서버는 이 집계를 <b>쿼리 2번</b>(목록 1 + 집계 1)으로 만든다. 봇 개수와 무관하다.
      */
-    list: () => request<Bot[]>("/api/bots"),
+    list: () => request<BotSummary[]>("/api/bots"),
     create: (payload: CreateBotRequest) =>
       request<Bot>("/api/bots", { method: "POST", body: payload }),
     get: (botId: Uuid) => request<Bot>(`/api/bots/${botId}`),
