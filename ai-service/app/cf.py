@@ -54,7 +54,7 @@ def run(model: str, payload: dict) -> dict:
        상태 코드만 보면 실패를 성공으로 착각한다. 그래서 둘 다 확인한다.
     """
     s = get_settings()
-    url = f"https://api.cloudflare.com/client/v4/accounts/{s.cf_account_id}/ai/run/{model}"
+    url = f"{s.cf_base_url}/accounts/{s.cf_account_id}/ai/run/{model}"
 
     resp = _client().post(url, json=payload)
     resp.raise_for_status()          # 4xx·5xx 는 여기서 예외

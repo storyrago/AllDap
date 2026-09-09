@@ -40,6 +40,17 @@ class Settings(BaseSettings):
     cf_account_id: str = ""
     cf_api_token: str = ""
 
+    # ⚠️ 기본값은 <진짜 주소>다. 부하테스트에서만 로컬 가짜 서버로 돌린다.
+    #
+    # 왜 "가짜 응답을 내는 플래그" 가 아니라 URL 인가
+    # ─────────────────────────────────────────────────────────────────
+    # 플래그를 코드에 심으면, 운영에서 그게 켜졌을 때 <조용히 가짜 답변>이 나간다.
+    # URL 이면 운영에 잘못 들어갔을 때 Cloudflare 에 못 붙어 <시끄럽게 실패>한다.
+    # 조용한 실패와 시끄러운 실패 중 고를 수 있다면 항상 시끄러운 쪽이다
+    # (config._check_prod 가 같은 논리로 짜여 있다).
+    # 현업에서 WireMock 으로 외부 API 를 갈아끼우는 것과 같은 방식이다.
+    cf_base_url: str = "https://api.cloudflare.com/client/v4"
+
     # ── 답변 생성: Cloudflare Workers AI ──────────────────────────────
     # 2026-08-02 에 gemini-3.5-flash-lite 에서 옮겼다.
     #
