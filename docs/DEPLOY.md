@@ -350,6 +350,11 @@ Caddyfile·`docker-compose.prod.yml` 만 바뀐 푸시는 이미지 빌드 없�
 검증할 수 없기 때문이다**: `/actuator/health` 는 버전을 모르고, 밖에서 버전을 알 방법도 없다
 (`/actuator/info` · `/env` · `/metrics` 는 전부 401 이다. 실측했다).
 스크립트가 실제로 걸리는지는 `bash scripts/verify-deploy.check.sh` 로 잰다(도커만 있으면 어디서나 돈다).
+🔴 **그 자체 점검에는 `depends_on` 이 걸린 서비스가 반드시 들어 있어야 한다.** 처음 판은
+`api` 하나만 봐서, `docker compose config --images <svc>` 가 <의존 서비스의 이미지까지 함께 낸다>는
+것을 못 잡았다. 운영의 `ai-service` 는 `depends_on: api` 라 두 줄이 나오고, 그러면 기대값이 비어
+**정상 배포마다 빨간불**이 된다. 서버에 직접 붙여보고서야 나왔다(compose 5.5.1).
+그래서 이미지는 `config --format json` 에서 서비스별로 읽는다.
 
 **여전히 손으로 해야 하는 것**: `.env.prod` 변경(서버에만 있다) · 롤백(`IMAGE_TAG` 를 이전 커밋
 SHA 로 바꾸고 아래 4단계) · rate limit 종단 확인(아래 절).

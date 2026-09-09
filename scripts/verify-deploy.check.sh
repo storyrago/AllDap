@@ -11,6 +11,11 @@
 #   ③ 재생성하면                  -> 다시 통과해야 한다 (고쳐졌음)
 #
 # ②가 없으면 "언제 돌려도 통과하는 검사" 인지 알 길이 없다.
+#
+# 🔴 검사 대상에 <depends_on 이 걸린 서비스>가 반드시 있어야 한다. 처음 판이
+#    api 하나뿐이라, `config --images <svc>` 가 의존 서비스의 이미지까지 함께 낸다는
+#    것을 못 잡았다(운영 ai-service 는 depends_on: api 라 두 줄이 나왔다).
+#    아래 dep 서비스가 그 회귀 검사다. 지우지 말 것.
 set -euo pipefail
 
 BASE_IMAGE="${BASE_IMAGE:-caddy:2-alpine}"
@@ -27,11 +32,17 @@ services:
   api:
     image: verifycheck:current
     entrypoint: ["sleep", "600"]
+  # depends_on 이 걸린 서비스. 위 주석의 회귀 검사다.
+  dep:
+    image: verifycheck:current
+    entrypoint: ["sleep", "600"]
+    depends_on:
+      - api
 YAML
 
 export COMPOSE="docker compose -f $work/docker-compose.yml"
 
-run() { COMPOSE="$COMPOSE" bash "$here/verify-deploy.sh" api; }
+run() { COMPOSE="$COMPOSE" bash "$here/verify-deploy.sh" api dep; }
 
 docker tag verifycheck:v1 verifycheck:current
 $COMPOSE up -d --force-recreate >/dev/null 2>&1
@@ -48,4 +59,4 @@ $COMPOSE up -d --force-recreate >/dev/null 2>&1
 run || { echo "FAIL: 재생성했는데도 실패한다"; exit 1; }
 
 echo
-echo "자체 점검 통과: ①통과 ②실패 ③통과"
+echo "자체 점검 통과: ①통과 ②실패 ③통과 (api + depends_on 이 걸린 dep 둘 다)"
