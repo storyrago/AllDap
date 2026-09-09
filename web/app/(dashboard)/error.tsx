@@ -1,0 +1,117 @@
+"use client";
+
+/**
+ * 관리자 화면 그룹(`/dashboard`, `/bot/[botId]/*`)의 에러 경계.
+ *
+ * ── 🔴 왜 필요한가 (2026-09-09 에 실제로 난 사고) ──────────────────────────
+ * 배포된 프론트가 `bot.documentCount.toLocaleString()` 을 부르는데 운영 Spring 이
+ * 그 필드를 안 내려줘서 `undefined.toLocaleString()` 이 났다.
+ * **예외 하나가 페이지 전체를 죽여** 크롬이 "This page couldn't load" 를 띄웠다.
+ * `web/` 에 `error.tsx` 가 <하나도> 없어서 잡아줄 경계가 없었기 때문이다.
+ *
+ * React 는 렌더 중 예외를 잡아줄 경계가 없으면 **트리 전체를 언마운트한다.** 이게
+ * 기본 동작이고 의도된 것이다. 깨진 상태를 반쯤 그려놓는 것보다 안전하기 때문이다.
+ * 그래서 경계를 두는 것은 "예외를 없애는 일" 이 아니라 **"언마운트 범위를 정하는 일"** 이다.
+ *
+ * ── ⚠️ 이 파일은 증상을 가리는 것이지 원인을 고치는 게 아니다 ───────────────
+ * 이게 있어도 `documentCount` 는 여전히 undefined 이고, 사용자는 여전히 봇 목록을
+ * 못 본다. 달라지는 것은 **"아무것도 없는 브라우저 에러 화면"이 "무슨 일이 났고
+ * 뭘 하면 되는지 알려주는 우리 화면"으로 바뀌는 것**뿐이다.
+ * 진짜 고침은 두 가지고 둘 다 이 PR 밖이다:
+ *   ① 서버 응답과 `lib/types.ts` 의 계약을 맞추는 것
+ *   ② 프론트가 없을 수 있는 값을 없을 수 있는 값으로 다루는 것(`?? 0`)
+ * **경계가 생겼다고 저 둘을 안 해도 되는 게 아니다.** 오히려 조용히 넘어가기 쉬워졌다.
+ *
+ * ── 왜 루트가 아니라 여기에도 두는가 ────────────────────────────────────────
+ * Next 문서: *"error.js wraps a route segment and its nested children"* 이고
+ * **같은 세그먼트의 layout.js 는 감싸지 않는다.** 즉 이 파일은
+ * `(dashboard)/layout.tsx` 의 **안쪽**에 그려진다.
+ * 결과가 이 파일을 두는 이유 전부다: **헤더와 "봇 목록"·"마이페이지"·"로그아웃"이 살아남는다.**
+ * 루트 경계 하나만 있으면 그것들까지 함께 사라져서, 사용자가 다른 화면으로 빠져나갈
+ * 길이 없어진다(주소를 직접 치는 수밖에 없다).
+ */
+
+import Link from "next/link";
+
+export default function DashboardError({
+  error,
+  reset,
+}: {
+  /*
+   * `digest` 는 Next 가 만든 예외의 해시다. 서버 컴포넌트에서 난 예외는 운영에서
+   * 메시지가 지워져 내려오는데(민감정보 유출 방지), 이 해시로 서버 로그와 짝지을 수 있다.
+   * 타입에 `?` 가 붙는 이유: 클라이언트에서 난 예외에는 digest 가 없다. 우리 화면은
+   * 거의 전부 클라이언트 컴포넌트라 <대개 없다>. 그래서 아래에서 있을 때만 그린다.
+   */
+  error: Error & { digest?: string };
+  reset: () => void;
+}) {
+  /*
+   * ⚠️ Next 16.2 는 `reset` 말고 `unstable_retry` 도 준다. 문서는 그쪽을 권한다
+   *    (서버 컴포넌트를 <다시 요청>해서 다시 그린다).
+   *    그런데 **우리에게는 그 이점이 없다.** 이 앱은 JWT 를 localStorage 에 두는 탓에
+   *    대시보드 화면이 전부 클라이언트 컴포넌트이고, 데이터를 각자 useEffect 에서
+   *    직접 가져온다((dashboard)/layout.tsx 상단 주석 참고). 서버가 다시 만들어 줄
+   *    페이로드 자체가 없으므로, 경계를 리셋해 자식을 다시 마운트하는 것만으로
+   *    useEffect 가 다시 돌아 데이터를 새로 가져온다 = `reset` 으로 충분하다.
+   *    이점이 없는데 `unstable_` 접두사를 운영 코드에 들이면 마이너 업그레이드에서
+   *    깨질 수 있어 안 쓴다. 서버 컴포넌트로 옮기는 날 다시 볼 것.
+   *
+   * 예외를 콘솔에 남기지 않는 이유: React 가 경계에서 잡은 예외를 이미 콘솔에 찍는다.
+   * useEffect 로 한 번 더 찍으면 같은 예외가 두 번 쌓여 로그를 읽기만 나빠진다.
+   * (외부 에러 수집 서비스가 붙는 날 그때 여기서 보낸다)
+   */
+  return (
+    <div className="rounded-lg border border-subtle bg-surface px-6 py-12 text-center">
+      <h2 className="text-sm font-semibold">이 화면을 그리지 못했습니다</h2>
+
+      {/*
+        🔴 문구가 "일시적인 오류입니다. 잠시 후 다시 시도해주세요" 가 아닌 이유.
+           이 저장소는 <재시도로 안 풀리는 것을 재시도하라고 안내하는 것>을 이미 세 번 지적했다
+           (잘린 답변에 "잠시 후 재시도", 빌링키 복호화 실패에 "잠시 후 재시도").
+           여기가 딱 그 부류다. 이 사고의 원인이던 "서버가 필드를 안 내려준다" 는
+           백 번 다시 눌러도 그대로다. 그래서 다시 시도를 <권하되 그것으로 끝내지 않고>,
+           안 되면 무엇을 하면 되는지까지 적는다.
+      */}
+      <p className="mt-2 text-sm text-muted">
+        화면을 그리는 중에 예상하지 못한 문제가 생겼습니다. 아래 [다시 시도] 를 눌러주세요.
+      </p>
+      <p className="mt-1 text-sm text-muted">
+        다시 시도해도 같은 화면이 나오면 이 화면의 문제이지 일시적인 장애가 아닙니다. 위 메뉴로
+        다른 화면으로 이동하거나, 아래 오류 정보를 첨부해 문의해주세요.
+      </p>
+
+      <div className="mt-5 flex items-center justify-center gap-2">
+        <button
+          type="button"
+          onClick={reset}
+          className="rounded-md bg-foreground px-4 py-2 text-sm font-medium text-surface"
+        >
+          다시 시도
+        </button>
+        <Link
+          href="/dashboard"
+          className="rounded-md border border-subtle px-4 py-2 text-sm font-medium"
+        >
+          내 봇 목록으로
+        </Link>
+      </div>
+
+      {/*
+        문의할 때 붙일 수 있는 단서. 없으면 "안 돼요" 말고는 전할 것이 없다.
+        운영에서 <서버> 컴포넌트 예외는 message 가 지워져 내려오고(민감정보 유출 방지)
+        대신 digest 가 붙는다. <클라이언트> 예외는 반대로 digest 가 없고 message 가 온다.
+
+        ⚠️ 그래서 라벨을 <갈라야> 한다. 브라우저로 실제로 깨뜨려 보다 알았다:
+           둘을 "오류 번호" 하나로 묶었더니 클라이언트 예외에서
+           "오류 번호: Cannot read properties of undefined" 라는 말이 안 되는 줄이 나왔다.
+           (둘 다 없을 수도 있고, 그때는 이 줄을 아예 그리지 않는다)
+      */}
+      {error.digest ? (
+        <p className="mt-5 font-mono text-xs text-muted">오류 번호: {error.digest}</p>
+      ) : error.message ? (
+        <p className="mt-5 font-mono text-xs text-muted">오류 내용: {error.message}</p>
+      ) : null}
+    </div>
+  );
+}
