@@ -30,6 +30,12 @@ public enum ErrorCode {
             "이 리소스에 접근할 권한이 없습니다. 본인 계정의 봇인지 확인해주세요."),
     EMAIL_ALREADY_EXISTS(HttpStatus.CONFLICT, "EMAIL_ALREADY_EXISTS",
             "이미 가입된 이메일입니다. 로그인하거나 다른 이메일로 가입해주세요."),
+    // 🔴 문구가 "그 계정은" 이나 "비밀번호가" 라고 말하면 안 된다. 이 응답은 <가입되지 않은 이메일>로
+    //    실패를 쌓아도 똑같이 나가기 때문이다. 한쪽에만 나가는 순간 로그인 폼이 가입 여부 조회 도구가 된다
+    //    (INVALID_CREDENTIALS 가 이메일과 비밀번호를 구분하지 않는 것과 같은 이유).
+    //    "15분" 은 AuthService.FAILURE_WINDOW 와 짝이다. 한쪽만 고치면 안내가 거짓이 된다.
+    TOO_MANY_LOGIN_FAILURES(HttpStatus.TOO_MANY_REQUESTS, "TOO_MANY_LOGIN_FAILURES",
+            "로그인에 여러 번 실패해 잠시 로그인을 제한했습니다. 15분 뒤에 다시 시도해주세요."),
 
     // ── 리소스 없음 ──────────────────────────────────────────────────────
     RESOURCE_NOT_FOUND(HttpStatus.NOT_FOUND, "RESOURCE_NOT_FOUND",

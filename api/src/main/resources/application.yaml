@@ -113,6 +113,11 @@ app:
     # 10 인 근거: 사람이 비밀번호를 잘못 치는 횟수로는 넉넉하고,
     # 흔한 비밀번호 목록 대입에는 턱없이 부족하다. ⚠️ 실측으로 조정할 값이다.
     login-per-minute: ${LOGIN_PER_MINUTE:10}
+    # 연속 로그인 실패 제한. 키가 <IP + 이메일> 이라 위의 login-per-minute(IP 만)과 세는 대상이 다르다.
+    # 위 제한만으로는 분당 10회를 <영원히> 이어갈 수 있어(하루 14,400회) 흔한 비밀번호 목록 대입을 못 막는다.
+    # 5 인 근거: 사람이 연속으로 틀리는 횟수로는 넉넉하고(성공하면 카운터가 지워진다),
+    # 15분 창(AuthService.FAILURE_WINDOW)과 합치면 계정당 시간당 20회로 묶인다. ⚠️ 실측으로 조정할 값이다.
+    login-failure-limit: ${LOGIN_FAILURE_LIMIT:5}
   cors:
     # 관리자 화면(Next.js)이 떠 있는 오리진. 브라우저는 포트가 다르면 다른 출처로 본다.
     # 여러 개면 쉼표로 구분한다. 예: CORS_ALLOWED_ORIGINS=https://a.example.com,https://b.example.com
