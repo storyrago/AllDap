@@ -6,6 +6,9 @@ import com.alldap.api.domain.bot.dto.CreateBotRequest;
 import com.alldap.api.domain.user.repository.UserRepository;
 import com.alldap.api.support.AiServiceStub;
 import com.alldap.api.support.IntegrationTest;
+import jakarta.persistence.EntityManagerFactory;
+import org.hibernate.SessionFactory;
+import org.hibernate.stat.Statistics;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -21,7 +24,9 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
 import java.nio.charset.StandardCharsets;
+import java.sql.Timestamp;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
 
@@ -69,6 +74,17 @@ class EvalIntegrationTest {
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
+
+    /**
+     * Hibernate 통계로 <b>실제 실행된 쿼리 수</b>를 센다.
+     *
+     * <p>{@code EntityManagerFactory} 를 Hibernate 의 {@code SessionFactory} 로 풀어야
+     * {@code Statistics} 에 닿는다. JPA 표준에는 이런 계측 수단이 없다.
+     * (대화 로그 테스트와 같은 방식이다. 운영에서 켜두면 요청마다 오버헤드가 붙으므로
+     *  {@code application.yaml} 이 아니라 테스트에서만 켠다)
+     */
+    @Autowired
+    private EntityManagerFactory entityManagerFactory;
 
     private RestTestClient client;
     private String ownerToken;
@@ -551,6 +567,122 @@ class EvalIntegrationTest {
         // 소유권 검사는 Python 을 부르기 <전에> 끝나야 한다.
         // /internal/* 에는 인증이 없어서, 요청이 거기 도달한 시점에 이미 샌 것이다.
         assertThat(aiService.received()).isEmpty();
+    }
+
+    // ── N+1 ───────────────────────────────────────────────
+
+    /**
+     * 결과 화면은 문항마다 <b>질문 원문과 정답</b>을 함께 보여준다.
+     * {@code EvalResult.question} 이 LAZY 라 그대로 읽으면 문항 수만큼 조회가 더 나간다.
+     *
+     * <p>16 문항은 이 저장소가 실제로 쓰는 테스트셋 크기다(AGENTS.md).
+     */
+    @Test
+    @DisplayName("[성능] 문항이 16건이어도 결과 조회 쿼리는 늘지 않는다 (N+1 없음)")
+    void 결과조회는_N플러스1이_없다() {
+        UUID runId = insertRun(botId, "completed");
+        for (int i = 0; i < 16; i++) {
+            insertResult(runId, insertQuestion(botId, "질문 " + i, "정답 " + i));
+        }
+
+        Statistics statistics = statistics();
+        statistics.clear();
+
+        Response response = request(HttpMethod.GET,
+                "/api/bots/" + botId + "/eval/runs/" + runId + "/results", ownerToken);
+        long queries = statistics.getPrepareStatementCount();
+
+        assertThat(response.status()).isEqualTo(200);
+        assertThat(response.json().size()).isEqualTo(16);
+        // 질문 원문이 실제로 내려가야 의미가 있다.
+        // fetch join 을 넣고도 필드를 안 쓰면 쿼리는 줄고 화면은 비는 상황이 된다.
+        assertThat(response.json().get(0).path("question").asString()).startsWith("질문 ");
+        assertThat(response.json().get(0).path("groundTruth").asString()).startsWith("정답 ");
+
+        // 봇 소유권 + 실행 소유권 + 결과(질문 fetch join) = 3번.
+        // 문항 수에 비례해 늘어나면 N+1 이다.
+        assertThat(queries)
+                .as("실행된 쿼리 %d 개 (문항 수(16)에 비례해 늘면 N+1 이다)", queries)
+                .isEqualTo(3);
+    }
+
+    // ── 미답변 집계 ──────────────────────────────────────
+
+    /**
+     * 이 저장소가 낸 버그 다섯 건이 전부 <b>원인이 다른 두 사실을 같은 값으로 뭉갠 것</b>이다.
+     * 미답변 집계가 정확히 그 지뢰밭이라, 무엇이 목록에 들어가고 무엇이 빠지는지를 여기서 눌러둔다.
+     */
+    @Test
+    @DisplayName("[미답변] fallback 만 목록에 세고, 답변 행이 없는 질문은 failedTurns 로 따로 센다")
+    void 미답변은_fallback과_처리실패를_가른다() {
+        UUID conversationId = insertConversation(botId);
+        insertTurn(conversationId, "연차는 며칠인가요?", true);     // fallback → 목록
+        insertTurn(conversationId, "연차는 며칠인가요?", true);     // 같은 문장 → count 2
+        insertTurn(conversationId, "사무실 위치는요?", false);      // 정상 답변 → 어느 쪽도 아니다
+        insertMessage(conversationId, "user", "답변을 못 받은 질문", false); // 답변 행 없음 → failedTurns
+
+        JsonNode body = request(HttpMethod.GET,
+                "/api/bots/" + botId + "/eval/unanswered", ownerToken).json();
+
+        assertThat(body.path("items").size()).isEqualTo(1);
+        assertThat(body.path("items").get(0).path("question").asString()).isEqualTo("연차는 며칠인가요?");
+        assertThat(body.path("items").get(0).path("count").asLong()).isEqualTo(2);
+        // 답변 행이 없는 질문은 목록에 섞이지 않고 여기서만 센다.
+        assertThat(body.path("failedTurns").asLong()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("[미답변] 남의 봇 미답변 집계는 404 다")
+    void 미답변_남의봇은_404() {
+        Response response = request(HttpMethod.GET,
+                "/api/bots/" + botId + "/eval/unanswered", intruderToken);
+
+        assertThat(response.status()).isEqualTo(404);
+    }
+
+    private Statistics statistics() {
+        Statistics statistics = entityManagerFactory.unwrap(SessionFactory.class).getStatistics();
+        statistics.setStatisticsEnabled(true);
+        return statistics;
+    }
+
+    /** Python 이 넣어둔 채점 결과를 흉내낸다. */
+    private void insertResult(UUID runId, UUID questionId) {
+        jdbcTemplate.update("""
+                INSERT INTO eval_results (id, run_id, question_id, generated_answer, faithfulness, relevancy)
+                VALUES (?, ?, ?, ?, 1.000, 1.000)
+                """, UUID.randomUUID(), runId, questionId, "답변");
+    }
+
+    private UUID insertConversation(UUID botId) {
+        UUID id = UUID.randomUUID();
+        jdbcTemplate.update(
+                "INSERT INTO conversations (id, bot_id, session_id, channel) VALUES (?, ?, ?, 'test')",
+                id, botId, "session-" + id);
+        return id;
+    }
+
+    /**
+     * 질문 1회 + 그 답변 1회.
+     *
+     * <p>{@code created_at} 을 <b>명시적으로</b> 준다. 집계 쿼리가
+     * "이 질문 다음에 온 첫 assistant 메시지"를 시간으로 찾기 때문이다.
+     * {@code now()} 에 맡기면 같은 순간에 들어가 순서가 무작위로 갈린다.
+     */
+    private void insertTurn(UUID conversationId, String question, boolean fallback) {
+        insertMessage(conversationId, "user", question, false);
+        insertMessage(conversationId, "assistant", fallback ? "문서에서 찾지 못했습니다." : "답변입니다.", fallback);
+    }
+
+    /** 메시지 순서를 고정하기 위한 논리 시계(초 단위). 테스트마다 0 에서 시작한다. */
+    private int clock = 0;
+
+    private void insertMessage(UUID conversationId, String role, String content, boolean fallback) {
+        jdbcTemplate.update("""
+                INSERT INTO messages (id, conversation_id, role, content, is_fallback, created_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """, UUID.randomUUID(), conversationId, role, content, fallback,
+                Timestamp.from(Instant.parse("2026-09-09T00:00:00Z").plusSeconds(clock++)));
     }
 
     private Response request(HttpMethod method, String uri, String token) {
