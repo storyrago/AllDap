@@ -139,9 +139,21 @@ AllDap/  ← 저장소 루트
 3. 옛 방식으로 만들어진 DB 볼륨이 남아 있으면 Flyway가
    `Found non-empty schema(s) "public" but no schema history table`로 중단한다.
    `docker compose down -v`로 볼륨을 비우고 다시 시작할 것.
-4. **`V1__init.sql` 끝의 시드 INSERT(`pk_local_dev` 테스트 봇)가 이제 운영에도 적용된다.**
-   initdb 시절엔 "로컬 개발용"이었지만 Flyway는 배포 환경에서도 그대로 실행한다.
-   배포 전에 별도 파일이나 `dev` 프로파일로 분리할지 결정할 것. **[미정]**
+4. ✅ **`V1__init.sql` 끝의 시드 INSERT(`pk_local_dev` 봇)는 <그대로 둔다>** (2026-09-09 결정).
+   "배포 전에 결정할 것 **[미정]**" 이라고 적어둔 채 2026-09-07 배포가 지나갔고, 뒤늦게
+   따져보니 **지우면 안 되는 것**이었다. 근거는 `docs/decisions.md` 2026-09-09 항목.
+   - 🔴 **이건 더 이상 "로컬 개발용" 이 아니라 <공개 데모 봇>이다.** 공개 `/demo` 화면
+     (`web/components/DemoConsole.tsx`)이 `NEXT_PUBLIC_DEMO_PUBLIC_KEY` 미설정 시
+     `pk_local_dev` 로 떨어진다. 지우면 운영의 `/demo` 가 전부 fallback 이 된다.
+     `api/` 통합 테스트(`UsageIntegrationTest`)도 이 봇이 있다고 전제한다.
+   - **로그인 가능한 계정은 들어 있지 않다.** 시드는 `bots` 한 행뿐이고 `users` 는 건드리지
+     않는다. 비밀번호 해시도, 소유자(`user_id`)도 없다. 즉 보안 사고가 아니다.
+   - `allowed_origins` 가 `NULL` 이라 설정 조회(`GET /api/w/{key}/config`)는 Origin 을
+     보내는 모든 브라우저에 대해 차단된다(이 저장소 규칙: 빈 값 = 전부 차단).
+     채팅은 원래 Origin 검증 대상이 아니고 방어선은 rate limit(IP+key 분당 20)이다.
+   - ⚠️ **주인이 없는 봇(`user_id IS NULL`)이라 대시보드에 안 보이고 UI 로 지울 수 없다.**
+     사용량 집계도 의도적으로 제외한다(`UsageEventRepository` 의 `b.user_id IS NOT NULL`).
+     **데모 봇의 LLM 비용은 아무에게도 청구되지 않는다** — 알고 남긴 것이다.
 
 ### 요청 흐름 2가지
 

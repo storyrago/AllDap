@@ -273,6 +273,10 @@ TOSS_SECRET_KEY=test_sk_...
   `NEXT_PUBLIC_` 이라 **브라우저 번들에 그대로 들어간다.** 클라이언트 키는 원래 공개돼도 되는 값이라
   괜찮지만, **시크릿 키(`test_sk_`)를 여기 넣으면 안 된다** — 그러면 누구나 우리 계정으로 API 를 부른다.
   위 `.env.prod` 의 `TOSS_SECRET_KEY` 와 **같은 세트의 키**여야 한다(다르면 `INVALID_API_KEY`).
+- **환경변수(선택)**: `NEXT_PUBLIC_DEMO_PUBLIC_KEY` — 공개 `/demo` 화면이 대화할 봇의 publicKey.
+  **미설정이면 `pk_local_dev`(V1 시드 봇)로 떨어진다.** 지금 운영이 그 상태이고, 그래서
+  그 시드 행을 지우면 `/demo` 가 전부 fallback 이 된다(`docs/decisions.md` 2026-09-09).
+  다른 봇으로 데모를 돌리려면 여기서 그 봇의 publicKey 를 명시할 것.
 - 배포 후 그 주소를 `.env.prod` 의 `CORS_ALLOWED_ORIGINS` 에 넣고 api 를 재시작한다.
 
 > ⚠️ Vercel 은 브랜치마다 **프리뷰 도메인**을 만든다. 프리뷰에서도 API 를 쓰려면
