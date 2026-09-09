@@ -114,7 +114,13 @@ public class TestcontainersConfiguration {
             // <한도를 넘으면 429 가 나가는가> 이므로 값을 줄여도 검증 내용은 그대로다.
             registry.add("app.widget.chat-per-minute", () -> "3");
             registry.add("app.widget.config-per-minute", () -> "5");
-            registry.add("app.widget.login-per-minute", () -> "3");
+
+            // ⚠️ 로그인은 제한이 <두 겹>이라(IP 요청 수 / IP+이메일 실패 수) 두 값의 <간격>이 중요하다.
+            //    실패 한도(2)를 요청 한도(6)보다 낮게 잡아야 "실패 누적 차단"을 재현하는 도중에
+            //    요청 수 제한이 먼저 걸려버리는 일이 없다. 요청 한도를 3 에서 6 으로 올린 것도 그래서인데,
+            //    3 이면 실패 2번 + 차단 확인 1번만으로 한도가 차서 두 겹을 따로 검증할 수가 없다.
+            registry.add("app.widget.login-per-minute", () -> "6");
+            registry.add("app.widget.login-failure-limit", () -> "2");
         };
     }
 

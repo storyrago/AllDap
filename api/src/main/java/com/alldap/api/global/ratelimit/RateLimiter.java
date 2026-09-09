@@ -59,21 +59,56 @@ public class RateLimiter {
      * @param window 윈도우 길이
      */
     public void check(String bucket, String client, int limit, Duration window) {
-        long windowIndex = System.currentTimeMillis() / window.toMillis();
-        String key = bucket + "|" + client + "|" + windowIndex;
+        int used = increment(key(bucket, client, window));
 
+        if (used > limit) {
+            log.warn("[rate-limit] 한도 초과 bucket={} client={} used={}/{}", bucket, client, used, limit);
+            throw new ApiException(ErrorCode.RATE_LIMIT_EXCEEDED);
+        }
+    }
+
+    /**
+     * 이미 쌓인 횟수가 한도 <b>이상</b>인가. 보기만 하고 세지 않는다.
+     *
+     * <p>{@link #check} 와 나눠둔 이유: 로그인 실패 제한처럼 <b>세는 시점과 막는 시점이 다른</b>
+     * 용도가 있다. 실패는 비밀번호를 대조한 <b>뒤에</b>야 알 수 있는데, 막는 것은 대조하기
+     * <b>전에</b> 해야 한다. 대조 뒤에 막으면 공격자가 맞는 비밀번호를 찾아낸 그 요청은 그냥 통과한다.
+     *
+     * <p>세지 않으므로 <b>막힌 뒤에 더 두드려도 차단 기간이 늘어나지 않는다.</b>
+     * 늘어나게 하면 공격자가 계속 두드리는 것만으로 차단을 무한정 연장할 수 있다.
+     */
+    public boolean isBlocked(String bucket, String client, int limit, Duration window) {
+        AtomicInteger counter = counters.get(key(bucket, client, window));
+        return counter != null && counter.get() >= limit;
+    }
+
+    /** 한도 검사 없이 1 올리기만 한다. 판정은 {@link #isBlocked} 가 따로 한다. */
+    public void record(String bucket, String client, Duration window) {
+        increment(key(bucket, client, window));
+    }
+
+    /** 이 키의 누적을 지운다. 로그인에 성공했을 때처럼 "쌓인 실패가 무효가 되는" 경우에 쓴다. */
+    public void forget(String bucket, String client, Duration window) {
+        counters.remove(key(bucket, client, window));
+    }
+
+    /**
+     * 윈도우 번호를 키에 섞는다. 윈도우가 넘어가면 키가 통째로 달라지므로
+     * 만료 처리를 따로 하지 않아도 지난 카운터가 자연히 버려진다.
+     */
+    private String key(String bucket, String client, Duration window) {
+        long windowIndex = System.currentTimeMillis() / window.toMillis();
+        return bucket + "|" + client + "|" + windowIndex;
+    }
+
+    private int increment(String key) {
         if (counters.size() > MAX_KEYS) {
             log.warn("[rate-limit] 키가 {}개를 넘어 카운터를 비운다.", MAX_KEYS);
             counters.clear();
         }
 
         // computeIfAbsent + incrementAndGet 조합이라 같은 키에 동시 요청이 와도 수를 잃지 않는다.
-        int used = counters.computeIfAbsent(key, ignored -> new AtomicInteger()).incrementAndGet();
-
-        if (used > limit) {
-            log.warn("[rate-limit] 한도 초과 bucket={} client={} used={}/{}", bucket, client, used, limit);
-            throw new ApiException(ErrorCode.RATE_LIMIT_EXCEEDED);
-        }
+        return counters.computeIfAbsent(key, ignored -> new AtomicInteger()).incrementAndGet();
     }
 
     /** 테스트 격리용. 운영 코드에서 부르지 말 것. */

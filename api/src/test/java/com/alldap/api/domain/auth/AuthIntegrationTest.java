@@ -240,23 +240,101 @@ class AuthIntegrationTest {
     }
 
     @Test
-    @DisplayName("[보안] 로그인 시도를 반복하면 429 로 막힌다 (비밀번호 추측 방지)")
+    @DisplayName("[보안] 한 IP 가 여러 계정을 훑으면 요청 수 제한이 429 로 막는다")
     void 로그인_요청수_제한() {
-        // 테스트 컨텍스트의 한도는 분당 3회 (TestcontainersConfiguration)
-        for (int i = 0; i < 3; i++) {
+        // 테스트 컨텍스트의 요청 한도는 분당 6회 (TestcontainersConfiguration)
+        //
+        // 🔴 매번 <다른> 이메일을 쓰는 것이 이 테스트의 핵심이다.
+        //    같은 이메일을 반복하면 (IP + 이메일) 실패 누적 제한이 먼저 걸려(한도 2)
+        //    여기서 재려는 IP 요청 수 제한에 닿기도 전에 429 가 난다.
+        //    이메일을 바꾸면 실패 카운터가 계정마다 흩어져 1 에 머무르므로, 남는 방어는 IP 요청 수뿐이다.
+        //    (그리고 이게 실제 공격 모양이기도 하다: 계정 하나를 파고드는 대신 목록을 훑는 것)
+        for (int i = 0; i < 6; i++) {
             Response 실패 = post("/api/auth/login",
-                    new LoginRequest("nobody@example.com", "wrong-password-1234"));
+                    new LoginRequest("nobody" + i + "@example.com", "wrong-password-1234"));
             assertThat(실패.status()).isEqualTo(401);
         }
 
         Response blocked = post("/api/auth/login",
-                new LoginRequest("nobody@example.com", "wrong-password-1234"));
+                new LoginRequest("nobody6@example.com", "wrong-password-1234"));
 
         // 이 제한이 없으면 유일한 방어가 BCrypt 비용(약 100ms/회)뿐이라
         // 병렬 커넥션으로 분당 수천 회를 추측할 수 있다.
         assertThat(blocked.status()).isEqualTo(429);
         assertThat(blocked.json().path("error").path("code").asString())
                 .isEqualTo("RATE_LIMIT_EXCEEDED");
+    }
+
+    @Test
+    @DisplayName("[보안] 같은 계정에 실패가 쌓이면 비밀번호를 대조하기도 전에 429 로 끊는다")
+    void 로그인_실패누적_제한() {
+        post("/api/auth/signup", new SignupRequest(EMAIL, PASSWORD, "테스터"));
+
+        // 테스트 컨텍스트의 실패 한도는 2회 (TestcontainersConfiguration)
+        for (int i = 0; i < 2; i++) {
+            assertThat(post("/api/auth/login", new LoginRequest(EMAIL, "wrong-password-1234")).status())
+                    .isEqualTo(401);
+        }
+
+        Response blocked = post("/api/auth/login", new LoginRequest(EMAIL, "wrong-password-1234"));
+
+        assertThat(blocked.status()).isEqualTo(429);
+        assertThat(blocked.json().path("error").path("code").asString())
+                .isEqualTo("TOO_MANY_LOGIN_FAILURES");
+        // 사용자가 다음에 뭘 하면 되는지까지 알려주는지 확인한다(CLAUDE.md 작업 규칙 4).
+        assertThat(blocked.json().path("error").path("message").asString()).contains("15분");
+
+        // 🔴 가장 중요한 검증: 차단 중에는 <맞는 비밀번호도> 통과하지 못한다.
+        //    실패를 센 뒤에 막는 구조였다면 공격자가 정답을 찾아낸 그 요청은 이미 통과한 뒤라
+        //    방어가 아무것도 막지 못한다.
+        Response 맞는비밀번호 = post("/api/auth/login", new LoginRequest(EMAIL, PASSWORD));
+        assertThat(맞는비밀번호.status()).isEqualTo(429);
+    }
+
+    @Test
+    @DisplayName("[보안] 실패 누적으로 차단된 응답도 가입 여부를 흘리지 않는다")
+    void 차단_응답이_가입여부를_흘리지_않는다() {
+        post("/api/auth/signup", new SignupRequest(EMAIL, PASSWORD, "테스터"));
+
+        Response 가입된계정_차단 = 실패를_쌓아_차단시킨다(EMAIL);
+
+        // 카운터를 비워 두 번째 절반을 첫 절반과 똑같은 조건에서 재현한다.
+        // (IP 요청 수 한도까지 초기화되므로 뒤 절반이 앞 절반 때문에 막히지 않는다)
+        rateLimiter.reset();
+
+        Response 없는계정_차단 = 실패를_쌓아_차단시킨다("nobody@example.com");
+
+        // 하나라도 다르면 "몇 번 만에, 어떤 응답으로 막히는가" 가 가입 여부를 알려주게 된다.
+        // 응답 본문만 통일하고 <차단되는 시점>이 갈려도 마찬가지로 새는 것이라, 둘 다 3번째에 막혀야 한다.
+        assertThat(가입된계정_차단.status()).isEqualTo(429);
+        assertThat(없는계정_차단.status()).isEqualTo(429);
+        assertThat(가입된계정_차단.body()).isEqualTo(없는계정_차단.body());
+    }
+
+    @Test
+    @DisplayName("로그인에 성공하면 그동안 쌓인 실패가 지워진다 (연속 실패만 의심한다)")
+    void 로그인_성공하면_실패누적이_지워진다() {
+        post("/api/auth/signup", new SignupRequest(EMAIL, PASSWORD, "테스터"));
+
+        assertThat(post("/api/auth/login", new LoginRequest(EMAIL, "wrong-password-1234")).status())
+                .isEqualTo(401);
+        assertThat(post("/api/auth/login", new LoginRequest(EMAIL, PASSWORD)).status())
+                .isEqualTo(200);
+
+        // 누적이 지워지지 않았다면 이 두 번째 실패에서 카운터가 2 에 닿아
+        // 마지막 요청이 429 가 된다. 401 이 나온다는 것이 곧 지워졌다는 증거다.
+        assertThat(post("/api/auth/login", new LoginRequest(EMAIL, "wrong-password-1234")).status())
+                .isEqualTo(401);
+        assertThat(post("/api/auth/login", new LoginRequest(EMAIL, "wrong-password-1234")).status())
+                .isEqualTo(401);
+    }
+
+    /** 한도(2회)까지 실패를 쌓은 뒤, 차단된 세 번째 응답을 돌려준다. */
+    private Response 실패를_쌓아_차단시킨다(String email) {
+        for (int i = 0; i < 2; i++) {
+            post("/api/auth/login", new LoginRequest(email, "wrong-password-1234"));
+        }
+        return post("/api/auth/login", new LoginRequest(email, "wrong-password-1234"));
     }
 
     // ── 테스트 보조 ──────────────────────────────────────────────────────

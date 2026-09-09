@@ -6,14 +6,17 @@ import com.alldap.api.domain.auth.dto.SignupRequest;
 import com.alldap.api.domain.auth.dto.UserResponse;
 import com.alldap.api.domain.user.entity.User;
 import com.alldap.api.domain.user.repository.UserRepository;
+import com.alldap.api.global.config.WidgetProperties;
 import com.alldap.api.global.exception.ApiException;
 import com.alldap.api.global.exception.ErrorCode;
+import com.alldap.api.global.ratelimit.RateLimiter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
@@ -26,9 +29,29 @@ import java.util.UUID;
 @Transactional(readOnly = true)
 public class AuthService {
 
+    /**
+     * 실패 누적을 세는 통. {@code "login"}(요청 수 제한)과 <b>다른 이름이어야 한다.</b>
+     * 같은 통을 쓰면 요청 수와 실패 수가 한 카운터에 섞여 둘 다 뜻을 잃는다.
+     */
+    private static final String FAILURE_BUCKET = "login-failure";
+
+    /**
+     * 실패 누적이 유지되는 기간. 지나면 카운터가 저절로 사라진다(고정 윈도우).
+     *
+     * <p><b>영구 잠금이 아니라 시간이 지나면 풀리는 이유.</b> 영구 잠금은 관리자가 풀어줘야 하는데,
+     * 우리에게는 그 화면도 메일 발송 수단도 없다. 그러면 <b>공격자가 남의 계정을 잠그는 것</b>이
+     * 곧 완전한 서비스 거부가 된다. 시간이 지나면 풀리는 차단은 그 최악을 15분으로 묶는다.
+     *
+     * <p>⚠️ {@code ErrorCode.TOO_MANY_LOGIN_FAILURES} 문구가 "15분" 을 글자로 담고 있다.
+     * 이 값을 바꾸면 그 문구도 함께 바꿀 것.
+     */
+    private static final Duration FAILURE_WINDOW = Duration.ofMinutes(15);
+
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final RateLimiter rateLimiter;
+    private final WidgetProperties widgetProperties;
 
     /**
      * 존재하지 않는 이메일로 로그인 시도가 왔을 때 대조할 <b>더미 해시</b>. (타이밍 공격 방어)
@@ -56,10 +79,13 @@ public class AuthService {
      * 만들어내는 파생값이라 자동 생성 생성자로는 표현할 수 없다.
      * (BCrypt 한 번 분량의 비용이 기동 시 한 번 발생한다. 요청 처리 중이 아니라 기동 중이므로 문제되지 않는다.)
      */
-    public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder, JwtService jwtService) {
+    public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder, JwtService jwtService,
+                       RateLimiter rateLimiter, WidgetProperties widgetProperties) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
+        this.rateLimiter = rateLimiter;
+        this.widgetProperties = widgetProperties;
         this.dummyPasswordHash = passwordEncoder.encode(UUID.randomUUID().toString());
     }
 
@@ -77,7 +103,9 @@ public class AuthService {
      * "가입 폼으로 이메일 가입 여부를 알아낼 수 있다"는 보안 이득보다 크다고 판단했다.
      *
      * <p>다만 로그인과 달리 가입은 <b>계정을 만드는</b> 행위라 스팸·자동 가입 자체를 막을 필요가 있다.
-     * TODO(W2 이후): 가입에도 IP 단위 rate limit 을 걸 것(로그인과 같은 장치를 공유). 아래 login() 의 TODO 참고.
+     * TODO(W2 이후): 가입에도 IP 단위 rate limit 을 걸 것. 장치는 이미 있다:
+     * {@code AuthController.login} 이 {@code RateLimiter} 를 쓰는 방식을 그대로 따르면 된다.
+     * (실패 횟수 제한은 로그인에만 뜻이 있다. 가입에는 "틀린 비밀번호" 라는 개념이 없다)
      */
     @Transactional
     public AuthResponse signup(SignupRequest request) {
@@ -118,9 +146,52 @@ public class AuthService {
      *
      * <p>실패 응답은 사유와 무관하게 {@link ErrorCode#INVALID_CREDENTIALS} 하나다.
      * "없는 이메일"과 "틀린 비밀번호"를 구분해주면 로그인 폼으로 가입 여부를 조회할 수 있게 된다.
+     *
+     * <h2>무차별 대입(brute-force) 방어: 두 겹이고, 세는 것이 다르다</h2>
+     * <ol>
+     *   <li><b>요청 수 / IP</b> ({@code AuthController}, PR #44). 한 IP 가 여러 계정을 훑는 것을 막는다.
+     *       다만 이것만으로는 <b>한도만큼 영원히</b> 추측을 이어갈 수 있다.
+     *       분당 10회면 하루 14,400회고, 흔한 비밀번호 목록에는 그 정도면 충분하다.</li>
+     *   <li><b>실패 수 / (IP + 이메일)</b> ← 여기. 같은 계정을 겨냥한 연속 실패가 쌓이면 끊는다.</li>
+     * </ol>
+     *
+     * <h2>왜 키가 IP <b>와</b> 이메일인가</h2>
+     * 어느 한쪽만으로는 둘 중 하나가 반드시 깨진다.
+     * <ul>
+     *   <li><b>IP 만</b> 세면 회사·학교처럼 NAT 뒤에 있는 정상 사용자들이 서로에게 말려든다.
+     *       옆자리 동료가 비밀번호를 틀린 탓에 내가 로그인을 못 한다.</li>
+     *   <li><b>이메일만</b> 세면 공격자가 남의 이메일로 일부러 실패를 쌓아 그 계정을 잠글 수 있다.
+     *       <b>계정 잠금이 곧 서비스 거부</b>가 된다. 우리에게는 잠금을 풀어줄 화면도 메일 발송 수단도 없다.</li>
+     * </ul>
+     * 둘을 함께 쓰면 차단 범위가 "이 IP 에서 이 계정을 노리는 시도" 하나로 좁아진다.
+     * 공격자는 자기 자신만 막히고, 피해자는 자기 IP 에서 평소처럼 로그인할 수 있다.
+     *
+     * <p>🔴 <b>대가는 분산 공격이다.</b> 서로 다른 IP 수천 개(봇넷)로 한 계정을 노리면
+     * 각 IP 의 카운터가 따로 놀아 이 겹은 막지 못한다. 그걸 막으려면 이메일 단위로 세야 하는데,
+     * 그건 위에 적은 계정 잠금 서비스 거부를 <b>스스로 만들어 주는</b> 일이다.
+     * 분산 공격을 실제로 겪으면 답은 계정 잠금이 아니라 다른 축(캡차, 2단계 인증)이다.
+     *
+     * <h2>왜 지연이 아니라 차단인가</h2>
+     * 실패할 때마다 응답을 늦추는(sleep) 방식은 <b>우리 스레드를 붙잡는다.</b>
+     * 톰캣 스레드 풀이 한정돼 있으므로, 공격자가 일부러 실패를 쌓아 스레드를 점유하면
+     * 방어 장치가 그 자체로 서비스 거부 수단이 된다. 게다가 BCrypt 가 이미 회당 약 100ms 를 쓴다.
+     * 시간이 지나면 풀리는 차단은 스레드를 잡지 않고, 막힌 요청은 BCrypt 대조조차 하지 않아 <b>더 싸다.</b>
+     *
+     * @param clientIp 요청자 IP. 컨트롤러가 넘긴다.
+     *                 ⚠️ 이 값이 믿을 만하려면 앞단 프록시(Caddy)가 헤더를 정리해야 한다. Caddyfile 참고.
      */
-    public AuthResponse login(LoginRequest request) {
+    public AuthResponse login(LoginRequest request, String clientIp) {
         String email = normalizeEmail(request.email());
+        String failureKey = clientIp + "|" + email;
+
+        // 🔴 대조 <전에> 막는다. 대조 뒤에 막으면 공격자가 맞는 비밀번호를 찾아낸 바로 그 요청은
+        //    이미 통과한 뒤라, 방어가 아무것도 막지 못한 것이 된다.
+        if (rateLimiter.isBlocked(FAILURE_BUCKET, failureKey,
+                widgetProperties.loginFailureLimit(), FAILURE_WINDOW)) {
+            log.warn("[login] 실패 누적으로 차단 email={}", maskEmail(email));
+            throw new ApiException(ErrorCode.TOO_MANY_LOGIN_FAILURES);
+        }
+
         Optional<User> found = userRepository.findByEmail(email);
 
         // 사용자가 없어도 matches() 를 건너뛰지 않는다 — 근거는 dummyPasswordHash 주석 참고.
@@ -129,23 +200,18 @@ public class AuthService {
         boolean passwordMatched = passwordEncoder.matches(request.password(), passwordHash);
 
         if (found.isEmpty() || !passwordMatched) {
+            // 🔴 가입 여부와 무관하게 <똑같이> 센다. 존재하는 계정에서만 세면 차단 시점이 갈려
+            //    "몇 번 만에 429 가 나오는가" 가 가입 여부를 알려주게 된다. 응답 본문만 통일해서는 부족하다.
+            rateLimiter.record(FAILURE_BUCKET, failureKey, FAILURE_WINDOW);
             log.warn("[login] 로그인 실패 email={}", maskEmail(email));
             throw new ApiException(ErrorCode.INVALID_CREDENTIALS);
         }
 
-        return toAuthResponse(found.get());
+        // 성공하면 누적을 지운다. 안 지우면 비밀번호를 몇 번 헷갈렸다가 제대로 로그인한 사용자가,
+        // 15분 안에 한 번만 더 틀려도 차단된다. 실패가 <연속>일 때만 의심스러운 것이다.
+        rateLimiter.forget(FAILURE_BUCKET, failureKey, FAILURE_WINDOW);
 
-        // TODO(W2 이후): 로그인 실패 횟수 제한(brute-force 방어).
-        //   JWT 라 서버에 상태가 없으므로 실패 카운터를 어디에 둘지부터 정해야 한다
-        //   (DB 컬럼 추가 = 마이그레이션 필요 / Redis 도입 = 운영 대상 증가).
-        //   지금 결정하지 않고 남겨둔다.
-        //
-        //   함께 고려할 것: 계정별 실패 카운터보다 IP 단위 요청 수 제한이 먼저다.
-        //   위의 더미 해시 설계 때문에 <가입되지 않은 이메일>로 요청해도 BCrypt 대조 비용(수십~수백 ms)이
-        //   그대로 발생한다. 즉 존재하지 않는 계정만 골라 때려도 CPU 가 소진되므로
-        //   "계정을 못 찾으면 빨리 실패"에 기대는 방어가 통하지 않는다.
-        //   (열거 방지를 위해 일부러 그렇게 만든 것이니 이 비용 자체는 되돌리지 않는다)
-        //   응답 코드는 이미 정의돼 있다 — ErrorCode.RATE_LIMIT_EXCEEDED(429).
+        return toAuthResponse(found.get());
     }
 
     private AuthResponse toAuthResponse(User user) {

@@ -17,11 +17,19 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  *                        값 하나 때문에 새 프로퍼티 클래스를 만들 이유가 없다.
  *                        (이름이 {@code app.widget} 인 것은 어색하지만, 프리픽스를 바꾸면
  *                        배포 환경변수까지 함께 바꿔야 해서 그 대가가 더 크다)
+ * @param loginFailureLimit 같은 IP·같은 이메일 기준으로 허용하는 <b>연속 로그인 실패</b> 횟수.
+ *                        <p>{@code loginPerMinute} 와 <b>세는 대상이 다르다.</b>
+ *                        저쪽은 성공·실패를 가리지 않는 <b>요청 수</b>를, 이쪽은 <b>실패만</b> 센다.
+ *                        저쪽만 있으면 한 IP 가 분당 한도만큼 <b>영원히</b> 추측을 이어갈 수 있다.
+ *                        <p>윈도우(15분)는 설정이 아니라 {@code AuthService.FAILURE_WINDOW} 상수다.
+ *                        {@code ErrorCode.TOO_MANY_LOGIN_FAILURES} 안내 문구가 그 값을 글자로 담고 있어,
+ *                        설정으로 빼면 <b>안내와 실제가 어긋난 채 배포될 수 있다.</b>
  */
 @ConfigurationProperties(prefix = "app.widget")
 public record WidgetProperties(
         int chatPerMinute,
         int configPerMinute,
-        int loginPerMinute
+        int loginPerMinute,
+        int loginFailureLimit
 ) {
 }
