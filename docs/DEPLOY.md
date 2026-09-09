@@ -346,6 +346,11 @@ Caddyfile·`docker-compose.prod.yml` 만 바뀐 푸시는 이미지 빌드 없�
 마지막 것을 Secrets 에 박는 이유: 워크플로 안에서 `ssh-keyscan` 을 돌리면 매 실행마다
 "처음 보는 호스트를 그냥 믿는" 것이라 중간자 공격을 하나도 막지 못한다.
 
+워크플로도 4단계 뒤에 `scripts/verify-deploy.sh` 를 돌린다. **헬스체크만으로는 "배포됐는가" 를
+검증할 수 없기 때문이다**: `/actuator/health` 는 버전을 모르고, 밖에서 버전을 알 방법도 없다
+(`/actuator/info` · `/env` · `/metrics` 는 전부 401 이다. 실측했다).
+스크립트가 실제로 걸리는지는 `bash scripts/verify-deploy.check.sh` 로 잰다(도커만 있으면 어디서나 돈다).
+
 **여전히 손으로 해야 하는 것**: `.env.prod` 변경(서버에만 있다) · 롤백(`IMAGE_TAG` 를 이전 커밋
 SHA 로 바꾸고 아래 4단계) · rate limit 종단 확인(아래 절).
 그리고 **아래 4단계는 지우지 않는다**: 워크플로가 그대로 옮긴 원본이고, Actions 가 못 돌 때 손으로 돌릴 수단이다.
@@ -399,6 +404,14 @@ docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
 #    3번의 pull 이 우연히 새 이미지를 받아오면 재생성되고, 안 받아오면 재생성되지 않는다 —
 #    즉 이 단계를 생략하면 Caddyfile 갱신이 "가끔 되고 가끔 안 된다." 겉으로는 항상 성공한 것처럼 보인다.
 docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --force-recreate caddy
+
+# 5. 🔴 배포 검증. "돌았다" 와 "새것으로 바뀌었다" 는 다르다.
+#    3번의 up -d 가 조용히 아무것도 안 해도 위 네 줄은 전부 성공으로 끝나고,
+#    8번의 /actuator/health 는 버전을 모르므로 옛 컨테이너에도 UP 을 준다.
+#    2026-09-09 의 사고가 정확히 그 모양이었다: 서버 git 은 최신인데 컨테이너는 32시간 전 것.
+#    이 스크립트가 <pull 로 받은 이미지 ID>와 <컨테이너가 도는 이미지 ID>를 대조해,
+#    다르면 실패한다. 이미지가 안 바뀐 배포(Caddyfile 만 고친 경우)는 두 값이 같아 통과한다.
+bash scripts/verify-deploy.sh
 
 # 롤백 — .env.prod 의 IMAGE_TAG 를 이전 커밋 SHA 로 바꾸고 위를 다시
 docker compose -f docker-compose.prod.yml --env-file .env.prod logs -f api

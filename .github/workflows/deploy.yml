@@ -75,7 +75,7 @@ jobs:
 
       # docs/DEPLOY.md §9 의 4단계를 그대로 옮긴 것이다. 순서가 전부 이유가 있다.
       # docs/DEPLOY.md §9 의 4단계를 그대로 옮긴 것이다. 순서가 전부 이유가 있다.
-      - name: 배포 (git pull → image pull → up -d → caddy 강제 재생성)
+      - name: 배포 (git pull → image pull → up -d → caddy 강제 재생성 → 이미지 대조)
         env:
           EC2_TARGET: ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}
         run: |
@@ -104,6 +104,12 @@ jobs:
           $C up -d --force-recreate caddy
 
           $C ps
+
+          # 5. 🔴 "돌았다" 와 "새것으로 바뀌었다" 는 다르다. up -d 가 조용히 아무것도
+          #    안 해도 여기까지는 전부 초록불이고, 아래 헬스체크의 /actuator/health 는
+          #    버전을 모르므로 옛 컨테이너에도 UP 을 준다. 2026-09-09 의 사고가 그 모양이었다.
+          #    그래서 <받은 이미지>와 <도는 이미지>를 대조한다. 근거는 스크립트 주석 참고.
+          bash scripts/verify-deploy.sh
           REMOTE
 
       # 배포 명령이 성공했다고 서비스가 살아난 것은 아니다. 컨테이너가 부팅 중에
