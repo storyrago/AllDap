@@ -86,6 +86,24 @@ public enum ErrorCode {
     AI_SERVICE_ERROR(HttpStatus.BAD_GATEWAY, "AI_SERVICE_ERROR",
             "답변 처리 중 문제가 발생했습니다. 잠시 후 다시 시도해주세요."),
 
+    /**
+     * 🔴 <b>재시도로는 절대 안 풀리는 실패</b>라서 위 셋과 갈랐다 (2026-09-09).
+     *
+     * <p>Python 이 답변을 받긴 했는데 {@code max_tokens} 에 걸려 잘렸거나 비어 있는 경우다
+     * ({@code generator.GenerationFailed}). 그전까지는 {@code AI_SERVICE_UNAVAILABLE} 로 뭉개져
+     * "잠시 후 다시 시도해주세요" 가 나갔는데, <b>생성은 {@code temperature=0} 이라 다시 물어도
+     * 같은 답이 같은 자리에서 잘린다.</b> 안내가 사실과 달랐다.
+     *
+     * <p><b>왜 4xx 인가.</b> 5xx 는 "우리가 고장났으니 이따 다시 오라"는 뜻이고, 프론트의 재시도
+     * 로직과 운영 알림이 그 뜻을 그대로 믿는다. 여기서 결과를 바꿀 수 있는 유일한 행동은
+     * <b>사용자가 질문을 좁히는 것</b>이라, 요청은 멀쩡히 받았지만 처리하지 못했다는 뜻의 422 를 쓴다.
+     * (같은 이유로 {@code AiServiceClient} 는 이 실패를 서킷브레이커의 실패로도 세지 않는다.
+     * Python 은 멀쩡히 응답했다)
+     */
+    ANSWER_INCOMPLETE(HttpStatus.UNPROCESSABLE_ENTITY, "ANSWER_INCOMPLETE",
+            "답변이 길어져 끝까지 완성하지 못했습니다. 같은 질문을 다시 보내도 같은 결과이니, "
+                    + "질문을 더 좁혀서(한 번에 한 가지만) 물어봐 주세요."),
+
     // 평가를 아직 돌릴 수 없는 상태. <사용자가 고칠 수 있는> 문제이므로 4xx 다.
     // 기본 문구는 거의 쓰이지 않는다 — Python 이 상황별로 더 구체적인 한국어를 주고
     // AiServiceClient 의 eval 매퍼가 그 문구를 그대로 실어 보내기 때문이다.
@@ -124,6 +142,27 @@ public enum ErrorCode {
             "유료 요금제를 쓰는 동안에는 마지막 카드를 삭제할 수 없습니다. 다른 카드를 먼저 등록하거나, 요금제 페이지에서 무료로 바꾼 뒤 삭제해주세요."),
     BILLING_METHOD_NOT_FOUND(HttpStatus.NOT_FOUND, "BILLING_METHOD_NOT_FOUND",
             "그 카드를 찾을 수 없습니다. 이미 삭제됐을 수 있으니 화면을 새로고침해 확인해주세요."),
+
+    /**
+     * 🔴 저장된 빌링키를 <b>복호화하지 못했다</b>. {@code INTERNAL_ERROR} 에서 갈라냈다 (2026-09-09).
+     *
+     * <p>원인은 셋 중 하나다: {@code BILLING_CRYPTO_KEY} 를 잃었거나, {@code billing_key_enc} 가
+     * 손상됐거나, 누군가 값을 변조했다({@code BillingCrypto} 참고). 어느 쪽이든 <b>재시도로는
+     * 절대 안 풀린다.</b> 그런데 {@code INTERNAL_ERROR} 는 "잠시 후 다시 시도해주세요" 라고 안내했다.
+     * 2026-09-07 에 암호문 한 글자를 실제로 변조해 이 경로를 실측했고, 그때 나간 문구가 그것이다.
+     *
+     * <p><b>안내가 "삭제 후 재등록" 이 아닌 이유.</b> 삭제도 같은 자리에서 막힌다.
+     * {@code BillingService.delete} 는 토스를 부르기 <b>전에</b> 복호화하고, 실패하면 토스를 아예
+     * 부르지 않는다("모르면 지우지 않는다"). 그래서 이 카드는 사용도 삭제도 안 된다.
+     * 사용자가 지금 할 수 있는 일은 <b>다른 카드를 등록해 기본으로 지정하는 것</b>뿐이고,
+     * 남은 행 정리는 운영자의 일이다.
+     *
+     * <p><b>왜 그래도 500 인가.</b> 사용자 잘못이 아니고, 우리 데이터가 깨졌다는 사실 자체가
+     * 즉시 알림이 필요한 사건이라 5xx 로 남는 것이 맞다. 대신 문구에서 "잠시 후 재시도" 를 지웠다.
+     */
+    BILLING_METHOD_UNREADABLE(HttpStatus.INTERNAL_SERVER_ERROR, "BILLING_METHOD_UNREADABLE",
+            "이 카드의 결제 정보를 읽을 수 없어 사용할 수도, 삭제할 수도 없습니다. "
+                    + "다시 시도해도 같은 결과이니, 다른 카드를 등록해 기본 카드로 지정한 뒤 문의해주세요."),
 
     // ── 그 외 ───────────────────────────────────────────────────────────
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_ERROR",

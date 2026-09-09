@@ -222,13 +222,21 @@ def chat(req: ChatRequest) -> ChatResponse:
         #    "문서에서 답을 찾지 못했어요" 로 내보내면 제품이 거짓말을 한다.
         #    오류로 올려야 대화 로그에도 답변 행이 남지 않는다 — 그게 사실이다.
         #
-        # ⚠️ 왜 로그를 남기나: 아래 detail 은 사용자에게 닿지 않는다. Spring 이 Python 5xx 를
-        #    AI_SERVICE_UNAVAILABLE 로 바꿔 자기 문구를 내보내기 때문이다. 원인(잘림인지
-        #    빈 응답인지, max_tokens 가 얼마였는지)은 여기서만 볼 수 있다.
+        # ⚠️ 왜 로그를 남기나: 아래 message 는 사용자에게 그대로 닿지 않는다. Spring 이 자기
+        #    ErrorCode 문구를 내보내기 때문이다. 원인(잘림인지 빈 응답인지, max_tokens 가
+        #    얼마였는지)은 여기서만 볼 수 있다.
         _log.warning("답변 생성 실패 bot_id=%s: %s", req.bot_id, e)
+        # 🔴 detail 을 <문자열이 아니라 객체>로 준다 (2026-09-09). Spring 이 이 실패를
+        #    "Python 이 아프다"(재시도하면 된다)와 갈라야 하는데, 상태코드만으로는 못 가른다.
+        #    503 이 지금은 이 자리 하나뿐이라 우연히 신호 노릇을 하지만, 여기 503 이 하나만 더
+        #    생기는 순간 조용히 뭉개진다. 그래서 code 를 명시한다.
+        #    ⚠️ 이건 API 컨트랙트다. 값을 바꾸면 AiServiceClient 도 함께 고칠 것.
         raise HTTPException(
             503,
-            "답변을 완성하지 못했습니다. 질문을 더 좁혀서 다시 물어봐 주세요.",
+            {
+                "code": "GENERATION_INCOMPLETE",
+                "message": "답변을 완성하지 못했습니다. 질문을 더 좁혀서 다시 물어봐 주세요.",
+            },
         ) from e
 
     latency_ms = int((time.perf_counter() - started) * 1000)

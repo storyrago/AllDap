@@ -1,5 +1,7 @@
 package com.alldap.api.global.crypto;
 
+import com.alldap.api.global.exception.ApiException;
+import com.alldap.api.global.exception.ErrorCode;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.env.Environment;
 import org.springframework.security.crypto.encrypt.AesBytesEncryptor;
@@ -169,6 +171,17 @@ public class BillingCrypto {
      * Base64 가 깨졌다)은 <b>운영자가 할 일이 전부 같다</b>(고객에게 재등록 안내).
      * 오히려 라이브러리의 영어 {@code IllegalStateException("bad padding")} 을 그대로 흘리면
      * 무엇을 해야 하는지 알 수 없다.
+     *
+     * <p>🔴 <b>{@link ApiException} 으로 던지는 이유</b> (2026-09-09에 바꿨다). 예전의
+     * {@code IllegalStateException} 은 {@code GlobalExceptionHandler} 의 마지막 그물에 걸려
+     * <b>{@code INTERNAL_ERROR} 500 + "잠시 후 다시 시도해주세요"</b> 가 나갔다. 그런데 이 실패는
+     * <b>재시도로 절대 안 풀린다.</b> 키를 잃었거나 행이 깨졌거나 변조된 것이다.
+     * 2026-09-07 에 암호문 한 글자를 실제로 변조해 그 거짓 안내를 확인했다.
+     * 무엇을 하면 되는지는 {@link ErrorCode#BILLING_METHOD_UNREADABLE} 에 적혀 있다.
+     *
+     * <p>⚠️ 대신 {@code log.error} 를 <b>여기서</b> 남긴다. {@code ApiException} 은 핸들러가
+     * {@code log.warn} 한 줄로만 남기는데, 이 사건은 스택트레이스가 필요한 부류다.
+     * (원인 예외가 GCM 태그 불일치인지 Base64 파손인지가 조사의 출발점이다)
      */
     public String decrypt(String stored) {
         try {
@@ -178,9 +191,12 @@ public class BillingCrypto {
             // GCM 인증태그 불일치는 AEADBadTagException → BadPaddingException 을 거쳐
             // spring-security-crypto 의 CipherUtils 가 IllegalStateException 으로 바꿔 던진다.
             // Base64 가 깨졌으면 IllegalArgumentException 이다. 둘 다 RuntimeException 이라 한 번에 받는다.
-            throw new IllegalStateException(
-                    "저장된 결제 수단을 복호화하지 못했습니다. BILLING_CRYPTO_KEY 가 등록 당시와 다르거나 "
-                            + "billing_key_enc 값이 손상됐습니다. 고객에게 카드를 다시 등록하도록 안내해주세요.", e);
+            //
+            // 🔴 stored(암호문)를 로그에 남기지 않는다. 우리 DB 가 유일한 사본이라는 말은
+            //    <로그로 새면 그것도 사본이 된다>는 뜻이다 (BillingService 의 같은 규칙).
+            log.error("[BILLING] 저장된 결제 수단을 복호화하지 못했다. "
+                    + "BILLING_CRYPTO_KEY 가 등록 당시와 다르거나 billing_key_enc 가 손상·변조됐다.", e);
+            throw new ApiException(ErrorCode.BILLING_METHOD_UNREADABLE);
         }
     }
 }

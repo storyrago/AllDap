@@ -59,6 +59,15 @@ class ChatIntegrationTest {
                          "filename":"학사규정.pdf","score":0.87,"preview":"휴학 신청은 개강 후 30일 이내"}],
              "is_fallback":false,"latency_ms":1234}""";
 
+    /**
+     * Python 이 답변을 <받지 못한> 경우. {@code generator.GenerationFailed} → chat 의 503 이다.
+     * 🔴 {@code detail} 이 문자열이 아니라 <b>객체</b>인 것이 이 실패를 "Python 이 아프다" 와
+     * 가르는 유일한 신호다. Python 쪽 문구와 짝을 맞춰야 하는 API 컨트랙트다.
+     */
+    private static final String 잘림응답 = """
+            {"detail":{"code":"GENERATION_INCOMPLETE",
+                       "message":"답변을 완성하지 못했습니다. 질문을 더 좁혀서 다시 물어봐 주세요."}}""";
+
     /** Python 이 근거를 못 찾아 거절한 경우. answer 는 Python 의 기본 문구다. */
     private static final String 거절응답 = """
             {"answer":"문서에서 관련 내용을 찾지 못했습니다.","sources":[],
@@ -249,6 +258,50 @@ class ChatIntegrationTest {
 
         assertThat(response.status()).isEqualTo(503);
         assertThat(aiService.received()).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("[잘림] 🔴 답변이 잘리면 422 ANSWER_INCOMPLETE 다. 재시도하라고 안내하지 않는다")
+    void 답변이_잘리면_재시도_안내를_하지_않는다() {
+        // Python 이 generator.GenerationFailed 를 만났을 때 실제로 주는 본문이다
+        // (ai-service/app/main.py 의 chat 503). detail 이 <객체>인 것이 신호다.
+        aiService.enqueue(503, 잘림응답);
+
+        Response response = chat(ownerToken, botId, "회사 규정 전체를 요약해줘");
+
+        // 🔴 503(AI_SERVICE_UNAVAILABLE)이 아니다. 생성은 temperature=0 이라 다시 물어도
+        //    같은 자리에서 잘린다. "잠시 후 다시 시도해주세요" 는 거짓 안내였다.
+        assertThat(response.status()).isEqualTo(422);
+        assertThat(response.json().path("error").path("code").asString()).isEqualTo("ANSWER_INCOMPLETE");
+        // 안내가 사용자에게 <무엇을 하라고> 말하는지까지 고정한다. 코드만 보면
+        // 문구가 옛날로 돌아가도 테스트가 통과한다.
+        assertThat(response.json().path("error").path("message").asString())
+                .contains("질문을 더 좁혀서")
+                .doesNotContain("잠시 후");
+
+        // 답변을 <받지 못한> 것이므로 assistant 행이 생기면 안 된다.
+        // (fallback 이었다면 "문서에서 찾지 못했다" 답변 행이 남는다. 그것과 다른 사실이다)
+        assertThat(countMessagesByRole("user")).isEqualTo(1);
+        assertThat(countMessagesByRole("assistant")).isZero();
+    }
+
+    @Test
+    @DisplayName("[잘림] 🔴 잘림은 서킷 실패로 세지 않는다. 질문 하나가 나빴을 뿐 Python 은 멀쩡하다")
+    void 잘림은_서킷을_열지_않는다() {
+        // 서킷 임계치(5)만큼 잘림을 낸 뒤에도 다음 요청이 Python 까지 가야 한다.
+        // 세었다면 여기서 서킷이 열려 아래 요청은 호출 없이 503 이 된다.
+        for (int i = 0; i < 5; i++) {
+            aiService.enqueue(503, 잘림응답);
+            chat(ownerToken, botId, "잘리는 질문 " + i);
+        }
+        int callsBefore = aiService.received().size();
+        aiService.enqueue(200, 정상응답);
+
+        Response response = chat(ownerToken, botId, "짧은 질문");
+
+        assertThat(response.status()).isEqualTo(200);
+        // 🔴 핵심: 요청이 실제로 나갔다 = 서킷이 닫혀 있었다.
+        assertThat(aiService.received()).hasSize(callsBefore + 1);
     }
 
     @Test
