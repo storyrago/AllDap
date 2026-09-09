@@ -1,5 +1,7 @@
 package com.alldap.api.global.crypto;
 
+import com.alldap.api.global.exception.ApiException;
+import com.alldap.api.global.exception.ErrorCode;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.env.MockEnvironment;
@@ -71,9 +73,12 @@ class BillingCryptoTest {
         combined[12] ^= 0x01;
         String tampered = Base64.getEncoder().encodeToString(combined);
 
+        // 🔴 ApiException(BILLING_METHOD_UNREADABLE) 이다 (2026-09-09). IllegalStateException 이면
+        //    마지막 그물에 걸려 "잠시 후 다시 시도해주세요" 가 나가는데, 이 실패는 재시도로 안 풀린다.
         assertThatThrownBy(() -> crypto.decrypt(tampered))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("복호화하지 못했습니다");
+                .isInstanceOf(ApiException.class)
+                .extracting(e -> ((ApiException) e).getErrorCode())
+                .isEqualTo(ErrorCode.BILLING_METHOD_UNREADABLE);
     }
 
     @Test
@@ -85,7 +90,7 @@ class BillingCryptoTest {
         // 토스에는 발급된 빌링키를 조회하는 API 가 없다. 우리 DB 가 유일한 사본이라
         // 키를 잃으면 전 고객이 카드를 다시 등록해야 한다 — 그 대가가 실재함을 여기서 못박는다.
         assertThatThrownBy(() -> other.decrypt(stored))
-                .isInstanceOf(IllegalStateException.class);
+                .isInstanceOf(ApiException.class);
     }
 
     @Test

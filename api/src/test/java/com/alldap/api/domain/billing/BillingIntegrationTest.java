@@ -555,6 +555,31 @@ class BillingIntegrationTest {
     }
 
     @Test
+    @DisplayName("[삭제] 🔴 암호문이 손상되면 500 BILLING_METHOD_UNREADABLE 이고, 토스를 부르지 않으며 행이 남는다")
+    void 복호화_실패는_재시도_안내를_하지_않는다() {
+        String id = 등록한다();
+        // 2026-09-07 에 손으로 했던 것과 같은 조작이다: 암호문 한 글자를 바꾼다.
+        // GCM 인증태그가 이걸 잡아낸다(CBC 였다면 복호화가 그냥 성공했을 것이다).
+        암호문을_변조한다(id);
+        tossStub.reset();
+
+        Response 응답 = 삭제(ownerToken, id);
+
+        // 🔴 INTERNAL_ERROR("잠시 후 다시 시도해주세요")가 아니다. 키 분실·손상·변조 중 하나라
+        //    재시도로는 절대 안 풀린다.
+        assertThat(응답.status()).isEqualTo(500);
+        assertThat(응답.json().path("error").path("code").asString())
+                .isEqualTo("BILLING_METHOD_UNREADABLE");
+        assertThat(응답.json().path("error").path("message").asString())
+                .doesNotContain("잠시 후");
+
+        // "모르면 지우지 않는다": 복호화 전에 멈추므로 토스는 아예 부르지 않고 행도 남는다.
+        // (지웠다면 토스에 우리가 값을 모르는 빌링키가 영영 남는다)
+        assertThat(tossStub.received()).isEmpty();
+        assertThat(카드_행수(userId)).isEqualTo(1);
+    }
+
+    @Test
     @DisplayName("[삭제] 없는 카드 id 면 404 이고 토스를 부르지 않는다")
     void 없는_카드를_지우면_404() {
         Response 응답 = 삭제(ownerToken, UUID.randomUUID().toString());
@@ -617,6 +642,18 @@ class BillingIntegrationTest {
 
     private Response 삭제(String token, String id) {
         return request(HttpMethod.DELETE, METHODS + "/" + id, token, null);
+    }
+
+    /**
+     * 저장된 암호문의 첫 글자를 <b>반드시 다른 글자로</b> 바꿔 "손상된 행" 을 만든다.
+     * 고정 글자로 덮어쓰면 원래 값과 우연히 같을 때 아무것도 손상되지 않아 테스트가 조용히 통과한다.
+     */
+    private void 암호문을_변조한다(String methodId) {
+        UUID id = UUID.fromString(methodId);
+        String 원본 = jdbcTemplate.queryForObject(
+                "SELECT billing_key_enc FROM billing_methods WHERE id = ?", String.class, id);
+        String 변조 = (원본.charAt(0) == 'A' ? 'B' : 'A') + 원본.substring(1);
+        jdbcTemplate.update("UPDATE billing_methods SET billing_key_enc = ? WHERE id = ?", 변조, id);
     }
 
     private long 카드_행수(UUID userId) {

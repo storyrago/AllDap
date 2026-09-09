@@ -72,6 +72,12 @@ public class AiServiceClient {
     /** RestClientConfig 의 {@code aiServiceRestClient} 빈. baseUrl 과 타임아웃이 이미 박혀 있다. */
     private final RestClient aiServiceRestClient;
 
+    /**
+     * Python 이 "답변을 완성하지 못했다" 를 표시하는 값. {@code ai-service/app/main.py} 의 chat 503 과
+     * <b>짝을 맞춰야 하는 API 컨트랙트</b>다. 한쪽만 고치면 안내가 조용히 옛날로 돌아간다.
+     */
+    private static final String GENERATION_INCOMPLETE = "GENERATION_INCOMPLETE";
+
     /** FastAPI 의 에러 본문 {@code {"detail":"..."}} 을 읽는 데만 쓴다. Boot 4 가 자동 구성하는 Jackson 3 매퍼다. */
     private final ObjectMapper objectMapper;
 
@@ -190,7 +196,9 @@ public class AiServiceClient {
      * <ul>
      *   <li>연결 자체가 안 됨 → 503 {@code AI_SERVICE_UNAVAILABLE} ("잠시 후 재시도")</li>
      *   <li>연결은 됐는데 응답이 늦음 → 504 {@code AI_SERVICE_TIMEOUT} ("질문을 줄여서 재시도")</li>
-     *   <li>Python 이 5xx → 503. Python 이 스스로 고장났다고 말한 것이다</li>
+     *   <li>Python 이 5xx → 503. Python 이 스스로 고장났다고 말한 것이다.
+     *       <b>단 하나 예외</b>: 본문에 {@code detail.code = GENERATION_INCOMPLETE} 가 실려 오면
+     *       재시도로 안 풀리는 실패라 422 {@code ANSWER_INCOMPLETE} 다 ({@link #detailCode} 참고)</li>
      *   <li>Python 이 4xx → 사용자 입력 문제. {@link #translateClientError} 가 구체적인 코드로 바꾼다</li>
      * </ul>
      */
@@ -234,6 +242,17 @@ public class AiServiceClient {
                 log.warn("[AI 호출] {} — Python 이 {} 로 거절. body={}",
                         what, status, e.getResponseBodyAsString());
                 throw on4xx.apply(e);
+            }
+            // 🔴 Python 이 <재시도해도 같다>고 명시한 실패는 장애가 아니다 (2026-09-09).
+            //    답변이 max_tokens 에 걸려 잘린 경우(GenerationFailed)가 이것인데,
+            //    생성은 temperature=0 이라 다시 물어도 같은 자리에서 잘린다.
+            //    그런데 여기서 뭉개면 "잠시 후 다시 시도해주세요" 가 나가 <안내가 거짓말이 된다.>
+            //    ⚠️ 4xx 와 같은 이유로 서킷 실패로도 세지 않는다(Python 은 멀쩡히 판단해 응답했다).
+            //       세면 질문 하나가 나빴을 뿐인데 <멀쩡한 Python 을 차단>하게 된다.
+            if (GENERATION_INCOMPLETE.equals(detailCode(e))) {
+                log.warn("[AI 호출] {}: 답변을 완성하지 못했다(재시도로 풀리지 않는다). body={}",
+                        what, e.getResponseBodyAsString());
+                throw new ApiException(ErrorCode.ANSWER_INCOMPLETE);
             }
             circuitBreaker.recordFailure();   // 5xx = Python 이 아프다
             log.error("[AI 호출] {} 실패 — Python 이 {} 응답. body={}", what, status, e.getResponseBodyAsString());
@@ -312,7 +331,32 @@ public class AiServiceClient {
         try {
             JsonNode detail = objectMapper.readTree(e.getResponseBodyAsString()).path("detail");
             // Jackson 3 에서 isTextual() 이 isString() 으로 바뀌었다 (2.x 예제를 그대로 쓰면 deprecated 경고).
-            return detail.isString() ? detail.asString() : null;
+            if (detail.isString()) {
+                return detail.asString();
+            }
+            // 객체형 detail (아래 detailCode 주석 참고). 사람이 읽을 문구는 message 에 있다.
+            JsonNode message = detail.path("message");
+            return message.isString() ? message.asString() : null;
+        } catch (RuntimeException ignored) {
+            return null;
+        }
+    }
+
+    /**
+     * FastAPI 의 에러 본문이 {@code {"detail":{"code":"...","message":"..."}}} 모양일 때 {@code code} 만 꺼낸다.
+     *
+     * <p><b>왜 필요한가.</b> Python 의 5xx 중에는 <b>재시도로 절대 안 풀리는 것</b>이 섞여 있다.
+     * 그걸 상태 코드로는 가를 수 없다. 답변 잘림도 503, Python 이 정말 아픈 것도 503 이다.
+     * 지금은 Python 의 503 이 잘림 하나뿐이라 상태 코드가 우연히 신호 노릇을 하지만,
+     * 503 을 던지는 자리가 하나만 더 생기면 그 순간 조용히 뭉개진다.
+     * <b>이 저장소가 반복해 낸 "서로 다른 두 사실을 같은 값으로 뭉개는" 부류</b>라 코드로 명시한다.
+     *
+     * <p>문자열 detail(대부분의 엔드포인트)에서는 {@code null} 이다. 그 경우 기존 분기가 그대로 돈다.
+     */
+    private String detailCode(RestClientResponseException e) {
+        try {
+            JsonNode code = objectMapper.readTree(e.getResponseBodyAsString()).path("detail").path("code");
+            return code.isString() ? code.asString() : null;
         } catch (RuntimeException ignored) {
             return null;
         }
