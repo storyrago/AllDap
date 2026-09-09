@@ -17,6 +17,8 @@ Cloudflare 를 부르는 곳이 셋이 됐다 — 임베딩(retriever), 채점(j
 """
 from __future__ import annotations
 
+import time
+
 import httpx
 
 from .config import get_settings
@@ -56,7 +58,9 @@ def run(model: str, payload: dict) -> dict:
     s = get_settings()
     url = f"{s.cf_base_url}/accounts/{s.cf_account_id}/ai/run/{model}"
 
+    started = time.perf_counter()
     resp = _client().post(url, json=payload)
+    _latencies.setdefault(model, []).append((time.perf_counter() - started) * 1000)
     resp.raise_for_status()          # 4xx·5xx 는 여기서 예외
     body = resp.json()
     if not body.get("success", False):
@@ -105,6 +109,43 @@ def _record_neurons(model: str, result: dict, resp=None) -> None:
             n = None
     if isinstance(n, (int, float)):
         _neurons[model] = _neurons.get(model, 0.0) + float(n)
+
+
+# ── 지연(ms) 집계 ──────────────────────────────────────────────────────
+#
+# 왜 뉴런과 <따로> 두나: 뉴런은 실패한 호출에 없지만 지연은 실패한 호출에도 있다.
+# 한 dict 에 뭉치면 "느렸다" 와 "비쌌다" 가 같은 자리에 섞인다.
+#
+# ⚠️ 누적은 <프로세스 수명 동안> 쌓인다. 리셋 함수를 두지 않은 것은 일부러다,
+#    "리셋했나?" 를 사람이 기억해야 하는 순간 그 측정은 못 믿는다.
+#    측정 구간의 시작은 <프로세스를 다시 띄우는 것>으로 만든다(s1_baseline 이 그렇게 한다).
+#
+# ⚠️ 스레드 안전하지 않다. _neurons 와 같은 이유이고 같은 한계다(측정용 근사치).
+_latencies: dict[str, list[float]] = {}
+
+
+def latency_percentiles() -> dict[str, dict[str, float]]:
+    """모델별 호출 수와 p50/p95/p99(ms).
+
+    ⚠️ 평균을 안 준다. 평균은 느린 꼬리를 감춘다,
+       이 저장소는 avg_faithfulness 로 이미 한 번 데였다(생존 편향).
+    """
+    out: dict[str, dict[str, float]] = {}
+    for model, values in _latencies.items():
+        ordered = sorted(values)
+
+        def pct(p: float, ordered: list[float] = ordered) -> float:
+            # nearest-rank. 표본이 적을 때 보간이 <있지도 않은 값>을 만들지 않는다.
+            idx = max(0, min(len(ordered) - 1, int(-(-len(ordered) * p // 100)) - 1))
+            return ordered[idx]
+
+        out[model] = {
+            "count": len(ordered),
+            "p50": pct(50),
+            "p95": pct(95),
+            "p99": pct(99),
+        }
+    return out
 
 
 def neurons_used() -> dict[str, float]:

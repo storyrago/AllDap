@@ -65,6 +65,17 @@ def main() -> int:
     counts = fake_cf.counts()
     check("카운터", counts[s.chat_model] == 1, f"({dict(counts)})")
 
+    # ⑤ 지연 계측. 가짜 서버가 자는 시간을 알고 있으므로 계측이 맞는지 <검증할 수 있다>.
+    #    생성은 fake_cf.LATENCY_MS["generate"] 만큼 잔다.
+    stats = cf.latency_percentiles()
+    p50 = stats[s.chat_model]["p50"]
+    expected = fake_cf.LATENCY_MS["generate"]
+    check(
+        "생성 p50 계측",
+        expected <= p50 <= expected + 300,   # 상한은 HTTP 왕복 여유
+        f"({p50:.0f}ms, 기대 {expected}ms 이상)",
+    )
+
     server.shutdown()
     print(f"\n{'실패 ' + ', '.join(failures) if failures else '전부 통과'}")
     return 1 if failures else 0
