@@ -97,8 +97,8 @@
     {
       "id": 6,
       "type": "timeseries",
-      "title": "1순위 가설 — anyio 스레드풀 (Python)",
-      "description": "borrowed 가 total(40)에 붙고 inflight 가 그 위로 계속 늘면, 늘어난 만큼이 스레드를 못 받고 큐에서 기다리는 요청이다. total 을 함께 그리는 이유: 40 은 우리 설정값이 아니라 anyio 기본값이라 라이브러리를 올리면 조용히 바뀐다.",
+      "title": "1순위 가설: anyio 스레드풀 (Python) · 대기 큐 = tomcat_busy - borrowed",
+      "description": "borrowed 가 total(40)에 붙으면 스레드풀이 찬 것이다. 🔴 대기 큐는 inflight 가 아니라 <뺄셈 시리즈>(tomcat_busy - borrowed)로 읽는다: inflight 는 워커 스레드를 이미 얻은 요청만 세므로 구조적으로 borrowed 를 넘을 수 없다(2026-09-10 S2 실측 - tomcat_busy=80, inflight=40). inflight 는 '지금 Python 이 실제로 처리 중인 건수' 로만 읽을 것. total 을 함께 그리는 이유: 40 은 우리 설정값이 아니라 anyio 기본값이라 라이브러리를 올리면 조용히 바뀐다.",
       "gridPos": {
         "h": 8,
         "w": 12,
@@ -119,7 +119,12 @@
         {
           "refId": "C",
           "expr": "alldap_chat_inflight",
-          "legendFormat": "inflight (안에 있는 요청)"
+          "legendFormat": "inflight (실제 처리 중 · 대기 큐 아님)"
+        },
+        {
+          "refId": "D",
+          "expr": "clamp_min(tomcat_threads_busy_threads - alldap_anyio_threads_borrowed, 0)",
+          "legendFormat": "대기 큐 (tomcat_busy - borrowed)"
         }
       ]
     },

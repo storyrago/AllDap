@@ -126,7 +126,24 @@ ai-service/app/main.py           라우트 1개 + /internal/chat 계측
 | `alldap_anyio_threads_borrowed` | `anyio.to_thread.current_default_thread_limiter().borrowed_tokens` | **1순위 가설.** 40 에 붙는 순간 |
 | `alldap_anyio_threads_total` | 같은 limiter 의 `total_tokens` | 40 은 설정값이 아니라 anyio **기본값**이다. 버전이 바뀌면 그래프가 조용히 거짓이 되는 것을 막는다 |
 | `alldap_chat_duration_seconds` (histogram) | `/internal/chat` 처리시간 | Spring 왕복에서 **Python 몫을 분리.** 없으면 "느린 게 Spring 인가 Python 인가" 를 못 가른다 |
-| `alldap_chat_inflight` (gauge) | 진입/이탈 | 스레드풀 대기 큐 길이의 대리 지표 |
+| `alldap_chat_inflight` (gauge) | 진입/이탈 | ~~스레드풀 대기 큐 길이의 대리 지표~~ → **지금 Python 이 실제로 처리 중인 건수.** 아래 정정 참고 |
+
+> 🔴 **정정 (2026-09-11): `alldap_chat_inflight` 는 대기 큐 지표가 못 된다.**
+> 위 표가 이 지표를 "스레드풀 대기 큐 길이의 대리 지표" 로 뒀는데, 원리적으로 그 역할을
+> 못 한다. `CHAT_INFLIGHT.inc()` 가 `chat` 함수 <안>에 있고 그 함수는 anyio 워커 스레드를
+> 이미 얻은 뒤에야 실행되므로, **기다리는 요청은 `inc()` 에 도달조차 못 한다.**
+> `inflight` 는 구조적으로 `borrowed` 를 넘을 수 없다.
+> 80 VU 실측(`docs/superpowers/2026-09-10-loadtest-s2-result.md` "새로 드러난 것")이
+> 그대로 보여준다: `tomcat_busy=80` 인데 `inflight=40` 이었다.
+>
+> **실제 대기 큐 길이는 뺄셈으로 읽는다:**
+> `tomcat_threads_busy_threads - alldap_anyio_threads_borrowed`
+> (S2 실측에서는 80 - 40 = 40. PR 5 의 개선 전후 비교는 이 식으로 한다)
+>
+> ⚠️ **값이 틀린 게 아니라 약속이 틀렸던 것이다.** "지금 Python 이 실제로 처리 중인 건수"
+> 로는 `inflight` 가 여전히 옳다. 그래서 지표 <이름>은 바꾸지 않았다: 이미 쌓인 S1·S2
+> 측정 기록과 Prometheus 시계열의 연속성이 끊기고, 이름을 바꿔도 "무엇을 재는가" 는
+> 한 글자도 안 달라지기 때문이다. 고친 것은 이름이 아니라 <설명>이다.
 
 **경로를 `/internal/metrics` 로 두는 이유.** 이 저장소는 인증 없는 것을 `/internal/*`
 아래에만 두고, prod compose 가 ai-service 에 `ports:` 를 안 써서 외부에 안 열린다는

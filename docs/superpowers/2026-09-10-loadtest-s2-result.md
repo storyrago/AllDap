@@ -135,6 +135,23 @@ PR 3 이 `alldap_chat_duration_seconds` 를 만든 값어치가 이 한 줄이�
 (`inflight` 자체는 "지금 Python 이 실제로 처리 중인 건수" 로는 여전히 옳다 —
 이름이 약속한 것과 다른 것을 잰다는 게 문제지 값이 틀린 게 아니다)
 
+> ✅ **2026-09-11 에 <약속>을 고쳤다.** 값도 지표 이름도 그대로 두고, 잘못된 약속이 적혀
+> 있던 자리를 전부 정정했다:
+> - `ai-service/app/metrics.py` 의 `CHAT_INFLIGHT` 주석과 지표 설명 문자열
+> - `ai-service/app/main.py` 의 `chat` 진입부 (여기가 워커 스레드라는 사실이 곧 이 지표의
+>   의미를 정한다는 것을 그 자리에 적었다)
+> - 설계서 `specs/2026-09-10-loadtest-pr3-s2-breakpoint-design.md` §5① 표 + 정정 블록
+> - Grafana 패널 id 6: 제목·설명을 고치고 **뺄셈 식을 시리즈로 추가**했다
+>   (`clamp_min(tomcat_threads_busy_threads - alldap_anyio_threads_borrowed, 0)`).
+>   `clamp_min` 은 두 지표의 스크레이프 시점이 어긋나 순간적으로 음수가 되는 것을 막는다.
+>
+> 🔴 **지표 이름은 안 바꿨다.** 바꾸면 이미 쌓인 S1·S2 측정 기록과 Prometheus 시계열의
+> 연속성이 끊기는데, 이름을 바꿔도 "무엇을 재는가" 는 한 글자도 안 달라진다.
+> 문제였던 것은 이름이 아니라 <그 옆에 적힌 설명>이었다.
+>
+> ⚠️ 계획 문서(`plans/2026-09-10-loadtest-pr3-s2-breakpoint.md`)는 <그때 무엇을 하기로
+> 했는가> 의 기록이라 손대지 않았다. 거기 남은 "대리 지표" 서술은 이 문단이 정정본이다.
+
 ## 못 잰 것
 
 - **1 VU·5 VU 단계의 p99 는 표본이 얇다.** 요청 한 건의 하한이 1.586초라 1 VU 는
