@@ -92,3 +92,46 @@ processResources {
 		into 'static/widget'
 	}
 }
+
+/*
+ * 부하테스트용: 로컬 bootRun 을 <운영과 같은 자원 한도>로 돌린다.
+ *
+ * 왜 필요한가 — 이게 없으면 가설 하나가 링에 오르지도 못한다
+ * ─────────────────────────────────────────────────────────────────────────
+ * S2(breakpoint)가 판정해야 하는 가설은 둘이다:
+ *   1순위 — Python anyio 스레드풀 40 이 먼저 찬다
+ *   2순위 — 그보다 Spring 힙 256m 이 먼저 마른다
+ * 그런데 로컬 Spring 은 컨테이너 밖(맥 호스트)에서 gradle 로 돈다
+ * (observability/prometheus.yml 주석 참고). 즉 JVM 기본 힙 = 맥 RAM 의 1/4 로,
+ * 기가 단위다. 그대로 재면 힙은 <절대 안 마르고> 결론은 언제나 "Python 이 먼저다" 가 된다 —
+ * 그게 사실이어서가 아니라 <상대 가설을 링에 올리지도 않았기> 때문에.
+ * 부하테스트의 목적은 맞히는 게 아니라 틀리는 걸 보는 것이다.
+ *
+ * 🔴 -Ploadtest 옵트인이다. 무조건 걸면 평소 개발에서도 힙이 256m 이 되어
+ *    문서 업로드·임베딩이 엉뚱하게 죽는다. 측정을 위한 제약이 일상을 망가뜨리는 자리라
+ *    조건을 붙인다.
+ *
+ * 실행: ./gradlew bootRun -Ploadtest
+ */
+tasks.named('bootRun') {
+	if (project.hasProperty('loadtest')) {
+		// 🔴 docker-compose.prod.yml 의 JAVA_OPTS 와 <반드시 같은 값이어야 한다.>
+		//    한쪽만 바뀌면 로컬이 운영을 대변하지 못하게 되는데, 그게 <조용히> 일어난다
+		//    (provenance: false 를 같은 방식으로 처리한 선례가 있다).
+		//    거기를 고치는 사람이 여기를 보게 하려고 양쪽에 서로를 가리키는 주석을 뒀다.
+		jvmArgs = [
+			'-Xms192m',
+			'-Xmx256m',
+			'-XX:MaxMetaspaceSize=128m',
+			'-XX:+ExitOnOutOfMemoryError',
+		]
+
+		// 🔴 optimizedLaunch 를 끈다. bootRun 은 기본으로 -XX:TieredStopAtLevel=1 을 붙여
+		//    JIT 을 C1 에서 멈춘다(기동을 1초쯤 줄이려는 옵션이다. 플러그인 4.0.7 의
+		//    BootRun.class 를 열어 확인했다).
+		//    12분 동안 수천 건을 처리하는 측정에서 이걸 켜두면 <운영보다 훨씬 느린 JVM>을 재게 되고,
+		//    "어디서 꺾이는가" 가 통째로 아래 단계로 밀린다. 그 숫자가 이 PR 의 산출물이다.
+		//    측정에서는 기동 1초보다 정확한 곡선이 중요하다.
+		optimizedLaunch = false
+	}
+}
