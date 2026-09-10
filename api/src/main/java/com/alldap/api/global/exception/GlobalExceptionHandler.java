@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.multipart.support.MissingServletRequestPartException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -209,6 +210,42 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(ErrorCode.NOT_IMPLEMENTED.getStatus())
                 .body(ErrorResponse.of(ErrorCode.NOT_IMPLEMENTED));
+    }
+
+    /**
+     * 매핑도 정적 리소스도 없는 경로 → 404.
+     *
+     * <p><b>왜 필요한가.</b> 이게 없으면 마지막 그물 {@link #handleException} 이
+     * {@link NoResourceFoundException} 까지 잡아 <b>500 INTERNAL_ERROR</b> 를 내보낸다.
+     * 그 문구는 "일시적인 오류입니다. 잠시 후 다시 시도해주세요" 인데,
+     * <b>없는 주소는 다시 시도해도 영원히 없다.</b> 원인이 다른 두 사실
+     * ("서버가 아프다" / "그런 주소가 없다")을 한 값으로 뭉갠 것이라
+     * 이 저장소가 {@code ANSWER_INCOMPLETE}·{@code BILLING_METHOD_UNREADABLE} 를 갈라낸 것과 같은 부류다.
+     *
+     * <p>실제로 운영에서 드러났다. actuator 를 management 포트(8081)로 옮긴 뒤
+     * {@code GET /actuator/health} 는 8080 에 <b>존재하지 않는 경로</b>가 됐는데,
+     * 응답이 500 이라 <b>서버 장애처럼 보였다.</b> 헬스체크로 쓰는 주소라 더 나빴다.
+     *
+     * <p><b>정적 리소스는 영향을 받지 않는다.</b> 이 예외는 {@code ResourceHttpRequestHandler} 가
+     * 파일을 <b>찾지 못했을 때만</b> 던진다. 실재하는 {@code /widget/alldap-widget.js} 는
+     * 예외 없이 그대로 응답되므로 이 핸들러를 지나가지도 않는다
+     * ({@code NotFoundIntegrationTest} 가 그 사실을 실제 HTTP 로 재고 있다).
+     *
+     * <p><b>요청 경로를 응답에 되비추지 않는 이유.</b> 되비추면 응답이
+     * "그 주소는 이렇게 생겼다"를 확인해주는 도구가 되고, 반사된 문자열이 그대로 화면에 그려지면
+     * 그 자체가 하나의 구멍이다. 이 저장소가 남의 봇에 403 대신 404 를 주는 것과 같은 이유다.
+     * 정확한 경로는 로그에만 남긴다.
+     *
+     * <p>로그는 {@code warn} 이다. 주소를 잘못 부른 것은 <b>클라이언트 잘못</b>이고,
+     * 아무 문자열이나 붙여 호출하는 것만으로 ERROR 스택트레이스를 무제한으로 쌓게 두면
+     * 진짜 장애가 소음에 묻힌다({@link #handleTypeMismatch} 와 같은 판단).
+     */
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ErrorResponse> handleNoResourceFound(NoResourceFoundException e) {
+        log.warn("[NoResourceFound] method={} path={}", e.getHttpMethod(), e.getResourcePath());
+        return ResponseEntity
+                .status(ErrorCode.RESOURCE_NOT_FOUND.getStatus())
+                .body(ErrorResponse.of(ErrorCode.RESOURCE_NOT_FOUND));
     }
 
     @ExceptionHandler(Exception.class)

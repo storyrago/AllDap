@@ -84,13 +84,12 @@ class ManagementPortIntegrationTest {
         // actuator 가 자식 컨텍스트로 옮겨갔으므로 이 포트에는 그 경로가 없다.
         HttpResponse<String> response = get(serverPort, "/actuator/health");
 
-        // 🔴 계획은 404 를 기대했지만 실측값은 <500> 이다. 이 PR 이 만든 것이 아니라
-        //    GlobalExceptionHandler 의 catch-all(@ExceptionHandler(Exception.class))이
-        //    없는 경로의 NoResourceFoundException 까지 INTERNAL_ERROR 로 뭉개기 때문이다.
-        //    즉 이 앱에서는 <어떤> 없는 경로든 500 이다. 고치는 것은 별도 슬라이스다.
-        //    여기서 재려는 사실은 "이 포트에 actuator 가 없다" 하나뿐이라,
-        //    그 무관한 동작에 단언을 못박지 않고 200 이 아님 + 본문에 health 응답이 없음으로 확인한다.
-        assertThat(response.statusCode()).isNotEqualTo(200);
+        // ✅ 이 주석이 "실측값은 <500> 이고, 고치는 것은 별도 슬라이스다" 라고 적어뒀던 자리다.
+        //    그 슬라이스를 했다. GlobalExceptionHandler 에 NoResourceFoundException 핸들러가 붙어
+        //    이제 <404> 다. 없는 경로 처리 자체를 재는 것은 NotFoundIntegrationTest 의 일이고,
+        //    여기서 재려는 사실은 여전히 "이 포트에 actuator 가 없다" 하나다.
+        //    그래도 "200 이 아님" 대신 404 로 못박는다. 500 으로 되돌아가면 여기서도 잡히도록.
+        assertThat(response.statusCode()).isEqualTo(404);
         assertThat(response.body()).doesNotContain("\"status\":\"UP\"");
     }
 
