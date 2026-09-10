@@ -174,7 +174,10 @@ cd api
 확인:
 
 ```bash
-curl localhost:8080/actuator/health
+# 🔴 8080 이 아니라 8081 이다. actuator 는 management 포트로 분리돼 있다
+# (api/src/main/resources/application.yaml 의 management.server.port).
+# 운영에서는 이 포트를 호스트에 아예 열지 않아 밖에서 부를 수 없다.
+curl localhost:8081/actuator/health
 # → {"status":"UP"}
 ```
 
