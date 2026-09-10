@@ -748,3 +748,37 @@ BODY
 - `management.metrics.distribution.percentiles-histogram` — 없으면 스펙이 요구한 p95·p99 를 Grafana 가 계산할 수 없고 **평균밖에** 못 그린다. 스펙 결정 7번("평균은 참고만")과 정면으로 충돌한다.
 
 **타입·이름 일관성**: `alldap-api` 라는 uid 가 대시보드 JSON(Task 2 Step 3)과 확인 URL(Step 6)에서 일치한다. `host.docker.internal:8081` 이 `prometheus.yml`(Step 1)과 `extra_hosts`(Step 4)에서 일치한다. management 포트 8081 이 `application.yaml` · `application-prod.yaml` · `docker-compose.prod.yml` · `Dockerfile` · `prometheus.yml` 다섯 곳에서 일치한다.
+
+---
+
+## 🔴 사후 정정 (2026-09-11, main 으로 옮기며 덧붙임)
+
+이 계획서는 **구현 전에** 쓴 것이고 PR #99 로 머지됐다. **원문은 고치지 않는다.**
+빗나간 예측을 지우면 무엇을 예측했는지가 사라진다. 어긋난 자리만 적는다.
+
+### ① "management 포트에는 필터 체인이 붙지 않는다" 는 틀렸다
+
+계획서 Task 1 은 그렇게 단언하고 테스트 이름·`application.yaml` 주석까지 그 전제로
+써뒀다. **실측은 반대다.** `ManagementPortIntegrationTest` 는 지금
+`[실측 기록] management 포트에도 SecurityConfig 필터 체인이 붙는다` 라는 이름으로
+8081 의 `/actuator/metrics` 에 **401** 을 단언한다.
+
+계획서가 미리 적어둔 대응("401 로 깨지면 단언을 바꾸고, 주석 3곳을 고치고,
+`/actuator/prometheus` 를 permitAll 한다")이 그대로 실행됐다. **예측은 틀렸는데
+틀렸을 때의 절차는 맞았고, 그래서 잘못된 주석이 남지 않았다.**
+
+이 사실이 S2 측정에서 값어치를 했다. `/actuator/metrics/*` 가 인증에 막히므로
+힙 확인을 Prometheus 질의로 돌렸다(S2 결과 문서 "절차 문제" ③).
+
+### ② 8080 의 actuator 는 404 가 아니라 500 이었다
+
+Task 1 은 `actuatorIsGoneFromServicePort` 가 404 를 줄 것으로 봤다. 당시 실측은
+**500** 이었다. 매핑 없는 경로가 catch-all 예외 처리로 떨어져 `INTERNAL_ERROR`
+("잠시 후 다시 시도해주세요")가 나갔기 때문이다. 없는 주소는 다시 시도해도 영원히 없다.
+별도 PR 에서 404 로 고쳤고 지금 테스트는 404 를 단언한다.
+AGENTS.md "낸 버그" 표의 여섯 번째 항목이 이것이다.
+
+### ③ Grafana 패널은 그 뒤 셋이 늘었다
+
+이 계획서 기준 패널에 PR 3 이 **anyio 스레드풀 · Python 몫 지연 · 재시작 경계**를
+더했다. 그중 Python 몫 지연이 S2 의 결정적 근거가 됐다(대기 시간과 처리 시간의 분리).
