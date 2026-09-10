@@ -1,6 +1,7 @@
 package com.alldap.api.global.client;
 
 import com.alldap.api.global.config.AiServiceProperties;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -22,6 +23,16 @@ class AiServiceCircuitBreakerTest {
 
     private static final Duration OPEN_FOR = Duration.ofMillis(50);
 
+    private SimpleMeterRegistry registry;
+
+    private double gauge() {
+        return registry.get(AiServiceCircuitBreaker.STATE_GAUGE).gauge().value();
+    }
+
+    private double transitions(String to) {
+        return registry.get(AiServiceCircuitBreaker.TRANSITION_COUNTER).tag("to", to).counter().count();
+    }
+
     private AiServiceCircuitBreaker breaker(int threshold) {
         AiServiceProperties props = new AiServiceProperties(
                 "http://localhost:8001",
@@ -32,7 +43,8 @@ class AiServiceCircuitBreakerTest {
                 threshold,
                 OPEN_FOR
         );
-        return new AiServiceCircuitBreaker(props);
+        registry = new SimpleMeterRegistry();
+        return new AiServiceCircuitBreaker(props, registry);
     }
 
     @Test
@@ -127,5 +139,53 @@ class AiServiceCircuitBreakerTest {
         cb.reset();
 
         assertThat(cb.allowRequest()).isTrue();
+    }
+
+    // ── 관측 (2026-09-11) ────────────────────────────────────────────────
+    // 서킷 상태를 밖에서 볼 수 없던 것을 고쳤다. 지표는 <동작이 아니라 보임>이라 깨져도
+    // 사용자에게 아무 일도 안 일어난다 = 아무도 모르게 죽는다. 그래서 테스트로 붙들어 둔다.
+
+    @Test
+    @DisplayName("[지표] 게이지가 닫힘(0) → 열림(2) → 탐색(1) 을 그대로 따라간다")
+    void 게이지가_상태를_따라간다() throws InterruptedException {
+        AiServiceCircuitBreaker cb = breaker(1);
+        assertThat(gauge()).isZero();
+
+        cb.recordFailure();
+        assertThat(gauge()).isEqualTo(2);       // OPEN
+
+        Thread.sleep(OPEN_FOR.toMillis() + 20);
+        assertThat(gauge()).isEqualTo(1);       // HALF_OPEN — 시간이 지나 파생된 값이다
+
+        cb.recordSuccess();
+        assertThat(gauge()).isZero();
+    }
+
+    @Test
+    @DisplayName("[지표] 🔴 30초짜리 열림을 스크레이프가 놓쳐도 전이 카운터에는 남는다")
+    void 전이는_카운터로_남는다() throws InterruptedException {
+        AiServiceCircuitBreaker cb = breaker(1);
+
+        cb.recordFailure();                     // 닫힘 → 열림
+        Thread.sleep(OPEN_FOR.toMillis() + 20);
+        cb.allowRequest();                      // HALF_OPEN 탐색
+        cb.recordFailure();                     // 탐색 실패 → 다시 막기 시작
+        Thread.sleep(OPEN_FOR.toMillis() + 20);
+        cb.recordSuccess();                     // 탐색 성공 → 닫힘
+
+        // 게이지만 있었다면 이 시점에 0 하나만 보이고 그 사이 일은 전부 사라진다.
+        assertThat(transitions("open")).isEqualTo(2);
+        assertThat(transitions("closed")).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("[지표] 닫혀 있는 동안의 성공은 전이로 세지 않는다 — 안 그러면 카운터가 요청 수가 된다")
+    void 닫힌_상태의_성공은_전이가_아니다() {
+        AiServiceCircuitBreaker cb = breaker(3);
+
+        cb.recordSuccess();
+        cb.recordSuccess();
+
+        assertThat(transitions("closed")).isZero();
     }
 }

@@ -91,6 +91,11 @@ class ChatIntegrationTest {
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
+    // 지표 검증용. 컨텍스트를 공유하는 다른 테스트가 이미 값을 올려놨을 수 있으므로
+    // 절대값이 아니라 <이 테스트 안에서의 증가분>만 본다.
+    @Autowired
+    private io.micrometer.core.instrument.MeterRegistry meterRegistry;
+
     private RestTestClient client;
     private String ownerToken;
     private String intruderToken;
@@ -321,6 +326,36 @@ class ChatIntegrationTest {
         // 🔴 핵심: 요청 수가 <늘지 않았다> = 아예 호출하지 않았다.
         //    이게 스레드를 지키는 방식이다 — 연결 타임아웃 3초를 기다리지도 않는다.
         assertThat(aiService.received()).hasSize(callsBeforeOpen);
+    }
+
+    @Test
+    @DisplayName("[지표] 🔴 급속 503(서킷이 막음)과 느린 503(Python 5xx)이 지표에서 갈린다")
+    void 두_종류의_503이_지표에서_갈린다() {
+        double 서킷거절_전 = 호출수("chat", "circuit_open");
+        double 파이썬오류_전 = 호출수("chat", "python_5xx");
+
+        for (int i = 0; i < 5; i++) {
+            aiService.enqueue(500, "{}");
+            chat(ownerToken, botId, "질문 " + i);
+        }
+        Response 급속거절 = chat(ownerToken, botId, "서킷이 열린 뒤의 질문");
+
+        // 사용자에게 나가는 응답은 여섯 번 다 똑같다. 이게 뭉개짐의 정체다 —
+        // http_server_requests{status="503"} 만 보면 여섯 건이 한 덩어리다.
+        assertThat(급속거절.status()).isEqualTo(503);
+        assertThat(급속거절.json().path("error").path("code").asString()).isEqualTo("AI_SERVICE_UNAVAILABLE");
+
+        // 🔴 지표에서는 갈린다. 원인이 다르고 볼 곳이 다르므로 같은 값이면 안 된다.
+        assertThat(호출수("chat", "python_5xx") - 파이썬오류_전).isEqualTo(5);
+        assertThat(호출수("chat", "circuit_open") - 서킷거절_전).isEqualTo(1);
+    }
+
+    private double 호출수(String operation, String outcome) {
+        io.micrometer.core.instrument.Timer timer = meterRegistry.find("alldap.ai.call")
+                .tag("operation", operation)
+                .tag("outcome", outcome)
+                .timer();
+        return timer == null ? 0 : timer.count();
     }
 
     // ── 트랜잭션 경계 ────────────────────────────────────────────────────
