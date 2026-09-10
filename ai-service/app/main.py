@@ -12,9 +12,9 @@ import time
 from contextlib import asynccontextmanager
 from uuid import UUID
 
-from fastapi import BackgroundTasks, FastAPI, File, HTTPException, UploadFile
+from fastapi import BackgroundTasks, FastAPI, File, HTTPException, Response, UploadFile
 
-from . import cf, conflicts, evaluator, evalrun, retriever
+from . import cf, conflicts, evaluator, evalrun, metrics, retriever
 from .chunker import chunk_text
 from .config import get_settings
 from .db import close_pool, cursor
@@ -84,6 +84,26 @@ def cf_stats() -> dict:
     for model, row in stats.items():
         row["neurons"] = neurons.get(model, 0.0)
     return stats
+
+
+@app.get("/internal/metrics")
+async def prometheus_metrics() -> Response:
+    """Prometheus 스크레이프 엔드포인트. 부하테스트 S2 가 읽는다.
+
+    🔴 <async def 여야 한다.> metrics.render() 안의 anyio limiter 조회는 이벤트 루프
+       스레드에서만 되고, `def` 로 두면 FastAPI 가 워커 스레드로 넘겨 NoEventLoopError 로
+       500 이 난다 — 하필 부하가 걸린 순간에만. app/metrics_check.py 가 이걸 검사한다.
+
+    🔴 경로가 /metrics 가 아니라 <b>/internal/metrics</b> 인 이유.
+       이 저장소는 "인증 없는 것은 /internal/* 아래에만 둔다" 와 "prod compose 가
+       ai-service 에 ports: 를 안 써서 바깥에 안 열린다" 두 전제로 지탱한다
+       (cf_stats docstring 이 같은 근거를 적어둔 자리). /metrics 를 루트에 두면
+       그 규칙에서 혼자 벗어나고, 규칙에 예외가 하나 생기면 다음 예외는 근거 없이 생긴다.
+
+    ⚠️ 여기서 나가는 것은 숫자뿐이다. 문서 내용도 봇 정보도 없다.
+    """
+    body, content_type = metrics.render()
+    return Response(content=body, media_type=content_type)
 
 
 # ── 문서 처리 ────────────────────────────────────────────────────────
@@ -229,45 +249,54 @@ def delete_document(bot_id: UUID, doc_id: UUID) -> None:
 @app.post("/internal/chat", response_model=ChatResponse)
 def chat(req: ChatRequest) -> ChatResponse:
     started = time.perf_counter()
-
-    sources = retriever.search(req.bot_id, req.message)
+    # 🔴 계측을 try/finally 로 감싼다. 아래 503(GenerationFailed) 경로도 <히스토그램에 들어가야>
+    #    한다 — 30초 걸려 실패한 요청은 지연 통계에서 빠질 것이 아니라 거기 있어야 하는 사실이다.
+    #    (cf._record_latency 가 raise_for_status 앞에 있는 것과 같은 이유)
+    # ⚠️ 여기는 워커 스레드다. anyio limiter 를 건드리면 NoEventLoopError 로 죽는다.
+    #    스레드풀 지표는 /internal/metrics(async) 가 스크레이프 시점에 읽는다.
+    metrics.CHAT_INFLIGHT.inc()
     try:
-        # 봇별 지침(PRD F-06). 없으면 기본 규칙만 쓴다.
-        # ⚠️ 대체가 아니라 <덧붙임>이다 — build_system_prompt 주석 참고.
-        answer, is_fallback = generate(
-            req.message,
-            sources,
-            system_prompt=build_system_prompt(fetch_bot_prompt(req.bot_id)),
-        )
-    except GenerationFailed as e:
-        # 🔴 fallback 으로 뭉개지 않는다. 근거는 찾았는데 <답변을 못 받은> 것이라
-        #    "문서에서 답을 찾지 못했어요" 로 내보내면 제품이 거짓말을 한다.
-        #    오류로 올려야 대화 로그에도 답변 행이 남지 않는다 — 그게 사실이다.
-        #
-        # ⚠️ 왜 로그를 남기나: 아래 message 는 사용자에게 그대로 닿지 않는다. Spring 이 자기
-        #    ErrorCode 문구를 내보내기 때문이다. 원인(잘림인지 빈 응답인지, max_tokens 가
-        #    얼마였는지)은 여기서만 볼 수 있다.
-        _log.warning("답변 생성 실패 bot_id=%s: %s", req.bot_id, e)
-        # 🔴 detail 을 <문자열이 아니라 객체>로 준다 (2026-09-09). Spring 이 이 실패를
-        #    "Python 이 아프다"(재시도하면 된다)와 갈라야 하는데, 상태코드만으로는 못 가른다.
-        #    503 이 지금은 이 자리 하나뿐이라 우연히 신호 노릇을 하지만, 여기 503 이 하나만 더
-        #    생기는 순간 조용히 뭉개진다. 그래서 code 를 명시한다.
-        #    ⚠️ 이건 API 컨트랙트다. 값을 바꾸면 AiServiceClient 도 함께 고칠 것.
-        raise HTTPException(
-            503,
-            {
-                "code": "GENERATION_INCOMPLETE",
-                "message": "답변을 완성하지 못했습니다. 질문을 더 좁혀서 다시 물어봐 주세요.",
-            },
-        ) from e
+        sources = retriever.search(req.bot_id, req.message)
+        try:
+            # 봇별 지침(PRD F-06). 없으면 기본 규칙만 쓴다.
+            # ⚠️ 대체가 아니라 <덧붙임>이다 — build_system_prompt 주석 참고.
+            answer, is_fallback = generate(
+                req.message,
+                sources,
+                system_prompt=build_system_prompt(fetch_bot_prompt(req.bot_id)),
+            )
+        except GenerationFailed as e:
+            # 🔴 fallback 으로 뭉개지 않는다. 근거는 찾았는데 <답변을 못 받은> 것이라
+            #    "문서에서 답을 찾지 못했어요" 로 내보내면 제품이 거짓말을 한다.
+            #    오류로 올려야 대화 로그에도 답변 행이 남지 않는다 — 그게 사실이다.
+            #
+            # ⚠️ 왜 로그를 남기나: 아래 message 는 사용자에게 그대로 닿지 않는다. Spring 이 자기
+            #    ErrorCode 문구를 내보내기 때문이다. 원인(잘림인지 빈 응답인지, max_tokens 가
+            #    얼마였는지)은 여기서만 볼 수 있다.
+            _log.warning("답변 생성 실패 bot_id=%s: %s", req.bot_id, e)
+            # 🔴 detail 을 <문자열이 아니라 객체>로 준다 (2026-09-09). Spring 이 이 실패를
+            #    "Python 이 아프다"(재시도하면 된다)와 갈라야 하는데, 상태코드만으로는 못 가른다.
+            #    503 이 지금은 이 자리 하나뿐이라 우연히 신호 노릇을 하지만, 여기 503 이 하나만 더
+            #    생기는 순간 조용히 뭉개진다. 그래서 code 를 명시한다.
+            #    ⚠️ 이건 API 컨트랙트다. 값을 바꾸면 AiServiceClient 도 함께 고칠 것.
+            raise HTTPException(
+                503,
+                {
+                    "code": "GENERATION_INCOMPLETE",
+                    "message": "답변을 완성하지 못했습니다. 질문을 더 좁혀서 다시 물어봐 주세요.",
+                },
+            ) from e
 
-    latency_ms = int((time.perf_counter() - started) * 1000)
-    return ChatResponse(
-        answer=answer,
-        sources=sources,
-        is_fallback=is_fallback,
-        latency_ms=latency_ms,
-    )
+        latency_ms = int((time.perf_counter() - started) * 1000)
+        return ChatResponse(
+            answer=answer,
+            sources=sources,
+            is_fallback=is_fallback,
+            latency_ms=latency_ms,
+        )
+    finally:
+        metrics.CHAT_INFLIGHT.dec()
+        metrics.CHAT_DURATION.observe(time.perf_counter() - started)
 
 
 # ── 품질 평가 (W3) ───────────────────────────────────────────────────
