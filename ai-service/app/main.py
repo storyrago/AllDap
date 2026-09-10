@@ -14,7 +14,7 @@ from uuid import UUID
 
 from fastapi import BackgroundTasks, FastAPI, File, HTTPException, UploadFile
 
-from . import conflicts, evaluator, evalrun, retriever
+from . import cf, conflicts, evaluator, evalrun, retriever
 from .chunker import chunk_text
 from .config import get_settings
 from .db import close_pool, cursor
@@ -62,6 +62,28 @@ def health() -> dict:
         cur.execute("SELECT 1")
         cur.fetchone()
     return {"status": "ok"}
+
+
+@app.get("/internal/debug/cf-stats")
+def cf_stats() -> dict:
+    """모델별 Cloudflare 호출 수·뉴런·지연 백분위. 부하테스트 S1 이 읽는다.
+
+    🔴 이 값은 <이 프로세스가 시작된 뒤>의 누적이다. 측정 구간을 나누려면
+       프로세스를 다시 띄운다. 리셋 API 를 안 두는 이유는 cf._latencies 주석에 있다.
+
+    🔴 단 지연 백분위만은 <최근 latency_window_max 건>만 본다(메모리 상한).
+       count(전체 호출 수) 와 latency_window(백분위에 쓰인 건수) 가 다르면
+       앞쪽 호출이 창 밖으로 밀려난 것이다 — 둘은 다른 사실이라 따로 내보낸다.
+
+    ⚠️ /internal/* 이라 인증이 없다. 여기서 나가는 것은 숫자뿐이고 문서 내용도
+       봇 정보도 없지만, 그래도 <노출되지 않는다>는 전제 위에 있다
+       (compose 가 ai-service 에 ports: 를 쓰지 않는다).
+    """
+    neurons = cf.neurons_used()
+    stats = cf.latency_percentiles()
+    for model, row in stats.items():
+        row["neurons"] = neurons.get(model, 0.0)
+    return stats
 
 
 # ── 문서 처리 ────────────────────────────────────────────────────────

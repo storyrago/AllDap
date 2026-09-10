@@ -1,0 +1,59 @@
+{
+  "conditions": {
+    "commit": "6f381823f655efa14190a27e9a45e2dade5b8306",
+    "started_at": "2026-09-10T13:04:40",
+    "api_base": "http://localhost:8080",
+    "bot_id": "628d2785-a128-486c-a1ac-556f19f06de3",
+    "requests_planned": 5,
+    "settings": {
+      "chat_model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "embedding_model": "@cf/baai/bge-m3",
+      "reranker_model": "@cf/baai/bge-reranker-base",
+      "reranker_enabled": true,
+      "hybrid_enabled": true,
+      "max_distance": 0.55,
+      "answerable_max_distance": 0.44,
+      "top_k": 5,
+      "chat_temperature": 0.0,
+      "cf_base_url": "https://api.cloudflare.com/client/v4"
+    }
+  },
+  "aborted_at": null,
+  "requests_ok": 5,
+  "neurons_estimated": 123.2,
+  "fallbacks": 2,
+  "fallback_questions": {
+    "정규직의 시용 기간은 얼마인가요?": 1,
+    "정규직의 업무용 컴퓨터 교체 주기는 어떻게 되나요?": 1
+  },
+  "end_to_end_ms": {
+    "p50": 1445,
+    "p95": 2143,
+    "p99": 2143
+  },
+  "per_model": {
+    "@cf/baai/bge-m3": {
+      "count": 5,
+      "p50": 238.3018330001505,
+      "p95": 496.03079100006653,
+      "p99": 496.03079100006653,
+      "neurons": 0.07522115081243098
+    },
+    "@cf/baai/bge-reranker-base": {
+      "count": 5,
+      "p50": 360.19304100000227,
+      "p95": 432.23041600003853,
+      "p99": 432.23041600003853,
+      "neurons": 4.019829452054795
+    },
+    "@cf/meta/llama-3.3-70b-instruct-fp8-fast": {
+      "count": 5,
+      "p50": 705.2305000001979,
+      "p95": 1233.8653330002671,
+      "p99": 1233.8653330002671,
+      "neurons": 121.28532409667969
+    }
+  },
+  "per_model_error": null,
+  "p99_caveat": "표본 380건이라 p99 는 상위 약 4건이 결정한다. p50·p95 만 신뢰한다."
+}

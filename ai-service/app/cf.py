@@ -17,6 +17,9 @@ Cloudflare 를 부르는 곳이 셋이 됐다 — 임베딩(retriever), 채점(j
 """
 from __future__ import annotations
 
+import time
+from collections import deque
+
 import httpx
 
 from .config import get_settings
@@ -54,9 +57,11 @@ def run(model: str, payload: dict) -> dict:
        상태 코드만 보면 실패를 성공으로 착각한다. 그래서 둘 다 확인한다.
     """
     s = get_settings()
-    url = f"https://api.cloudflare.com/client/v4/accounts/{s.cf_account_id}/ai/run/{model}"
+    url = f"{s.cf_base_url}/accounts/{s.cf_account_id}/ai/run/{model}"
 
+    started = time.perf_counter()
     resp = _client().post(url, json=payload)
+    _record_latency(model, (time.perf_counter() - started) * 1000)
     resp.raise_for_status()          # 4xx·5xx 는 여기서 예외
     body = resp.json()
     if not body.get("success", False):
@@ -105,6 +110,83 @@ def _record_neurons(model: str, result: dict, resp=None) -> None:
             n = None
     if isinstance(n, (int, float)):
         _neurons[model] = _neurons.get(model, 0.0) + float(n)
+
+
+# ── 지연(ms) 집계 ──────────────────────────────────────────────────────
+#
+# 왜 뉴런과 <따로> 두나: 뉴런은 실패한 호출에 없지만 지연은 실패한 호출에도 있다.
+# 한 dict 에 뭉치면 "느렸다" 와 "비쌌다" 가 같은 자리에 섞인다.
+#
+# ⚠️ 누적은 <프로세스 수명 동안> 쌓인다. 리셋 함수를 두지 않은 것은 일부러다,
+#    "리셋했나?" 를 사람이 기억해야 하는 순간 그 측정은 못 믿는다.
+#    측정 구간의 시작은 <프로세스를 다시 띄우는 것>으로 만든다(s1_baseline 이 그렇게 한다).
+#
+# 🔴 <상한이 있는> 링버퍼다. 예전에는 list 라 프로세스가 사는 동안 무한히 늘었다.
+#    이건 부하테스트 전용 경로가 아니라 <정상 채팅이 지날 때마다> 한 건씩 쌓이는 자리이고,
+#    배포 대상이 t3.micro(1GB) 라 회수 수단이 재시작밖에 없다. 그래서 여기서 막는다.
+#
+#    N=2000 을 고른 근거: 지금까지 가장 큰 측정이 S1 의 327건이었고, 한 요청이 모델마다
+#    한 번씩 부르므로 모델당 호출 수도 그 규모다. 백분위가 <실행 한 판을 통째로> 덮으려면
+#    N 이 한 판보다 넉넉히 커야 해서 그 6배 자리에서 끊었다. 비용은 모델당 2000 × float
+#    ≈ 16KB, 지금 쓰는 모델 4종을 다 채워도 100KB 아래다 — 1GB 짜리 장비에서 무시할 수준.
+#
+# 🔴 대신 지연 통계의 <뜻>이 바뀐다: 전 구간 평균이 아니라 <최근 2000건 구간>의 백분위다.
+#    프로세스가 오래 살아 2000건을 넘기면 앞쪽 호출은 백분위에서 빠진다.
+#    (예전 값과 견줄 때 주의할 것 — 오래 뜬 프로세스에서는 "느려졌던 초기" 가 안 보인다)
+#
+# 🔴 그래서 호출 수는 <따로> 센다. count 를 len(deque) 로 두면 2000 에서 멈춰
+#    "2000번 불렀다" 로 읽히고, s1_baseline 의 뉴런/호출 = 누적뉴런 ÷ count 가
+#    조용히 틀린 값이 된다(분자는 전량, 분모는 창). "몇 번 불렀나" 와 "몇 건을 재고 있나"
+#    는 서로 다른 사실이라 다른 이름으로 내보낸다(count / latency_window).
+#
+# ⚠️ 스레드 안전하지 않다. _neurons 와 같은 이유이고 같은 한계다(측정용 근사치).
+#    deque.append 는 GIL 아래에서 원자적이라 오히려 list 때보다 덜 위험하다.
+_LATENCY_WINDOW = 2000
+_latencies: dict[str, deque[float]] = {}
+_call_counts: dict[str, int] = {}
+
+
+def _record_latency(model: str, ms: float) -> None:
+    """호출 하나의 지연을 적립한다.
+
+    ⚠️ 부르는 자리가 `raise_for_status()` <앞>이라 실패한 호출도 여기 셈해진다.
+       일부러다 — 느려서 터진 호출이야말로 지연 통계에 있어야 한다.
+    """
+    if model not in _latencies:
+        _latencies[model] = deque(maxlen=_LATENCY_WINDOW)
+    _latencies[model].append(ms)
+    _call_counts[model] = _call_counts.get(model, 0) + 1
+
+
+def latency_percentiles() -> dict[str, dict[str, float]]:
+    """모델별 호출 수와 p50/p95/p99(ms).
+
+    ⚠️ 평균을 안 준다. 평균은 느린 꼬리를 감춘다,
+       이 저장소는 avg_faithfulness 로 이미 한 번 데였다(생존 편향).
+
+    🔴 `count` 는 <프로세스가 뜬 뒤의 전체 호출 수>이고, `latency_window` 는
+       그중 <백분위 계산에 실제로 쓰인 최근 건수>다(상한 _LATENCY_WINDOW).
+       둘이 다르면 앞쪽 호출이 창 밖으로 밀려난 것이다.
+    """
+    out: dict[str, dict[str, float]] = {}
+    for model, values in _latencies.items():
+        ordered = sorted(values)
+
+        def pct(p: float, ordered: list[float] = ordered) -> float:
+            # nearest-rank. 표본이 적을 때 보간이 <있지도 않은 값>을 만들지 않는다.
+            idx = max(0, min(len(ordered) - 1, int(-(-len(ordered) * p // 100)) - 1))
+            return ordered[idx]
+
+        out[model] = {
+            # 전체 호출 수. len(ordered) 를 쓰면 창 크기에서 멈춘다(위 주석 참고).
+            "count": _call_counts.get(model, len(ordered)),
+            "latency_window": len(ordered),
+            "latency_window_max": _LATENCY_WINDOW,
+            "p50": pct(50),
+            "p95": pct(95),
+            "p99": pct(99),
+        }
+    return out
 
 
 def neurons_used() -> dict[str, float]:

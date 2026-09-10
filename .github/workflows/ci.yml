@@ -184,4 +184,4 @@ jobs:
       # TODO(W3): ruff 를 requirements-dev.txt 에 추가하고 `ruff check app` 단계 추가
       # TODO(W3): pytest 기반 테스트가 생기면 `pytest` 단계 추가
       - name: 문법 검사 (컴파일 가능 여부만)
-        run: python -m compileall -q app
+        run: python -m compileall -q app loadtest
