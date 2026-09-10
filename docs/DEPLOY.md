@@ -65,7 +65,9 @@ Postgres 를 빼면 약 120MB 가 살아나 여유가 생긴다. 자동 백업·
 
 **이미지를 CI 에서 만드는 이유도 메모리다.** 1GB 에서 Gradle 컴파일은 OOM 이다.
 GitHub Actions 가 GHCR 에 올리고 서버는 `pull` 만 한다. 서버에 JDK·Gradle 을 둘 필요가
-없어졌고, 배포가 몇 초로 줄었으며, `IMAGE_TAG` 를 이전 SHA 로 바꾸면 즉시 롤백된다.
+없어졌고, 배포가 몇 초로 줄었다.
+⚠️ **`IMAGE_TAG` 한 줄로 롤백된다고 읽지 말 것.** compose·프론트·DB 까지
+함께 따져야 한다(§9 "롤백").
 
 **HTTPS 는 선택이 아니다.** 관리자 화면이 Vercel(HTTPS)에 있어서, HTTP API 를 부르면
 브라우저가 mixed content 로 차단한다. 로컬에서는 둘 다 http 라 안 겪는 문제다.
@@ -491,45 +493,241 @@ docker compose -f docker-compose.prod.yml exec -T api sh -c 'apt-get install -y 
 
 `deploy.yml` 에는 롤백 단계가 없다. 앞으로만 간다. 되돌리려면 서버에 SSH 해서 손으로 해야 한다.
 
+✅ **2026-09-10 에 이 절을 리허설로 다시 썼다.** 그전까지 전체가 `[추정]` 이었다.
+로컬에 버릴 git 저장소·버릴 postgres·버릴 컨테이너를 띄워 7가지를 실제로 돌렸고,
+**막힐 것이라 적어둔 것 하나가 반증됐고(Flyway) 적어두지 않았던 함정이 넷 더 나왔다.**
+운영 서버에서만 확인되는 것은 아래 "아직 [추정] 인 것" 에 그대로 남겼다. **둘을 섞지 말 것.**
+
+> ⚠️ 리허설은 서버와 같은 GNU 환경(Debian 컨테이너)에서 돌렸다.
+> 개발 노트북(macOS)의 BSD `sed` 는 `-i` 의 인자 규칙이 달라 여기 명령을 그대로 쓰면 결과가 다르다.
+> 이 절의 명령은 전부 **서버에서** 도는 것이다.
+
+#### ① 먼저 "되돌릴 수 있는 SHA" 를 찾는다. 커밋 로그를 보고 고르면 안 된다
+
+🔴 **이미지가 있는 커밋은 생각보다 훨씬 드물다. 실측했다.**
+
+| 커밋 | GHCR 이미지 | publish 실행 |
+|---|---|---|
+| `c9c521d` (#100 머지) | ✅ api · ✅ ai-service | success |
+| `7fd6370` · `b80c1e4` · `c95744c` … (PR 안의 개별 커밋) | ❌ 없음 | 안 돎 |
+| `ea33460` (#99 머지) | ✅ · ✅ | success |
+| `9b9b45a` (#98 머지) | ❌ 없음 | 안 돎(경로 미적중) |
+| `bdabaa4` · `a0ac224` · `7157b9d` (#90·#89·#88 머지) | ❌ 없음 | **cancelled** |
+
+이유가 둘이고 둘 다 설계된 동작이다.
+
+- **PR 안의 개별 커밋에는 이미지가 없다.** `publish.yml` 은 `push: branches: [main]` 에서
+  돌고 태그로 쓰는 `github.sha` 는 **머지 커밋**이다. `git log` 에 보이는 커밋 대부분은
+  롤백 대상이 될 수 없다.
+- 🔴 **머지 커밋인데도 없을 수 있다. 원인이 둘이고 서로 다르다.**
+  ① `paths:` 에 안 걸린 변경(프론트·문서만 고친 PR)은 애초에 안 돈다.
+  ② **`concurrency: cancel-in-progress: true` 때문에 앞선 실행이 취소된다.**
+  2026-09-09 07:54~07:55 에 PR 셋이 1분 안에 연달아 머지되자 앞의 둘이 취소돼
+  **이미지가 영영 안 만들어졌다.** 즉 <어느 SHA 로 되돌릴 수 있는가>가 그 커밋의 내용이
+  아니라 **그날 머지가 몰렸는지에 달려 있다.**
+  ⚠️ 역도 성립하지 않는다. `2bf3528` 은 `cancelled` 인데 이미지가 있다(취소가 push 뒤에 닿았다).
+  **워크플로 결과로 판단하지 말고 레지스트리에 직접 물어볼 것.**
+
+```bash
+# 어느 SHA 가 롤백 대상이 되는지 확인한다. 서버가 아니라 아무 데서나 돈다(레지스트리 조회).
+for sha in $(git log --format=%H -20 origin/main); do
+  a=$(docker manifest inspect ghcr.io/storyrago/alldap/api:$sha        >/dev/null 2>&1 && echo ✅ || echo ❌)
+  b=$(docker manifest inspect ghcr.io/storyrago/alldap/ai-service:$sha >/dev/null 2>&1 && echo ✅ || echo ❌)
+  echo "$a$b $(git log -1 --format='%h %s' $sha)"
+done
+```
+
+✅ **강점 하나: 실측한 9개 SHA 전부 api 와 ai-service 가 짝이었다.** 한쪽만 있는 SHA 는 없었다.
+⚠️ **다만 이건 <구조적 보장이 아니다>.** `publish.yml` 의 매트릭스는 `fail-fast: false` 라
+api 빌드만 실패해도 ai-service 는 밀린다. 그러면 짝이 깨진 SHA 가 생긴다.
+위 명령이 두 줄을 <따로> 찍는 이유가 이것이다. 한쪽만 ✅ 면 그 SHA 는 쓰지 말 것.
+
+#### ② 백엔드: compose 와 이미지를 <함께> 되돌린다
+
 ⚠️ **`.env.prod` 의 `IMAGE_TAG` 만 옛 커밋 SHA 로 바꾸는 것은 오답이다.** 서버는 배포 1단계에서
 `git pull --ff-only` 를 돌아 **항상 최신 compose 를 갖고 있다.** 그 상태에서 이미지만 되돌리면
 둘이 어긋난다:
 
 - 최신 `docker-compose.prod.yml` 의 api 헬스체크는 `localhost:8081/actuator/health` 를 찌른다(**8081**)
-- 옛 이미지의 actuator 는 **8080** 에 있다 (PR #99 이전)
+- 옛 이미지의 actuator 는 **8080** 에 있다 (PR #99 이전. `application-prod.yaml` 에 `management.server` 가 아예 없다)
 - → 헬스체크가 **영원히 실패**하고, `ai-service` 는 `depends_on: condition: service_healthy` 에
   걸려 **영영 안 뜬다.** 즉 롤백이 <더 큰 장애>가 된다.
-
-**실효 절차는 compose 와 이미지를 <함께> 되돌리는 것이다.**
 
 ```bash
 # 서버에서
 cd /home/ubuntu/AllDap
 git checkout <되돌릴 커밋 SHA>          # compose·Caddyfile 이 그 시점으로 간다 (detached HEAD)
 sed -i 's/^IMAGE_TAG=.*/IMAGE_TAG=<같은 SHA>/' .env.prod
+
+# 🔴 sed 는 <아무것도 못 바꿔도 0 으로 끝난다.> 반드시 눈으로 확인한다. 근거는 바로 아래.
+grep '^IMAGE_TAG=' .env.prod
+
 docker compose -f docker-compose.prod.yml --env-file .env.prod pull
 docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --wait --wait-timeout 300
 docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --force-recreate caddy
 bash scripts/verify-deploy.sh
 ```
 
-🔴 **되돌린 뒤 복귀 절차까지 해야 끝난다.** 위에서 `git checkout <SHA>` 를 하면 서버가
-**detached HEAD** 로 남는데, 그 상태에서는 다음 배포의 `git pull --ff-only` 가
-`You are not currently on a branch` 로 **실패한다.** 즉 롤백을 해놓고 잊으면 **그 뒤의 모든
-자동 배포가 빨간불**이 된다. 원인을 고쳐 새 커밋을 밀었다면 서버에서 먼저:
+🔴 **`grep` 한 줄을 왜 넣었나 (실측):** `IMAGE_TAG=` 로 시작하는 줄이 파일에 없으면
+`sed -i` 는 **아무것도 바꾸지 않고 종료코드 0** 을 낸다. 그리고 `docker-compose.prod.yml` 은
+`${IMAGE_TAG:-latest}` 라 **조용히 `latest` 로 떨어진다.** 즉 롤백하려던 배포가
+<방금 장애를 낸 그 이미지>를 다시 올리고, `pull`·`up -d`·`verify-deploy.sh`·바깥 헬스체크가
+**전부 초록불이다.** 실패가 성공처럼 보이는 모양이라 이 저장소가 가장 무서워하는 부류다.
+
+> ⚠️ **전제는 확인하지 못했다.** `.env.prod.example` 에는 2026-08-05 부터 `IMAGE_TAG=latest`
+> 가 있으므로, 2026-09-07 에 그 예시로 만든 서버 파일에는 그 줄이 <있을 가능성이 높다>.
+> 서버 파일을 직접 본 적은 없다. `grep` 은 그 확인을 공짜로 대신한다.
+
+#### ③ 🔴 프론트(Vercel)도 함께 되돌려야 끝난다. 백엔드만 되돌리면 <장애를 다시 만든다>
+
+**이 문서에 지금까지 없던 절이다. 없던 것이 문제였다.**
+
+`deploy.yml` 이 존재하는 이유가 프론트와 백엔드의 **비대칭**이었다. 프론트는 main 푸시마다
+Vercel 이 자동 배포되는데 백엔드는 사람이 손으로 올려서, 새 프론트가 옛 백엔드에 없는
+경로를 불러 운영이 두 번 깨졌다. **백엔드만 되돌리는 롤백은 그 상태를 손으로 다시 만드는 것이다.**
+
+구체적으로, 지금 Vercel 에 떠 있는 프론트는 이 경로들을 부른다.
+
+| 프론트가 부르는 경로 | 백엔드에 생긴 날 |
+|---|---|
+| `/api/billing/methods` | 2026-09-08 (`75c52a5`, V7) |
+| `/api/plan` | 2026-09-08 (`b12dff4`, V8) |
+| `/api/usage` | 2026-09-06 |
+
+그 날짜보다 앞선 SHA 로 백엔드를 되돌리면 **마이페이지(`/account`)가 통째로 죽는다.**
+그리고 그 실패는 사용자에게 "잠시 후 다시 시도해주세요" 로 보인다(재시도로는 안 풀린다).
+
+**완전한 롤백은 두 개다: 백엔드 SHA + Vercel 의 이전 배포 Promote.**
+
+```
+Vercel 대시보드 → 해당 프로젝트 → Deployments
+→ 되돌릴 백엔드 SHA <이전>의 배포를 고른다 → ⋯ → Promote to Production
+```
+
+⚠️ **[추정] Vercel 쪽 절차는 돌려본 적이 없다.** 대시보드 조작이라 로컬에서 리허설할 수 없다.
+아래 두 가지는 특히 확인하지 못했다.
+- Promote 한 상태가 **다음 main 푸시에서 자동으로 덮인다**고 알려져 있다. 그러면 원인을 고치기
+  전에 무심코 main 에 밀면 롤백이 저절로 풀린다. 실제로 그런지 재보지 않았다.
+- 프리뷰 도메인·`CORS_ALLOWED_ORIGINS` 와의 상호작용도 재보지 않았다.
+
+🔴 **순서는 프론트 먼저다.** 프론트를 먼저 되돌리면 잠깐 "옛 프론트 + 새 백엔드" 가 되는데,
+그 조합은 옛 프론트가 부르는 경로가 새 백엔드에 <전부 있으므로> 대체로 동작한다.
+반대 순서는 "새 프론트 + 옛 백엔드" = **깨지는 조합**을 스스로 만드는 것이다.
+
+#### ④ DB 는 되돌아가지 않는다. 그런데 Flyway 가 막아주지도 않는다
+
+🔴 **여기서 가설이 반증됐다.** "옛 이미지는 V8 을 모르니 Flyway 가 기동을 막을 것" 이라
+보고 실제로 재봤다. **아니었다.** 버릴 postgres 에 V1~V8 을 적용한 뒤 V1~V7 만 가진
+Flyway 로 `migrate` 를 돌린 결과:
+
+```
+Successfully validated 8 migrations
+Current version of schema "public": 8
+WARNING: Schema "public" has a version (8) that is newer than the latest available migration (7) !
+Schema "public" is up to date. No migration necessary.
+종료코드=0
+```
+
+**경고만 내고 통과한다.** 즉 **옛 앱은 새 스키마 위에서 그냥 뜬다.** Hibernate `ddl-auto: validate`
+도 자기가 매핑한 컬럼만 보므로 DB 에 남은 새 컬럼(`users.plan`)을 문제 삼지 않는다.
+"Flyway 가 사고를 막아준다" 고 기대하면 안 된다. **막아주지 않는다.**
+
+🔴 **그래서 진짜 위험은 <조용히 도는 것>이다. 실측한 예가 하나 있다.**
+`V7` 은 `billing_methods` 의 `UNIQUE(user_id)` 를 **DROP** 하고 부분 유니크 인덱스로 바꿨다.
+마이그레이션은 되돌아가지 않으므로 롤백해도 그 제약은 **사라진 채로 남는다.** 그런데
+V7 이전 코드의 조회는 `Optional<BillingMethod> findByUserId(UUID)` **하나뿐**이고,
+계정당 한 장을 DB 가 보장한다는 전제 위에 서 있다.
+
+같은 DB 에서 실제로 재본 것:
+
+```
+INSERT INTO billing_methods (... 같은 user_id 두 행 ...);   -->  INSERT 0 2   (V7 스키마는 받아준다)
+ALTER TABLE billing_methods ADD CONSTRAINT tmp_v6_unique UNIQUE (user_id);
+  -->  ERROR: could not create unique index "tmp_v6_unique"
+       DETAIL: Key (user_id)=(1111...) is duplicated.
+```
+
+⚠️ **[추정] 그 뒤 자바에서 무슨 일이 나는지는 재보지 않았다.** Spring Data 의 `Optional` 반환
+메서드가 두 행을 만나면 `IncorrectResultSizeDataAccessException` 을 던지는 것이 알려진 동작이고,
+그러면 **카드를 2장 이상 등록한 계정만** 결제 화면이 500 이 된다. 코드를 읽어 따진 것이지
+띄워서 본 것이 아니다.
+
+**정리: V7 보다 앞선 SHA 로 되돌릴 때는 카드 2장 이상인 계정이 있는지 먼저 볼 것.**
+
+```sql
+SELECT user_id, count(*) FROM billing_methods GROUP BY user_id HAVING count(*) > 1;
+```
+
+#### ⑤ 되돌린 뒤 복귀: 두 개를 <모두> 되돌려야 하고, 하나는 아무 검사도 못 잡는다
+
+🔴 위에서 `git checkout <SHA>` 를 하면 서버가 **detached HEAD** 로 남는데, 그 상태에서는
+다음 배포의 `git pull --ff-only` 가 **실패한다. 실측했다:**
+
+```
+From .../origin
+   fe7a6eb..fbc69e5  main -> origin/main
+You are not currently on a branch.
+Please specify which branch you want to merge with.
+종료코드=1
+```
+
+✅ **예상과 달랐던 것 하나: fetch 는 성공한다.** 실패하는 것은 머지 단계다.
+그리고 이 줄은 배포 스크립트의 **첫 줄**이라, `pull`·`up -d` 는 아예 돌지 않는다.
+→ **빨간불이 나지만 운영은 롤백 상태 그대로 유지된다.** 반쯤 갈아끼운 상태가 되지 않는다.
+그동안 이 문서는 "그 뒤의 모든 자동 배포가 빨간불" 이라고만 적었는데, <안전하게> 빨간불이다.
+
+🔴 **반대쪽은 그렇지 않다. `IMAGE_TAG` 를 되돌리는 것을 잊으면 아무도 못 잡는다. 실측했다.**
+`git checkout main` 만 하고 `IMAGE_TAG=<옛 SHA>` 를 그대로 두면, 그 뒤의 모든 배포가
+**옛 이미지를 올리면서 전부 성공으로 끝난다.** `verify-deploy.sh` 도 통과한다.
+그 검사는 <compose 가 가리키는 것>과 <컨테이너가 도는 것>을 대조하므로, 둘 다 옛 SHA 면
+"일치" 다. 대조군까지 함께 재봤다:
+
+```
+① 옛 태그에 핀이 박힌 채 배포된 상태   →  OK  api: ... (alpine:3.18)          종료코드=0   ← 못 잡는다
+② 핀은 최신인데 컨테이너만 옛것        →  ::error::api 가 옛 이미지로 돌고 있다  종료코드=1   ← 잡는다
+```
+
+**둘은 겉모습이 같고(옛 이미지가 돈다) 원인이 다르다.** 지금 검사가 보는 것은 ②뿐이다.
+※ 이 리허설은 PR #101 의 레이어 비교판으로 돌렸다. main 의 digest 비교판도 ①에서는
+   두 값이 같아 결론이 바뀌지 않는다.
 
 ```bash
 cd /home/ubuntu/AllDap
 git checkout main && git pull --ff-only
 sed -i 's/^IMAGE_TAG=.*/IMAGE_TAG=latest/' .env.prod   # 또는 새 커밋 SHA
+grep '^IMAGE_TAG=' .env.prod                            # 🔴 눈으로 확인. 위 ①이 이걸로만 걸린다
+git status | head -1                                    # 🔴 detached HEAD 가 아닌지 확인
 ```
 
 그다음 Actions 에서 `Deploy to EC2` 를 `workflow_dispatch` 로 다시 민다.
+그리고 ③에서 Vercel 을 Promote 했다면 **그것도 되돌려야 한다**(최신 배포를 다시 Promote).
 
-⚠️ **[추정] 이 절차는 아직 실제로 돌려본 적이 없다.** 근거는 코드를 읽어 따진 것이다
-(compose 의 8081 헬스체크 · `depends_on: service_healthy` · 워크플로의 `git pull --ff-only`).
-**진짜 롤백이 필요한 날에 처음 돌리게 되면 그때 막힌다.** 한가할 때 한 번 돌려보고
-이 절을 실측으로 고칠 것.
+#### ⑥ 무엇을 실측했고 무엇이 아직 [추정] 인가
+
+**실측했다 (2026-09-10 로컬 리허설)**
+
+| | 무엇 | 어떻게 |
+|---|---|---|
+| A | detached HEAD 에서 `git pull --ff-only` 가 종료코드 1 로 실패하고, 그래서 뒤 단계가 안 돈다 | 버릴 git 저장소 |
+| B | `sed -i` 가 대상 줄이 없으면 <아무것도 안 하고 0> 이고, compose 가 `latest` 로 조용히 떨어진다 | Debian(GNU sed) + 실제 `docker-compose.prod.yml` 렌더링 |
+| C | 롤백 가능한 SHA 가 드물다(PR 개별 커밋에는 없고, 머지 커밋도 `paths` 미적중·publish 취소로 빠진다) | GHCR `manifest inspect` 9건 + `gh run list` |
+| D | **Flyway 는 하향을 막지 않는다** (경고 + 종료코드 0). 가설 반증 | 버릴 postgres + flyway CLI |
+| F | V7 이 지운 `UNIQUE(user_id)` 는 롤백해도 안 돌아오고, 그 스키마는 한 계정에 카드 2장을 받아준다 | 같은 postgres 에서 INSERT·ALTER |
+| G | 잊힌 `IMAGE_TAG` 핀을 `verify-deploy.sh` 가 통과시킨다(대조군 ②는 잡는다) | 실제 스크립트 실행 |
+| H | 지금 GHCR 에 있는 SHA 는 전부 api·ai-service 가 짝이다(9/9) | GHCR `manifest inspect` |
+
+**아직 [추정] 이다. 운영에서만 확인된다. 지우지 말 것**
+
+1. **E. Vercel Promote 절차 전체.** 대시보드 조작이라 리허설 불가.
+2. **E. Promote 한 상태가 다음 main 푸시에 덮이는지.**
+3. **F. 카드 2장인 계정에서 옛 코드가 500 을 내는지** (`IncorrectResultSizeDataAccessException`).
+4. **8081/8080 헬스체크 어긋남이 실제로 `dependency failed to start: unhealthy` 로 끝나는지.**
+   두 이미지의 actuator 포트 설정이 다른 것까지는 소스로 확인했다(옛 `application-prod.yaml` 에
+   `management.server` 가 없다). 실제로 매달리는 것은 안 봤다.
+5. **서버 `.env.prod` 에 `IMAGE_TAG=` 줄이 실제로 있는지.** ②의 `grep` 이 이 확인을 대신한다.
+6. **`git checkout <SHA>` 가 서버에서 깨끗이 되는지.** 서버에서 손으로 고친 파일이 있으면
+   체크아웃이 막힌다(`git pull --ff-only` 를 쓰는 이유와 같은 이유다).
+7. **롤백 전체를 처음부터 끝까지 한 번 돌려보는 것.** 조각은 다 쟀지만 이어서 돌린 적은 없다.
 
 ### rate limit 종단 확인 (4번 이후 매번 할 것)
 
