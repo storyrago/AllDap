@@ -1,0 +1,26 @@
+{
+  "run_id": "2026-09-10",
+  "finished_at": "2026-09-10T21:03:21",
+  "cf_stats_before": {},
+  "cf_stats_after": {
+    "@cf/baai/bge-m3": 8315,
+    "@cf/baai/bge-reranker-base": 8314,
+    "@cf/meta/llama-3.3-70b-instruct-fp8-fast": 8315
+  },
+  "cf_delta": {
+    "@cf/meta/llama-3.3-70b-instruct-fp8-fast": 8315,
+    "@cf/baai/bge-reranker-base": 8314,
+    "@cf/baai/bge-m3": 8315
+  },
+  "cf_delta_total": 24944,
+  "requests_2xx": 8315,
+  "expected_cf_calls_per_request": 3,
+  "actual_cf_calls_per_request": 3.0,
+  "fallbacks": 0,
+  "verdicts": [
+    "OK   fallback 0건 — 생성 경로를 탔다",
+    "OK   가짜 CF 호출 배수 3.0 ≈ 기대 3"
+  ],
+  "valid": true,
+  "valid_means": "오염(fallback·경로 미탐)이 없다는 뜻이다. 5xx·재시작은 여기서 판정하지 않는다."
+}
