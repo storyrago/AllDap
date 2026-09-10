@@ -15,20 +15,22 @@ on:
   # ① 이미지 빌드(publish.yml)가 <성공한 뒤에만> 돈다.
   #    push 로 같이 걸면 두 워크플로가 병렬로 돌아, EC2 가 아직 GHCR 에 없는
   #    이미지를 pull 한다(옛 latest 를 받고 "배포 성공" 이라고 말한다).
+  #
+  # 🔴 2026-09-10 에 그 사고가 실제로 났다. 위 세 줄을 적어두고도 아래에 push 트리거를
+  #    같이 열어뒀기 때문이다. PR #99 가 docker-compose.prod.yml 을 고치자 두 트리거가
+  #    <동시에> 걸렸고, push 쪽 배포가 publish 보다 2분 24초 먼저 pull 해서 옛 api
+  #    이미지를 올렸다. 그 이미지는 actuator 가 8080 에 있는데 새 compose 의 헬스체크는
+  #    8081 을 찌르므로 영원히 unhealthy 였고, 배포는 SSH 가 끊길 때까지 매달렸다.
+  #    (concurrency 는 <겹침>만 막는다. <순서>는 못 막는다. 그게 이번에 드러난 것이다)
+  #
+  #    그래서 push 트리거를 없앴다. 이미지가 안 바뀌는 변경(Caddyfile·compose)도
+  #    배포돼야 하는 것은 맞는데, 그 요구는 <이쪽에 문을 하나 더 여는> 방식이 아니라
+  #    publish.yml 의 paths 에 그 경로들을 넣어 ①이 항상 돌게 하는 방식으로 채운다.
+  #    문이 하나면 순서가 어긋날 자리가 없다.
   workflow_run:
     workflows: ["Publish images"]
     types: [completed]
-  # ② 이미지가 안 바뀌는 변경(Caddyfile·compose)은 publish.yml 의 paths 에 걸리지
-  #    않아 ①이 아예 안 돈다. 그런데 Caddyfile 은 bind mount 라 서버 디스크의 파일이
-  #    곧 설정이다 — 배포하지 않으면 rate limit 의 `header_up -Forwarded` 같은
-  #    방어가 저장소에만 있고 운영에는 없는 상태가 된다.
-  push:
-    branches: [main]
-    paths:
-      - 'Caddyfile'
-      - 'docker-compose.prod.yml'
-      - '.github/workflows/deploy.yml'
-  # ③ 손으로 다시 밀 때(배포 실패 재시도·서버를 새로 만든 직후).
+  # ② 손으로 다시 밀 때(배포 실패 재시도·서버를 새로 만든 직후).
   workflow_dispatch:
 
 # 배포는 겹치면 안 된다. 앞의 배포가 끝나고 다음이 시작하게 큐에 세운다.
@@ -46,7 +48,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     # workflow_run 은 publish 가 <실패했을 때도> 돈다. 성공한 경우만 통과시킨다.
-    # push·workflow_dispatch 로 들어온 실행에는 conclusion 이 없으므로 함께 허용한다.
+    # workflow_dispatch 로 들어온 실행에는 conclusion 이 없으므로 함께 허용한다.
     if: >-
       github.event_name != 'workflow_run' ||
       github.event.workflow_run.conclusion == 'success'
@@ -73,7 +75,6 @@ jobs:
           printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
           chmod 600 ~/.ssh/known_hosts
 
-      # docs/DEPLOY.md §9 의 4단계를 그대로 옮긴 것이다. 순서가 전부 이유가 있다.
       # docs/DEPLOY.md §9 의 4단계를 그대로 옮긴 것이다. 순서가 전부 이유가 있다.
       - name: 배포 (git pull → image pull → up -d → caddy 강제 재생성 → 이미지 대조)
         env:
