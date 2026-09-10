@@ -31,7 +31,7 @@
 | 6 | **DuckDNS** 서브도메인 → 탄력적 IP | `dig +short <도메인>` 이 탄력적 IP 를 뱉음 |
 | 7 | `git clone` → `.env.prod` 채우기 | `DB_HOST`·`JWT_SECRET`·`CF_*`·`BILLING_CRYPTO_KEY`·`TOSS_SECRET_KEY` 가 비어 있지 않음 |
 | 8 | **`docker compose … up -d`** | `docker compose … ps` 에서 api 가 `healthy` (2~3분 걸림) |
-| 9 | **HTTPS 확인** | `curl https://<도메인>/actuator/health` → `{"status":"UP"}` |
+| 9 | **HTTPS 확인** | `curl -sI https://<도메인>/widget/alldap-widget.js` 가 `200`, 이어서 `curl -s https://<도메인>/api/w/pk_local_dev/config` 응답에 `botName` 이 들어 있음 |
 | 10 | 🔴 **격리 확인** | `curl http://<탄력적IP>:8001/health` → **연결 실패해야 정상** |
 | 11 | **Vercel** 배포 (Root `web`, `NEXT_PUBLIC_API_BASE_URL`, `NEXT_PUBLIC_TOSS_CLIENT_KEY`) | Vercel 주소로 로그인 화면이 뜸 |
 | 12 | `CORS_ALLOWED_ORIGINS` 에 Vercel 주소 넣고 api 재시작 | 브라우저에서 가입이 됨 |
@@ -284,16 +284,29 @@ TOSS_SECRET_KEY=test_sk_...
 
 ## 8. 배포 후 확인 — 순서대로
 
-```bash
-# ① Spring 이 밖에서 보이는가
-curl -s https://alldap.duckdns.org/actuator/health        # {"status":"UP"}
+🔴 **밖에서 `/actuator/health` 를 부르지 말 것. 그 주소는 없다** (2026-09-10 실측: 404).
+actuator 는 PR #99 로 management 포트 **8081** 로 옮겨갔고, `Caddyfile` 은
+`reverse_proxy api:8080` 하나만 안다. 즉 밖에서 오는 `/actuator/*` 는 Spring 의 서비스
+포트로 들어가 <매핑이 없는 경로>가 된다. 이전에는 그 자리가 500 이라 서버 장애처럼
+보였는데(그래서 배포 헬스체크가 오래 헤맸다), 2026-09-10 부터는 404 다.
 
-# ② 위젯 JS 가 나오는가 (설치 코드가 이 주소를 가리킨다)
-curl -sI https://alldap.duckdns.org/widget/alldap-widget.js | head -1
+⚠️ **Caddy 로 `/actuator/health` 만 8081 에 열어주는 해법은 쓰지 않는다.**
+`/actuator/prometheus` 가 `permitAll` 이라, 나중에 누가 matcher 를 `/actuator/*` 로
+넓히는 순간 지표 스크레이프가 인터넷에 열린다. 코드가 아니라 리뷰로만 막히는 종류다.
+"Spring 이 UP 인가" 는 컨테이너 헬스체크(8081)가 이미 보고 있고, 배포 워크플로는
+그 결과를 `up -d --wait` 로 받는다.
+
+```bash
+# ① Spring 이 밖에서 보이는가 (정적 파일. DB 를 안 거치므로 여기까지 200 이면 Spring 은 떴다)
+curl -sI https://alldap.duckdns.org/widget/alldap-widget.js | head -1   # 200
+
+# ② DB 왕복까지 되는가 (bots 를 읽는다. ①은 200 인데 여기서 갈리면 DB 쪽 문제다)
+curl -s https://alldap.duckdns.org/api/w/pk_local_dev/config           # "botName" 이 들어 있어야 정상
 
 # 🔴 ③ Python 이 <안 보이는가> — 가장 중요한 확인
 curl -s -m 5 http://<탄력적IP>:8001/health                # 연결 실패해야 정상
-curl -s -m 5 http://<탄력적IP>:8080/actuator/health       # 연결 실패해야 정상
+curl -s -m 5 http://<탄력적IP>:8080/api/w/pk_local_dev/config   # 연결 실패해야 정상 (Caddy 를 건너뛴 직통)
+curl -s -m 5 http://<탄력적IP>:8081/actuator/health       # 연결 실패해야 정상 (management 포트)
 
 # ④ RDS 도 밖에서 안 보이는가 (로컬 노트북에서)
 nc -zv <RDS엔드포인트> 5432                                # 실패해야 정상
@@ -337,8 +350,19 @@ free -h && docker stats --no-stream
 
 **`main` 에 푸시하면**: `publish.yml`(GHCR 이미지 빌드) → **성공하면** `deploy.yml`(SSH 로 4단계 + 헬스체크).
 Actions 탭의 `Deploy to EC2` 가 초록불이면 배포된 것이고, 빨간불이면 <배포가 안 된 것>이다.
-Caddyfile·`docker-compose.prod.yml` 만 바뀐 푸시는 이미지 빌드 없이 `deploy.yml` 이 바로 돈다
-(그 둘은 이미지 안이 아니라 서버 디스크의 파일이라, 이미지가 안 바뀌어도 배포가 필요하다).
+
+🔴 **배포로 들어가는 문은 `publish.yml` 하나뿐이다 (2026-09-10 부터).**
+그전에는 `deploy.yml` 에도 `push` 트리거가 따로 열려 있었고, `Caddyfile`·`docker-compose.prod.yml`
+같은 <이미지와 무관한 파일>이 바뀌면 그쪽으로 배포가 돌았다. **그 문 두 개가 2026-09-10 에
+경쟁해 옛 이미지를 배포했다**: PR #99 가 `docker-compose.prod.yml` 을 고치자 두 트리거가 동시에
+걸렸고, push 쪽 배포가 이미지 빌드보다 **2분 24초 먼저** `pull` 해서 옛 `api` 이미지를 올렸다.
+그 이미지는 actuator 가 8080 에 있는데 새 compose 의 헬스체크는 8081 을 찌르므로 영원히
+`unhealthy` 였고, 배포는 SSH 가 끊길 때까지 매달렸다.
+`concurrency` 는 <겹침>만 막지 <순서>는 못 막는다는 것이 이때 드러났다.
+
+→ 이제 이미지와 무관한 파일도 `publish.yml` 의 `paths` 에 들어 있다(`Caddyfile` ·
+`docker-compose.prod.yml` · `.github/workflows/deploy.yml`). **`Caddyfile` 한 줄만 고쳐도
+이미지 빌드가 한 번 돈다**(캐시가 다 맞아 2~3분). 그 대가로 순서가 어긋날 자리가 없어졌다.
 
 **필요한 GitHub Secrets 4개** (Settings → Secrets and variables → Actions):
 `EC2_HOST`(탄력적 IP 또는 도메인) · `EC2_USER`(`ubuntu`) · `EC2_SSH_KEY`(배포용 개인키 전문) ·
@@ -346,9 +370,34 @@ Caddyfile·`docker-compose.prod.yml` 만 바뀐 푸시는 이미지 빌드 없�
 마지막 것을 Secrets 에 박는 이유: 워크플로 안에서 `ssh-keyscan` 을 돌리면 매 실행마다
 "처음 보는 호스트를 그냥 믿는" 것이라 중간자 공격을 하나도 막지 못한다.
 
+**워크플로가 무엇을 보는가** (2026-09-10 에 셋 다 바뀌었다):
+
+| 무엇을 | 어디서 | 왜 그것을 |
+|---|---|---|
+| Spring 이 UP 인가 | `up -d --wait --wait-timeout 300` | 이미 도는 컨테이너 헬스체크(8081)를 재활용한다. <짜뒀는데 아무 데서도 안 도는 검사>가 원리적으로 안 생긴다 |
+| 밖에서 사슬이 이어지는가 | `/widget/alldap-widget.js` 200 → `/api/w/pk_local_dev/config` 에 `botName` | 정적 파일은 DB 를 안 거치고 설정 조회는 `bots` 를 읽는다. **나눠 쳐야 "Spring 이 안 떴다" 와 "DB 가 안 붙었다" 가 같은 빨간불이 되지 않는다.** LLM 을 부르는 경로는 돈이 드니 안 쓴다 |
+| 새 이미지로 바뀌었는가 | `scripts/verify-deploy.sh` | 아래 참고 |
+
+⚠️ **설정 조회는 V1 시드 봇 `pk_local_dev` 에 딸려 있다.** 그 봇을 지우면 배포가 빨간불이 된다
+(AGENTS.md Flyway 규칙 4번이 지우지 말라고 못박아둔 이유가 하나 늘었다).
+
+🔴 **`up -d` 에 `--wait-timeout 300` 이 붙어 있는 이유는 진단을 남기기 위해서다.** 그냥 두면
+compose 가 최대 약 16.3분(`start_period` 180s + `retries` 40 × 20s) 매달리는데 잡 `timeout-minutes`
+는 15분이다. 즉 compose 가 `dependency failed to start: unhealthy` 라는 **진짜 진단을 내기 전에
+잡이 반드시 먼저 죽는다.** 300초로 끊어 진단이 로그에 남게 했다(실측 기동 시간은 27초라
+정상 배포가 여기 걸릴 여지는 없다). 같은 이유로 `ssh` 에 `ServerAliveInterval=30` 이 붙어 있다:
+`up -d` 가 healthy 를 기다리는 동안 SSH 채널에 바이트가 안 흘러 2026-09-10 에 288초 침묵 뒤
+`Broken pipe`(종료코드 255)로 죽었다. 그 255 는 **원인이 다른 셋**(옛 이미지를 올렸다 / 진짜로
+기동에 실패했다 / 네트워크가 끊겼다)을 한 값으로 뭉갠다.
+
+그리고 실패하면 `if: failure()` 진단 수집 단계가 그 순간의 `ps` · api 로그 200줄 ·
+ai-service 로그 50줄 · 컨테이너 헬스체크 상세를 로그에 남긴다. **이 단계 자체는 실패시키지 않는다**
+(진단을 못 모은 것이 배포 실패를 덮어써서는 안 된다). 빨간불을 만나면 여기부터 볼 것.
+
 워크플로도 4단계 뒤에 `scripts/verify-deploy.sh` 를 돌린다. **헬스체크만으로는 "배포됐는가" 를
-검증할 수 없기 때문이다**: `/actuator/health` 는 버전을 모르고, 밖에서 버전을 알 방법도 없다
-(`/actuator/info` · `/env` · `/metrics` 는 전부 401 이다. 실측했다).
+검증할 수 없기 때문이다**: 헬스체크는 버전을 모르므로 옛 컨테이너에도 초록불을 준다.
+밖에서 버전을 알 방법도 없다(`/actuator/*` 는 이제 밖에서 아예 안 열리고, 열려 있던 시절에도
+`/info` · `/env` · `/metrics` 는 전부 401 이었다. 실측했다).
 스크립트가 실제로 걸리는지는 `bash scripts/verify-deploy.check.sh` 로 잰다(도커만 있으면 어디서나 돈다).
 🔴 **그 자체 점검에는 `depends_on` 이 걸린 서비스가 반드시 들어 있어야 한다.** 처음 판은
 `api` 하나만 봐서, `docker compose config --images <svc>` 가 <의존 서비스의 이미지까지 함께 낸다>는
@@ -356,8 +405,21 @@ Caddyfile·`docker-compose.prod.yml` 만 바뀐 푸시는 이미지 빌드 없�
 **정상 배포마다 빨간불**이 된다. 서버에 직접 붙여보고서야 나왔다(compose 5.5.1).
 그래서 이미지는 `config --format json` 에서 서비스별로 읽는다.
 
-**여전히 손으로 해야 하는 것**: `.env.prod` 변경(서버에만 있다) · 롤백(`IMAGE_TAG` 를 이전 커밋
-SHA 로 바꾸고 아래 4단계) · rate limit 종단 확인(아래 절).
+🔴 **이 검사는 `publish.yml` 의 `provenance: false` 에 딸려 있다. 한쪽만 되돌리면 다시 거짓
+실패가 난다.** `build-push-action@v6` 은 기본으로 SLSA provenance attestation 을 붙이는데,
+그러면 이미지가 OCI index 로 밀리고 **내용물이 한 바이트도 안 바뀌어도 index digest 가 매번
+바뀐다.** compose 는 index 안의 <플랫폼 매니페스트 digest> 를 보므로 "안 바뀌었다" 고 정확히
+판정하는데, 이 스크립트는 `.Id`(= index digest)를 보므로 "바뀌었다" 고 본다.
+**2026-09-10 에 그것 때문에 정상 배포가 빨간불이 났다.** `ai-service` 의 두 이미지는
+`Created`·크기·`RootFS.Layers`·`Config` 가 전부 같았고, 도는 컨테이너의
+`com.docker.compose.image` 라벨이 레지스트리의 amd64 매니페스트와 일치했다.
+**compose 가 옳고 검사가 틀렸다.** 그때 핸드오프 문서가 안내한 수동 복구
+(`up -d --force-recreate ai-service`)는 증상만 덮는다. 내용이 같은데 매 배포마다
+Python 을 재시작하게 된다. provenance 를 다시 켜야 하면 `want`/`have` 를 플랫폼 매니페스트
+digest 로 바꿀 것.
+
+**여전히 손으로 해야 하는 것**: `.env.prod` 변경(서버에만 있다) · **롤백**(아래 "롤백" 절 참고.
+`IMAGE_TAG` 한 줄로는 안 된다) · rate limit 종단 확인(아래 절).
 그리고 **아래 4단계는 지우지 않는다**: 워크플로가 그대로 옮긴 원본이고, Actions 가 못 돌 때 손으로 돌릴 수단이다.
 
 **API 컨트랙트가 바뀐 변경을 `main` 에 머지하면, 그 순간 운영이 깨진다.** 새 프론트가
@@ -412,18 +474,62 @@ docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --force-rec
 
 # 5. 🔴 배포 검증. "돌았다" 와 "새것으로 바뀌었다" 는 다르다.
 #    3번의 up -d 가 조용히 아무것도 안 해도 위 네 줄은 전부 성공으로 끝나고,
-#    8번의 /actuator/health 는 버전을 모르므로 옛 컨테이너에도 UP 을 준다.
+#    8번의 공개 경로 확인도 버전을 모르므로 옛 컨테이너에도 200 을 준다.
 #    2026-09-09 의 사고가 정확히 그 모양이었다: 서버 git 은 최신인데 컨테이너는 32시간 전 것.
 #    이 스크립트가 <pull 로 받은 이미지 ID>와 <컨테이너가 도는 이미지 ID>를 대조해,
 #    다르면 실패한다. 이미지가 안 바뀐 배포(Caddyfile 만 고친 경우)는 두 값이 같아 통과한다.
 bash scripts/verify-deploy.sh
 
-# 롤백 — .env.prod 의 IMAGE_TAG 를 이전 커밋 SHA 로 바꾸고 위를 다시
+# 로그를 따라가며 볼 때
 docker compose -f docker-compose.prod.yml --env-file .env.prod logs -f api
 
 # DB 백업은 RDS 자동 스냅샷이 맡는다. 수동 덤프가 필요하면
 docker compose -f docker-compose.prod.yml exec -T api sh -c 'apt-get install -y postgresql-client' # 또는 로컬에서
 ```
+
+### 🔴 롤백: CD 에 경로가 없다. 그리고 `IMAGE_TAG` 한 줄로는 <안 된다>
+
+`deploy.yml` 에는 롤백 단계가 없다. 앞으로만 간다. 되돌리려면 서버에 SSH 해서 손으로 해야 한다.
+
+⚠️ **`.env.prod` 의 `IMAGE_TAG` 만 옛 커밋 SHA 로 바꾸는 것은 오답이다.** 서버는 배포 1단계에서
+`git pull --ff-only` 를 돌아 **항상 최신 compose 를 갖고 있다.** 그 상태에서 이미지만 되돌리면
+둘이 어긋난다:
+
+- 최신 `docker-compose.prod.yml` 의 api 헬스체크는 `localhost:8081/actuator/health` 를 찌른다(**8081**)
+- 옛 이미지의 actuator 는 **8080** 에 있다 (PR #99 이전)
+- → 헬스체크가 **영원히 실패**하고, `ai-service` 는 `depends_on: condition: service_healthy` 에
+  걸려 **영영 안 뜬다.** 즉 롤백이 <더 큰 장애>가 된다.
+
+**실효 절차는 compose 와 이미지를 <함께> 되돌리는 것이다.**
+
+```bash
+# 서버에서
+cd /home/ubuntu/AllDap
+git checkout <되돌릴 커밋 SHA>          # compose·Caddyfile 이 그 시점으로 간다 (detached HEAD)
+sed -i 's/^IMAGE_TAG=.*/IMAGE_TAG=<같은 SHA>/' .env.prod
+docker compose -f docker-compose.prod.yml --env-file .env.prod pull
+docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --wait --wait-timeout 300
+docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --force-recreate caddy
+bash scripts/verify-deploy.sh
+```
+
+🔴 **되돌린 뒤 복귀 절차까지 해야 끝난다.** 위에서 `git checkout <SHA>` 를 하면 서버가
+**detached HEAD** 로 남는데, 그 상태에서는 다음 배포의 `git pull --ff-only` 가
+`You are not currently on a branch` 로 **실패한다.** 즉 롤백을 해놓고 잊으면 **그 뒤의 모든
+자동 배포가 빨간불**이 된다. 원인을 고쳐 새 커밋을 밀었다면 서버에서 먼저:
+
+```bash
+cd /home/ubuntu/AllDap
+git checkout main && git pull --ff-only
+sed -i 's/^IMAGE_TAG=.*/IMAGE_TAG=latest/' .env.prod   # 또는 새 커밋 SHA
+```
+
+그다음 Actions 에서 `Deploy to EC2` 를 `workflow_dispatch` 로 다시 민다.
+
+⚠️ **[추정] 이 절차는 아직 실제로 돌려본 적이 없다.** 근거는 코드를 읽어 따진 것이다
+(compose 의 8081 헬스체크 · `depends_on: service_healthy` · 워크플로의 `git pull --ff-only`).
+**진짜 롤백이 필요한 날에 처음 돌리게 되면 그때 막힌다.** 한가할 때 한 번 돌려보고
+이 절을 실측으로 고칠 것.
 
 ### rate limit 종단 확인 (4번 이후 매번 할 것)
 
