@@ -254,6 +254,11 @@ def chat(req: ChatRequest) -> ChatResponse:
     #    (cf._record_latency 가 raise_for_status 앞에 있는 것과 같은 이유)
     # ⚠️ 여기는 워커 스레드다. anyio limiter 를 건드리면 NoEventLoopError 로 죽는다.
     #    스레드풀 지표는 /internal/metrics(async) 가 스크레이프 시점에 읽는다.
+    #
+    # 🔴 여기가 워커 스레드라는 사실이 CHAT_INFLIGHT 의 의미도 정한다: 스레드를 못 받고
+    #    <기다리는> 요청은 이 줄까지 오지 못하므로 inflight 는 대기 큐를 세지 않는다.
+    #    대기 큐는 tomcat_threads_busy_threads - alldap_anyio_threads_borrowed 로 읽는다.
+    #    자세한 근거는 metrics.CHAT_INFLIGHT 주석 참고.
     metrics.CHAT_INFLIGHT.inc()
     try:
         sources = retriever.search(req.bot_id, req.message)

@@ -49,9 +49,31 @@ CHAT_DURATION = Histogram(
     buckets=(0.1, 0.25, 0.5, 1.0, 1.5, 2.0, 3.0, 5.0, 8.0, 13.0, 21.0, 34.0, 60.0, 120.0),
 )
 
-# 스레드풀 대기 큐 길이의 <대리 지표>다. borrowed 가 40 에 붙어 있는데 inflight 가
-# 계속 늘면, 늘어난 만큼이 큐에서 기다리는 요청이다.
-CHAT_INFLIGHT = Gauge("alldap_chat_inflight", "지금 /internal/chat 안에 있는 요청 수")
+# 🔴 이 지표는 <대기 큐 길이가 아니다>. 2026-09-10 S2 실측에서 드러났다.
+#
+# 애초에는 "스레드풀 대기 큐 길이의 대리 지표" 로 뒀는데(설계서 §5①), 원리적으로
+# 그 역할을 못 한다. inc() 가 main.chat 함수 <안>에 있고 그 함수는 anyio 워커 스레드를
+# 이미 얻은 뒤에야 실행되므로, <기다리는> 요청은 inc() 에 도달조차 못 한다.
+# 즉 inflight 는 구조적으로 ANYIO_THREADS_BORROWED 를 넘을 수 없다.
+# 80 VU 실측이 그대로 보여준다: tomcat_busy=80 인데 inflight=40 이었다.
+#
+# ⚠️ 값이 틀린 게 아니라 <약속이 틀렸던> 것이다. "지금 Python 이 실제로 처리 중인 건수"
+#    로는 여전히 옳다. 그래서 이름도 바꾸지 않는다(이미 쌓인 S1·S2 측정 기록과
+#    Prometheus 시계열의 연속성이 끊긴다).
+#
+# 🔴 실제 대기 큐 길이는 <뺄셈>으로 읽는다:
+#       tomcat_threads_busy_threads - alldap_anyio_threads_borrowed
+#    Spring 이 붙잡고 있는 요청 수에서 Python 이 실제로 돌리는 수를 뺀 것이다.
+#    S2 실측에서는 80 - 40 = 40 이었다. PR 5 의 개선 전후 비교는 이 식으로 한다.
+#    (Grafana 패널 id 6 이 이 식을 시리즈로 그린다)
+#
+# ⚠️ 뺄셈 식은 Spring 이 Python 을 <동기로 1:1 호출한다>는 전제 위에 선다. 그 전제가
+#    깨지면(비동기 큐 도입 등) 이 식도 함께 무효다.
+CHAT_INFLIGHT = Gauge(
+    "alldap_chat_inflight",
+    "지금 /internal/chat 을 실제로 처리 중인 요청 수 (대기 큐 아님. 큐는 "
+    "tomcat_threads_busy_threads - alldap_anyio_threads_borrowed 로 읽을 것)",
+)
 
 
 def sample_anyio_threads() -> None:
