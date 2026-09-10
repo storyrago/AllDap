@@ -30,6 +30,21 @@ S2 는 여기에 둘을 더 얹는다: <진짜 CF 를 태우고 있지 않은지
    (embed·rerank·generate), 꺼져 있으면 2건이다. 상수로 박으면 설정을 바꾼 날
    <정상 실행이 무효로 판정된다> — 그리고 그건 "경로를 안 탔다" 와 구분이 안 된다.
 
+🔴 시작 조건은 되도록 <대상에게 물어본 값>으로 적는다. 드라이버 프로세스에서 얻은 값은
+   요청을 처리하는 uvicorn 이나 가짜 CF 서버가 무엇으로 떠 있는지 말해주지 못한다.
+   지금 어느 쪽인지는 이렇게 갈린다:
+
+     대상에게 물어본 것 : bot(Spring) · fake_cf.latency_ms/vector_mode(가짜 서버 /stats)
+                          · fake_cf.base_url(uvicorn /internal/debug/cf-config)
+                          · warmup_models_called 와 그로부터 나온 expected_cf_calls_per_request
+     드라이버에서 얻은 것 : commit(드라이버 체크아웃) · corpus(드라이버의 DATABASE_URL)
+                          · settings 블록(드라이버의 app.config)
+
+   드라이버 쪽 셋은 알고 남긴다. commit 은 앱이 자기 버전을 안 내보내고, corpus 는
+   uvicorn 의 DB 접속 문자열을 물어볼 자리가 없다. settings 블록은 uvicorn 이 설정을
+   내보내지 않아 통째로는 못 가져오지만, <사후 대조를 좌우하는> reranker 여부만은
+   워밍업 관측으로 갈음하고 드라이버 값과 어긋나면 중단한다(cmd_before 참고).
+
 ⚠️ cf-stats 는 프로세스 시작 뒤 누적이고 리셋 API 가 없다(cf._latencies 주석이 근거를
    적어둔 자리). 여기서는 <전후 차이>만 쓰므로 문제되지 않는다. 백분위는
    _LATENCY_WINDOW=2000 창에 걸리지만 이 스크립트가 쓰는 것은 count 뿐이고,
@@ -89,6 +104,62 @@ def _cf_counts(ai_base: str) -> dict[str, int]:
 WARMUP_QUESTION = "부하테스트 사전 점검용 질문 zzqq (코퍼스에 없는 말입니다)"
 
 
+def _called_models(before: dict[str, dict], after: dict[str, dict]) -> dict[str, int]:
+    """워밍업 사이에 <실제로 호출이 늘어난> 모델. judge 와 기대 배수 산출이 같이 쓴다."""
+    b, a = _counts_of(before), _counts_of(after)
+    delta = {m: a.get(m, 0) - b.get(m, 0) for m in set(a) | set(b)}
+    return {m: d for m, d in delta.items() if d > 0}
+
+
+def read_fake_cf_stats(cf_base_url: str) -> dict:
+    """<실제로 도는> 가짜 CF 서버에게 자기 설정을 물어본다.
+
+    🔴 여기서 loadtest.fake_cf 의 상수를 import 해 대신하면 안 된다. 그건 드라이버
+       프로세스가 읽은 코드일 뿐이라, 다른 지연값으로 떠 있는 서버를 상대로도 그대로
+       통과한다. 그러면 시작 조건 파일이 <사실이 아닌 값>을 사실이라고 적는다.
+       (같은 부류를 cf_base_url 가드에서 이미 한 번 겪었다. 이 파일 위쪽 주석 참고)
+
+    🔴 못 읽으면 <중단>한다. 되돌아갈 import 값을 쓰지 않는 이유는 그게 고치기 전과
+       똑같아지기 때문이고, "못 읽었다" 를 파일에 적고 계속 가지 않는 이유는 12분을
+       돌린 뒤에 조건을 모르는 실행이 하나 남을 뿐이기 때문이다. 어차피 버릴 측정이면
+       시작하기 전에 멈추는 편이 싸다. judge_fake_cf 의 ①(판정 불가 → 중단)과 같은 판단이다.
+    """
+    try:
+        resp = httpx.get(f"{cf_base_url.rstrip('/')}/stats", timeout=10.0)
+        resp.raise_for_status()
+        stats = resp.json()
+    except (httpx.HTTPError, ValueError) as e:
+        raise SystemExit(
+            f"중단: 가짜 CF 서버({cf_base_url})의 /stats 를 못 읽었다 ({e}). "
+            f"시작 조건을 <추측으로> 적을 바에는 재지 않는다. "
+            f"가짜 서버가 그 주소에 떠 있는지 확인하고(cd ai-service && "
+            f".venv/bin/python -m loadtest.fake_cf), 그 주소가 맞는지는 "
+            f"ai-service 의 /internal/debug/cf-config 로 확인할 것."
+        )
+
+    missing = [k for k in ("latency_ms", "vector_mode", "counts") if k not in stats]
+    if missing:
+        raise SystemExit(
+            f"중단: {cf_base_url}/stats 응답에 {missing} 가 없다. 그 주소에 떠 있는 것이 "
+            f"loadtest/fake_cf.py 가 맞는지 확인할 것. 다른 서버라면 이 측정의 시작 조건을 "
+            f"기록할 수 없다."
+        )
+    return stats
+
+
+def _uvicorn_cf_base_url(ai_base: str) -> str:
+    """요청을 처리하는 uvicorn 이 <실제로 보는> CF 주소. 드라이버의 환경변수가 아니다."""
+    try:
+        resp = httpx.get(f"{ai_base}/internal/debug/cf-config", timeout=10.0)
+        resp.raise_for_status()
+        return str(resp.json()["cf_base_url"])
+    except (httpx.HTTPError, ValueError, KeyError) as e:
+        raise SystemExit(
+            f"중단: {ai_base}/internal/debug/cf-config 를 못 읽었다 ({e}). "
+            f"ai-service 가 이 엔드포인트를 가진 버전인지 확인할 것."
+        )
+
+
 def judge_fake_cf(before: dict[str, dict], after: dict[str, dict]) -> tuple[bool, str]:
     """워밍업 전후의 cf-stats 로 <요청을 처리하는 프로세스>가 가짜 CF 를 보는지 판정한다.
 
@@ -106,12 +177,8 @@ def judge_fake_cf(before: dict[str, dict], after: dict[str, dict]) -> tuple[bool
        ② 뉴런이 늘었다    → 진짜 CF 다. 중단.
        ③ 호출만 늘었다    → 가짜 CF 다. 진행.
     """
-    b_count, a_count = _counts_of(before), _counts_of(after)
     b_neuron, a_neuron = _neurons_of(before), _neurons_of(after)
-    models = set(a_count) | set(b_count)
-
-    called = {m: a_count.get(m, 0) - b_count.get(m, 0) for m in models}
-    called = {m: d for m, d in called.items() if d > 0}
+    called = _called_models(before, after)
     if not called:
         return False, (
             "중단: 워밍업 요청이 Cloudflare 호출을 하나도 늘리지 않았다. "
@@ -136,10 +203,13 @@ def judge_fake_cf(before: dict[str, dict], after: dict[str, dict]) -> tuple[bool
     return True, f"OK   가짜 CF 확인: 워밍업 호출 {called}, 뉴런 증가 0"
 
 
-def _assert_fake_cf(ai_base: str, bot_id: str) -> None:
+def _assert_fake_cf(ai_base: str, bot_id: str) -> dict[str, int]:
     """측정을 시작하기 <전에> 실제로 도는 ai-service 를 상대로 확인한다.
 
     ⚠️ 사후 대조가 아니라 여기여야 한다. 다 돌리고 나서 알아봐야 뉴런은 이미 탔다.
+
+    통과하면 <워밍업 1건이 실제로 부른 모델>을 돌려준다. 기대 배수를 드라이버의
+    설정이 아니라 이 관측값에서 뽑기 위해서다(cmd_before 주석 참고).
     """
     before = _cf_stats(ai_base)
     try:
@@ -154,10 +224,12 @@ def _assert_fake_cf(ai_base: str, bot_id: str) -> None:
     except httpx.HTTPError as e:
         raise SystemExit(f"중단: 워밍업 요청이 실패했다 ({e}). ai-service 가 {ai_base} 에 떠 있는가?")
 
-    ok, message = judge_fake_cf(before, _cf_stats(ai_base))
+    after = _cf_stats(ai_base)
+    ok, message = judge_fake_cf(before, after)
     print(message)
     if not ok:
         raise SystemExit(1)
+    return _called_models(before, after)
 
 
 def _pick_bot(bots: list[dict]) -> dict:
@@ -208,8 +280,6 @@ def _settings_snapshot() -> dict:
 
 
 def cmd_before(args) -> int:
-    from loadtest.fake_cf import LATENCY_MS
-
     settings = _settings_snapshot()
 
     # 🔴 이 값으로 <막지> 않는다. 예전에는 여기서 중단시켰는데, 그 검사는 드라이버
@@ -234,10 +304,32 @@ def cmd_before(args) -> int:
 
     # 🔴 여기서 막는다. k6 를 띄우기 <전>이자 봇을 고른 <뒤>다.
     #    측정이 실제로 두드릴 봇으로 같은 경로를 한 번 태워야 판정에 뜻이 있다.
-    _assert_fake_cf(args.ai, bot["id"])
+    warmup_called = _assert_fake_cf(args.ai, bot["id"])
 
-    # 리랭커가 꺼져 있으면 rerank 를 안 부른다. 기대 배수를 여기서 <설정으로부터> 정한다.
-    expected = 3 if settings["reranker_enabled"] else 2
+    # 가짜 CF 의 설정은 <그 서버에게 물어본다.> 예전에는 loadtest.fake_cf 의 상수를
+    # import 해서 적었는데, 그건 드라이버가 읽은 코드일 뿐이라 다른 지연값으로 떠 있는
+    # 서버를 상대로도 그대로 통과했다(read_fake_cf_stats 주석에 근거).
+    uvicorn_cf_base_url = _uvicorn_cf_base_url(args.ai)
+    if uvicorn_cf_base_url != settings["cf_base_url"]:
+        print(f"참고: 드라이버의 CF_BASE_URL({settings['cf_base_url']})과 uvicorn 의 것"
+              f"({uvicorn_cf_base_url})이 다르다. 아래 기록은 <uvicorn 의 것>을 따른다.")
+    fake_cf_stats = read_fake_cf_stats(uvicorn_cf_base_url)
+
+    # 🔴 기대 배수도 <관측>에서 뽑는다. 예전에는 드라이버가 읽은 reranker_enabled 로
+    #    정했는데, 그러면 uvicorn 이 다른 설정으로 떠 있을 때 사후 대조가 <정상 실행을
+    #    무효로> 판정한다. 그리고 그건 "경로를 안 탔다" 와 구분이 안 된다
+    #    (cmd_after 가 원인 후보로 적어둔 바로 그 항목이다).
+    #    워밍업 1건이 부른 모델 수가 곧 요청당 CF 호출 수다(embed·rerank·generate).
+    expected = len(warmup_called)
+    expected_from_settings = 3 if settings["reranker_enabled"] else 2
+    if expected != expected_from_settings:
+        raise SystemExit(
+            f"중단: 워밍업이 부른 모델은 {expected}종({sorted(warmup_called)})인데 "
+            f"드라이버가 읽은 설정으로는 {expected_from_settings}종이다"
+            f"(reranker_enabled={settings['reranker_enabled']}). "
+            f"두 프로세스가 다른 설정으로 떠 있다는 뜻이라, 이 파일의 settings 블록 전체를 "
+            f"믿을 수 없다. 같은 환경변수로 uvicorn 을 다시 띄우고 다시 실행할 것."
+        )
 
     context = {
         "run_id": args.run_id,
@@ -253,8 +345,14 @@ def cmd_before(args) -> int:
         },
         "corpus": _corpus(bot["id"]),
         "settings": settings,
-        # 가짜 CF 의 고정 지연. S1 실측 p50 이고 이 PR 은 이 값을 바꾸지 않는다.
-        "fake_cf_latency_ms": dict(LATENCY_MS),
+        # 🔴 <도는 서버에게 물어본> 값이다. 드라이버가 import 한 상수가 아니다.
+        "fake_cf": {
+            "base_url": uvicorn_cf_base_url,
+            "latency_ms": fake_cf_stats["latency_ms"],
+            "vector_mode": fake_cf_stats["vector_mode"],
+            "vector_bot_id": fake_cf_stats.get("vector_bot_id"),
+        },
+        "warmup_models_called": warmup_called,
         "expected_cf_calls_per_request": expected,
         # ⚠️ 워밍업 <뒤>의 값이다. 앞에서 찍으면 워밍업 3건이 사후 대조의 배수에 섞여
         #    "경로를 더 탔다" 로 읽힌다(요청 수에는 안 잡히므로 배수가 위로 튄다).
