@@ -36,6 +36,15 @@
 #    <어떤 경우에도 통과하는 검사>가 된다. 이 저장소가 이미 두 번 겪은 부류다
 #    (redirect.check.ts · rate limit 점검). compose 파일을 진실 공급원으로 삼는다.
 #
+# 🔴 이 검사는 publish.yml 의 `provenance: false` 에 딸려 있다.
+#    켜져 있으면 이미지가 OCI index 로 밀리고 빌드마다 다른 attestation 매니페스트가
+#    붙어서, 내용물이 한 바이트도 안 바뀌어도 아래 want(= index digest)가 매번 바뀐다.
+#    반면 compose 는 index 안의 <플랫폼 매니페스트 digest> 를 보고 재생성을 판정하므로
+#    "compose 는 안 바꿨는데 이 검사는 바뀌었다고 한다" 가 되어 <정상 배포가 실패>한다.
+#    2026-09-10 에 실제로 그렇게 났다(ai-service. 두 이미지의 Created·크기·레이어·Config
+#    가 전부 같았고 컨테이너 라벨이 레지스트리 amd64 매니페스트와 일치했다).
+#    provenance 를 다시 켜야 하면 want/have 를 플랫폼 매니페스트 digest 로 바꿀 것.
+#
 # 사용:  bash scripts/verify-deploy.sh [서비스...]      (기본: api ai-service)
 #        COMPOSE 를 넘기면 다른 compose 로도 돈다(자체 점검용, 아래 참고).
 #
