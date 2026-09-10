@@ -14,7 +14,15 @@
 "그때 뭘로 쟀지" 를 못 답하는 측정은 재현할 수 없고, 재현할 수 없으면 측정이 아니다
 (s1_baseline._conditions 와 같은 근거다).
 
-S2 는 여기에 하나를 더 얹는다 — <경로를 진짜 탔는지>. k6 가 200 을 받았다는 것만으로는
+S2 는 여기에 둘을 더 얹는다: <진짜 CF 를 태우고 있지 않은지>(실행 전)와
+<경로를 진짜 탔는지>(실행 후).
+
+🔴 실행 전 검사는 환경변수가 아니라 <뉴런>으로 한다. 환경변수는 드라이버 프로세스의
+   것이라 요청을 처리하는 uvicorn 이 무엇을 보는지 말해주지 못한다. 가짜 서버는 뉴런을
+   0 으로 주고 진짜 Cloudflare 는 호출마다 값을 준다. 그 차이는 <응답에서> 오므로
+   uvicorn 을 통과해야만 보인다. 자세한 근거는 judge_fake_cf 주석에 있다.
+
+실행 후 검사가 보는 것은 <경로를 진짜 탔는지>다. k6 가 200 을 받았다는 것만으로는
 그 요청이 embed·rerank·generate 를 다 지났는지 알 수 없다. 캐시·조기 반환·설정 착오로
 경로를 건너뛰어도 200 은 200 이다. 가짜 CF 의 호출 수를 실행 전후로 빼면 그게 드러난다.
 
@@ -49,11 +57,107 @@ def _verdict_path(run_id: str) -> Path:
     return RESULTS / f"S2-{run_id}-verdict.json"
 
 
-def _cf_counts(ai_base: str) -> dict[str, int]:
-    """모델별 <호출 수>만 뽑는다. 백분위·뉴런은 이 PR 이 쓰지 않는다."""
+def _cf_stats(ai_base: str) -> dict[str, dict]:
+    """cf-stats 원본을 그대로 읽는다. 호출 수도 뉴런도 여기서 갈라 쓴다."""
     resp = httpx.get(f"{ai_base}/internal/debug/cf-stats", timeout=30.0)
     resp.raise_for_status()
-    return {model: int(row.get("count", 0)) for model, row in resp.json().items()}
+    return resp.json()
+
+
+def _counts_of(stats: dict[str, dict]) -> dict[str, int]:
+    return {model: int(row.get("count", 0)) for model, row in stats.items()}
+
+
+def _neurons_of(stats: dict[str, dict]) -> dict[str, float]:
+    return {model: float(row.get("neurons", 0.0)) for model, row in stats.items()}
+
+
+def _cf_counts(ai_base: str) -> dict[str, int]:
+    """모델별 <호출 수>만 뽑는다. 사후 대조가 쓴다."""
+    return _counts_of(_cf_stats(ai_base))
+
+
+# 워밍업 질문. 코퍼스 어디에도 없는 낱말로 짓는다.
+#
+# 🔴 이유는 <진짜 CF 였을 때의 비용>이다. 이 질문은 어떤 청크와도 멀어
+#    answerable_max_distance 게이트에 걸리므로, 진짜 CF 를 보고 있었다면 임베딩 1회
+#    (약 0.024 뉴런, 하루 한도 10,000 의 0.0002%)에서 멈춘다. 게이트가 어쩌다 통과해
+#    생성까지 가더라도 1건은 약 25 뉴런, 0.25% 다. 어느 쪽이든 12분 실행이 날려버리는
+#    하루치와는 비교가 안 된다.
+#    반대로 가짜 CF 는 <진짜 청크 벡터>를 돌려주므로 거리가 0 이라 게이트를 통과하고
+#    embed·rerank·generate 를 다 태운다. 즉 이 한 건으로 세 모델을 한꺼번에 검사한다.
+WARMUP_QUESTION = "부하테스트 사전 점검용 질문 zzqq (코퍼스에 없는 말입니다)"
+
+
+def judge_fake_cf(before: dict[str, dict], after: dict[str, dict]) -> tuple[bool, str]:
+    """워밍업 전후의 cf-stats 로 <요청을 처리하는 프로세스>가 가짜 CF 를 보는지 판정한다.
+
+    왜 뉴런인가
+    ─────────────────────────────────────────────────────────────────────
+    가짜 서버는 뉴런을 0 으로 준다(loadtest/fake_cf.py). 진짜 Cloudflare 는 호출마다
+    0 이 아닌 값을 준다(cf._record_neurons 의 세 경로 중 하나로 반드시 들어온다).
+    그리고 이 숫자는 <드라이버가 아니라 uvicorn 이 실제로 받은 응답>에서 나온다.
+    환경변수는 그것을 말해주지 못한다: 드라이버 셸에 가짜 값이 있어도 uvicorn 이 진짜
+    Cloudflare 를 보고 있을 수 있고, 그게 위험한 방향의 오탐이다.
+
+    🔴 세 결과를 <세 값으로> 가른다. 뭉치면 원인이 다른 사실이 같은 실패가 된다.
+       ① 호출이 안 늘었다  → 판정 불가(가짜라는 뜻이 아니다). 그래도 중단한다,
+                             모르는 채로 12분을 돌릴 수는 없다.
+       ② 뉴런이 늘었다    → 진짜 CF 다. 중단.
+       ③ 호출만 늘었다    → 가짜 CF 다. 진행.
+    """
+    b_count, a_count = _counts_of(before), _counts_of(after)
+    b_neuron, a_neuron = _neurons_of(before), _neurons_of(after)
+    models = set(a_count) | set(b_count)
+
+    called = {m: a_count.get(m, 0) - b_count.get(m, 0) for m in models}
+    called = {m: d for m, d in called.items() if d > 0}
+    if not called:
+        return False, (
+            "중단: 워밍업 요청이 Cloudflare 호출을 하나도 늘리지 않았다. "
+            "가짜/진짜를 <판정하지 못한> 것이지 가짜라는 뜻이 아니다. "
+            "ai-service 가 그 주소에 떠 있는지, 봇에 임베딩된 청크가 있는지 확인할 것."
+        )
+
+    burned = {
+        m: round(a_neuron.get(m, 0.0) - b_neuron.get(m, 0.0), 6)
+        for m in called
+        if a_neuron.get(m, 0.0) - b_neuron.get(m, 0.0) > 0
+    }
+    if burned:
+        return False, (
+            f"중단: 요청을 처리하는 ai-service 가 <진짜 Cloudflare> 를 보고 있다. "
+            f"워밍업 1건에 뉴런이 늘었다({burned}). 이대로 12분을 돌리면 하루 한도"
+            f"(10,000 뉴런)가 날아가고 24~33시간 기다려야 한다. "
+            f"가짜 서버를 띄우고(cd ai-service && .venv/bin/python -m loadtest.fake_cf) "
+            f"CF_BASE_URL=http://127.0.0.1:9001 로 uvicorn 을 <다시> 띄운 뒤 이 명령을 다시 실행할 것."
+        )
+
+    return True, f"OK   가짜 CF 확인: 워밍업 호출 {called}, 뉴런 증가 0"
+
+
+def _assert_fake_cf(ai_base: str, bot_id: str) -> None:
+    """측정을 시작하기 <전에> 실제로 도는 ai-service 를 상대로 확인한다.
+
+    ⚠️ 사후 대조가 아니라 여기여야 한다. 다 돌리고 나서 알아봐야 뉴런은 이미 탔다.
+    """
+    before = _cf_stats(ai_base)
+    try:
+        # ⚠️ 200 이 아니어도 된다. 게이트에 걸리면 fallback(200)이고, 생성이 잘리면 503 이다.
+        #    둘 다 CF 호출은 이미 일어났으므로 판정 재료로는 충분하다.
+        #    막힌 것은 호출 수가 안 늘어난 경우이고 그건 judge_fake_cf 가 ①로 잡는다.
+        httpx.post(
+            f"{ai_base}/internal/chat",
+            json={"bot_id": bot_id, "message": WARMUP_QUESTION, "session_id": "s2-guard"},
+            timeout=120.0,
+        )
+    except httpx.HTTPError as e:
+        raise SystemExit(f"중단: 워밍업 요청이 실패했다 ({e}). ai-service 가 {ai_base} 에 떠 있는가?")
+
+    ok, message = judge_fake_cf(before, _cf_stats(ai_base))
+    print(message)
+    if not ok:
+        raise SystemExit(1)
 
 
 def _pick_bot(bots: list[dict]) -> dict:
@@ -97,8 +201,8 @@ def _settings_snapshot() -> dict:
         "reranker_model": s.reranker_model,
         # 🔴 이 값들은 <드라이버 프로세스>가 읽은 것이지 요청을 처리한 uvicorn 의 것이 아니다.
         #    둘이 다른 환경변수로 떠 있으면 이 파일은 거짓 조건을 남긴다.
-        #    특히 cf_base_url — 가짜 서버를 띄웠던 셸에서 uvicorn 을 재시작하면 그대로 남는다.
-        #    진짜 주소면 그 측정은 <진짜 CF 를 태운 것>이고, 하루 한도가 12분에 날아간다.
+        #    특히 cf_base_url: 이건 <기록용>이지 판정 근거가 아니다.
+        #    uvicorn 이 무엇을 보는지는 judge_fake_cf 가 뉴런으로 판정한다.
         "cf_base_url": s.cf_base_url,
     }
 
@@ -108,12 +212,15 @@ def cmd_before(args) -> int:
 
     settings = _settings_snapshot()
 
-    # 🔴 가짜 서버를 안 보고 있으면 여기서 멈춘다. 이건 이 PR 에서 <유일하게> 실행 전에
-    #    막는 자리다 — 진짜 CF 로 12분을 돌리면 하루 한도가 날아가고 24~33시간 기다린다.
+    # 🔴 이 값으로 <막지> 않는다. 예전에는 여기서 중단시켰는데, 그 검사는 드라이버
+    #    프로세스의 환경변수만 봐서 양쪽으로 다 틀렸다:
+    #      · 드라이버만 가짜 값 → 통과시킨다. uvicorn 이 진짜 CF 여도 통과한다(위험한 오탐).
+    #      · 드라이버만 진짜 값 → 중단시킨다. uvicorn 이 가짜여도 중단한다(2026-09-10 실제로 겪었다).
+    #    진짜 판정은 아래 _assert_fake_cf 가 <도는 프로세스>를 상대로 한다.
+    #    값을 계속 찍는 이유는 두 프로세스의 설정이 어긋났다는 <단서>로는 쓸모가 있어서다.
     if "cloudflare.com" in settings["cf_base_url"]:
-        print(f"중단: CF_BASE_URL 이 진짜 Cloudflare 다 ({settings['cf_base_url']}). "
-              f"가짜 서버(http://127.0.0.1:9001)를 보게 하고 uvicorn 을 다시 띄울 것.")
-        return 1
+        print(f"경고: 이 셸의 CF_BASE_URL 이 진짜 Cloudflare 다 ({settings['cf_base_url']}). "
+              f"uvicorn 이 무엇을 보는지는 이 값으로 알 수 없어 아래 워밍업 검사로 판정한다.")
 
     client = httpx.Client(timeout=60.0)
     resp = client.post(f"{args.api}/api/auth/login",
@@ -124,6 +231,10 @@ def cmd_before(args) -> int:
     resp = client.get(f"{args.api}/api/bots", headers={"Authorization": f"Bearer {token}"})
     resp.raise_for_status()
     bot = _pick_bot(resp.json())
+
+    # 🔴 여기서 막는다. k6 를 띄우기 <전>이자 봇을 고른 <뒤>다.
+    #    측정이 실제로 두드릴 봇으로 같은 경로를 한 번 태워야 판정에 뜻이 있다.
+    _assert_fake_cf(args.ai, bot["id"])
 
     # 리랭커가 꺼져 있으면 rerank 를 안 부른다. 기대 배수를 여기서 <설정으로부터> 정한다.
     expected = 3 if settings["reranker_enabled"] else 2
@@ -145,6 +256,8 @@ def cmd_before(args) -> int:
         # 가짜 CF 의 고정 지연. S1 실측 p50 이고 이 PR 은 이 값을 바꾸지 않는다.
         "fake_cf_latency_ms": dict(LATENCY_MS),
         "expected_cf_calls_per_request": expected,
+        # ⚠️ 워밍업 <뒤>의 값이다. 앞에서 찍으면 워밍업 3건이 사후 대조의 배수에 섞여
+        #    "경로를 더 탔다" 로 읽힌다(요청 수에는 안 잡히므로 배수가 위로 튄다).
         "cf_stats_before": _cf_counts(args.ai),
         "stages": [1, 5, 10, 20, 40, 80],
         "hold_seconds": 120,

@@ -26,6 +26,7 @@ from app import cf                      # noqa: E402
 from app.config import get_settings     # noqa: E402
 from app.generator import FALLBACK_TOKEN  # noqa: E402
 from loadtest import fake_cf            # noqa: E402
+from loadtest import s2_context        # noqa: E402
 
 
 def main() -> int:
@@ -88,6 +89,33 @@ def main() -> int:
     check("링버퍼 호출 수는 안 잘림", row["count"] == overflow, f"({row['count']})")
     # 오래된 값이 밀려났는지: 0..4 가 빠졌으므로 최솟값이 5 다.
     check("오래된 값 축출", min(cf._latencies[probe]) == 5.0, f"({min(cf._latencies[probe])})")
+
+    # ⑦ 뉴런이 0 이어야 한다. <가짜라는 것을 알아볼 수 있는 유일한 신호>다.
+    #    s2_context 가 측정을 시작하기 전에 이 값으로 진짜 CF 를 걸러낸다.
+    #    가짜 서버가 언젠가 0 이 아닌 값을 주기 시작하면 그 안전장치가 조용히 꺼지므로
+    #    여기서 회귀로 잡는다.
+    used = cf.neurons_used()
+    check(
+        "가짜 CF 는 뉴런을 0 으로 준다",
+        all(v == 0.0 for v in used.values()),
+        f"({used})",
+    )
+    # 세 모델이 <전부> 적립 경로를 지났는지도 본다. 응답에 뉴런 필드가 아예 없으면
+    # _record_neurons 가 아무것도 안 남겨 "0 이다" 와 "안 쟀다" 가 구분되지 않는다.
+    for model in (s.embedding_model, s.reranker_model, s.chat_model):
+        check(f"뉴런 적립됨 {model}", model in used, f"({used.get(model)})")
+
+    # ⑧ 판정 함수 자체. 실제 CF 를 부르지 않고 <세 상황>을 다 태운다.
+    #    ①판정 불가 ②진짜 CF ③가짜 CF 가 서로 다른 결과여야 한다(뭉치면 안 된다).
+    def stats(count: int, neurons: float) -> dict:
+        return {"m": {"count": count, "neurons": neurons}}
+
+    ok_fake, _ = s2_context.judge_fake_cf(stats(0, 0.0), stats(1, 0.0))
+    ok_real, msg_real = s2_context.judge_fake_cf(stats(0, 0.0), stats(1, 24.6))
+    ok_none, msg_none = s2_context.judge_fake_cf(stats(3, 0.0), stats(3, 0.0))
+    check("판정: 가짜 CF 는 통과", ok_fake)
+    check("판정: 진짜 CF 는 중단", not ok_real and "진짜 Cloudflare" in msg_real)
+    check("판정: 호출이 안 늘면 중단", not ok_none and "판정하지 못한" in msg_none)
 
     server.shutdown()
     print(f"\n{'실패 ' + ', '.join(failures) if failures else '전부 통과'}")
