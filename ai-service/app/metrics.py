@@ -1,0 +1,78 @@
+"""부하테스트 S2(breakpoint) 가 읽는 Prometheus 지표.
+
+이 모듈이 존재하는 이유는 하나다 — <어느 자원이 먼저 차는가> 를 가리는 것.
+Spring 쪽 지표(Hikari·Tomcat·힙)는 PR 1 이 깔아놨고, 여기 없는 것은 Python 몫이다.
+
+🔴 prometheus-fastapi-instrumentator 를 쓰지 않는다. 근거는 requirements.txt 주석 참고.
+
+⚠️ 멀티프로세스 주의 — 지금은 안전하지만 <PR 5 에서 깨진다>
+─────────────────────────────────────────────────────────────────────────────
+prometheus_client 의 기본 레지스트리는 <프로세스 안의> 카운터다. 워커가 여럿이면
+스크레이프가 그중 <아무 워커 하나>에 닿아 그 워커의 숫자만 돌려주고, 나머지는 사라진다.
+지금은 Dockerfile:34 의 uvicorn 이 워커 1개라 문제가 없다.
+🔴 그런데 PR 5 의 개선 후보가 정확히 "워커 수를 늘리기" 다. 그때 이 파일을
+   multiprocess 모드(PROMETHEUS_MULTIPROC_DIR + MultiProcessCollector)로 함께 고치지 않으면
+   지표는 <에러를 내지 않고> 조용히 1/N 로 줄어들고, 그 그래프는 "개선됐다" 로 읽힌다.
+"""
+from __future__ import annotations
+
+import anyio.to_thread
+from prometheus_client import CONTENT_TYPE_LATEST, Gauge, Histogram, generate_latest
+
+# ── 1순위 가설: anyio 스레드풀이 먼저 찬다 ──────────────────────────────
+#
+# main.py 의 `chat` 이 `async def` 가 아니라 `def` 라, FastAPI 는 그 요청을
+# anyio 의 <기본 스레드풀>에서 처리한다. 그 풀의 상한이 40 이고, 한 요청이
+# 최소 1.586초(embed 235 + rerank 414 + generate 937) 걸린다.
+# 즉 동시 40건을 넘기는 순간 41번째부터는 <일을 시작조차 못 하고> 큐에서 기다린다.
+ANYIO_THREADS_BORROWED = Gauge(
+    "alldap_anyio_threads_borrowed",
+    "anyio 기본 스레드풀에서 지금 쓰이고 있는 스레드 수",
+)
+
+# 🔴 상한을 <같이> 내보낸다. 40 은 우리가 설정한 값이 아니라 anyio 기본값이라,
+#    라이브러리를 올리면 조용히 바뀔 수 있다. borrowed 만 그리면 "40 에 붙었다" 를
+#    사람이 기억한 40 과 비교하게 되고, 그 기억이 틀린 날 그래프가 거짓말을 한다.
+ANYIO_THREADS_TOTAL = Gauge(
+    "alldap_anyio_threads_total",
+    "anyio 기본 스레드풀의 상한 (설정값이 아니라 anyio 기본값이다)",
+)
+
+# ── Spring 왕복에서 Python 몫을 분리한다 ────────────────────────────────
+#
+# 이게 없으면 k6 가 보는 종단 지연이 느려졌을 때 <Spring 인가 Python 인가> 를 못 가른다.
+# 버킷은 가짜 CF 기준 하한 1.586초를 가운데 두고 잡았다. 기본 버킷(최대 10초)은
+# 포화 구간에서 전부 +Inf 로 몰려 p99 를 못 준다.
+CHAT_DURATION = Histogram(
+    "alldap_chat_duration_seconds",
+    "/internal/chat 처리 시간 (Python 몫)",
+    buckets=(0.1, 0.25, 0.5, 1.0, 1.5, 2.0, 3.0, 5.0, 8.0, 13.0, 21.0, 34.0, 60.0, 120.0),
+)
+
+# 스레드풀 대기 큐 길이의 <대리 지표>다. borrowed 가 40 에 붙어 있는데 inflight 가
+# 계속 늘면, 늘어난 만큼이 큐에서 기다리는 요청이다.
+CHAT_INFLIGHT = Gauge("alldap_chat_inflight", "지금 /internal/chat 안에 있는 요청 수")
+
+
+def sample_anyio_threads() -> None:
+    """anyio 스레드풀 점유를 지금 값으로 갱신한다.
+
+    🔴 <이벤트 루프 스레드에서만> 부를 수 있다. current_default_thread_limiter() 는
+       RunVar 라 워커 스레드나 루프 밖에서 부르면 NoEventLoopError 로 죽는다(실측).
+       그래서 이걸 부르는 /internal/metrics 라우트는 반드시 `async def` 여야 한다.
+       `def` 로 두면 FastAPI 가 워커 스레드로 넘기고, 지표 엔드포인트만 500 을 낸다 —
+       하필 <부하 한가운데서>, 즉 그 숫자가 가장 필요한 순간에.
+       app/metrics_check.py 가 이 제약을 검사로 못 박아둔다.
+
+    ⚠️ 스크레이프 시점의 <순간값>이다. 15초 간격 사이에 40 에 붙었다 떨어지면 못 본다.
+       S2 는 단계를 2분씩 유지하므로 단계마다 점이 8개 찍혀 그 한계에 걸리지 않는다.
+    """
+    limiter = anyio.to_thread.current_default_thread_limiter()
+    ANYIO_THREADS_TOTAL.set(limiter.total_tokens)
+    ANYIO_THREADS_BORROWED.set(limiter.borrowed_tokens)
+
+
+def render() -> tuple[bytes, str]:
+    """스크레이프 응답 본문과 Content-Type. 이벤트 루프에서만 부를 것."""
+    sample_anyio_threads()
+    return generate_latest(), CONTENT_TYPE_LATEST
