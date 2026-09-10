@@ -76,6 +76,19 @@ def main() -> int:
         f"({p50:.0f}ms, 기대 {expected}ms 이상)",
     )
 
+    # ⑥ 지연 링버퍼. 창이 상한에서 멈추되 <호출 수는 계속 늘어야> 한다.
+    #    HTTP 로 2000번 두드리면 오래 걸리므로 적립 함수를 직접 부른다
+    #    (재는 대상이 네트워크가 아니라 자료구조라 그게 맞는 층위다).
+    probe = "ringbuffer-probe"
+    overflow = cf._LATENCY_WINDOW + 5
+    for i in range(overflow):
+        cf._record_latency(probe, float(i))
+    row = cf.latency_percentiles()[probe]
+    check("링버퍼 창 상한", row["latency_window"] == cf._LATENCY_WINDOW, f"({row['latency_window']})")
+    check("링버퍼 호출 수는 안 잘림", row["count"] == overflow, f"({row['count']})")
+    # 오래된 값이 밀려났는지: 0..4 가 빠졌으므로 최솟값이 5 다.
+    check("오래된 값 축출", min(cf._latencies[probe]) == 5.0, f"({min(cf._latencies[probe])})")
+
     server.shutdown()
     print(f"\n{'실패 ' + ', '.join(failures) if failures else '전부 통과'}")
     return 1 if failures else 0
