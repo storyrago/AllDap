@@ -54,6 +54,11 @@ LATENCY_MS = {"embed": 235, "rerank": 414, "generate": 937}
 # 가짜 답변. 짧고, NO_ANSWER 를 포함하지 않는다(포함하면 전부 fallback 이 된다).
 ANSWER = "부하테스트용 고정 답변입니다."
 
+# 🔴 뉴런 0.0 은 <이 서버가 가짜라는 유일한 신호>다. 지우지 말 것.
+#    s2_context.judge_fake_cf 가 측정을 시작하기 전에 이 값으로 판정한다:
+#    워밍업 호출 뒤 뉴런이 늘면 uvicorn 이 진짜 Cloudflare 를 보고 있다는 뜻이라 중단시킨다.
+#    여기서 0 이 아닌 값을 주기 시작하면 그 안전장치가 <조용히> 꺼진다.
+#    (loadtest/fake_cf_check.py 가 회귀 검사로 이 사실을 잡는다)
 _counts: Counter[str] = Counter()
 _lock = threading.Lock()
 _vector: list[float] = []
@@ -145,7 +150,10 @@ class Handler(BaseHTTPRequestHandler):
     def _rerank(payload: dict) -> dict:
         n = len(payload.get("contexts") or [])
         # 순서를 바꾸지 않는다. 부하테스트가 재는 것은 <시간>이지 순위가 아니다.
-        return {"response": [{"id": i, "score": 1.0 - i * 0.01} for i in range(n)]}
+        return {
+            "response": [{"id": i, "score": 1.0 - i * 0.01} for i in range(n)],
+            "usage": {"neurons": 0.0},
+        }
 
     @staticmethod
     def _generate() -> dict:
