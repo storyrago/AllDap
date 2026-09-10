@@ -140,4 +140,17 @@ class ManagementPortIntegrationTest {
         //      application.yaml · application-prod.yaml 의 관련 주석을 함께 고칠 것(깨진 채로 두지 말 것).
         assertThat(response.statusCode()).isEqualTo(401);
     }
+
+    @Test
+    @DisplayName("요청 제한기 지표가 Prometheus 이름으로 스크레이프에 실려 나온다")
+    void rateLimiterMetricsArePresent() {
+        // 🔴 여기서 확인하는 것은 <이름 변환>이다. Micrometer 쪽 이름은 alldap.ratelimit.keys 인데
+        //    Prometheus 는 점을 밑줄로 바꾼다. Grafana 질의와 부하테스트 판정이 <변환된> 이름에
+        //    기대고 있으므로, 단위 테스트(RateLimiterMetricsTest)만으로는 그 전제를 못 지킨다.
+        // 게이지는 거절이 없어도 항상 나온다. 반면 alldap_ratelimit_rejected_total 은 첫 거절 뒤에야
+        // 시계열이 생기므로(Micrometer 가 태그 조합을 그때 만든다) 여기서 단언하지 않는다.
+        String body = get(managementPort, "/actuator/prometheus").body();
+
+        assertThat(body).contains("alldap_ratelimit_keys");
+    }
 }
