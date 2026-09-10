@@ -125,6 +125,20 @@ class ManagementPortIntegrationTest {
     }
 
     @Test
+    @DisplayName("[실측] 서킷 지표가 Prometheus 이름으로 실제로 나온다")
+    void circuitMetricsArePresent() {
+        // 🔴 이름을 <기억이 아니라 실측>으로 고정한다. Micrometer 는 alldap.ai.circuit.state 를
+        //    알아서 alldap_ai_circuit_state 로, 카운터는 _total 을 붙여 내보내는데,
+        //    그 규칙을 짐작으로 적어두면 Grafana 쿼리가 조용히 빈 그래프가 된다.
+        // 게이지와 전이 카운터는 서킷 빈이 뜨는 순간 등록되므로 호출이 없어도 나와야 한다
+        // (호출 결과 타이머 alldap_ai_call_seconds 는 첫 호출 뒤에 생긴다).
+        String body = get(managementPort, "/actuator/prometheus").body();
+
+        assertThat(body).contains("alldap_ai_circuit_state");
+        assertThat(body).contains("alldap_ai_circuit_transition_total");
+    }
+
+    @Test
     @DisplayName("[실측 기록] management 포트에도 SecurityConfig 필터 체인이 붙는다")
     void managementPortIsSecured() {
         // JWT 없이 부른다. /actuator/metrics 는 SecurityConfig 의 anyRequest().authenticated() 대상이다.

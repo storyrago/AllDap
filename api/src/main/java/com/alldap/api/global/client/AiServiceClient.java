@@ -11,6 +11,7 @@ import com.alldap.api.global.client.dto.AiGenerateQuestionsRequest;
 import com.alldap.api.global.client.dto.AiUpdateConflictStatusRequest;
 import com.alldap.api.global.client.dto.AiUpdateEvalQuestionRequest;
 import com.alldap.api.global.config.AiServiceProperties;
+import com.alldap.api.global.client.AiServiceMetrics.Outcome;
 import com.alldap.api.global.exception.ApiException;
 import com.alldap.api.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -33,6 +34,7 @@ import tools.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
 import java.net.ConnectException;
+import java.time.Duration;
 import java.net.http.HttpConnectTimeoutException;
 import java.net.http.HttpTimeoutException;
 import java.util.List;
@@ -86,6 +88,12 @@ public class AiServiceClient {
     private final AiServiceCircuitBreaker circuitBreaker;
 
     /**
+     * 호출 결과를 지표로 내보낸다. <b>동작에는 관여하지 않는다</b> — 실패 판정도 서킷 갱신도
+     * 전부 아래 {@code call()} 이 그대로 하고, 이 객체는 그 판정을 밖에서 볼 수 있게만 만든다.
+     */
+    private final AiServiceMetrics metrics;
+
+    /**
      * 문서 업로드. Python 은 documents 행만 만들고 202 로 즉시 응답한 뒤
      * 파싱·청킹·임베딩은 백그라운드로 처리한다. 따라서 반환되는 status 는 보통 {@code pending} 이다.
      *
@@ -98,7 +106,7 @@ public class AiServiceClient {
         MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
         body.add("file", toFilePart(file));
 
-        return call("문서 업로드", () -> aiServiceRestClient.post()
+        return call(AiOperation.DOCUMENT_UPLOAD, () -> aiServiceRestClient.post()
                 .uri("/internal/bots/{botId}/documents", botId)
                 .contentType(MediaType.MULTIPART_FORM_DATA)
                 .body(body)
@@ -171,7 +179,7 @@ public class AiServiceClient {
      * Spring 이 이미 소유권을 확인했지만, 격리를 <b>한 겹으로 두지 않는다.</b>
      */
     public void deleteDocument(UUID botId, UUID documentId) {
-        call("문서 삭제", () -> aiServiceRestClient.delete()
+        call(AiOperation.DOCUMENT_DELETE, () -> aiServiceRestClient.delete()
                 .uri("/internal/bots/{botId}/documents/{documentId}", botId, documentId)
                 .retrieve()
                 .toBodilessEntity());
@@ -202,10 +210,10 @@ public class AiServiceClient {
      *   <li>Python 이 4xx → 사용자 입력 문제. {@link #translateClientError} 가 구체적인 코드로 바꾼다</li>
      * </ul>
      */
-    private <T> T call(String what, Supplier<T> action) {
+    private <T> T call(AiOperation operation, Supplier<T> action) {
         // 기본 4xx 처리: 사용자가 고칠 수 있는 게 아니라 <우리가 Python 을 잘못 호출한> 것이다.
         // 내부 사정을 사용자에게 설명하지 않고 502 로 답한다.
-        return call(what, action, e -> new ApiException(ErrorCode.AI_SERVICE_ERROR));
+        return call(operation, action, e -> new ApiException(ErrorCode.AI_SERVICE_ERROR));
     }
 
     /**
@@ -217,20 +225,28 @@ public class AiServiceClient {
      * 이걸 한 매퍼로 묶어두면 <b>채팅 오류에 "지원하지 않는 파일 형식입니다"가 나간다.</b>
      * (실제로 업로드 슬라이스의 매퍼를 그대로 두면 그렇게 된다 — 채팅을 붙이며 발견했다)
      */
-    private <T> T call(String what, Supplier<T> action,
+    private <T> T call(AiOperation operation, Supplier<T> action,
                        Function<RestClientResponseException, ApiException> on4xx) {
+        // 🔴 시작 시각을 서킷 검사 <앞>에서 잡는다. 급속 거절이 "얼마나 빨랐는지" 를 재는 것이
+        //    이 지표의 요점이라, 거절 경로에도 잰 시간이 있어야 한다.
+        long startNanos = System.nanoTime();
+
         // ── 서킷: 이미 죽은 걸 알면 두드리지 않는다 ──────────────────────
         // 열려 있으면 연결 타임아웃(3초)만큼도 기다리지 않고 즉시 안내한다.
         // 이게 없으면 Python 이 죽은 동안 매 요청이 3초씩 톰캣 스레드를 붙잡아
         // <Python 장애가 Spring 장애로 번진다.>
         if (!circuitBreaker.allowRequest()) {
-            log.warn("[AI 호출] {} — 서킷이 열려 있어 호출하지 않는다.", what);
+            log.warn("[AI 호출] {} — 서킷이 열려 있어 호출하지 않는다.", operation);
+            // 사용자에게 나가는 응답은 연결 실패와 똑같은 503 이다(그게 맞는 안내다 — 30초 뒤 열린다).
+            // 두 사실을 가르는 것은 여기, <지표>다. 근거는 AiServiceMetrics 클래스 주석 참고.
+            metrics.recordCall(operation, Outcome.CIRCUIT_OPEN, elapsedSince(startNanos));
             throw new ApiException(ErrorCode.AI_SERVICE_UNAVAILABLE);
         }
 
         try {
-            T result = attemptWithRetry(what, action);
+            T result = attemptWithRetry(operation, action);
             circuitBreaker.recordSuccess();
+            metrics.recordCall(operation, Outcome.SUCCESS, elapsedSince(startNanos));
             return result;
 
         } catch (RestClientResponseException e) {
@@ -240,7 +256,8 @@ public class AiServiceClient {
                 // 🔴 서킷 실패로 세지 <않는다>. Python 은 멀쩡히 판단해서 거절한 것이고,
                 //    잘못은 우리 호출에 있다. 이걸 세면 <우리 버그로 멀쩡한 Python 을 차단>하게 된다.
                 log.warn("[AI 호출] {} — Python 이 {} 로 거절. body={}",
-                        what, status, e.getResponseBodyAsString());
+                        operation, status, e.getResponseBodyAsString());
+                metrics.recordCall(operation, Outcome.PYTHON_CLIENT_ERROR, elapsedSince(startNanos));
                 throw on4xx.apply(e);
             }
             // 🔴 Python 이 <재시도해도 같다>고 명시한 실패는 장애가 아니다 (2026-09-09).
@@ -251,17 +268,23 @@ public class AiServiceClient {
             //       세면 질문 하나가 나빴을 뿐인데 <멀쩡한 Python 을 차단>하게 된다.
             if (GENERATION_INCOMPLETE.equals(detailCode(e))) {
                 log.warn("[AI 호출] {}: 답변을 완성하지 못했다(재시도로 풀리지 않는다). body={}",
-                        what, e.getResponseBodyAsString());
+                        operation, e.getResponseBodyAsString());
+                metrics.recordCall(operation, Outcome.ANSWER_INCOMPLETE, elapsedSince(startNanos));
                 throw new ApiException(ErrorCode.ANSWER_INCOMPLETE);
             }
             circuitBreaker.recordFailure();   // 5xx = Python 이 아프다
-            log.error("[AI 호출] {} 실패 — Python 이 {} 응답. body={}", what, status, e.getResponseBodyAsString());
+            log.error("[AI 호출] {} 실패 — Python 이 {} 응답. body={}", operation, status, e.getResponseBodyAsString());
+            metrics.recordCall(operation, Outcome.PYTHON_SERVER_ERROR, elapsedSince(startNanos));
             throw new ApiException(ErrorCode.AI_SERVICE_UNAVAILABLE);
 
         } catch (ResourceAccessException e) {
             // 아예 응답을 받지 못한 경우 (연결 거부·타임아웃·중간 끊김) — 전부 Python 장애다
             circuitBreaker.recordFailure();
-            throw translateIoFailure(what, e);
+            // 🔴 판정을 ioOutcome() <한 곳>에서만 한다. 지표와 응답 코드가 각자 따로 분류하면
+            //    한쪽만 고쳤을 때 "504 인데 지표는 연결 실패" 처럼 조용히 어긋난다.
+            Outcome outcome = ioOutcome(e);
+            metrics.recordCall(operation, outcome, elapsedSince(startNanos));
+            throw translateIoFailure(operation, e, outcome);
 
         } catch (RestClientException e) {
             // ⚠️ 여기 두 가지가 섞여 들어온다. 구분하지 않으면 "Python 이 죽었다"가
@@ -273,7 +296,8 @@ public class AiServiceClient {
             // 즉 위의 catch(ResourceAccessException) 는 "헤더도 못 받은" 실패만 잡는다.
             if (e.getCause() instanceof IOException io) {
                 circuitBreaker.recordFailure();   // 처리 도중 Python 이 죽은 것이다
-                log.error("[AI 호출] {} 실패 — 응답을 받는 도중 Python 과의 통신이 끊겼다.", what, io);
+                log.error("[AI 호출] {} 실패 — 응답을 받는 도중 Python 과의 통신이 끊겼다.", operation, io);
+                metrics.recordCall(operation, Outcome.CONNECTION_LOST, elapsedSince(startNanos));
                 throw new ApiException(ErrorCode.AI_SERVICE_UNAVAILABLE);
             }
 
@@ -283,9 +307,15 @@ public class AiServiceClient {
             // 진짜로 응답은 멀쩡히 받았는데 해석에 실패한 경우 — JSON 구조가 DTO 와 안 맞는다.
             // Python 컨트랙트가 바뀌었는데 우리 DTO 를 안 고친 상황이라
             // 502(게이트웨이가 받은 응답이 이상함)가 맞다.
-            log.error("[AI 호출] {} 실패 — 응답을 해석하지 못했다. DTO 와 Python 스키마가 어긋났을 수 있다.", what, e);
+            log.error("[AI 호출] {} 실패 — 응답을 해석하지 못했다. DTO 와 Python 스키마가 어긋났을 수 있다.", operation, e);
+            metrics.recordCall(operation, Outcome.DECODE_ERROR, elapsedSince(startNanos));
             throw new ApiException(ErrorCode.AI_SERVICE_ERROR);
         }
+    }
+
+    /** 지표에 실을 경과 시간. {@code nanoTime()} 은 벽시계와 무관한 단조 증가 값이라 시계 조정에 영향받지 않는다. */
+    private Duration elapsedSince(long startNanos) {
+        return Duration.ofNanos(System.nanoTime() - startNanos);
     }
 
     /**
@@ -396,7 +426,7 @@ public class AiServiceClient {
      * 오히려 업로드야말로 재시도가 고마운 경로다(실패하면 사용자가 파일을 다시 올려야 한다).
      * 그래서 호출부마다 켜고 끄지 않고 {@code call()} 안에서 일괄 처리한다.
      */
-    private <T> T attemptWithRetry(String what, Supplier<T> action) {
+    private <T> T attemptWithRetry(AiOperation operation, Supplier<T> action) {
         int maxAttempts = Math.max(1, aiServiceProperties.retryMaxAttempts());
         for (int attempt = 1; ; attempt++) {
             try {
@@ -407,7 +437,10 @@ public class AiServiceClient {
                     throw e;
                 }
                 log.warn("[AI 호출] {} — Python 에 연결하지 못했다. {} 뒤 재시도 ({}/{})",
-                        what, aiServiceProperties.retryDelay(), attempt + 1, maxAttempts);
+                        operation, aiServiceProperties.retryDelay(), attempt + 1, maxAttempts);
+                // 재시도를 <하기로 정한> 시점에 센다. 실제로 잠들기 전이지만 이 지점을 지나면
+                // 반드시 한 번 더 시도하므로 결과는 같고, 여기가 판정과 붙어 있어 빠뜨릴 여지가 적다.
+                metrics.recordRetry(operation);
                 sleep(aiServiceProperties.retryDelay());
             }
         }
@@ -431,22 +464,36 @@ public class AiServiceClient {
         }
     }
 
-    private ApiException translateIoFailure(String what, ResourceAccessException e) {
+    private Outcome ioOutcome(ResourceAccessException e) {
         Throwable cause = e.getCause();
-
+        // ⚠️ HttpConnectTimeoutException 을 먼저 보는 게 중요하다 — 이 클래스가
+        //    HttpTimeoutException 을 상속하므로 순서를 바꾸면 <연결 실패가 읽기 타임아웃으로> 잘못 분류된다.
         if (cause instanceof HttpConnectTimeoutException || cause instanceof ConnectException) {
-            log.error("[AI 호출] {} 실패 — Python({}) 에 연결할 수 없다. 서비스가 떠 있는지 확인할 것.",
-                    what, aiServiceProperties.baseUrl());
-            return new ApiException(ErrorCode.AI_SERVICE_UNAVAILABLE);
+            return Outcome.CONNECT_FAILURE;
         }
         if (cause instanceof HttpTimeoutException) {
-            log.error("[AI 호출] {} 실패 — 읽기 타임아웃({}) 초과.", what, aiServiceProperties.readTimeout());
-            return new ApiException(ErrorCode.AI_SERVICE_TIMEOUT);
+            return Outcome.READ_TIMEOUT;
         }
-
         // 그 외 I/O 실패(응답 도중 연결 끊김 등). Python 이 처리 중 죽은 경우가 여기 온다.
-        log.error("[AI 호출] {} 실패 — Python 과의 통신이 끊겼다.", what, e);
-        return new ApiException(ErrorCode.AI_SERVICE_UNAVAILABLE);
+        return Outcome.CONNECTION_LOST;
+    }
+
+    private ApiException translateIoFailure(AiOperation operation, ResourceAccessException e, Outcome outcome) {
+        return switch (outcome) {
+            case CONNECT_FAILURE -> {
+                log.error("[AI 호출] {} 실패 — Python({}) 에 연결할 수 없다. 서비스가 떠 있는지 확인할 것.",
+                        operation, aiServiceProperties.baseUrl());
+                yield new ApiException(ErrorCode.AI_SERVICE_UNAVAILABLE);
+            }
+            case READ_TIMEOUT -> {
+                log.error("[AI 호출] {} 실패 — 읽기 타임아웃({}) 초과.", operation, aiServiceProperties.readTimeout());
+                yield new ApiException(ErrorCode.AI_SERVICE_TIMEOUT);
+            }
+            default -> {
+                log.error("[AI 호출] {} 실패 — Python 과의 통신이 끊겼다.", operation, e);
+                yield new ApiException(ErrorCode.AI_SERVICE_UNAVAILABLE);
+            }
+        };
     }
 
     /**
@@ -459,7 +506,7 @@ public class AiServiceClient {
         // 4xx 매퍼를 넘기지 않는다 = 기본 처리(502). 채팅의 4xx·422 는 사용자가 고칠 수 있는 게 아니라
         // Spring 이 Python 스키마에 안 맞는 요청을 보낸 것이다. 길이 제한 같은 사용자 입력 문제는
         // ChatRequest 의 @Valid 가 이미 컨트롤러 진입 시점에 한국어 안내로 걸러낸다.
-        return call("채팅", () -> aiServiceRestClient.post()
+        return call(AiOperation.CHAT, () -> aiServiceRestClient.post()
                 .uri("/internal/chat")
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(request)
@@ -482,7 +529,7 @@ public class AiServiceClient {
      * @param botId 호출 전에 <b>반드시 소유권을 검증</b>할 것. Python 에는 인증이 없다.
      */
     public List<AiEvalQuestionResponse> generateEvalQuestions(UUID botId, int count) {
-        return call("평가 질문 생성", () -> aiServiceRestClient.post()
+        return call(AiOperation.EVAL_QUESTIONS_GENERATE, () -> aiServiceRestClient.post()
                         .uri("/internal/bots/{botId}/eval/questions/generate", botId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .body(new AiGenerateQuestionsRequest(count))
@@ -498,7 +545,7 @@ public class AiServiceClient {
      */
     public AiEvalQuestionResponse updateEvalQuestion(UUID botId, UUID questionId,
                                                      AiUpdateEvalQuestionRequest request) {
-        return call("평가 질문 수정",
+        return call(AiOperation.EVAL_QUESTION_UPDATE,
                 () -> aiServiceRestClient.patch()
                         .uri("/internal/bots/{botId}/eval/questions/{questionId}", botId, questionId)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -515,7 +562,7 @@ public class AiServiceClient {
      * 질문 수만큼 (검색 + 생성 + 채점)이 돌아 반드시 수십 초를 넘기므로 동기로 둘 수 없다.
      */
     public AiEvalRunResponse startEvalRun(UUID botId) {
-        return call("평가 실행 시작", () -> aiServiceRestClient.post()
+        return call(AiOperation.EVAL_RUN_START, () -> aiServiceRestClient.post()
                         .uri("/internal/bots/{botId}/eval/runs", botId)
                         .retrieve()
                         .body(AiEvalRunResponse.class),
@@ -538,7 +585,7 @@ public class AiServiceClient {
      * @param botId 호출 전에 <b>반드시 소유권을 검증</b>할 것. Python 에는 인증이 없다.
      */
     public AiConflictScanResponse scanConflicts(UUID botId) {
-        return call("문서 모순 스캔", () -> aiServiceRestClient.post()
+        return call(AiOperation.CONFLICT_SCAN, () -> aiServiceRestClient.post()
                         .uri("/internal/bots/{botId}/conflicts/scan", botId)
                         .retrieve()
                         .body(AiConflictScanResponse.class),
@@ -554,7 +601,7 @@ public class AiServiceClient {
      * 여기서 조인하면 그 규칙이 무너진다.
      */
     public List<AiConflictResponse> listConflicts(UUID botId, String status) {
-        return call("문서 모순 목록", () -> aiServiceRestClient.get()
+        return call(AiOperation.CONFLICT_LIST, () -> aiServiceRestClient.get()
                         .uri(uriBuilder -> uriBuilder
                                 .path("/internal/bots/{botId}/conflicts")
                                 .queryParam("status", status)
@@ -572,7 +619,7 @@ public class AiServiceClient {
      * Python 쪽도 {@code WHERE id=? AND bot_id=?} 로 함께 좁힌다 — 두 겹이다.
      */
     public AiConflictResponse updateConflictStatus(UUID botId, UUID conflictId, String status) {
-        return call("문서 모순 상태 변경", () -> aiServiceRestClient.patch()
+        return call(AiOperation.CONFLICT_STATUS_UPDATE, () -> aiServiceRestClient.patch()
                         .uri("/internal/bots/{botId}/conflicts/{conflictId}", botId, conflictId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .body(new AiUpdateConflictStatusRequest(status))
