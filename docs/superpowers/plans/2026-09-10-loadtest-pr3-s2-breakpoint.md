@@ -789,13 +789,19 @@ git commit -m "feat: Python 지표를 스크레이프하고 두 가설을 같은
 
 - [ ] **Step 1: 플래그 없이 지금 힙이 얼마인지 먼저 잰다 (before 를 남긴다)**
 
+> 🔴 **`/actuator/metrics/...` 로는 못 읽는다 — 인증이 걸려 있다.** 이 저장소의 SecurityConfig 가
+> actuator 중 `/actuator/prometheus` 와 `/actuator/health` 만 열어두고 나머지는 잠근다.
+> `curl .../actuator/metrics/jvm.memory.max` 를 치면 숫자가 아니라
+> `{"error":{"code":"AUTHENTICATION_REQUIRED",...}}` 가 온다(실측). 그래서 힙은 **Prometheus 에
+> 질의해서** 읽는다. 그 대신 Prometheus 가 한 번은 긁은 뒤여야 하므로, 기동 직후면 15초 기다린다.
+
 Task 3 Step 5 의 터미널 D 에서 돌던 `bootRun` 을 그대로 두고:
 
 ```bash
-curl -s 'http://localhost:8081/actuator/metrics/jvm.memory.max?tag=area:heap' | python3 -c "
-import json,sys; d=json.load(sys.stdin)
-v = d['measurements'][0]['value']
-print(f'heap max = {v/1024/1024:.0f} MB')
+curl -s --get http://localhost:9090/api/v1/query \
+  --data-urlencode 'query=sum(jvm_memory_max_bytes{area="heap",job="alldap-api"})' | python3 -c "
+import json,sys; r = json.load(sys.stdin)['data']['result']
+print(f"heap max = {float(r[0]['value'][1])/1024/1024:.0f} MB" if r else 'FAIL — Prometheus 가 아직 안 긁었다(15초 기다릴 것)')
 "
 ```
 
@@ -934,10 +940,10 @@ cd /Users/cheonjamin/projects/AllDap/api && ./gradlew bootRun -Ploadtest
 기동이 끝나면 다른 터미널에서:
 
 ```bash
-curl -s 'http://localhost:8081/actuator/metrics/jvm.memory.max?tag=area:heap' | python3 -c "
-import json,sys; d=json.load(sys.stdin)
-v = d['measurements'][0]['value']
-mb = v/1024/1024
+curl -s --get http://localhost:9090/api/v1/query \
+  --data-urlencode 'query=sum(jvm_memory_max_bytes{area="heap",job="alldap-api"})' | python3 -c "
+import json,sys; r = json.load(sys.stdin)['data']['result']
+mb = float(r[0]['value'][1])/1024/1024 if r else -1
 print(f'heap max = {mb:.0f} MB')
 print('OK' if 200 <= mb <= 280 else 'FAIL — 플래그가 안 먹었다')
 "
@@ -975,9 +981,10 @@ cd /Users/cheonjamin/projects/AllDap/api && ./gradlew bootRun
 ```
 
 ```bash
-curl -s 'http://localhost:8081/actuator/metrics/jvm.memory.max?tag=area:heap' | python3 -c "
-import json,sys; d=json.load(sys.stdin)
-mb = d['measurements'][0]['value']/1024/1024
+curl -s --get http://localhost:9090/api/v1/query \
+  --data-urlencode 'query=sum(jvm_memory_max_bytes{area="heap",job="alldap-api"})' | python3 -c "
+import json,sys; r = json.load(sys.stdin)['data']['result']
+mb = float(r[0]['value'][1])/1024/1024 if r else -1
 print(f'heap max = {mb:.0f} MB')
 print('OK — 옵트인이 지켜진다' if mb > 500 else 'FAIL — 플래그가 무조건 걸리고 있다')
 "
@@ -1767,7 +1774,8 @@ import json,sys
 for t in json.load(sys.stdin)['data']['activeTargets']:
     print(t['labels']['job'], t['health'])
 "
-curl -s 'http://localhost:8081/actuator/metrics/jvm.memory.max?tag=area:heap' | python3 -c "
+curl -s --get http://localhost:9090/api/v1/query \
+  --data-urlencode 'query=sum(jvm_memory_max_bytes{area="heap",job="alldap-api"})' | python3 -c "
 import json,sys; print(f\"heap max = {json.load(sys.stdin)['measurements'][0]['value']/1024/1024:.0f} MB\")
 "
 ```
