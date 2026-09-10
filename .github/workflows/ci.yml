@@ -174,14 +174,60 @@ jobs:
           # README 기준 "Python 3.11+". 하한선으로 검사해야
           # 3.11 에서 못 도는 문법이 섞이는 걸 잡을 수 있다.
           python-version: "3.11"
+          # 의존성을 설치하게 됐으므로 캐시를 켠다.
+          # cache-dependency-path 는 defaults.working-directory 를 따르지 않고
+          # 항상 저장소 루트 기준이라 ai-service/ 를 붙여 적어야 한다(web 잡과 같은 함정).
+          cache: pip
+          cache-dependency-path: ai-service/requirements.txt
 
-      # 지금 ai-service 에는 테스트도, 린터 설정(ruff/flake8)도 없다.
-      # 없는 걸 있는 척 돌리면 CI 가 거짓말을 하게 되므로
-      # 확실히 의미 있는 최소 검사(=문법 오류로 import 조차 안 되는 상태)만 건다.
-      # 의존성 설치(pip install -r requirements.txt)는 일부러 뺐다.
-      # pymupdf 등 무거운 패키지 때문에 느리고, 지금 잡히는 건 문법 오류뿐이라
-      # 비용 대비 이득이 없다.
-      # TODO(W3): ruff 를 requirements-dev.txt 에 추가하고 `ruff check app` 단계 추가
-      # TODO(W3): pytest 기반 테스트가 생기면 `pytest` 단계 추가
+      # 문법 오류로 import 조차 안 되는 상태를 먼저 거른다.
+      # 의존성 없이 도는 가장 싼 검사라 자체 점검보다 앞에 둔다.
       - name: 문법 검사 (컴파일 가능 여부만)
         run: python -m compileall -q app loadtest
+
+      # 자체 점검이 app/ 아래 모듈을 실제로 import 하므로 의존성이 필요하다.
+      # 예전에는 "pymupdf 등이 무거워 비용 대비 이득이 없다" 며 일부러 뺐지만,
+      # 이제 이득이 생겼다(아래 단계). 실측 설치 시간은 캐시가 비어도 1분 미만이다.
+      # requirements.txt 를 그대로 쓰고 CI 전용 부분집합 파일을 만들지 않았다.
+      # 버전이 두 곳에 적히면 반드시 어긋난다(이 저장소가 AGENTS.md/CLAUDE.md 에서
+      # 같은 이유로 원본 하나만 두기로 한 것과 같은 판단).
+      - name: 의존성 설치
+        run: pip install -r requirements.txt
+
+      # 🔴 이 단계가 없는 동안 ai-service 의 자체 점검은 <아무 데서도 돌지 않았다.>
+      #    이 저장소는 같은 사고를 이미 두 번 냈다:
+      #      · 2026-09-08 오픈 리다이렉트: web/lib/redirect.check.ts 는 있었는데 안 돌았다
+      #      · 2026-09-09 Forwarded 점검 명령: 프로브가 400 에서 막혀 언제 돌려도 실패를 보고했다
+      #    검사를 짜두는 것과 검사가 도는 것은 다른 일이다.
+      #
+      #    각 모듈은 실패하면 비정상 종료(assert 또는 exit 1)하고,
+      #    GitHub Actions 의 기본 셸이 `bash -e` 라 첫 실패에서 잡이 빨간불이 된다.
+      #    한 줄에 하나씩 적은 이유는 로그에서 <어느 점검이> 깨졌는지 바로 보이게 하려는 것이다.
+      #
+      #    🔴 여기 없는 점검 4개는 <못 태우는 것>이지 잊은 것이 아니다.
+      #       전부 실행 시점에 진짜 Cloudflare/Gemini 를 부르고 DB 에 붙는다.
+      #       CI 에 태우면 PR 하나 열 때마다 하루 API 한도를 태우고,
+      #       한도가 마르면 정작 사람이 측정을 못 돌린다.
+      #         · app.fallback_e2e_check   DB(cursor) + 실제 생성 모델 13회
+      #         · app.answerable_check     DB(cursor) + 실제 임베딩 호출
+      #         · app.bot_prompt_check     DB(fetch_bot_prompt) + 실제 생성 모델
+      #         · app.noanswer_check       실제 생성 모델(모델별 비교 실험용)
+      #       이 넷은 사람이 손으로 돌린다(AGENTS.md 의 해당 절에 실행 방법이 있다).
+      #
+      #    ⚠️ Postgres 서비스 컨테이너는 <일부러> 띄우지 않았다.
+      #       DB 가 필요한 점검 3개가 하나같이 외부 API 도 함께 부르기 때문에,
+      #       DB 를 띄워줘도 그 셋 중 어느 것도 CI 에서 돌 수 없다.
+      #       즉 컨테이너를 띄우는 대가만 치르고 태울 수 있는 점검은 0개다.
+      - name: 자체 점검 (DB·외부 API 없이 도는 것만)
+        run: |
+          python -m app.chunker_check
+          python -m app.retriever_check
+          python -m app.evalrun_check
+          python -m app.evaluator_check
+          python -m app.generator_check
+          python -m app.conflicts_check
+          python -m app.metrics_check
+          python -m loadtest.fake_cf_check
+
+      # TODO(W3): ruff 를 requirements-dev.txt 에 추가하고 `ruff check app` 단계 추가
+      # TODO(W3): pytest 기반 테스트가 생기면 `pytest` 단계 추가
