@@ -25,5 +25,47 @@ services:
       timeout: 3s
       retries: 10
 
+  # ── 로컬 관측 스택 (부하테스트용) ───────────────────────────────────
+  # 🔴 profiles 로 격리한다. `docker compose up -d` 는 예전처럼 db 만 띄우고,
+  #    관측이 필요할 때만 `docker compose --profile obs up -d` 로 켠다.
+  #    평소 개발에 250MB 를 상시로 물릴 이유가 없다.
+  # 운영(docker-compose.prod.yml)에는 이 둘이 <없다.> t3.micro 는 유휴에 이미 스왑을 쓴다.
+  prometheus:
+    image: prom/prometheus:v3.1.0
+    container_name: alldap-prometheus
+    profiles: [obs]
+    ports:
+      # db 와 같은 이유로 127.0.0.1 에 묶는다. 사내망의 누구나 지표를 읽으면 안 된다.
+      - "127.0.0.1:9090:9090"
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    extra_hosts:
+      # 리눅스에서는 host.docker.internal 이 기본 제공되지 않는다. 이 줄이 그걸 메운다.
+      # (맥 Docker Desktop 에서는 이미 되지만, 있어도 무해하다)
+      - "host.docker.internal:host-gateway"
+
+  grafana:
+    image: grafana/grafana:11.5.1
+    container_name: alldap-grafana
+    profiles: [obs]
+    depends_on:
+      - prometheus
+    ports:
+      # 🔴 3001 이다. 3000 은 Next.js 개발 서버가 쓴다.
+      - "127.0.0.1:3001:3000"
+    environment:
+      # 로컬 전용이라 로그인을 끈다. 부하테스트 중에 로그인 화면을 보고 싶지 않다.
+      # 운영에는 이 스택 자체가 없으므로 이 설정이 새어 나갈 곳이 없다.
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+      GF_AUTH_DISABLE_LOGIN_FORM: "true"
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - alldap-grafana:/var/lib/grafana
+
 volumes:
   alldap-pgdata:
+  # Grafana 의 내부 SQLite. 대시보드 자체는 프로비저닝 파일이 진실이지만,
+  # 이게 없으면 재기동마다 Grafana 가 초기화 로그를 잔뜩 뱉는다.
+  alldap-grafana:

@@ -67,8 +67,14 @@ public class SecurityConfig {
                         // 위젯 API. 고객 사이트에 심긴 위젯이 부르므로 JWT 가 없다.
                         // 보호는 publicKey + Origin 검증 + rate limit 으로 한다. TODO(W2)
                         .requestMatchers("/api/w/**").permitAll()
-                        // 헬스체크만 공개. 나머지 actuator 엔드포인트는 노출하지 않는다.
-                        .requestMatchers("/actuator/health").permitAll()
+                        // 헬스체크와 Prometheus 스크레이프만 공개. 나머지 actuator 엔드포인트는 인증을 요구한다.
+                        // 🔴 이 두 줄은 <management 포트(8081)에도> 적용된다. Boot 4 는 management 포트를
+                        //    분리해도 부모 컨텍스트의 이 필터 체인을 자식 컨텍스트에 그대로 등록한다
+                        //    (문서로 확언할 수 없어 ManagementPortIntegrationTest 로 실측했다).
+                        //    그래서 prometheus 를 열지 않으면 Prometheus 스크레이퍼가 401 만 받는다.
+                        // ⚠️ 서비스 포트(8080)에는 actuator 가 아예 매핑돼 있지 않으므로
+                        //    (management.server.port 로 옮겨갔다) 이 permitAll 이 8080 에 뭔가를 여는 것은 아니다.
+                        .requestMatchers("/actuator/health", "/actuator/prometheus").permitAll()
                         // 위젯 로더 스크립트. 고객 사이트의 <script> 태그가 <인증 없이> 받아가야 한다.
                         // 열지 않으면 설치 코드를 복사해 붙여도 401 이 떨어져 위젯이 아예 뜨지 않는다.
                         // (실제로 붙여보고 알았다) 정적 파일 하나뿐이라 노출 위험은 없다.

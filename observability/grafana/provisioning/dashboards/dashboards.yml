@@ -1,0 +1,11 @@
+# 대시보드 JSON 을 파일에서 자동으로 읽는다.
+# 이것도 같은 이유다. UI 에서 만든 대시보드는 컨테이너를 지우면 사라진다.
+apiVersion: 1
+
+providers:
+  - name: alldap
+    type: file
+    # UI 에서 수정해도 파일이 진실이다. 재기동하면 파일 내용으로 돌아간다.
+    allowUiUpdates: false
+    options:
+      path: /var/lib/grafana/dashboards

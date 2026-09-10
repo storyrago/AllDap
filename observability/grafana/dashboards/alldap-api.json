@@ -1,0 +1,98 @@
+{
+  "uid": "alldap-api",
+  "title": "AllDap API",
+  "tags": ["loadtest"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "refresh": "10s",
+  "time": { "from": "now-15m", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "처리량 (2xx 만) req/s",
+      "description": "429 나 500 은 세지 않는다. 초당 500건이 전부 429 인데 '빠르다' 고 읽는 것을 막는다.",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(http_server_requests_seconds_count{outcome=\"SUCCESS\"}[1m]))",
+          "legendFormat": "2xx"
+        },
+        {
+          "refId": "B",
+          "expr": "sum(rate(http_server_requests_seconds_count{outcome!=\"SUCCESS\"}[1m])) by (outcome)",
+          "legendFormat": "{{outcome}}"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "지연 p50 / p95 / p99 (초)",
+      "description": "평균은 일부러 안 그린다. 느린 꼬리를 감춘다.",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.50, sum(rate(http_server_requests_seconds_bucket[1m])) by (le))",
+          "legendFormat": "p50"
+        },
+        {
+          "refId": "B",
+          "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket[1m])) by (le))",
+          "legendFormat": "p95"
+        },
+        {
+          "refId": "C",
+          "expr": "histogram_quantile(0.99, sum(rate(http_server_requests_seconds_bucket[1m])) by (le))",
+          "legendFormat": "p99"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Hikari 커넥션 풀",
+      "description": "pending 이 0 보다 크면 커넥션을 기다리는 스레드가 있다는 확정 증거다. 추측이 아니라 숫자다.",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "targets": [
+        { "refId": "A", "expr": "hikaricp_connections_active", "legendFormat": "active" },
+        { "refId": "B", "expr": "hikaricp_connections_pending", "legendFormat": "pending (대기)" },
+        { "refId": "C", "expr": "hikaricp_connections_max", "legendFormat": "max" }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Tomcat 스레드",
+      "description": "1순위 가설(Python 스레드풀 40 이 먼저 찬다)이 맞다면 busy 가 200 근처까지 안 간다.",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "targets": [
+        { "refId": "A", "expr": "tomcat_threads_busy_threads", "legendFormat": "busy" },
+        { "refId": "B", "expr": "tomcat_threads_current_threads", "legendFormat": "current" },
+        { "refId": "C", "expr": "tomcat_threads_config_max_threads", "legendFormat": "max" }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "힙 사용률 (%) · GC 정지",
+      "description": "2순위 가설. 운영은 -Xmx256m + ExitOnOutOfMemoryError 라 마르면 죽고 재시작한다. 그때 k6 가 보는 증상은 '느려진다' 가 아니라 '연결이 끊기고 30초쯤 뒤 돌아온다' 이다.",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 16 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "100 * sum(jvm_memory_used_bytes{area=\"heap\"}) / sum(jvm_memory_max_bytes{area=\"heap\"})",
+          "legendFormat": "힙 사용률 %"
+        },
+        {
+          "refId": "B",
+          "expr": "1000 * rate(jvm_gc_pause_seconds_sum[1m]) / clamp_min(rate(jvm_gc_pause_seconds_count[1m]), 0.0001)",
+          "legendFormat": "GC 평균 정지 ms"
+        }
+      ]
+    }
+  ]
+}

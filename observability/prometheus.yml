@@ -1,0 +1,18 @@
+# 로컬 부하테스트용 Prometheus. 운영에는 올리지 않는다.
+# Prometheus + Grafana 가 합쳐 200~300MB 인데 t3.micro 는 유휴에 이미 스왑을 쓴다.
+# 얹으면 모니터링이 장애 원인이 된다.
+
+global:
+  # 15초. 단계당 2분 유지하는 S2 시나리오에서 단계마다 점이 8개 찍힌다.
+  # 더 짧게 하면 저장 용량만 늘고, 더 길면 꺾이는 지점을 놓친다.
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: alldap-api
+    metrics_path: /actuator/prometheus
+    static_configs:
+      # 🔴 host.docker.internal 이다. localhost 가 아니다.
+      #    Spring 은 컨테이너 밖(맥 호스트)에서 gradle 로 돌리는데,
+      #    Prometheus 는 컨테이너 안이라 그 안의 localhost 는 Prometheus 자기 자신이다.
+      #    (Docker Desktop 이 호스트를 가리키는 이름으로 이걸 제공한다)
+      - targets: ['host.docker.internal:8081']

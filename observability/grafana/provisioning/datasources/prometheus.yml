@@ -1,0 +1,11 @@
+# Grafana 가 기동할 때 데이터소스를 자동으로 문다.
+# UI 로 손수 등록하면 그 설정이 저장소에 안 남아, 다음 사람이 같은 화면을 못 만든다.
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    # 같은 compose 네트워크 안이라 서비스 이름으로 부른다.
+    url: http://prometheus:9090
+    isDefault: true

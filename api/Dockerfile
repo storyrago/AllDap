@@ -49,5 +49,7 @@ COPY --from=build /app.jar app.jar
 # 서로 눈치를 못 봐서, compose 에서 준 제한에 맞춰 비율로 지정한다.
 ENV JAVA_OPTS="-XX:MaxRAMPercentage=70"
 
-EXPOSE 8080
+# 8081 은 management(actuator) 포트다. EXPOSE 는 문서 목적일 뿐 포트를 여는 것이 아니다.
+# 실제 노출 여부는 compose 의 ports: 가 정하고, 운영에서는 <아무도 안 연다.>
+EXPOSE 8080 8081
 ENTRYPOINT ["sh", "-c", "exec java $JAVA_OPTS -jar /app/app.jar"]

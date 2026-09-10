@@ -56,15 +56,37 @@ server:
   #     원인이라 추정하지만, 그 버전 경계 자체는 확인하지 않았다. 배포 이미지가 2-alpine
   #     이라 미래 버전이 이 동작을 유지하는지도 매번 실측해야 한다)
   forward-headers-strategy: framework
+  tomcat:
+    mbeanregistry:
+      # tomcat.threads.* 지표. 근거는 application.yaml 의 같은 항목 주석 참고.
+      enabled: true
 
 management:
+  server:
+    # 🔴 운영에서도 켠다. 안전한 근거는 <포트를 안 여는 것>이다.
+    #    docker-compose.prod.yml 의 api 서비스에 ports: 가 없어 이 포트는 호스트에 뜨지 않고,
+    #    Caddy 는 api:8080 만 안다. ai-service 에 ports: 를 안 쓰는 것과 같은 논리다.
+    # ✅ 이 포트에도 SecurityConfig 필터 체인이 붙는다(ManagementPortIntegrationTest 실측).
+    #    /actuator/metrics 는 401 이고, /actuator/prometheus 만 permitAll 이라 인증 없이 읽힌다.
+    # ⚠️ 그 permitAll 때문에라도 api 서비스에 ports: 를 추가하지 말 것.
+    #    추가하는 순간 스크레이프가 인터넷에 열린다.
+    port: ${MANAGEMENT_SERVER_PORT:8081}
+  prometheus:
+    metrics:
+      export:
+        # Boot 4 는 지표 내보내기가 기본으로 꺼져 있다. 근거는 application.yaml 의 같은 항목 주석 참고.
+        enabled: true
   endpoints:
     web:
       exposure:
-        include: health
+        include: health,metrics,prometheus
   endpoint:
     health:
       show-details: never
+  metrics:
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
 
 app:
   ai-service:
