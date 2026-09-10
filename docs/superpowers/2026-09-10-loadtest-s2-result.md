@@ -83,8 +83,14 @@ p50 은 1,692ms 로 그대로인데 p99 만 1.8배가 됐다. **중앙값은 아
 | `alldap_anyio_threads_borrowed` | **40** | 상한에 고정 |
 | `alldap_anyio_threads_total` | 40 | anyio 기본값 |
 | `tomcat_threads_busy_threads` | **80** | 80건 전부 Spring 이 붙들고 있다 |
-| `hikaricp_connections_pending` | **0** | **DB 는 병목이 아니다** |
+| `tomcat_threads_config_max_threads` | **200** | **여유가 120 남았다 — Tomcat 은 병목이 아니다** |
+| `hikaricp_connections_pending` | **0** | **DB 도 병목이 아니다** |
 | `hikaricp_connections_active` | 2 | 거의 놀고 있다 |
+
+🔴 **`busy=80` 을 "Tomcat 이 꽉 찼다" 로 읽으면 안 된다.** 상한이 200 이라 여유가
+120 이나 남아 있었다. 80 은 <Python 을 기다리는 요청을 붙들고 있는> 수이지 Tomcat 이
+포화됐다는 뜻이 아니다. 경쟁 후보 셋(anyio · Tomcat · Hikari) 중 **둘이 이 표에서
+배제되고 병목이 anyio 하나로 좁혀진다.**
 | Spring 종단 p99 | **6.44초** | |
 | Python 몫 p99 | **2.00초** | |
 
@@ -179,3 +185,24 @@ PR 3 이 `alldap_chat_duration_seconds` 를 만든 값어치가 이 한 줄이�
 - `ai-service/loadtest/results/S2-2026-09-10-verdict.json` — 사후 대조 (`valid: true`)
 - `ai-service/loadtest/results/S2-2026-09-10-uvicorn.log` — Python 로그 33,478줄
   (503 1건의 원인이 여기서만 보인다)
+
+## Grafana (부하 곡선과 내부 지표를 같은 시간축에)
+
+시간 범위 `2026-09-10 20:50:00 ~ 21:04:00` 으로 고정해서 본다:
+
+```
+http://localhost:3001/d/alldap-api?from=1789041000000&to=1789041840000
+```
+
+화면에서 눈으로 확인되는 것 넷 — **표의 숫자와 같은 사실을 다른 방식으로 보여준다:**
+
+1. **처리량 패널의 평평한 구간.** 계단이 0.6 → 3 → 6 → 12 → 24 로 오르다가
+   **마지막 두 단계(40·80 VU)가 하나의 평평한 선으로 이어진다.** 포화를 가장 읽기 쉽게
+   보여주는 그림이고, 표의 `24.0 → 23.9` 와 같은 사실이다.
+2. **지연 패널에서 p99 가 먼저 갈라진다.** p50·p95 가 1.7초에 붙어 있는 동안 p99 만
+   3.1초로 튀는 구간이 있다 — **꼬리가 먼저 기다리기 시작한** 자리다. 마지막에 셋이
+   함께 오른다(p99 6.4 / p95 5.4 / p50 3.5초).
+3. **Hikari 패널이 바닥에 붙어 있다.** 전 구간 0 이고 스파이크 두 개(값 2)뿐이다.
+4. **Tomcat 패널의 max 선이 200 이다.** busy 가 80 까지 올라가도 상한과 한참 떨어져 있다.
+
+③④ 가 경쟁 가설 둘(Hikari · Tomcat)을 그림 한 장으로 배제한다.
