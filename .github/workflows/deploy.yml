@@ -132,6 +132,72 @@ jobs:
           bash scripts/verify-deploy.sh
           REMOTE
 
+      # 배포 명령이 성공했다고 밖에서 서비스가 보이는 것은 아니다.
+      # 여기서 보는 것은 <사슬>이다: DNS -> TLS -> Caddy -> Spring.
+      #
+      # 🔴 /actuator/health 를 부르지 않는다. PR #99 로 actuator 가 management 포트
+      #    8081 로 옮겨갔고 Caddy 는 `reverse_proxy api:8080` 하나만 안다. 그래서
+      #    이 URL 은 이제 <존재하지 않는 경로>다(2026-09-10 실측: HTTP 500).
+      #    ⚠️ Caddy 로 그 경로만 8081 에 열어주는 해법은 쓰지 않는다.
+      #       /actuator/prometheus 가 permitAll 이라, 나중에 누가 matcher 를
+      #       /actuator/* 로 넓히는 순간 스크레이프가 인터넷에 열린다.
+      #       그건 코드가 아니라 리뷰로만 막히는 종류다.
+      #
+      # 그럼 "Spring 이 UP 인가" 는 누가 보나: 앞 단계의 `up -d --wait` 다.
+      # compose 가 컨테이너 헬스체크(8081)의 healthy 를 기다렸다가 안 되면 실패한다.
+      # <이미 도는 검사>를 재활용하는 것이라, 이 저장소가 두 번 겪은
+      # "짜뒀는데 아무 데서도 안 도는 검사" 가 원리적으로 생기지 않는다.
+      #
+      # 🔴 두 URL 을 <나눠서> 친다. 하나로 합치면 서로 다른 고장이 뭉개진다.
+      #    - 정적 파일: DB 를 안 거친다. 이것만 200 이면 Spring 은 떴다는 뜻.
+      #    - 위젯 설정: bots 테이블을 읽는다. 여기서 갈리면 DB 쪽 문제다.
+      #    LLM 을 부르는 경로(/api/w/{key}/chat)는 돈이 드니 쓰지 않는다.
+      #
+      # ⚠️ 설정 조회는 V1 시드 봇 `pk_local_dev` 에 딸려 있다. 그 봇을 지우면 여기가
+      #    깨진다(AGENTS.md Flyway 규칙 4번이 지우지 말라고 못박아둔 이유가 하나 늘었다).
+      - name: 헬스체크 (밖에서 HTTPS 로 사슬을 확인)
+        env:
+          API_DOMAIN: alldap.duckdns.org
+        run: |
+          # caddy 를 방금 강제 재생성했으니 몇 초는 기다려준다. 15초 간격 12회 = 최대 3분.
+          # Spring 기동은 앞 단계에서 이미 끝났으므로 예전처럼 6분을 줄 이유가 없다.
+          static_ok=""
+          config_ok=""
+          for i in $(seq 1 12); do
+            if [ -z "$static_ok" ] \
+               && curl -fsS -m 10 -o /dev/null "https://$API_DOMAIN/widget/alldap-widget.js"; then
+              static_ok=1
+              echo "OK 정적 리소스 (${i}번째). DNS·TLS·Caddy·Spring 사슬이 이어진다"
+            fi
+            if [ -n "$static_ok" ]; then
+              body=$(curl -fsS -m 10 "https://$API_DOMAIN/api/w/pk_local_dev/config" || true)
+              case "$body" in
+                *'"botName"'*)
+                  config_ok=1
+                  echo "OK 위젯 설정 조회 (${i}번째). DB 왕복까지 정상: $body"
+                  break ;;
+              esac
+              echo "${i}/12 설정 조회 대기 중... ($body)"
+            else
+              echo "${i}/12 정적 리소스 대기 중..."
+            fi
+            sleep 15
+          done
+
+          if [ -z "$static_ok" ]; then
+            echo "::error::밖에서 https://$API_DOMAIN/widget/alldap-widget.js 가 3분 동안 200 이 아니었다."
+            echo "  Spring 은 앞 단계의 --wait 를 통과했으므로 바깥쪽이 의심된다:"
+            echo "  Caddy 컨테이너 · Caddyfile · TLS 인증서 · DuckDNS A 레코드"
+            exit 1
+          fi
+          if [ -z "$config_ok" ]; then
+            echo "::error::정적 리소스는 200 인데 위젯 설정 조회가 3분 동안 실패했다."
+            echo "  = Spring 은 떴는데 그 뒤가 문제다. 후보: RDS 연결이 안 됨,"
+            echo "  또는 시드 봇 pk_local_dev 가 삭제됨(그 경우 404 다)."
+            exit 1
+          fi
+
+
       # 빨간불에 단서가 없으면 다음 사람이 서버에 들어가 다시 재현해야 한다.
       # 실패한 그 순간의 상태를 로그에 남긴다. 이 단계 자체는 실패시키지 않는다
       # (`|| true`) - 진단을 못 모은 것이 배포 실패를 덮어써서는 안 된다.
@@ -156,23 +222,3 @@ jobs:
           docker inspect -f '{{json .State.Health}}' "$($C ps -q api)" || true
           REMOTE
 
-      # 배포 명령이 성공했다고 서비스가 살아난 것은 아니다. 컨테이너가 부팅 중에
-      # 죽으면 restart: unless-stopped 가 계속 되살려서 ps 는 그럴듯해 보인다.
-      # 밖에서 실제로 200 UP 이 나오는지를 본다. 실패하면 잡이 빨간불이어야 한다.
-      - name: 헬스체크 (밖에서 HTTPS 로)
-        run: |
-          # t3.micro 는 느려서 Spring 기동에 2~3분 걸린다(compose 의 start_period: 180s).
-          # 15초 간격 24회 = 최대 6분까지 기다린다.
-          for i in $(seq 1 24); do
-            body=$(curl -fsS -m 10 "https://$API_DOMAIN/actuator/health" || true)
-            case "$body" in
-              *'"status":"UP"'*) echo "OK ($i번째): $body"; exit 0 ;;
-            esac
-            echo "$i/24 대기 중... ($body)"
-            sleep 15
-          done
-          echo "::error::배포 후 6분 동안 https://$API_DOMAIN/actuator/health 가 UP 이 되지 않았다."
-          echo "서버에서 확인할 것: docker compose -f docker-compose.prod.yml --env-file .env.prod logs api"
-          exit 1
-        env:
-          API_DOMAIN: alldap.duckdns.org
