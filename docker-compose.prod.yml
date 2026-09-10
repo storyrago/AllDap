@@ -50,6 +50,8 @@ services:
       #    남는 분량: OS+Docker 250MB · Python 250MB · Caddy 20MB
       #    ExitOnOutOfMemoryError: 힙이 마르면 살아서 버둥거리지 말고 죽어라.
       #    restart 정책이 다시 띄우는 편이 <반쯤 죽은 채로 응답하는 것>보다 낫다.
+      #    ⚠️ api/build.gradle 의 bootRun(-Ploadtest) 블록이 <이 네 값을 그대로> 복제한다.
+      #       부하테스트가 운영을 대변하려면 둘이 같아야 한다. 여기를 바꾸면 거기도 바꿀 것.
       JAVA_OPTS: >-
         -Xms192m -Xmx256m
         -XX:MaxMetaspaceSize=128m

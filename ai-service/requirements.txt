@@ -20,5 +20,11 @@ google-genai==2.16.0
 # 남의 패키지에 딸려온 것에 기대면 그 패키지를 빼는 순간 조용히 깨진다.
 httpx==0.28.1
 
+# 부하테스트 S2 가 읽는 /internal/metrics 용.
+# 🔴 prometheus-fastapi-instrumentator 를 <쓰지 않는다.> 정작 필요한 지표를 그 패키지가
+#    주지 않는다 — anyio 스레드풀 점유(alldap_anyio_threads_borrowed)는 어느 범용 계측기에도
+#    없고 limiter 를 직접 읽어야 한다. 핵심을 손으로 써야 하면 범용 패키지는 의존성만 늘린다.
+prometheus-client==0.26.0
+
 pymupdf==1.25.1
 python-docx==1.1.2

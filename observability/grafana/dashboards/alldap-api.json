@@ -93,6 +93,83 @@
           "legendFormat": "GC 평균 정지 ms"
         }
       ]
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "1순위 가설 — anyio 스레드풀 (Python)",
+      "description": "borrowed 가 total(40)에 붙고 inflight 가 그 위로 계속 늘면, 늘어난 만큼이 스레드를 못 받고 큐에서 기다리는 요청이다. total 을 함께 그리는 이유: 40 은 우리 설정값이 아니라 anyio 기본값이라 라이브러리를 올리면 조용히 바뀐다.",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 24
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "alldap_anyio_threads_borrowed",
+          "legendFormat": "borrowed (쓰는 중)"
+        },
+        {
+          "refId": "B",
+          "expr": "alldap_anyio_threads_total",
+          "legendFormat": "total (상한)"
+        },
+        {
+          "refId": "C",
+          "expr": "alldap_chat_inflight",
+          "legendFormat": "inflight (안에 있는 요청)"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "Python 몫 지연 p50 / p95 / p99 (초)",
+      "description": "왼쪽 위 Spring 지연 패널과 나란히 읽는다. 둘의 차이가 Spring 왕복(직렬화·Hikari·톰캣 대기)의 몫이다. 이게 없으면 '느린 게 Spring 인가 Python 인가' 를 못 가른다.",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 24
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.50, sum(rate(alldap_chat_duration_seconds_bucket[1m])) by (le))",
+          "legendFormat": "p50"
+        },
+        {
+          "refId": "B",
+          "expr": "histogram_quantile(0.95, sum(rate(alldap_chat_duration_seconds_bucket[1m])) by (le))",
+          "legendFormat": "p95"
+        },
+        {
+          "refId": "C",
+          "expr": "histogram_quantile(0.99, sum(rate(alldap_chat_duration_seconds_bucket[1m])) by (le))",
+          "legendFormat": "p99"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "🔴 재시작 경계 — Spring 살아 있은 시간 (초)",
+      "description": "process_start_time_seconds 에서 유도한 값이다. 이 선이 0 으로 떨어진 순간이 재시작이고, 2순위 가설(힙 256m + ExitOnOutOfMemoryError)이 맞았다는 뜻이다. 판정 절차: 떨어진 시각이 걸친 단계는 결과 표에 '측정 불가' 로 적고 숫자를 싣지 않는다. 그 단계의 숫자는 '포화' 가 아니라 '재시작 중' 을 잰 것이라, 나란히 놓으면 원인이 다른 두 사실이 같은 값으로 뭉개진다.",
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 32
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "time() - process_start_time_seconds{job=\"alldap-api\"}",
+          "legendFormat": "Spring uptime (초)"
+        }
+      ]
     }
   ]
 }

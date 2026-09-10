@@ -16,3 +16,14 @@ scrape_configs:
       #    Prometheus 는 컨테이너 안이라 그 안의 localhost 는 Prometheus 자기 자신이다.
       #    (Docker Desktop 이 호스트를 가리키는 이름으로 이걸 제공한다)
       - targets: ['host.docker.internal:8081']
+
+  - job_name: alldap-ai
+    metrics_path: /internal/metrics
+    static_configs:
+      # 🔴 여기도 host.docker.internal 이다. Python(uvicorn)도 컨테이너 밖(맥 호스트)에서
+      #    돌기 때문에 위 alldap-api 와 <같은 이유>로 localhost 가 아니다.
+      #
+      # 🔴 경로가 /metrics 가 아니라 /internal/metrics 인 것은 오타가 아니다.
+      #    이 저장소는 인증 없는 것을 /internal/* 아래에만 둔다(app/main.py 의
+      #    prometheus_metrics docstring 참고).
+      - targets: ['host.docker.internal:8001']

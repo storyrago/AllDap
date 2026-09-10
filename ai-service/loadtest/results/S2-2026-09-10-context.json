@@ -1,0 +1,44 @@
+{
+  "run_id": "2026-09-10",
+  "commit": "56b05e8466fcd329ccc3a232516850ce3439ea44",
+  "started_at": "2026-09-10T20:50:10",
+  "api_base": "http://localhost:8080",
+  "ai_base": "http://localhost:8001",
+  "bot": {
+    "id": "628d2785-a128-486c-a1ac-556f19f06de3",
+    "name": "W2 검증 봇",
+    "document_count": 50
+  },
+  "corpus": {
+    "documents_ready": 50,
+    "chunks": 306
+  },
+  "settings": {
+    "reranker_enabled": true,
+    "hybrid_enabled": true,
+    "answerable_max_distance": 0.44,
+    "max_distance": 0.55,
+    "top_k": 5,
+    "chat_model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+    "embedding_model": "@cf/baai/bge-m3",
+    "reranker_model": "@cf/baai/bge-reranker-base",
+    "cf_base_url": "http://127.0.0.1:9001"
+  },
+  "fake_cf_latency_ms": {
+    "embed": 235,
+    "rerank": 414,
+    "generate": 937
+  },
+  "expected_cf_calls_per_request": 3,
+  "cf_stats_before": {},
+  "stages": [
+    1,
+    5,
+    10,
+    20,
+    40,
+    80
+  ],
+  "hold_seconds": 120,
+  "warmup_discard_seconds": 20
+}
