@@ -35,7 +35,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import re
 import subprocess
 import sys
 import time
@@ -43,6 +42,11 @@ from datetime import datetime
 from pathlib import Path
 
 import httpx
+
+# 파서는 loadtest/promtext.py 한 벌만 있다. 여기서 import 해 <이 모듈의 이름으로도>
+# 남겨두므로, 이 파일에서 parse_prom_counter 를 가져다 쓰던 곳(s3_check · s4_check)은
+# 한 줄도 고치지 않아도 그대로 돈다.
+from loadtest.promtext import parse_prom_counter
 
 RESULTS = Path(__file__).parent / "results"
 
@@ -197,33 +201,6 @@ def judge_round(round_name: str, counts: dict[int, int | None], limit: int) -> t
         f"카운터가 {direction}. 분 경계를 넘겨 카운터가 둘로 갈렸을 수도 있으니 "
         f"시작 조건 파일의 started_at_ms 와 분 경계까지 남은 시간을 먼저 볼 것."
     )
-
-
-def parse_prom_counter(text: str, name: str, labels: dict[str, str]) -> float | None:
-    """Prometheus 텍스트 노출에서 값 하나를 꺼낸다. 없으면 None.
-
-    🔴 못 찾았을 때 0.0 이 아니라 None 을 돌려준다. Micrometer 는 태그 조합이 <처음
-       쓰일 때> 미터를 만들기 때문에, 거절이 0건이면 그 시계열이 아예 없다. 0 으로 뭉개면
-       "거절 0" 과 "계측이 안 붙었다" 가 같은 값이 된다(핸드오프 §6-ⓓ 가 지적한 부류).
-       부르는 쪽이 그 둘을 갈라 다루게 하려고 None 을 남긴다.
-
-    파이썬 메모: `re.escape` 로 이름과 값에 든 특수문자를 막는다. 라벨 순서는 노출마다
-    다를 수 있어 <순서를 가정하지 않고> 라벨마다 따로 있는지를 본다.
-    """
-    for line in text.splitlines():
-        line = line.strip()
-        if not line or line.startswith("#"):
-            continue
-        if not line.startswith(name):
-            continue
-        head, _, value = line.rpartition(" ")
-        if not all(re.search(rf'{re.escape(k)}="{re.escape(v)}"', head) for k, v in labels.items()):
-            continue
-        try:
-            return float(value)
-        except ValueError:
-            return None
-    return None
 
 
 # ─────────────────────────────────────────────────────────────────────────────
