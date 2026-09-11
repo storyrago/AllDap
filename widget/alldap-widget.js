@@ -207,7 +207,10 @@
      그때 <반드시> 같이 볼 것: 아래 applyConfig 는 data.primaryColor 를 읽는데
      Spring·프론트가 쓰는 이름은 themeColor 다(WidgetConfigResponse · web/lib/types.ts).
      지금은 서버가 어차피 null 이라 드러나지 않지만, 컬럼만 추가하고 이름을 안 맞추면
-     **색이 조용히 무시된다.** "config 값이 우선한다" 고만 적혀 있던 옛 주석은
+     **색이 조용히 무시된다.**
+     ⚠️ 컬럼 이름 후보부터 두 갈래다: api/ 의 WidgetConfigResponse TODO 는 theme_color 를,
+     여기 옛 주석과 demo.html 은 bots.primary_color 를 가리킨다. 어느 쪽으로 갈지는
+     그 슬라이스에서 정할 일이라 이 파일에서는 고르지 않았다. "config 값이 우선한다" 고만 적혀 있던 옛 주석은
      그래서 사실이 아니었다. 이름이 다르면 우선할 기회조차 없다. */
   var settings = {
     botName: '문의 도우미',
