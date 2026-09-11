@@ -19,7 +19,10 @@ public record UpdateBotRequest(
         @Size(max = 100, message = "봇 이름은 100자까지 입력할 수 있습니다.")
         String name,
 
-        /** ⚠️ 저장은 되지만 현재 답변에는 반영되지 않는다. Bot 엔티티 주석 참고. */
+        /**
+         * 봇별 답변 지침. 실제 답변에 반영된다(Python 이 이 컬럼을 직접 읽는다).
+         * 바꾼 뒤에는 환각 억제가 깨지지 않는지 재볼 것. 근거는 Bot 엔티티 주석.
+         */
         String systemPrompt,
 
         String welcomeMessage,

@@ -478,21 +478,31 @@ class ChatIntegrationTest {
         assertThat(response.status()).isEqualTo(400);
     }
 
-    // ── 컨트랙트 갭 (거짓 완성 방지) ──────────────────────────────────────
+    // ── Python 요청 본문의 모양 고정 ─────────────────────────────────────
 
     @Test
-    @DisplayName("systemPrompt 는 Python 요청에 실리지 않는다 — 저장은 되지만 답변에 반영되지 않는다")
-    void systemPrompt는_아직_전달되지_않는다() {
+    @DisplayName("Spring 은 systemPrompt 를 Python 요청에 싣지 않는다 (Python 이 DB 에서 직접 읽는다)")
+    void systemPrompt는_요청에_실리지_않는다() {
         request(HttpMethod.PATCH, "/api/bots/" + botId, ownerToken,
                 new UpdateBotRequest(null, "너는 학사 담당자다. 반드시 존댓말로 답하라.", null, null, null));
         aiService.enqueue(200, 정상응답);
 
         chat(ownerToken, botId, "질문");
 
-        // 이 단언은 "동작하지 않음"을 <고정>하기 위한 것이다.
-        // Python 의 ChatRequest 스키마에 자리가 없어 보낼 방법이 없다(AiChatRequest 주석).
-        // 나중에 Python 을 고쳐 실어 보내게 되면 이 테스트가 깨지고,
-        // 그때 문서의 "알려진 한계"도 함께 지우게 된다 — 그게 이 테스트의 목적이다.
+        // 이 단언이 고정하는 것은 <Spring 이 보내는 요청의 모양> 하나뿐이다.
+        // 봇 지침이 답변에 반영되는지 여부의 트리거가 아니다. 반영은 이미 되고 있고,
+        // 경로가 Spring 이 아닐 뿐이다: Python 이 bots 테이블을 직접 읽는다
+        // (ai-service/app/generator.py 의 fetch_bot_prompt, 2026-08-13).
+        //
+        // 🔴 원래 주석은 "나중에 Python 을 고쳐 실어 보내면 이 테스트가 깨지고,
+        //    그때 문서의 <알려진 한계>도 함께 지우게 된다" 고 적어 자기를 지워줄 트리거를
+        //    이 테스트에 걸어뒀다. 그런데 반영이 <다른 경로로> 해결돼 이 테스트는 영원히
+        //    깨지지 않았고, 그 사이 저장소 6곳의 "반영되지 않는다" 주석이 그대로 남았다.
+        //    한계가 없어지는 것과 이 단언이 깨지는 것은 애초에 서로 다른 사건이었다.
+        //
+        // 그래서 지우지 않고 남긴다. 요청 본문에 system_prompt 를 <추가하는 것>을 막는 것이
+        // 지금 이 테스트의 일이다. 추가하면 반영 경로가 둘이 되어 어느 쪽이 이겼는지
+        // 알 수 없어지고, Spring 을 거치지 않는 평가(evalrun)와 실사용이 다시 갈라진다.
         String sent = aiService.received().get(0).body();
         assertThat(sent).contains("bot_id").contains("message").contains("session_id");
         assertThat(sent).doesNotContain("존댓말");

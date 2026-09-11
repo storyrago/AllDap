@@ -123,13 +123,13 @@ public class ChatService {
     /**
      * Python 응답을 봇 설정에 맞춰 후처리한다.
      *
-     * <p><b>현재 봇별 설정을 반영할 수 있는 유일한 지점이다.</b>
+     * <p><b>Spring 이 봇별 설정에 관여하는 유일한 지점이다.</b>
      * Python 의 {@code POST /internal/chat} 은 {@code fallback_message} 를 받지 않아
      * 자기 기본 문구로 거절한다. Spring 이 {@code is_fallback == true} 를 보고 봇의 문구로 바꾼다.
      *
-     * <p>⚠️ {@code system_prompt} 는 이 방식으로도 반영할 수 없다. 그건 <b>생성 과정</b>에 들어가야 하는데
-     * Python 요청 스키마에 자리가 없다. 봇 설정 화면에서 저장은 되지만 답변에는 아무 영향이 없다 —
-     * "이미 동작한다"고 말하거나 문서에 쓰지 말 것(AiChatRequest 주석).
+     * <p>{@code system_prompt} 는 여기서 할 일이 없다. 그건 <b>생성 과정</b>에 들어가야 하는 값이라
+     * {@code ai-service} 가 bots 테이블에서 직접 읽어 반영한다({@code generator.fetch_bot_prompt}).
+     * <b>반영되지 않는 것이 아니라, 반영이 Spring 을 거치지 않는 것이다.</b> 근거는 AiChatRequest 주석.
      */
     private String resolveAnswer(String fallbackMessage, AiChatResponse ai) {
         if (!ai.isFallback()) {

@@ -73,11 +73,14 @@ export interface Bot {
   /** 위젯 공개 주소 /w/[publicKey] 에 쓰이는 키. 예: "pk_local_dev" */
   publicKey: string;
   /**
-   * ⚠️ 알려진 갭: 이 값은 지금 실제 답변에 반영되지 않는다.
-   * Python 의 POST /internal/chat 이 systemPrompt 를 파라미터로 받지 않기 때문.
-   * (ai-service/app/schemas.py 의 ChatRequest = {bot_id, message, session_id})
-   * → Python 을 고치기 전까지 설정 화면에서 저장은 되지만 동작에는 영향이 없다.
-   * TODO(W3 이후): Python ChatRequest 에 system_prompt 를 추가하고 Spring 이 전달하도록 할 것.
+   * 봇별 답변 지침. 실제 답변에 반영된다 (2026-08-13, PRD F-06 충족).
+   *
+   * 반영 경로가 Spring 이 아니다: Python 이 bots 테이블에서 직접 읽는다
+   * (ai-service/app/generator.py 의 fetch_bot_prompt).
+   * 그래서 POST /internal/chat 요청 본문에는 여전히 {bot_id, message, session_id} 뿐이고,
+   * Spring 코드만 읽으면 "반영되지 않는다"고 오해하기 쉽다.
+   *
+   * 프론트가 할 일은 이 값을 읽고 쓰는 것뿐이다. 반영 여부를 프론트에서 판단하지 말 것.
    */
   systemPrompt: string | null;
   /** 대화 시작 시 위젯이 먼저 띄우는 인사말 */

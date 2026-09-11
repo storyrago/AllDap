@@ -90,9 +90,21 @@ public class Bot extends BaseEntity {
     private String publicKey;
 
     /**
-     * ⚠️ 저장은 되지만 <b>현재 답변에 반영되지 않는다.</b>
-     * Python 의 {@code POST /internal/chat} 이 system_prompt 를 받지 않기 때문이다
-     * (AiChatRequest 주석 참고). "이미 동작한다"고 말하거나 문서에 쓰지 말 것.
+     * 봇별 답변 지침. <b>실제 답변에 반영된다</b> (2026-08-13, PRD F-06 충족).
+     *
+     * <p>다만 <b>Spring 이 전달하지 않는다.</b> Python 이 이 컬럼을 직접 읽어 간다
+     * ({@code ai-service/app/generator.py} 의 {@code fetch_bot_prompt}).
+     * 이유는 AiChatRequest 주석에 적어뒀다. 요약하면 평가({@code evalrun})가 Spring 을
+     * 거치지 않기 때문이고, 그래서 Spring 쪽에는 이 값을 쓰는 코드가 한 줄도 없다.
+     *
+     * <p>⚠️ 그래서 <b>Spring 코드만 읽어서는 "반영되지 않는다"고 오해하기 쉽다.</b>
+     * 실제로 2026-09 까지 이 저장소의 주석 6곳이 그렇게 적혀 있었다.
+     *
+     * <p>🔴 결합은 <b>대체가 아니라 덧붙임</b>이다. 기본 규칙을 앞에 두고 "충돌하면 위가 우선"을
+     * 명시한다. 대체하면 {@code NO_ANSWER} 규칙이 사라져 환각 억제가 설정 하나로 뚫린다.
+     * 그마저도 <b>방어이지 보장이 아니다</b>: 지침으로 지침을 막는 것이라
+     * 실제로 뚫리는 경우가 실측돼 있다({@code ai-service/app/bot_prompt_check.py}).
+     * 봇 지침을 바꾼 뒤에는 그걸 돌려 깨지는지 볼 것.
      */
     @Column(name = "system_prompt")
     private String systemPrompt;
