@@ -46,7 +46,7 @@ import httpx
 # 파서는 loadtest/promtext.py 한 벌만 있다. 여기서 import 해 <이 모듈의 이름으로도>
 # 남겨두므로, 이 파일에서 parse_prom_counter 를 가져다 쓰던 곳(s3_check · s4_check)은
 # 한 줄도 고치지 않아도 그대로 돈다.
-from loadtest.promtext import parse_prom_counter
+from loadtest.promtext import MetricUnreadable, parse_prom_counter
 
 
 RESULTS = Path(__file__).parent / "results"
@@ -92,13 +92,23 @@ ROUNDS: dict[str, dict] = {
 # ─────────────────────────────────────────────────────────────────────────────
 
 def read_circuit_state(prom_text: str) -> tuple[str, float | None]:
-    """지표 본문에서 서킷 상태를 읽는다. ("closed"|"half_open"|"open"|"unknown", 값).
+    """지표 본문에서 서킷 상태를 읽는다.
+    ("closed"|"half_open"|"open"|"unknown"|"unreadable", 값).
 
     🔴 시계열이 없을 때 "closed" 를 돌려주면 안 된다. 그건 <닫혔다> 가 아니라
        <못 읽었다> 이고, 둘을 뭉개면 "회복을 확인했다" 고 믿은 채 다음 판을 시작한다.
        AGENTS.md 의 "낸 버그" 절이 모아둔 부류를 회복 확인에서 다시 밟는 셈이 된다.
+
+    🔴 그리고 <없다>(unknown)와 <값이 NaN 이다>(unreadable)도 갈라 돌려준다. 판정은
+       어느 쪽이든 "못 읽었다" 로 같지만 <사람이 손쓸 곳>이 다르다. 없는 것은 management
+       포트(8081)나 지표 내보내기 문제고, NaN 은 게이지 값 함수가 던지거나 참조가 끊긴
+       것이다. 고치기 전에는 둘 다 unknown 이라, 안내가 "시계열이 없다" 고 단언하면서
+       실제로는 시계열이 멀쩡히 있는 경우가 생겼다.
     """
-    value = parse_prom_counter(prom_text, "alldap_ai_circuit_state", {})
+    try:
+        value = parse_prom_counter(prom_text, "alldap_ai_circuit_state", {})
+    except MetricUnreadable:
+        return "unreadable", None
     if value is None:
         return "unknown", None
     return {0.0: "closed", 1.0: "half_open", 2.0: "open"}.get(value, "unknown"), value
@@ -316,6 +326,11 @@ def wait_circuit_closed(actuator: str, timeout_s: int = 120, interval_s: float =
         if state == "unknown":
             return False, ("중단: alldap_ai_circuit_state 시계열이 없다. <닫혔다> 가 아니라 "
                            "<못 읽었다> 이다. management 포트(8081)와 지표 내보내기를 확인할 것.")
+        if state == "unreadable":
+            return False, ("중단: alldap_ai_circuit_state 는 <있는데> 값이 NaN 이다. 시계열이 "
+                           "없는 것과 다른 문제다. 포트나 내보내기가 아니라 게이지 쪽이다. "
+                           "Micrometer 는 게이지 값 함수가 예외를 던지거나 참조가 끊기면 NaN 을 "
+                           "낸다. 이 상태로는 회복을 확인할 수 없으니 다음 판을 시작하지 말 것.")
         time.sleep(interval_s)
     return False, f"중단: {timeout_s}초 안에 서킷이 안 닫혔다 (마지막 상태 {last})."
 

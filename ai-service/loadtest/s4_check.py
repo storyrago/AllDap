@@ -117,6 +117,20 @@ def main() -> int:
         got = parse_prom_counter(body, "alldap_ai_call_seconds_sum", tags)
         check(f"_sum 은 제 값을 읽는다({order})", got == 84.0, f"({got!r})")
 
+    print("\nparse_prom_counter: <살아 있다> 와 <죽어서 NaN 이다> 를 가르는가")
+    # s3 쪽은 게이지 값 자체를 보고, 여기서는 그 NaN 이 <회복 확인>까지 번지는 각도를 본다.
+    # 🔴 read_circuit_state 는 고치기 전에도 NaN 을 closed 로 읽지는 않았다. 다만 그것은
+    #    파서가 갈라줘서가 아니라 {0.0,1.0,2.0} 매핑에 nan 키가 없어서 <우연히> 맞은 것이다.
+    #    그래서 판정은 맞고 사유가 거짓이었다: wait_circuit_closed 가 "시계열이 없다" 고
+    #    안내하는데 시계열은 멀쩡히 있다. 둘은 손쓸 방법이 다르다. 없는 것은 포트(8081)와
+    #    지표 내보내기를 보는 것이고, NaN 은 게이지 값 함수가 던지거나 참조가 끊긴 것이다.
+    state, raw = read_circuit_state("alldap_ai_circuit_state NaN\n")
+    check("NaN 은 closed 가 아니다", state != "closed", f"({state!r})")
+    check("NaN 은 <없음>과 다른 이름으로 갈린다", state == "unreadable", f"({state!r})")
+    check("NaN 일 때 값을 내놓지 않는다", raw is None, f"({raw!r})")
+    state, raw = read_circuit_state("")
+    check("시계열이 없으면 여전히 unknown", (state, raw) == ("unknown", None), f"({state!r})")
+
     print("read_circuit_state — <닫혔다> 와 <못 읽었다> 를 가르는가")
     closed = "alldap_ai_circuit_state 0.0\n"
     check("0 이면 closed", read_circuit_state(closed)[0] == "closed")

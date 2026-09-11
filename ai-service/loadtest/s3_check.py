@@ -15,6 +15,7 @@ S3 의 산출물은 곡선이 아니라 <예/아니오>다. 그 예/아니오를
 """
 from __future__ import annotations
 
+from loadtest.promtext import MetricUnreadable
 from loadtest.s3_context import (
     WATCHED_STATUS,
     WINDOW_MS,
@@ -177,6 +178,36 @@ def main() -> int:
         check(f"게이지가 _cleared_total 줄을 집지 않는다({order})", got == 3.0, f"({got!r})")
         got = parse_prom_counter(body, "alldap_ratelimit_keys_cleared_total", {})
         check(f"긴 이름 쪽도 제 값을 읽는다({order})", got == 1.0, f"({got!r})")
+
+    print("\nparse_prom_counter: <살아 있다> 와 <죽어서 NaN 이다> 를 가르는가")
+    # 🔴 Micrometer 의 DefaultGauge.value() 는 약한 참조가 끊겼을 때<뿐 아니라>
+    #    값 함수가 Throwable 을 던졌을 때도 NaN 을 돌려준다(1.16.4 바이트코드로 확인).
+    #    그 NaN 은 prometheus-metrics 의 TextFormatUtil.writeDouble 이 Double.toString 으로
+    #    흘려 "NaN" 이라는 글자로 노출된다. 파이썬 float("NaN") 은 <예외를 내지 않으므로>
+    #    경계 검사만 있던 파서는 그것을 정상 값으로 통과시켰다.
+    #    그러면 아래 cmd_before 의 "게이지가 있는가" 가드(`is None`)가 통과해버려
+    #    <계측이 죽은 채로 측정 한 판이 돈다>. 이 저장소가 일곱 번 낸 부류 그대로다.
+    for token in ("NaN", "+Inf", "-Inf"):
+        body = f"alldap_ratelimit_keys {token}\n"
+        try:
+            got = parse_prom_counter(body, "alldap_ratelimit_keys", {})
+        except MetricUnreadable:
+            check(f"값이 {token} 이면 MetricUnreadable", True)
+        else:
+            check(f"값이 {token} 이면 MetricUnreadable", False, f"({got!r} 로 통과했다)")
+    # 🔴 <없다>(None)로 뭉개도 안 된다. judge_fault_round 의 delta 가 after 의 None 을
+    #    0.0 으로 읽기 때문에, 죽은 계측이 "그 일이 0번 일어났다" 로 둔갑한다.
+    try:
+        parse_prom_counter("alldap_ratelimit_keys NaN\n", "alldap_ratelimit_keys", {})
+    except MetricUnreadable:
+        check("NaN 을 None 으로 뭉개지 않는다", True)
+    except Exception as exc:   # noqa: BLE001
+        check("NaN 을 None 으로 뭉개지 않는다", False, f"({type(exc).__name__})")
+    else:
+        check("NaN 을 None 으로 뭉개지 않는다", False, "(None 또는 값으로 돌아왔다)")
+    # 대조군: 시계열이 아예 없는 것은 여전히 None 이다(예외가 아니다).
+    check("시계열이 없는 것은 여전히 None",
+          parse_prom_counter("", "alldap_ratelimit_keys", {}) is None)
 
     print(f"\n{'실패 ' + ', '.join(_failures) if _failures else '전부 통과'}")
     return 1 if _failures else 0
