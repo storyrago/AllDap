@@ -13,8 +13,10 @@
 """
 from __future__ import annotations
 
+import json
 import os
 import threading
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 # ⚠️ get_settings 는 lru_cache 라 <처음 읽는 순간> 값이 굳는다.
 #    그래서 app.* 을 import 하기 <전에> 환경변수를 세팅한다.
@@ -27,6 +29,26 @@ from app.config import get_settings     # noqa: E402
 from app.generator import FALLBACK_TOKEN  # noqa: E402
 from loadtest import fake_cf            # noqa: E402
 from loadtest import s2_context        # noqa: E402
+
+
+def _stub_server(port: int, payload: dict) -> ThreadingHTTPServer:
+    """/stats 에 <다른 값>을 주는 가짜의 가짜. 진짜로 읽어오는지 확인하는 데만 쓴다."""
+
+    class Stub(BaseHTTPRequestHandler):
+        protocol_version = "HTTP/1.1"
+
+        def log_message(self, *args) -> None:
+            pass
+
+        def do_GET(self) -> None:
+            data = json.dumps(payload).encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+
+    return ThreadingHTTPServer(("127.0.0.1", port), Stub)
 
 
 def main() -> int:
@@ -116,6 +138,47 @@ def main() -> int:
     check("판정: 가짜 CF 는 통과", ok_fake)
     check("판정: 진짜 CF 는 중단", not ok_real and "진짜 Cloudflare" in msg_real)
     check("판정: 호출이 안 늘면 중단", not ok_none and "판정하지 못한" in msg_none)
+
+    # ⑨ /stats 는 <도는 서버의 설정>을 내보내야 한다. s2_context 가 시작 조건 파일에
+    #    적을 값을 여기서 읽어간다.
+    stats_payload = s2_context.read_fake_cf_stats("http://127.0.0.1:9101")
+    check("/stats latency_ms", stats_payload["latency_ms"] == fake_cf.LATENCY_MS,
+          f"({stats_payload['latency_ms']})")
+    check("/stats vector_mode", stats_payload["vector_mode"] == "unit",
+          f"({stats_payload['vector_mode']})")
+    # unit 모드는 DB 를 안 읽으므로 출처 봇이 없다. 0 이나 "" 로 뭉개지 않는다.
+    check("/stats vector_bot_id (unit 은 없음)", stats_payload["vector_bot_id"] is None,
+          f"({stats_payload['vector_bot_id']})")
+
+    # ⑩ 🔴 여기가 이 파일의 핵심 회귀 검사다.
+    #    <다른 지연값으로 떠 있는 서버>를 세워두고, s2_context 가 그 값을 읽는지 본다.
+    #    import 로 되돌아가면 모듈 상수(235/414/937)를 돌려주므로 이 검사가 깨진다.
+    other = {"embed": 1, "rerank": 2, "generate": 3}
+    stub = _stub_server(9102, {"counts": {}, "latency_ms": other,
+                               "vector_mode": "blocked", "vector_bot_id": "other-bot"})
+    threading.Thread(target=stub.serve_forever, daemon=True).start()
+    read = s2_context.read_fake_cf_stats("http://127.0.0.1:9102")
+    check("다른 서버의 지연값을 그대로 읽는다", read["latency_ms"] == other, f"({read['latency_ms']})")
+    check("모듈 상수를 섞지 않는다", read["latency_ms"] != fake_cf.LATENCY_MS)
+    stub.shutdown()
+
+    # ⑪ 못 읽었을 때 <조용히 넘어가지 않는지>. 되돌아갈 기본값이 있으면 고치기 전과 같아진다.
+    #    · 아무도 안 뜬 포트 → 연결 실패
+    #    · 떠 있지만 다른 서버(필수 키 없음) → 응답은 200 인데 시작 조건을 적을 수 없다
+    for name, port, payload in (
+        ("연결 실패", 9103, None),
+        ("필수 키 없는 응답", 9104, {"hello": "world"}),
+    ):
+        if payload is not None:
+            bad = _stub_server(port, payload)
+            threading.Thread(target=bad.serve_forever, daemon=True).start()
+        try:
+            s2_context.read_fake_cf_stats(f"http://127.0.0.1:{port}")
+            check(f"/stats {name} 시 중단", False, "(중단하지 않았다)")
+        except SystemExit as e:
+            check(f"/stats {name} 시 중단", "중단" in str(e), f"({str(e)[:30]}...)")
+        if payload is not None:
+            bad.shutdown()
 
     server.shutdown()
     print(f"\n{'실패 ' + ', '.join(failures) if failures else '전부 통과'}")

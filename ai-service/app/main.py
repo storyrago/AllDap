@@ -86,6 +86,21 @@ def cf_stats() -> dict:
     return stats
 
 
+@app.get("/internal/debug/cf-config")
+def cf_config() -> dict:
+    """이 프로세스가 <실제로 어느 Cloudflare 주소를 보고 있는지>. 부하테스트가 읽는다.
+
+    🔴 왜 필요한가: 부하테스트 드라이버는 자기 셸의 CF_BASE_URL 밖에 모른다.
+       요청을 처리하는 것은 uvicorn 이고 둘은 다른 환경변수로 떠 있을 수 있다
+       (2026-09-10 에 실제로 겪었다). 가짜 CF 서버에게 설정을 물어보려면 먼저
+       <uvicorn 이 보는 주소>를 알아야 한다.
+
+    ⚠️ 토큰도 계정 ID 도 내보내지 않는다. cf_base_url 에는 계정 ID 가 들어가지 않는다
+       (app/cf.py 가 /accounts/{id} 를 호출 시점에 붙인다).
+    """
+    return {"cf_base_url": get_settings().cf_base_url}
+
+
 @app.get("/internal/metrics")
 async def prometheus_metrics() -> Response:
     """Prometheus 스크레이프 엔드포인트. 부하테스트 S2 가 읽는다.

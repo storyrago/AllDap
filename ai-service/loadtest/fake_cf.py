@@ -63,6 +63,13 @@ _counts: Counter[str] = Counter()
 _lock = threading.Lock()
 _vector: list[float] = []
 
+# 🔴 /stats 는 <이 프로세스가 실제로 어떤 설정으로 떠 있는지>를 말하는 자리다.
+#    s2_context 가 시작 조건 파일에 적을 값을 여기서 읽어간다. 예전에는 이 모듈의
+#    상수를 import 해서 적었는데, 그건 <드라이버 프로세스가 읽은 코드>일 뿐이라
+#    다른 지연값으로 떠 있는 서버를 상대로도 그대로 통과했다.
+#    설정 항목을 늘릴 때는 여기(_stats_payload)에도 함께 넣을 것.
+_vector_mode: str = ""
+
 
 def counts() -> Counter[str]:
     """모델별 호출 횟수. <실행 전후로 비교>해서 그 경로를 실제로 탔는지 본다.
@@ -71,6 +78,25 @@ def counts() -> Counter[str]:
     """
     with _lock:
         return _counts.copy()
+
+
+def _stats_payload() -> dict:
+    """이 서버가 <실제로 떠 있는 설정>. 측정의 시작 조건으로 그대로 기록된다.
+
+    🔴 벡터 모드가 여기 있어야 하는 이유: blocked 로 띄우면 모든 질문이 게이트에
+       걸려 생성 경로를 아예 안 탄다. 지연값만 적어두면 나중에 그 실행이 <무엇을
+       재고 있었는지>를 알 수 없다. 지연과 벡터 모드는 서로 다른 사실이라 따로 적는다.
+
+    ⚠️ 장애 주입 플래그(지연 급변·실패율 등)를 붙이게 되면 여기에도 함께 넣을 것.
+       지금은 없어서 안 넣는다. 쓰이지 않는 필드를 미리 만들면 그 자체가 거짓말이 된다.
+    """
+    return {
+        "counts": dict(counts()),
+        "latency_ms": dict(LATENCY_MS),
+        "vector_mode": _vector_mode,
+        # unit 모드는 DB 를 안 읽으므로 출처 봇이 없다. 0 이나 "" 로 뭉개지 않는다.
+        "vector_bot_id": BOT_ID if _vector_mode in ("db", "blocked") else None,
+    }
 
 
 def _load_vector(mode: str) -> list[float]:
@@ -113,7 +139,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:
         if self.path == "/stats":
-            self._send(200, {"counts": dict(counts()), "latency_ms": LATENCY_MS})
+            self._send(200, _stats_payload())
         else:
             self._send(404, {"success": False, "errors": ["없는 경로"]})
 
@@ -168,8 +194,9 @@ class Handler(BaseHTTPRequestHandler):
 
 def build_server(port: int = 9001, vector_mode: str = "db") -> ThreadingHTTPServer:
     """서버를 만들어 돌려준다(아직 안 돈다). 자체 점검이 스레드로 띄우려고 분리했다."""
-    global _vector
+    global _vector, _vector_mode
     _vector = _load_vector(vector_mode)
+    _vector_mode = vector_mode
     return ThreadingHTTPServer(("127.0.0.1", port), Handler)
 
 
