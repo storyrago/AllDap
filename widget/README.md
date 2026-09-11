@@ -14,18 +14,22 @@
 
 ---
 
-## ⚠️ 현재 상태 (2026-07-31)
+## ✅ 현재 상태 (2026-08-02 실제 설치 실측 통과)
 
 | 항목 | 상태 |
 |---|---|
 | 플로팅 버튼 · 채팅창 열기/닫기 · 모바일 전체화면 | ✅ 동작 |
 | 호스트 페이지 CSS 로부터 격리 | ✅ 동작 (`demo.html` 로 확인 가능) |
-| 봇 이름·색상 불러오기 (`GET /api/w/{publicKey}/config`) | ❌ **Spring(:8080) 미구현 → 실패함** |
-| 실제 대화·출처 카드·👍/👎 | ❌ **Next.js `/w/[publicKey]` 미구현 → 안 뜸** |
+| 봇 이름·색상 불러오기 (`GET /api/w/{publicKey}/config`) | ✅ 구현 완료 (PR #11) |
+| 실제 대화·출처 카드·👍/👎 | ✅ 구현 완료 (`web/app/(widget)/w/[publicKey]/page.tsx`) |
+| `allowed_origins` 검증 · rate limit | ✅ 켜져 있다 (아래 "알려진 갭" 참고) |
 
-**지금 `demo.html` 을 열면 채팅창 안에 "채팅 화면을 불러오지 못했습니다" 가 뜨는 것이 정상이다.**
-서버가 없으니 당연한 결과이고, 그때 위젯이 콘솔 에러로 죽지 않고 안내 문구를 보여주는지가
-지금 단계에서 확인할 수 있는 전부다.
+별도 origin 의 가짜 고객 사이트에 `<script>` 한 줄을 붙여 로더 → iframe → 인사말 →
+근거 붙은 답변 → `channel=widget` 로그까지 브라우저로 확인했다. 허용되지 않은 도메인은
+안내 문구로 차단되는 것까지 봤다.
+
+> ⚠️ 서버를 안 띄운 상태로 `demo.html` 을 열면 채팅창 안에 "채팅 화면을 불러오지
+> 못했습니다" 가 뜬다. 그건 고장이 아니라 로더가 콘솔 에러로 죽지 않는다는 뜻이다.
 
 ---
 
@@ -38,7 +42,8 @@
       ├─ 플로팅 버튼
       └─ 패널(틀) ─ <iframe src="{Next.js}/w/{publicKey}?embed=1">
                                 └─ 채팅 화면 본체 (말풍선·출처 카드·👍/👎)
-                                   ※ web/ 에서 만든다. 아직 없음 (W2)
+                                   ※ web/app/(widget)/w/[publicKey]/page.tsx
+                                     (widget) 은 라우트 그룹이라 URL 에는 안 나온다
 ```
 
 ### 왜 UI를 여기서 직접 그리지 않나
@@ -125,13 +130,13 @@ api/src/main/resources/static/widget/alldap-widget.js
 - 위젯 JS는 `public_key` 검증·CORS 정책과 수명주기를 같이 한다. API와 함께 배포되는 게 자연스럽다.
 - 정적 파일 한 개라 Next.js 빌드에 얹을 이유가 없다.
 
-> ⚠️ **아직 아무것도 연결돼 있지 않다.** `api/` 는 지금 Spring Initializr로 생성 중이라 비어 있다.
-> TODO(W2): 아래 중 하나를 정할 것.
-> 1. 이 파일을 `api/src/main/resources/static/widget/` 로 **복사** (가장 단순, 두 곳에 파일이 생김)
-> 2. Gradle `processResources` 에서 `widget/` → `static/widget/` **복사 태스크** 추가 (원본 한 곳 유지)
-> 3. `WebMvcConfigurer` 로 저장소의 `widget/` 디렉터리를 **리소스 핸들러에 매핑** (로컬 개발 편함)
+> ✅ **2안으로 정해져 있다.** `api/build.gradle` 의 `processResources` 가 빌드할 때
+> `widget/alldap-widget.js` 를 `static/widget/` 으로 담는다.
+> 원본은 이 디렉터리 하나뿐이다 (소스에 사본을 두면 반드시 한쪽만 고쳐져 어긋난다).
 >
-> 결정하면 `docs/decisions.md` 에 한 줄 남길 것.
+> ⚠️ 그래서 **빌드를 안 하면 `http://localhost:8080/widget/alldap-widget.js` 가 안 나온다.**
+> 실제로 그걸 모르고 설치 코드를 그대로 복사했다가 401 을 본 적이 있다
+> (근거는 `api/build.gradle` 의 그 태스크 주석).
 
 ---
 
@@ -205,16 +210,16 @@ origin이 다르니 스크립트 주소만으로는 채팅 페이지 위치를 �
 > config 는 Spring 이 맞게 주기 때문에 앞부분이 멀쩡한 것이다.
 > 네트워크 탭에 `GET :8080/w/{publicKey}?embed=1 → 401` 이 보이면 이 문제다.
 
-운영에서는 이 속성이 필요 없게 만드는 게 목표다.
-리버스 프록시로 한 도메인에 둘을 묶으면(`/api/*`·`/widget/*` → Spring, 나머지 → Next.js)
-origin이 같아져 기본값이 그대로 맞는다.
-→ **TODO(W2): 이 프록시 구성을 정하고, 정해지면 README와 코드 주석을 갱신할 것.**
+🔴 **운영에서도 이 속성은 영구히 필요하다.** 옛 서술은 "리버스 프록시로 한 도메인에
+묶으면 필요 없어진다" 였는데, 2026-09-07 배포는 **반대로 갔다**: Caddy 는 Spring 만
+프록시하고 프론트는 Vercel 이라 두 origin 이 영구히 다르다.
+그래서 위 내보내기 화면의 자동 주입이 임시방편이 아니라 **정식 해법**이다.
 
 ---
 
-## postMessage 규약 (W2에서 Next.js가 지켜야 할 계약)
+## postMessage 규약 (Next.js 채팅 페이지와의 계약)
 
-`/w/[publicKey]` 페이지는 아래 규약을 구현해야 로더와 붙는다.
+`web/app/(widget)/w/[publicKey]/page.tsx` 가 아래 규약을 구현하고 있다.
 
 **채팅 페이지 → 로더**
 
@@ -240,18 +245,19 @@ origin이 같아져 기본값이 그대로 맞는다.
 
 ---
 
-## W2 할 일
+## W2 할 일 (전부 끝났다)
 
-- [ ] Spring `GET /api/w/{publicKey}/config` — 응답 `{ botName, welcomeMessage, primaryColor }` (camelCase)
-- [ ] Spring `POST /api/w/{publicKey}/chat` — 위젯 채팅 (rate limit 필수)
-- [ ] Spring `POST /api/messages/{messageId}/feedback` — 👍/👎
-- [ ] **CORS 허용** — 남의 도메인에서 호출되므로 CORS 없이는 무조건 막힌다
-- [ ] Next.js `web/app/w/[publicKey]/page.tsx` — 채팅 UI + 위 postMessage 규약
-- [ ] 위젯 JS를 Spring static 으로 서빙하는 방법 확정 (위 3안 중 택1)
-- [ ] `demo.html` 로 최종 검수 (아래 AC)
+- [x] Spring `GET /api/w/{publicKey}/config` (응답 `{ botName, welcomeMessage, primaryColor }`, camelCase)
+- [x] Spring `POST /api/w/{publicKey}/chat` (rate limit 포함)
+- [x] Spring `POST /api/messages/{msgId}/feedback` (👍/👎)
+- [x] **CORS 허용** (남의 도메인에서 호출되므로 CORS 없이는 무조건 막힌다)
+- [x] Next.js `web/app/(widget)/w/[publicKey]/page.tsx` (채팅 UI + 위 postMessage 규약)
+- [x] 위젯 JS 서빙 방법 확정 (Gradle `processResources`, 위 "서빙 위치" 참고)
+- [x] `demo.html` 로 최종 검수
 
 **F-04 완료 조건(AC)**: 외부 정적 사이트(`demo.html`)에 한 줄로 설치 → 정상 대화 성공.
 문서에 있는 질문에는 답변 + 출처가 뜨고, 문서에 없는 질문에는 **지어내지 않고 거절 문구**가 떠야 한다.
+→ **2026-08-02 에 통과했다.**
 
 ---
 
@@ -259,46 +265,54 @@ origin이 같아져 기본값이 그대로 맞는다.
 
 숨기지 않고 적어둔다. 나중에 "된다고 써놨는데 안 되네"가 제일 나쁘다.
 
-### 1. 허용 도메인(`allowed_origins`) 검증 — **미정** (PRD 부록A #3)
+### 1. 허용 도메인(`allowed_origins`) 검증: ✅ **켜져 있다. 다만 <설정 조회에만> 걸린다**
 
-`bots.allowed_origins TEXT[]` 컬럼은 이미 있지만 **검증 로직은 없다.**
-PRD의 현재 기울기는 *"필드만 만들고 검증은 이후"*, 결정 시점은 W2다.
+정해진 것:
 
-검증을 켜기 전까지는 **`public_key` 만 알면 누구나 남의 봇을 자기 사이트에 붙일 수 있다.**
-`public_key` 는 설치 코드에 그대로 노출되므로 비밀이 아니다. 즉 이건 "언젠가 할 일"이 아니라
-**"안 하면 뚫려 있는 구멍"** 이다. 최소한 이건 정해야 한다.
+- 검증 위치는 Spring 의 `/api/w/{publicKey}/config`. `Origin` 헤더를 `allowed_origins` 와
+  **정확히 일치**로만 대조한다. 접미사 비교를 쓰면 `evil-example.com` 이 `example.com` 으로 통과한다.
+- **비어 있으면 전부 차단이다.** "전부 허용" 으로 두면 모든 신규 봇이 무방비로 태어난다.
+- `localhost` 예외는 두지 않았다. 로컬에서 `demo.html` 을 쓰려면 그 봇의 `allowed_origins` 에
+  `http://localhost:5500` 을 직접 넣어야 한다.
 
-- 검증 위치: Spring의 `/api/w/*` 에서 `Origin` 헤더를 `allowed_origins` 와 대조
-- 비어 있으면 전체 허용인가, 전체 차단인가 (편의 ↔ 안전)
-- 로컬 개발용 `localhost` 예외를 둘 것인가
+🔴 **남아 있는 한계: 채팅(`POST /api/w/{publicKey}/chat`)은 Origin 검증 대상이 아니다.**
+채팅 요청은 iframe 안에서 나가므로 고객 사이트가 아니라 **우리 앱의 origin** 이 실린다
+(2026-08-02 에 이걸 모르고 검증을 걸었다가 위젯이 반드시 403 이 나는 버그를 냈다).
+그쪽의 실질 방어선은 **rate limit(IP + publicKey 기준 분당 20건)** 이다.
+그리고 CORS 는 인가 수단이 아니다. 브라우저 정책일 뿐이라 curl 은 무시한다.
 
 ### 2. `bots` 에 색상 컬럼이 없다
 
-PRD F-04는 "브랜드 색상 1종 커스텀"을 요구하는데 `api/src/main/resources/db/migration/V1__init.sql` 의 `bots` 에는
-색상 컬럼이 없다. 지금은 `data-primary-color` 속성으로 우회한다.
-→ W2에서 `bots.primary_color` 를 추가하고 config 응답에 실으면 이 속성은 불필요해진다.
+PRD F-04는 "브랜드 색상 1종 커스텀"을 요구하는데 `bots` 에 색상 컬럼이 **아직도 없다**
+(`api/src/main/resources/db/migration/` 의 마이그레이션 전부를 확인했다. V8 까지 없다).
+지금은 `data-primary-color` 속성으로 우회한다.
+→ `bots.primary_color` 를 추가하고 config 응답에 실으면 이 속성은 불필요해진다.
 (스키마 변경은 `api/src/main/resources/db/migration/` 의 Flyway 마이그레이션이 단일 진실 공급원.
 Spring `ddl-auto` 로 컬럼을 만들면 안 된다. `V2__add_bot_primary_color.sql` 같은 새 파일로 추가할 것)
 
-### 3. 피드백에 필요한 `messageId` 를 Python은 주지 않는다
+### 3. 피드백용 `messageId`: ✅ 해결됐다
 
-Python `ChatResponse` = `{answer, sources[], is_fallback, latency_ms}` 에 **id가 없다.**
-👍/👎(`POST /api/messages/{messageId}/feedback`)를 붙이려면 그 id가 있어야 한다.
-`messages` 테이블은 Spring이 쓰므로, **Spring이 로그를 저장하면서 만든 id** 를 응답에 넣어야 한다.
-→ W2에서 Spring 채팅 응답에 `messageId` 를 반드시 포함시킬 것. 없으면 피드백 UI를 못 붙인다.
+Python `ChatResponse` 에는 여전히 id 가 없다. 대신 **Spring 이 `messages` 행을 저장하면서
+만든 id** 를 자기 응답(`ChatResponse.messageId`)에 실어 내려준다. 그 값으로
+`POST /api/messages/{msgId}/feedback` 을 부른다.
 
-### 4. 봇별 `system_prompt` 는 아직 반영되지 않는다
+### 4. 봇별 `system_prompt`: ✅ 반영된다 (2026-08-13)
 
-Python `POST /internal/chat` 은 `bot_id`·`message`·`session_id` 만 받는다.
-`fallback_message` 는 Spring이 `is_fallback == true` 를 보고 봇 문구로 치환해 우회할 수 있지만,
-`system_prompt` 는 **Python을 고치기 전까지 반영 불가**다.
-위젯에서 "봇마다 말투가 다르다"고 설명하면 안 된다. 자세한 내용은 `api/README.md` 참고.
+**Python 이 `bots` 를 직접 읽는다.** Spring 이 요청에 실어 보내지 않는 이유는 평가다:
+평가 실행(`evalrun`)은 Spring 을 안 거치므로, Spring 이 보내면 평가만 기본 프롬프트로 돌아
+"평가에서는 좋았는데 실사용은 다르다" 가 된다.
+결합은 대체가 아니라 덧붙임이다(기본 규칙을 앞에 두고 "충돌하면 위가 우선").
+
+🔴 **다만 프롬프트로 프롬프트를 막는 데는 한계가 있다.** 봇 지침으로 `NO_ANSWER` 를
+쓰지 말라고 시키면 실제로 뚫린다(실측). 막지 못하므로 대신 잰다: `ai-service/app/bot_prompt_check.py`.
+자세한 내용은 저장소 루트 `AGENTS.md` 의 "알려진 한계" 절 참고.
 
 ### 5. 그 밖에
 
-- rate limit 없음 → 익명 공개 엔드포인트라 그대로 두면 LLM 비용이 샌다 (W2)
+- rate limit → ✅ 켜져 있다(IP + publicKey 분당 20건). **인메모리라** 인스턴스를 늘리면
+  각자 세므로 실질 한도가 배가 된다. 수평 확장 시작 시점이 Redis 교체 시점이다.
 - 다크 모드 미대응 (라이트 기준 한 벌)
-- 답변 스트리밍(SSE) 여부 미정 — PRD 부록A #1, 결정 시점 W2
+- 답변 스트리밍(SSE) 여부 여전히 미정 (PRD 부록A #1)
 
 ---
 
