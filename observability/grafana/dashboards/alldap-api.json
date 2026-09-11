@@ -445,7 +445,7 @@
       "id": 6,
       "type": "timeseries",
       "title": "1순위 가설: anyio 스레드풀 (Python) · 대기 큐 = tomcat_busy - borrowed",
-      "description": "borrowed 가 total(40)에 붙으면 스레드풀이 찬 것이다. 🔴 대기 큐는 inflight 가 아니라 <뺄셈 시리즈>(tomcat_busy - borrowed)로 읽는다: inflight 는 워커 스레드를 이미 얻은 요청만 세므로 구조적으로 borrowed 를 넘을 수 없다(2026-09-10 S2 실측 - tomcat_busy=80, inflight=40). inflight 는 '지금 Python 이 실제로 처리 중인 건수' 로만 읽을 것. total 을 함께 그리는 이유: 40 은 우리 설정값이 아니라 anyio 기본값이라 라이브러리를 올리면 조용히 바뀐다.",
+      "description": "borrowed 가 total(40)에 붙으면 스레드풀이 찬 것이다. 🔴 대기 큐는 inflight 가 아니라 <뺄셈 시리즈>(tomcat_busy - borrowed)로 읽는다: inflight 는 워커 스레드를 이미 얻은 요청만 세므로 구조적으로 borrowed 를 넘을 수 없다(2026-09-10 S2 실측 - tomcat_busy=80, inflight=40). inflight 는 '지금 Python 이 실제로 처리 중인 건수' 로만 읽을 것. total 을 함께 그리는 이유: 상한이 바뀌면 '몇에 붙었는가' 의 기준도 바뀐다. ⚠️ 2026-09-11(PR 5a)부터 상한은 anyio 기본값 40 이 아니라 설정값(ANYIO_MAX_THREADS, 기본 80)이다. S2(2026-09-10)는 40 으로 쟀으므로 before/after 를 대조할 때 이 선을 먼저 볼 것.",
       "gridPos": {
         "h": 8,
         "w": 12,
@@ -501,6 +501,45 @@
           "refId": "C",
           "expr": "histogram_quantile(0.99, sum(rate(alldap_chat_duration_seconds_bucket[1m])) by (le))",
           "legendFormat": "p99"
+        }
+      ]
+    },
+    {
+      "id": 17,
+      "type": "timeseries",
+      "title": "🔴 다음 벽 후보: psycopg 커넥션 풀 (Python · Hikari 와 다른 풀이다)",
+      "description": "S2(2026-09-10)의 병목 판정은 Tomcat·Hikari·anyio 셋만 비교했고 이 풀은 아예 들어 있지 않았다. hikaricp_* 는 Spring 의 풀이고 이것은 Python 의 풀이다. 스레드 상한을 40 -> 80 으로 올리면 스레드 80개가 커넥션 10개를 두고 경쟁하므로, 다음 측정에서 처리량이 예측(48 req/s)에 못 미칠 때 'Spring 힙이 말랐다' 와 '커넥션을 기다렸다' 가 같은 그림으로 보인다. 🔴 판정은 waiting 하나로 한다: 0 이 아니면 이 풀이 벽이다. size == max 는 포화가 아니라 '다 만들었다' 일 뿐이고(놀고 있을 수 있다), 그 둘을 섞으면 넉넉한 풀을 병목으로 오진한다. ⚠️ open 이 0 이면 풀이 아직 안 만들어진 것이고 나머지 선은 의미가 없다. 기동 직후의 0 을 '상한이 0' 으로 읽지 말 것.",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 77
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "alldap_db_pool_requests_waiting",
+          "legendFormat": "🔴 waiting (커넥션 기다리는 요청)"
+        },
+        {
+          "refId": "B",
+          "expr": "alldap_db_pool_size",
+          "legendFormat": "size (만들어진 커넥션)"
+        },
+        {
+          "refId": "C",
+          "expr": "alldap_db_pool_max",
+          "legendFormat": "max (상한)"
+        },
+        {
+          "refId": "D",
+          "expr": "alldap_db_pool_available",
+          "legendFormat": "available (노는 커넥션)"
+        },
+        {
+          "refId": "E",
+          "expr": "alldap_db_pool_open",
+          "legendFormat": "open (0 이면 위 선들은 의미 없음)"
         }
       ]
     }
