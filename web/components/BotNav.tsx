@@ -12,7 +12,7 @@ import { usePathname } from "next/navigation";
  *   (Next.js App Router 는 기본이 서버 컴포넌트다. 훅을 쓰는 부분만 클라이언트로 내린다.)
  */
 
-/** PRD §7 사이트맵의 /bot/[botId] 하위 5개 화면 */
+/** PRD §7 사이트맵의 /bot/[botId] 하위 화면들 */
 /*
  * 순서는 <사용자가 실제로 밟는 순서>다. 기능을 종류별로 묶은 목록이 아니다.
  *

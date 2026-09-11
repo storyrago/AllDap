@@ -188,9 +188,12 @@ public class GlobalExceptionHandler {
     /**
      * 아직 구현하지 않은 엔드포인트 → 501 Not Implemented.
      *
-     * <p><b>왜 필요한가.</b> 지금 이 저장소의 컨트롤러 상당수는 뼈대라
-     * {@code throw new UnsupportedOperationException("... 미구현 (W2)")} 만 들어 있다.
-     * 그대로 두면 마지막 {@code handleException} 으로 떨어져 <b>500 INTERNAL_ERROR</b> 가 나가는데,
+     * <p><b>왜 필요한가.</b> 이 저장소에서 {@code UnsupportedOperationException} 을 던지는 자리는
+     * 지금 <b>둘뿐이고, 둘 다 컨트롤러가 아니다</b>:
+     * {@code AiServiceClient.isHealthy}(W2 에 구현 예정)와
+     * {@code AiServiceClient.listDocuments}(호출자가 없어 <b>의도적으로 영구 미구현</b>).
+     * 처음에는 컨트롤러 뼈대들이 이걸 던졌다. 그대로 두면 마지막 {@code handleException} 으로
+     * 떨어져 <b>500 INTERNAL_ERROR</b> 가 나가는데,
      * 이건 두 가지로 해롭다.
      * <ol>
      *   <li><b>거짓말이다.</b> 서버가 고장난 게 아니라 아직 안 만든 것이다.
@@ -200,8 +203,11 @@ public class GlobalExceptionHandler {
      *       서버 로그를 봐야 했다. 501 이면 "인증은 통과했고 기능이 없을 뿐"이 응답에 드러난다.</li>
      * </ol>
      *
-     * <p>TODO: 각 엔드포인트를 구현하면서 해당 {@code UnsupportedOperationException} 을 지운다.
-     * 마지막 하나가 사라지면 이 핸들러도 함께 지울 것 — 남겨두면 진짜 버그를 501 로 감추게 된다.
+     * <p><b>이 핸들러를 지울 트리거는 없다.</b> 예전 주석은 "마지막
+     * {@code UnsupportedOperationException} 이 사라지면 이 핸들러도 함께 지울 것" 이라고 적어뒀지만,
+     * 남은 둘 중 {@code listDocuments} 는 의도적으로 영원히 미구현이라 그 조건이 발동하지 않는다.
+     * 지울지 말지는 그때 따로 판단해야 한다. 남겨두는 대가는 그대로다:
+     * 진짜 버그가 {@code UnsupportedOperationException} 으로 튀어나오면 501 로 감춰진다.
      */
     @ExceptionHandler(UnsupportedOperationException.class)
     public ResponseEntity<ErrorResponse> handleNotImplemented(UnsupportedOperationException e) {

@@ -66,7 +66,7 @@ export interface AuthResponse {
 
 /* ───────────────────────── 봇 (F-06) ───────────────────────── */
 
-/** bots 테이블(db/V1__init.sql) 과 1:1 대응 */
+/** bots 테이블(api/src/main/resources/db/migration/V1__init.sql) 과 1:1 대응 */
 export interface Bot {
   id: Uuid;
   name: string;
@@ -185,8 +185,8 @@ export interface ChatResponse {
   latencyMs: number;
   /**
    * 피드백(POST /api/messages/{msgId}/feedback)을 보내려면 메시지 id 가 필요하다.
-   * Python 은 이 값을 모르고, messages 행을 만드는 건 Spring 이므로 Spring 이 붙여줘야 한다.
-   * TODO(W2): Spring ChatResponse DTO 에 messageId 를 포함시킬 것. 없으면 피드백 UI 를 붙일 수 없다.
+   * Python 은 이 값을 모르고, messages 행을 만드는 건 Spring 이므로 Spring 이 붙여준다
+   * (api 의 ChatResponse 에 `UUID messageId` 가 들어 있다).
    */
   messageId?: Uuid;
 }
@@ -247,8 +247,9 @@ export interface LogsQuery {
 }
 
 /** 페이지네이션 공통 껍데기.
- *  TODO(W2): Spring 이 Spring Data Page 를 그대로 내리면 필드명이 다르다
- *            (content/totalElements/number ...). 실제 응답에 맞춰 고칠 것. */
+ *  Spring 이 Spring Data Page 를 그대로 내리지 않고 PageResponse 로 감싸
+ *  이 모양(items/page/size/totalElements/totalPages)을 고정한다.
+ *  (api 의 global/common/PageResponse.java) */
 export interface Paged<T> {
   items: T[];
   page: number;
@@ -424,7 +425,7 @@ export interface WidgetConfig {
   /**
    * ⚠️ PRD 와 DB 의 불일치:
    *    PRD F-04 / §8 은 "브랜드 색상 1종 커스텀"을 요구하는데
-   *    db/V1__init.sql 의 bots 테이블에는 색상 컬럼이 없다.
+   *    api/src/main/resources/db/migration/V1__init.sql 의 bots 테이블에는 색상 컬럼이 없다.
    * TODO(W2): bots 에 theme_color 컬럼을 추가하거나, 색상 커스텀을 MVP 에서 뺄 것.
    *           지금은 없을 수도 있다는 뜻으로 optional 로 둔다.
    */
