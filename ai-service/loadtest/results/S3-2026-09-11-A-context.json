@@ -1,0 +1,31 @@
+{
+  "run_id": "2026-09-11-A",
+  "round": "A",
+  "round_why": "동시 폭주에서 카운터가 새는가",
+  "commit": "a6d3b51969ccbcbe9b4bb741a7f509eb1fc9b2d7",
+  "started_at": "2026-09-11T13:20:00.021",
+  "started_at_ms": 1789100400000,
+  "window_index": 29818340,
+  "ms_left_in_window": 60000,
+  "api_base": "http://localhost:8080",
+  "actuator_base": "http://localhost:8081",
+  "public_key": "pk_s3loadtestFAKEkeyAAAAA",
+  "public_key_2": null,
+  "widget_chat_per_minute": {
+    "value": 20,
+    "source": "driver"
+  },
+  "ratelimit_recorded_before": null,
+  "ratelimit_keys_gauge_before": 1.0,
+  "expected_total": 100,
+  "expected_pass": 20,
+  "watched_status": [
+    404,
+    429,
+    400,
+    200,
+    0,
+    500,
+    503
+  ]
+}

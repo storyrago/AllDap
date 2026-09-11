@@ -1,0 +1,31 @@
+{
+  "run_id": "2026-09-11-C",
+  "round": "C",
+  "round_why": "publicKey 축으로 버킷이 갈리는가",
+  "commit": "a6d3b51969ccbcbe9b4bb741a7f509eb1fc9b2d7",
+  "started_at": "2026-09-11T13:25:00.022",
+  "started_at_ms": 1789100700004,
+  "window_index": 29818345,
+  "ms_left_in_window": 59996,
+  "api_base": "http://localhost:8080",
+  "actuator_base": "http://localhost:8081",
+  "public_key": "pk_s3loadtestFAKEkeyAAAAA",
+  "public_key_2": "pk_s3loadtestFAKEkeyBBBBB",
+  "widget_chat_per_minute": {
+    "value": 20,
+    "source": "driver"
+  },
+  "ratelimit_recorded_before": null,
+  "ratelimit_keys_gauge_before": 7.0,
+  "expected_total": 200,
+  "expected_pass": 40,
+  "watched_status": [
+    404,
+    429,
+    400,
+    200,
+    0,
+    500,
+    503
+  ]
+}

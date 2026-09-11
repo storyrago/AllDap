@@ -1,0 +1,31 @@
+{
+  "run_id": "2026-09-11-B",
+  "round": "B",
+  "round_why": "고정 윈도우 경계에서 2N 이 통과하는가",
+  "commit": "a6d3b51969ccbcbe9b4bb741a7f509eb1fc9b2d7",
+  "started_at": "2026-09-11T13:22:00.021",
+  "started_at_ms": 1789100520003,
+  "window_index": 29818342,
+  "ms_left_in_window": 59997,
+  "api_base": "http://localhost:8080",
+  "actuator_base": "http://localhost:8081",
+  "public_key": "pk_s3loadtestFAKEkeyAAAAA",
+  "public_key_2": null,
+  "widget_chat_per_minute": {
+    "value": 20,
+    "source": "driver"
+  },
+  "ratelimit_recorded_before": null,
+  "ratelimit_keys_gauge_before": 3.0,
+  "expected_total": 40,
+  "expected_pass": 40,
+  "watched_status": [
+    404,
+    429,
+    400,
+    200,
+    0,
+    500,
+    503
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "run_id": "2026-09-11-B",
+  "round": "B",
+  "finished_at": "2026-09-11T13:23:07.502",
+  "limit": {
+    "value": 20,
+    "source": "driver"
+  },
+  "counts": {
+    "404": 40,
+    "429": 0,
+    "400": 0,
+    "200": 0,
+    "0": 0,
+    "500": 0,
+    "503": 0
+  },
+  "expected_total": 40,
+  "expected_pass": 40,
+  "ratelimit_recorded_before": null,
+  "ratelimit_recorded_after": null,
+  "verdicts": [
+    "OK   통과: 404 40건 · 429 0건 (기대 40 / 0, 한도 20 × 2).",
+    "무효: alldap_ratelimit_recorded_total{bucket=widget-chat} 시계열이 실행 뒤에도 없다. 제한기를 한 번도 안 지났다는 뜻이다."
+  ],
+  "valid": false,
+  "valid_means": "이 판의 상태코드 히스토그램이 기대와 정확히 일치한다는 뜻이다."
+}

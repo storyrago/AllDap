@@ -1,0 +1,31 @@
+{
+  "run_id": "2026-09-11-N",
+  "round": "N",
+  "round_why": "음성 대조 — 한도를 100000 으로 두면 429 가 한 건도 없어야 한다",
+  "commit": "a6d3b51969ccbcbe9b4bb741a7f509eb1fc9b2d7",
+  "started_at": "2026-09-11T13:18:25.356",
+  "started_at_ms": 1789100305346,
+  "window_index": 29818338,
+  "ms_left_in_window": 34654,
+  "api_base": "http://localhost:8080",
+  "actuator_base": "http://localhost:8081",
+  "public_key": "pk_s3loadtestFAKEkeyAAAAA",
+  "public_key_2": null,
+  "widget_chat_per_minute": {
+    "value": 100000,
+    "source": "driver"
+  },
+  "ratelimit_recorded_before": null,
+  "ratelimit_keys_gauge_before": 1.0,
+  "expected_total": 100,
+  "expected_pass": null,
+  "watched_status": [
+    404,
+    429,
+    400,
+    200,
+    0,
+    500,
+    503
+  ]
+}
