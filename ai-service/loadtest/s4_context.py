@@ -96,7 +96,7 @@ def read_circuit_state(prom_text: str) -> tuple[str, float | None]:
 
     🔴 시계열이 없을 때 "closed" 를 돌려주면 안 된다. 그건 <닫혔다> 가 아니라
        <못 읽었다> 이고, 둘을 뭉개면 "회복을 확인했다" 고 믿은 채 다음 판을 시작한다.
-       이 저장소가 일곱 번 낸 부류를 회복 확인에서 다시 밟는 셈이 된다.
+       AGENTS.md 의 "낸 버그" 절이 모아둔 부류를 회복 확인에서 다시 밟는 셈이 된다.
     """
     value = parse_prom_counter(prom_text, "alldap_ai_circuit_state", {})
     if value is None:
