@@ -85,9 +85,11 @@ public class Message extends BaseEntity {
      * 응답으로 내려줄 때만 파싱하면 된다. 객체로 매핑하면 Python 이 Source 스키마를 바꿀 때마다
      * 과거 로그를 못 읽는 문제가 생긴다.
      *
-     * <p>TODO(W2): 응답 DTO 로 변환할 때 이 문자열을 {@code List<SourceResponse>} 로 파싱할 것
-     *   (ObjectMapper.readValue). 파싱 실패는 로그만 남기고 sources 를 비워 응답하는 편이 안전하다 —
-     *   과거 로그 한 건 때문에 목록 전체가 500 이 되면 안 된다.
+     * <p>✅ 응답 DTO 변환은 <b>이미 이렇게 하고 있다</b>(옛 TODO 를 지운 자리다).
+     *   {@code ConversationLogService} 가 {@code ObjectMapper} 로 파싱해
+     *   {@code MessageResponse.sources} 에 담고, <b>파싱에 실패해도 예외를 던지지 않는다</b>:
+     *   {@code catch (RuntimeException)} 에서 로그만 남기고 그 메시지를 근거 없이 내려보낸다.
+     *   과거 로그 한 건의 JSON 이 깨졌다고 대화 전체가 500 이 되면 안 되기 때문이다.
      */
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "sources")

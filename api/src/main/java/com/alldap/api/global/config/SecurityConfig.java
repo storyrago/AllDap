@@ -65,7 +65,9 @@ public class SecurityConfig {
                         // 가입·로그인은 당연히 토큰 없이 호출된다.
                         .requestMatchers("/api/auth/signup", "/api/auth/login").permitAll()
                         // 위젯 API. 고객 사이트에 심긴 위젯이 부르므로 JWT 가 없다.
-                        // 보호는 publicKey + Origin 검증 + rate limit 으로 한다. TODO(W2)
+                        // 보호는 publicKey + Origin 검증 + rate limit 으로 한다. 셋 다 구현돼 있다
+                        // (WidgetController 참고). 2026-09-09 에 운영에서 rate limit 이 실제로
+                        // 429 를 내는 것까지 확인했다: docs/DEPLOY.md §9.
                         .requestMatchers("/api/w/**").permitAll()
                         // 헬스체크와 Prometheus 스크레이프만 공개. 나머지 actuator 엔드포인트는 인증을 요구한다.
                         // 🔴 이 두 줄은 <management 포트(8081)에도> 적용된다. Boot 4 는 management 포트를
