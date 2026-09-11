@@ -1,0 +1,13 @@
+alldap_ai_call_seconds_count{operation="chat",outcome="circuit_open"} 253180
+alldap_ai_call_seconds_sum{operation="chat",outcome="circuit_open"} 3.483096697
+alldap_ai_call_seconds_count{operation="chat",outcome="connect_failure"} 68
+alldap_ai_call_seconds_sum{operation="chat",outcome="connect_failure"} 14.015177668
+alldap_ai_call_seconds_count{operation="chat",outcome="success"} 721
+alldap_ai_call_seconds_sum{operation="chat",outcome="success"} 1210.698370925
+# HELP alldap_ai_circuit_transition_total 서킷 상태가 바뀐 횟수
+# TYPE alldap_ai_circuit_transition_total counter
+alldap_ai_circuit_transition_total{to="closed"} 2.0
+alldap_ai_circuit_transition_total{to="open"} 4.0
+# HELP alldap_ai_retry_total 연결 실패로 Python 호출을 다시 시도한 횟수
+# TYPE alldap_ai_retry_total counter
+alldap_ai_retry_total{operation="chat"} 68.0

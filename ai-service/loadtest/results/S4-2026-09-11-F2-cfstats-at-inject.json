@@ -1,0 +1,1 @@
+{"counts": {"@cf/baai/bge-m3": 1442, "@cf/baai/bge-reranker-base": 1442, "@cf/meta/llama-3.3-70b-instruct-fp8-fast": 1442}, "latency_ms": {"embed": 235, "rerank": 414, "generate": 937}, "vector_mode": "db", "fault": {"mode": "none", "status": 500, "injected": 1}, "vector_bot_id": "628d2785-a128-486c-a1ac-556f19f06de3"}

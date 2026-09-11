@@ -1,0 +1,44 @@
+{
+  "run_id": "2026-09-11-F3",
+  "round": "F3",
+  "round_why": "rerank 조용한 실패 — 모든 외부 신호가 안 바뀌는 것이 산출물",
+  "round_how": "가짜 CF 가 리랭커 호출에만 500 을 낸다. 지연은 그대로 유지한다.",
+  "fault_mode": "error_rerank",
+  "commit": "071e8bbd76ce0e3c8f3b10c6198aafac51cfaa3c",
+  "started_at": "2026-09-11T13:40:54",
+  "api_base": "http://localhost:8080",
+  "actuator_base": "http://localhost:8081",
+  "cf_base": "http://127.0.0.1:9001",
+  "operation": "chat",
+  "bot": {
+    "id": "628d2785-a128-486c-a1ac-556f19f06de3",
+    "name": "W2 검증 봇",
+    "document_count": 50
+  },
+  "vus": 20,
+  "normal_seconds": 60,
+  "inject_seconds": 90,
+  "signals_before": {
+    "outcomes": {
+      "success": 1442.0,
+      "circuit_open": 488807.0,
+      "connect_failure": 68.0,
+      "read_timeout": null,
+      "connection_lost": null,
+      "python_5xx": 73.0,
+      "python_4xx": null,
+      "answer_incomplete": null,
+      "decode_error": null
+    },
+    "retry": 68.0,
+    "transitions": {
+      "open": 8.0,
+      "closed": 4.0,
+      "half_open": null
+    },
+    "circuit_state": "closed",
+    "circuit_state_raw": 0.0,
+    "fault_injected": 74,
+    "fault_mode": "none"
+  }
+}
