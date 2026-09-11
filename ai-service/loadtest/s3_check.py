@@ -160,6 +160,24 @@ def main() -> int:
     check("없는 라벨은 None (0.0 이 아니다)",
           parse_prom_counter(text, "alldap_ratelimit_rejected_total", {"bucket": "widget-chat"}) is None)
 
+    print("\nparse_prom_counter — 이름이 <접두사만> 같은 줄을 집지 않는가")
+    # 🔴 2026-09-11. RateLimiter 가 등록하는 alldap.ratelimit.keys(게이지)와
+    #    alldap.ratelimit.keys.cleared(카운터)는 Micrometer 를 거치면
+    #    alldap_ratelimit_keys 와 alldap_ratelimit_keys_cleared_total 이 되어
+    #    <앞이 뒤의 접두사>다. 게다가 이 조회는 라벨 조건이 {} 라 빈 시퀀스의 all() 이
+    #    True 가 되어 라벨로도 걸러지지 않는다. 즉 경계 검사가 없으면 두 줄이 다 통과하고
+    #    <먼저 나오는 줄이 이긴다>. 지금까지 값이 맞았던 이유는 파서가 아니라
+    #    prometheus-metrics 1.x 의 알파벳 순 출력이었고, 파서에는 그 순서에 기댄다는
+    #    근거가 한 줄도 없었다. 그래서 <줄 순서를 뒤집어도 같은 값>까지 단언한다.
+    gauge_line = "alldap_ratelimit_keys 3.0\n"
+    cleared_line = "alldap_ratelimit_keys_cleared_total 1.0\n"
+    for order, body in (("노출 순", gauge_line + cleared_line),
+                        ("뒤집은 순", cleared_line + gauge_line)):
+        got = parse_prom_counter(body, "alldap_ratelimit_keys", {})
+        check(f"게이지가 _cleared_total 줄을 집지 않는다({order})", got == 3.0, f"({got!r})")
+        got = parse_prom_counter(body, "alldap_ratelimit_keys_cleared_total", {})
+        check(f"긴 이름 쪽도 제 값을 읽는다({order})", got == 1.0, f"({got!r})")
+
     print(f"\n{'실패 ' + ', '.join(_failures) if _failures else '전부 통과'}")
     return 1 if _failures else 0
 
