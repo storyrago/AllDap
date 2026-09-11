@@ -158,7 +158,7 @@ export default function DiagnosticsPage() {
         {/*
           스캔 결과를 <네 숫자 그대로> 보여준다.
           "모순 0건"만 말하면 "깨끗해서 0건"과 "못 재서 0건"이 구분되지 않는다.
-          이 프로젝트가 그 부류의 버그를 네 번 냈다.
+          이 프로젝트가 그 부류의 버그를 반복해 냈다(AGENTS.md 의 "낸 버그" 절).
         */}
         {lastScan && (
           <div className="rounded-md border border-subtle bg-background p-3 text-xs">

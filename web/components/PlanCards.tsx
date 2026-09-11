@@ -59,7 +59,7 @@ export function PlanCards() {
    * 🔴 "아직 안 불러왔다" 와 "불러오려다 실패했다" 를 <가른다> (2026-09-08 코드 리뷰).
    *    전에는 둘 다 null 이라, 요청이 실패하면 바꾸기 버튼이 <이유 없이> 사라졌다.
    *    /account 의 "요금제 바꾸기" 로 온 사람이 정확히 이 화면을 만난다.
-   *    이 저장소가 반복해 낸 부류다 (AGENTS.md "낸 버그 5건" 은 전부 이 모양이다).
+   *    이 저장소가 반복해 낸 부류다 (AGENTS.md 의 "낸 버그" 절이 전부 이 모양이다).
    */
   const [plan, setPlan] = useState<PlanId | null>(null);
   const [planFailed, setPlanFailed] = useState(false);

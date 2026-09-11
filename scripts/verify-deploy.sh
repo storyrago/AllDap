@@ -93,7 +93,8 @@ for svc in "${services[@]}"; do
   want=$(layers "$tag")
 
   # 🔴 "컨테이너가 도는 이미지를 로컬에서 못 찾는 것" 은 "옛 이미지로 돈다" 와 다른 사실이다.
-  #    같은 값으로 뭉개지 말 것(이 저장소가 일곱 번 낸 부류다). 판정 불가로 따로 실패시킨다.
+  #    같은 값으로 뭉개지 말 것(이 저장소가 반복해 낸 부류다 — AGENTS.md 의 "낸 버그" 절).
+  #    판정 불가로 따로 실패시킨다.
   himg=$(docker inspect -f '{{.Image}}' "$cid")
   if ! have=$(layers "$himg" 2>/dev/null); then
     echo "::error::$svc 가 도는 이미지(${himg:0:19})를 로컬에서 찾을 수 없다. 대조 자체가 불가능하다."

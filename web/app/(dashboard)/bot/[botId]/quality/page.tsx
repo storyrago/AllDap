@@ -266,8 +266,9 @@ function fmt(v: number | null | undefined): string {
  * 넷을 같은 크기로 그리면 "아무거나 봐도 된다"는 <설계상의 거짓말>이 된다.
  * 그래서 믿을 수 있는 하나만 크게 두고 나머지는 한 줄로 낮췄다.
  *
- * 그리고 큰 숫자 옆에는 <항상 분모 막대>가 붙는다. 이 프로젝트가 낸 버그 셋 중
- * 둘이 "분모를 안 보고 평균을 읽은 것"이었다. 숫자만 크게 그리면 같은 실수를 부른다.
+ * 그리고 큰 숫자 옆에는 <항상 분모 막대>가 붙는다. 이 프로젝트가 낸 버그 가운데
+ * 둘이 "분모를 안 보고 평균을 읽은 것"이었다(AGENTS.md 의 "낸 버그" 절).
+ * 숫자만 크게 그리면 같은 실수를 부른다.
  */
 function MeasurementBand({ run, results }: { run: EvalRun | null; results: EvalResult[] }) {
   const scored = run?.scoredCount ?? null;

@@ -44,7 +44,7 @@ type Msg =
   | { role: "me"; text: string }
   /* isError 는 <서버가 답을 못 준 것>이고 isFallback 은 <근거가 없어 답하지 않은 것>이다.
      원인이 다른 두 사실이라 한 모양으로 뭉개면 안 된다 — 이 저장소가 지표에서 같은
-     부류의 실수를 네 번 냈다(AGENTS.md "낸 버그 4건"). 화면에서도 갈라 보여준다. */
+     부류의 실수를 반복해 냈다(AGENTS.md 의 "낸 버그" 절). 화면에서도 갈라 보여준다. */
   | { role: "bot"; text: string; sources: Source[]; isFallback: boolean; isError?: boolean };
 
 /**
