@@ -46,7 +46,7 @@ import httpx
 # 파서는 loadtest/promtext.py 한 벌만 있다. 여기서 import 해 <이 모듈의 이름으로도>
 # 남겨두므로, 이 파일에서 parse_prom_counter 를 가져다 쓰던 곳(s3_check · s4_check)은
 # 한 줄도 고치지 않아도 그대로 돈다.
-from loadtest.promtext import parse_prom_counter
+from loadtest.promtext import MetricUnreadable, parse_prom_counter
 
 RESULTS = Path(__file__).parent / "results"
 
@@ -287,7 +287,17 @@ def cmd_before(args) -> int:
 
     # ② 제한기 계측이 살아 있는지. keys 게이지는 <거절이 0이어도 항상> 나온다.
     text = _actuator_text(args.actuator)
-    keys_gauge = parse_prom_counter(text, "alldap_ratelimit_keys", {})
+    # 🔴 `is None` 하나로는 <계측이 죽어 NaN 인 것>을 못 잡는다. float("NaN") 이 예외를
+    #    내지 않아 그대로 통과하기 때문이다. 파서가 이제 그것을 예외로 갈라주므로
+    #    여기서 <없다>와 <죽었다>를 각각 안내한다. 손쓸 곳이 다르다.
+    try:
+        keys_gauge = parse_prom_counter(text, "alldap_ratelimit_keys", {})
+    except MetricUnreadable as exc:
+        raise SystemExit(
+            f"중단: alldap_ratelimit_keys 게이지는 <있는데> 값을 못 읽었다. ({exc}) "
+            "포트나 내보내기 문제가 아니라 게이지 쪽이다. 이 상태로는 '거절 0' 과 "
+            "'계측이 안 붙었다' 를 구별할 수 없으므로 이 판을 시작하지 말 것."
+        ) from exc
     if keys_gauge is None:
         raise SystemExit(
             "중단: alldap_ratelimit_keys 게이지가 없다. management 포트(8081)가 아니거나 "
