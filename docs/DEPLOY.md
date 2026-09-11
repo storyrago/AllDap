@@ -451,7 +451,8 @@ ssh -i <키> ubuntu@<탄력적IP> 'docker logs $(docker ps -qf name=alldap-api) 
 `Caddyfile` 은 3번에서 `up -d` 로는 갱신되지 않는다(아래 4번 참고).
 
 ```bash
-# 1. git pull — Caddyfile 은 bind mount(docker-compose.prod.yml:94, `./Caddyfile:/etc/caddy/Caddyfile:ro`)라
+# 1. git pull — Caddyfile 은 bind mount(`docker-compose.prod.yml` 의 caddy 서비스 volumes 에 있는
+#    `./Caddyfile:/etc/caddy/Caddyfile:ro`)라
 #    이미지 안이 아니라 서버 디스크의 파일을 그대로 읽는다. 서버에 새 Caddyfile 이 없으면
 #    아래 어떤 명령을 돌려도 옛 설정 그대로다.
 git pull
