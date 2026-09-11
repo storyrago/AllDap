@@ -17,7 +17,8 @@ import time
 import anyio
 import anyio.to_thread
 
-from app import metrics
+from app import db, metrics
+from app.config import get_settings
 
 _failures: list[str] = []
 
@@ -42,9 +43,13 @@ async def _scenario() -> None:
     check("유휴 borrowed == 0", _value("alldap_anyio_threads_borrowed") == 0.0,
           f"(={_value('alldap_anyio_threads_borrowed')})")
     total = _value("alldap_anyio_threads_total")
-    # 🔴 40 은 <설정값이 아니라 anyio 기본값>이다. 버전이 올라가 이 값이 바뀌면
-    #    Grafana 의 "40 에 붙었다" 판정이 조용히 거짓이 된다. 그래서 검사로 못 박는다.
-    check("total_tokens == 40 (anyio 기본값)", total == 40.0, f"(={total})")
+    # 🔴 여기는 lifespan 을 안 거친 <맨 루프>라 anyio 기본값이 그대로 보인다.
+    #    2026-09-10 S2 를 잰 조건이 이 값(40)이었으므로 before/after 를 대조할 때
+    #    필요한 숫자다. 다만 <실패로 만들지 않는다>: 이제 상한은 lifespan 이
+    #    설정값으로 덮어쓰므로, anyio 가 기본값을 바꿔도 우리 동작은 안 바뀐다.
+    #    안 바뀐 것을 빨간불로 부르면 이 저장소가 이미 겪은 "정상을 실패로 부르는
+    #    검사" 가 하나 더 느는 것이다. 실제로 지켜야 할 약속은 아래 ⑤ 가 검사한다.
+    print(f"  ..   anyio 기본값(참고, S2 는 이 값으로 쟀다) total_tokens={total}")
 
     # ② 스레드 3개를 점유한 상태: borrowed 가 따라 올라간다
     async def occupy() -> None:
@@ -88,8 +93,51 @@ def main() -> int:
             "alldap_anyio_threads_total",
             "alldap_chat_duration_seconds",
             "alldap_chat_inflight",
+            "alldap_db_pool_size",
+            "alldap_db_pool_max",
+            "alldap_db_pool_available",
+            "alldap_db_pool_requests_waiting",
+            "alldap_db_pool_open",
         ):
             check(f"본문에 {name}", name in body)
+
+        # ⑤ 🔴 이 검사가 이 파일의 핵심이 됐다. lifespan 이 상한을 <실제로> 올렸는가.
+        #    TestClient 를 with 로 써야 lifespan 이 돈다(그냥 호출하면 안 돈다).
+        #    안 돌면 상한은 anyio 기본값 그대로인데 설정 파일에는 80 이 적혀 있어,
+        #    "80 으로 올리고 쟀다" 는 <틀린 문장>이 리포트에 남는다.
+        want = get_settings().anyio_max_threads
+        got = _value("alldap_anyio_threads_total")
+        check(f"lifespan 적용 후 total == 설정값({want})", got == float(want), f"(={got})")
+
+        # ⑥ 풀을 안 만졌으니 open == 0. 🔴 "풀이 없다" 와 "풀이 비었다" 를 가르는
+        #    지표라, 이게 1 로 나오면 <지표를 긁는 행위가 풀을 만든 것>이다.
+        check("DB 풀 미사용 시 open == 0", _value("alldap_db_pool_open") == 0.0,
+              f"(={_value('alldap_db_pool_open')})")
+        check("지표 수집이 풀을 만들지 않는다", db._pool is None)
+
+    # ⑦ 가짜 풀을 끼워 매핑을 확인한다. DB 없이 도는 검사라 CI 에서 돈다.
+    #    네 값이 서로 <다른 자리>로 가는지를 본다 — 뒤바뀌어도 그래프는 멀쩡해 보이고,
+    #    그때 "커넥션을 기다렸다" 를 "커넥션이 놀았다" 로 읽게 된다.
+    class _StubPool:
+        def get_stats(self) -> dict:
+            return {"pool_size": 7, "pool_max": 10, "pool_available": 2,
+                    "requests_waiting": 5, "requests_num": 123}
+
+    db._pool = _StubPool()
+    try:
+        metrics.sample_db_pool()
+        check("open == 1", _value("alldap_db_pool_open") == 1.0)
+        check("size == 7", _value("alldap_db_pool_size") == 7.0)
+        check("max == 10", _value("alldap_db_pool_max") == 10.0)
+        check("available == 2", _value("alldap_db_pool_available") == 2.0)
+        check("waiting == 5", _value("alldap_db_pool_requests_waiting") == 5.0)
+    finally:
+        db._pool = None
+
+    # ⑧ 풀이 사라지면 다시 0 으로 돌아간다. 게이지는 마지막 값을 계속 들고 있으므로
+    #    이걸 안 하면 <꺼진 풀의 옛 숫자>가 계속 그려진다.
+    metrics.sample_db_pool()
+    check("풀이 없어지면 open == 0", _value("alldap_db_pool_open") == 0.0)
 
     print(f"\n{'실패 ' + ', '.join(_failures) if _failures else '전부 통과'}")
     return 1 if _failures else 0

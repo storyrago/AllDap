@@ -12,6 +12,7 @@ import time
 from contextlib import asynccontextmanager
 from uuid import UUID
 
+import anyio.to_thread
 from fastapi import BackgroundTasks, FastAPI, File, HTTPException, Response, UploadFile
 
 from . import cf, conflicts, evaluator, evalrun, metrics, retriever
@@ -47,8 +48,42 @@ logging.basicConfig(
 _log = logging.getLogger(__name__)
 
 
+def _apply_thread_limit() -> None:
+    """anyio 기본 스레드풀 상한을 설정값(anyio_max_threads)으로 올린다.
+
+    왜 여기인가
+    ─────────────────────────────────────────────────────────────────────────
+    🔴 current_default_thread_limiter() 는 RunVar 다. <이벤트 루프 스레드>에서만
+       만질 수 있고, 워커 스레드에서 부르면 NoEventLoopError 로 죽는다(실측).
+       lifespan 은 uvicorn 이 루프 위에서 직접 돌리는 유일한 초기화 지점이라
+       이 제약을 만족하는 자리가 여기뿐이다. 아래 chat() 주석의 제약과 같은 이야기다.
+
+    왜 <기본값 40 에 기대지 않는가>
+    ─────────────────────────────────────────────────────────────────────────
+    40 은 우리가 정한 수가 아니라 anyio 기본값이었다. 2026-09-10 S2 에서 그 40 이
+    처리량 천장(24.0 req/s = 40 ÷ 1.68초)을 정하는 <병목 그 자체>로 확정됐다.
+    근거와 80 을 고른 이유는 config.Settings.anyio_max_threads 주석에 있다.
+
+    ⚠️ 올린 <효과는 이 PR 에서 재지 않았다>. 재측정(S2 재실행)은 별도다.
+    """
+    s = get_settings()
+    limiter = anyio.to_thread.current_default_thread_limiter()
+    before = limiter.total_tokens
+    limiter.total_tokens = s.anyio_max_threads
+    # 🔴 기동 로그에 <이전 값과 함께> 남긴다. 나중 측정에서 "그날 몇이었지" 를
+    #    설정 파일이 아니라 그 실행의 로그로 확인할 수 있어야 한다(S2 가 시작 조건을
+    #    파일로 남기는 것과 같은 이유). 값만 적으면 라이브러리 기본값이 바뀐 날
+    #    <무엇이 달라졌는지>를 못 가른다.
+    _log.info(
+        "anyio 기본 스레드풀 상한: %s -> %s (설정 ANYIO_MAX_THREADS)",
+        before,
+        limiter.total_tokens,
+    )
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    _apply_thread_limit()
     yield
     close_pool()
 
