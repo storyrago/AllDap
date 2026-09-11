@@ -228,6 +228,7 @@ jobs:
           python -m app.conflicts_check
           python -m app.metrics_check
           python -m loadtest.fake_cf_check
+          python -m loadtest.s3_check
 
       # TODO(W3): ruff 를 requirements-dev.txt 에 추가하고 `ruff check app` 단계 추가
       # TODO(W3): pytest 기반 테스트가 생기면 `pytest` 단계 추가
