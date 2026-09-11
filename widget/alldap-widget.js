@@ -25,7 +25,8 @@
  *
  * 이 파일의 책임은 딱 4가지다.
  *   ① data-public-key 읽기
- *   ② GET /api/w/{publicKey}/config 로 봇 이름·색상 받아 플로팅 버튼 꾸미기
+ *   ② GET /api/w/{publicKey}/config 로 봇 이름 받아 플로팅 버튼 꾸미기
+ *      (색은 config 가 아니라 설치 코드의 data-primary-color 에서 온다. 아래 [색상] 참고)
  *   ③ 버튼 클릭 시 채팅창(iframe) 열고 닫기 — 데스크톱은 창, 모바일은 전체화면
  *   ④ iframe 안의 페이지와 postMessage 로 신호 주고받기
  *
@@ -194,14 +195,23 @@
   var API_BASE = resolveApiBase();
   var APP_BASE = resolveAppBase();
 
-  /* config 응답이 오기 전까지 쓸 기본값.
-     TODO: bots 테이블에 색상 컬럼이 아직 없다
-       (`api/src/main/resources/db/migration/` 의 마이그레이션 전부를 확인했다.
-        루트 `db/` 는 2026-07-31 Flyway 이관으로 없어진 경로다).
-       PRD F-04 는 "브랜드 색상 1종 커스텀"을 요구하므로 둘 중 하나가 필요하다.
-         (1) 마이그레이션으로 bots.primary_color 추가 → config 응답에 포함  ← 본래 방향
-         (2) 그때까지는 설치 코드의 data-primary-color 로 임시 지정
-       지금은 (2)로 동작하고, (1)이 생기면 config 값이 우선하도록 되어 있다. */
+  /* [색상] 버튼 색이 어디서 오는가: 지금은 config 가 아니다.
+
+     ⚠️ 이 값의 <유일한> 출처는 설치 코드의 data-primary-color 속성(없으면 기본값)이다.
+     GET /api/w/{publicKey}/config 는 색을 실어 보내지 않는다. bots 테이블에 색상 컬럼이
+     없어서(`api/src/main/resources/db/migration/` 의 마이그레이션 V8 까지 확인했다.
+     루트 `db/` 는 2026-07-31 Flyway 이관으로 없어진 경로다) Spring 의
+     WidgetConfigResponse.from 이 색 자리에 null 을 박아 넣는다.
+
+     PRD F-04 는 "브랜드 색상 1종 커스텀"을 요구하므로 언젠가 컬럼을 추가해야 한다.
+     그때 <반드시> 같이 볼 것: 아래 applyConfig 는 data.primaryColor 를 읽는데
+     Spring·프론트가 쓰는 이름은 themeColor 다(WidgetConfigResponse · web/lib/types.ts).
+     지금은 서버가 어차피 null 이라 드러나지 않지만, 컬럼만 추가하고 이름을 안 맞추면
+     **색이 조용히 무시된다.**
+     ⚠️ 컬럼 이름 후보부터 두 갈래다: api/ 의 WidgetConfigResponse TODO 는 theme_color 를,
+     여기 옛 주석과 demo.html 은 bots.primary_color 를 가리킨다. 어느 쪽으로 갈지는
+     그 슬라이스에서 정할 일이라 이 파일에서는 고르지 않았다. "config 값이 우선한다" 고만 적혀 있던 옛 주석은
+     그래서 사실이 아니었다. 이름이 다르면 우선할 기회조차 없다. */
   var settings = {
     botName: '문의 도우미',
     primaryColor: selfScript.getAttribute('data-primary-color') || '#2563eb'
@@ -539,6 +549,10 @@
       titleEl.textContent = data.botName;
       launcher.setAttribute('aria-label', data.botName + ' 열기');
     }
+    /* ⚠️ 이 분기는 지금 <한 번도 실행되지 않는다.> 서버는 색 필드를 themeColor 라는
+       이름으로 내려보내고, 그나마도 항상 null 이다(위 [색상] 주석 참고).
+       지우지 않고 두는 이유는 컬럼이 생겼을 때 붙일 자리가 여기라서고,
+       그때 이름을 맞추는 것이 첫 할 일이다. */
     if (data.primaryColor) {
       settings.primaryColor = data.primaryColor;
       styleEl.textContent = buildCss(data.primaryColor);   // 색만 바꿔 CSS 를 다시 만든다
@@ -552,7 +566,7 @@
    * 설정은 "처음 열 때" 딱 한 번만 가져온다.
    * 페이지가 열리자마자 요청하면 채팅을 쓰지 않는 방문자에게도 네트워크 비용이 든다.
    * 남의 사이트에 얹히는 코드라 이런 비용에 인색해야 한다.
-   * (대신 버튼 색은 그전까지 data-primary-color 또는 기본값을 쓴다)
+   * (버튼 색은 이 응답과 무관하다. 언제나 data-primary-color 또는 기본값이다)
    */
   function ensureConfig() {
     if (configLoaded) { return; }

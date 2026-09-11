@@ -150,7 +150,10 @@ python3 -m http.server 5500
      bots 테이블에 색상 컬럼이 아직 없어서 임시로 여기서 지정한다.
      (스키마는 api/src/main/resources/db/migration/ 이 단일 진실 공급원이다.
       루트 db/ 는 2026-07-31 Flyway 이관으로 없어진 경로다)
-     TODO: bots.primary_color 를 추가하고 config 응답에 실으면 이 속성은 불필요해진다.
+     TODO: 색상 컬럼을 추가하고 config 응답에 실으면 이 속성은 불필요해진다.
+     ⚠️ 다만 <컬럼만 추가하면 되는 것이 아니다.> 로더(applyConfig)는 data.primaryColor 를
+     읽는데 Spring·프론트가 쓰는 이름은 themeColor 다. 이름을 안 맞추면 컬럼을 추가해도
+     색이 조용히 무시된다. (alldap-widget.js 의 [색상] 주석 참고)
 -->
 <script src="./alldap-widget.js"
         data-public-key="pk_local_dev"
