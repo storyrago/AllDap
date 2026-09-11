@@ -247,7 +247,10 @@ origin이 다르니 스크립트 주소만으로는 채팅 페이지 위치를 �
 
 ## W2 할 일 (전부 끝났다)
 
-- [x] Spring `GET /api/w/{publicKey}/config` (응답 `{ botName, welcomeMessage, primaryColor }`, camelCase)
+- [x] Spring `GET /api/w/{publicKey}/config` (응답 `{ botName, welcomeMessage, themeColor }`, camelCase)
+      ⚠️ 색 필드 이름은 `themeColor` 이고 **값은 항상 null 이다**(아래 "알려진 갭" 2번).
+      로더가 읽는 이름은 `primaryColor` 라 서로 다르다. 이 줄이 옛 이름으로 적혀 있어서
+      `[x]` 체크와 맞물려 "확인된 사실" 처럼 읽혔다.
 - [x] Spring `POST /api/w/{publicKey}/chat` (rate limit 포함)
 - [x] Spring `POST /api/messages/{msgId}/feedback` (👍/👎)
 - [x] **CORS 허용** (남의 도메인에서 호출되므로 CORS 없이는 무조건 막힌다)
@@ -287,11 +290,16 @@ PRD F-04는 "브랜드 색상 1종 커스텀"을 요구하는데 `bots` 에 색�
 (`api/src/main/resources/db/migration/` 의 마이그레이션 전부를 확인했다. V8 까지 없다).
 지금은 `data-primary-color` 속성으로 우회한다. config 응답의 색 필드(`themeColor`)는
 **항상 null** 이다 (`WidgetConfigResponse.from` 이 그 자리에 `null` 을 박아 넣는다).
-→ `bots.primary_color` 를 추가하고 config 응답에 실으면 이 속성은 불필요해진다.
+→ 색상 컬럼을 추가하고 config 응답에 실으면 이 속성은 불필요해진다.
 ⚠️ 그때 **이름부터 맞출 것.** 로더(`applyConfig`)는 `data.primaryColor` 를 읽는데
 Spring·프론트가 쓰는 이름은 `themeColor` 라, 컬럼만 추가하면 색이 조용히 무시된다.
-(스키마 변경은 `api/src/main/resources/db/migration/` 의 Flyway 마이그레이션이 단일 진실 공급원.
-Spring `ddl-auto` 로 컬럼을 만들면 안 된다. `V2__add_bot_primary_color.sql` 같은 새 파일로 추가할 것)
+컬럼 이름 후보도 두 갈래다: `api/` 의 `WidgetConfigResponse` TODO 는 `theme_color`,
+이 저장소의 옛 주석들은 `bots.primary_color` 를 가리킨다.
+
+스키마 변경은 `api/src/main/resources/db/migration/` 의 Flyway 마이그레이션이 단일 진실 공급원이고
+Spring `ddl-auto` 로 컬럼을 만들면 안 된다. ⚠️ **다음 번호는 `V9` 다**(`V9__bot_theme_color.sql` 식).
+이 자리에 예시로 적혀 있던 `V2` 는 `V2__embedding_1024.sql` 이 이미 쓰고 있어서,
+그대로 따라 만들면 Flyway 체크섬에 막힌다.
 
 ### 3. 피드백용 `messageId`: ✅ 해결됐다
 
