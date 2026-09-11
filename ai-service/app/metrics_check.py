@@ -134,10 +134,17 @@ def main() -> int:
     finally:
         db._pool = None
 
-    # ⑧ 풀이 사라지면 다시 0 으로 돌아간다. 게이지는 마지막 값을 계속 들고 있으므로
-    #    이걸 안 하면 <꺼진 풀의 옛 숫자>가 계속 그려진다.
+    # ⑧ 풀이 사라지면 <다섯 개 전부> 0 으로 돌아가야 한다.
+    #    🔴 open 만 검사하면 안 된다. 게이지는 마지막 값을 계속 들고 있어서,
+    #       sample_db_pool 이 open 만 내리고 나머지를 그냥 두면 이 검사는 통과하면서
+    #       waiting 은 위 ⑦ 의 5.0 인 채로 남는다. 실제로 그 상태였다(2026-09-12).
+    #       그때 계기판은 "지금 5건이 기다린다" 와 "옛날에 5건이었다" 를 같은 값으로 말한다.
+    #       "정상을 실패로 부르는 검사" 의 반대편, <고쳐졌다고 믿게 만드는 검사> 다.
     metrics.sample_db_pool()
     check("풀이 없어지면 open == 0", _value("alldap_db_pool_open") == 0.0)
+    for name in ("size", "max", "available", "requests_waiting"):
+        got = _value(f"alldap_db_pool_{name}")
+        check(f"풀이 없어지면 {name} == 0 (옛 값이 안 남는다)", got == 0.0, f"(={got})")
 
     print(f"\n{'실패 ' + ', '.join(_failures) if _failures else '전부 통과'}")
     return 1 if _failures else 0

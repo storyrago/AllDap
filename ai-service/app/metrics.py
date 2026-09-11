@@ -165,7 +165,18 @@ def sample_db_pool() -> None:
     """
     stats = db.pool_stats()
     if stats is None:
+        # 🔴 open 만 0 으로 내리면 <안 된다>. prometheus_client 게이지는 마지막 값을
+        #    계속 들고 있으므로, 풀이 사라진 뒤에도 waiting 이 옛 값(예: 5)으로 남는다.
+        #    그러면 계기판이 "지금 5건이 커넥션을 기다린다" 와 "옛날에 5건이었다" 를
+        #    같은 값으로 말한다 - 이 저장소가 여덟 번 낸 그 부류다.
+        #    ⚠️ 0 을 내보내도 "상한이 0" 으로 오독되지 않는 이유는 open 이 함께 0 이라서다.
+        #       읽는 규칙은 하나뿐이다: open 이 0 이면 나머지 네 선은 의미가 없다.
+        #       (Grafana 패널 설명과 아래 pool_stats 주석이 같은 말을 한다)
         DB_POOL_OPEN.set(0)
+        DB_POOL_SIZE.set(0)
+        DB_POOL_MAX.set(0)
+        DB_POOL_AVAILABLE.set(0)
+        DB_POOL_WAITING.set(0)
         return
     DB_POOL_OPEN.set(1)
     # ⚠️ 누적 카운터(requests_num 등)는 값이 0 이면 키 자체가 없다(psycopg 가
