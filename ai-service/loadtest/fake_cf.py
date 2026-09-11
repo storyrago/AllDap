@@ -70,6 +70,55 @@ _vector: list[float] = []
 #    설정 항목을 늘릴 때는 여기(_stats_payload)에도 함께 넣을 것.
 _vector_mode: str = ""
 
+# ── 장애 주입 (S4) ────────────────────────────────────────────────────
+#
+# 🔴 <런타임 제어면>이지 기동 옵션이 아니다. 한 판은 "정상 60초 → 주입 90초" 로 도는데,
+#    기동 플래그로 만들면 주입할 때마다 서버를 다시 띄워야 하고 그러면 _counts 가
+#    초기화된다. 실행 전후 counts 비교는 "그 경로를 실제로 탔는가" 를 가르는 장치라
+#    (counts() 주석 참고), 그게 깨지면 측정 자체가 무효가 된다.
+#
+# 🔴 mode 를 불리언이 아니라 <문자열>로 둔다. error_all 과 error_rerank 는 서로 다른
+#    사실이고, 불리언 둘로 두면 "둘 다 켠 상태" 라는 뜻이 없는 조합이 생긴다.
+#
+# 🔴 _injected 를 <센다>. F3 판(리랭킹 조용한 실패)의 "장애 N 건" 이 이 값이다.
+#    이게 없으면 주입이 실제로 일어났다는 증거가 uvicorn 로그 줄 수밖에 없는데,
+#    로그는 세기도 어렵고 유실되기도 한다.
+#    counts 와 마찬가지로 <누적>이다. 판정은 전후 차이로 하므로(s4_context) 모드를
+#    바꿀 때 0 으로 되돌리지 않는다 — 되돌리면 "안 늘었다" 와 "방금 초기화됐다" 가 뭉개진다.
+FAULT_MODES = ("none", "error_all", "error_rerank")
+_fault_mode: str = "none"
+_fault_status: int = 500
+_fault_injected: int = 0
+
+
+def set_fault(mode: str, status: int = 500) -> dict:
+    """장애 주입 상태를 바꾸고 바뀐 상태를 돌려준다. 유효성 검사는 호출부에서 끝낸다."""
+    global _fault_mode, _fault_status
+    with _lock:
+        _fault_mode, _fault_status = mode, status
+    return fault_state()
+
+
+def fault_state() -> dict:
+    with _lock:
+        return {"mode": _fault_mode, "status": _fault_status, "injected": _fault_injected}
+
+
+def _take_fault(kind: str) -> int | None:
+    """이 호출을 주입 대상으로 판정하면 <상태 코드>를, 아니면 None 을 돌려준다.
+
+    판정과 적립을 한 함수에서 <같은 락 안에> 하는 이유: 나눠 두면 모드가 바뀌는 순간
+    "500 을 줬는데 injected 는 안 늘었다" 는 어긋난 상태가 나올 수 있다.
+    그러면 F3 의 "장애 N 건" 이 실제 주입 건수와 달라진다.
+    """
+    global _fault_injected
+    with _lock:
+        hit = _fault_mode == "error_all" or (_fault_mode == "error_rerank" and kind == "rerank")
+        if hit:
+            _fault_injected += 1
+            return _fault_status
+    return None
+
 
 def counts() -> Counter[str]:
     """모델별 호출 횟수. <실행 전후로 비교>해서 그 경로를 실제로 탔는지 본다.
@@ -87,13 +136,16 @@ def _stats_payload() -> dict:
        걸려 생성 경로를 아예 안 탄다. 지연값만 적어두면 나중에 그 실행이 <무엇을
        재고 있었는지>를 알 수 없다. 지연과 벡터 모드는 서로 다른 사실이라 따로 적는다.
 
-    ⚠️ 장애 주입 플래그(지연 급변·실패율 등)를 붙이게 되면 여기에도 함께 넣을 것.
-       지금은 없어서 안 넣는다. 쓰이지 않는 필드를 미리 만들면 그 자체가 거짓말이 된다.
+    🔴 fault 블록이 여기 있는 이유(2026-09-11 에 약속대로 넣었다): 시작 조건 파일이
+       "어떤 장애로 쟀는지" 를 말할 수 있어야 한다. 지연·벡터 모드와 마찬가지로
+       <서로 다른 사실>이라 따로 적는다. injected 까지 함께 내보내는 것은, 그 값이
+       0 이면 그 판이 무효라는 판정을 드라이버가 여기 하나만 읽고 내릴 수 있어서다.
     """
     return {
         "counts": dict(counts()),
         "latency_ms": dict(LATENCY_MS),
         "vector_mode": _vector_mode,
+        "fault": fault_state(),
         # unit 모드는 DB 를 안 읽으므로 출처 봇이 없다. 0 이나 "" 로 뭉개지 않는다.
         "vector_bot_id": BOT_ID if _vector_mode in ("db", "blocked") else None,
     }
@@ -144,6 +196,9 @@ class Handler(BaseHTTPRequestHandler):
             self._send(404, {"success": False, "errors": ["없는 경로"]})
 
     def do_POST(self) -> None:
+        if self.path == "/fault":
+            self._fault()
+            return
         if "/ai/run/" not in self.path:
             self._send(404, {"success": False, "errors": ["없는 경로"]})
             return
@@ -156,14 +211,64 @@ class Handler(BaseHTTPRequestHandler):
 
         s = get_settings()
         if model == s.embedding_model:
-            kind, result = "embed", self._embedding(payload, s.embedding_dim)
+            kind = "embed"
         elif model == s.reranker_model:
-            kind, result = "rerank", self._rerank(payload)
+            kind = "rerank"
         else:
-            kind, result = "generate", self._generate()
+            kind = "generate"
 
+        # 🔴 주입 여부를 <지연 전에> 정하지만 잠은 그대로 잔다. 500 을 즉시 주면 종단
+        #    지연이 그 모델의 지연만큼(리랭커면 414ms) 빨라져서 "장애인데 빨라졌다" 가
+        #    되고, 그러면 원인이 다른 두 사실(장애 · 지연 변화)이 한 숫자에 섞인다.
+        #    이 저장소가 일곱 번 낸 버그가 정확히 그 부류다(AGENTS.md 참고).
+        #    지연을 유지해야 F3 판에서 <모든 외부 신호가 글자 하나 안 바뀌는 것>이 증명된다.
+        fault_status = _take_fault(kind)
         time.sleep(LATENCY_MS[kind] / 1000)
+        if fault_status is not None:
+            # Cloudflare 가 5xx 를 줄 때의 모양을 흉내낸다. app.cf.run 의
+            # raise_for_status() 가 여기서 예외를 던지는 것이 이 주입의 목적이다.
+            self._send(fault_status, {"success": False, "errors": [
+                {"code": 5000, "message": f"부하테스트 장애 주입 ({kind})"}]})
+            return
+
+        if kind == "embed":
+            result = self._embedding(payload, s.embedding_dim)
+        elif kind == "rerank":
+            result = self._rerank(payload)
+        else:
+            result = self._generate()
         self._send(200, {"success": True, "result": result})
+
+    def _fault(self) -> None:
+        """POST /fault {"mode": ..., "status": ...} — 장애 주입 제어면.
+
+        ⚠️ 잘못된 입력에 <조용히 기본값으로 떨어지지 않는다.> mode 오타를 "none" 으로
+           받아주면 주입했다고 믿은 채 정상 90초를 재게 되고, 그 실행은 대조군과
+           구분이 안 된다. 400 으로 되돌려 드라이버가 그 자리에서 멈추게 한다.
+        """
+        length = int(self.headers.get("Content-Length") or 0)
+        try:
+            payload = json.loads(self.rfile.read(length) or b"{}")
+        except ValueError:
+            self._send(400, {"success": False, "errors": ["JSON 본문이 아닙니다"]})
+            return
+        if not isinstance(payload, dict):
+            self._send(400, {"success": False, "errors": ["JSON 객체여야 합니다"]})
+            return
+
+        mode = payload.get("mode", "none")
+        status = payload.get("status", 500)
+        if mode not in FAULT_MODES:
+            self._send(400, {"success": False, "errors": [
+                f"mode 는 {list(FAULT_MODES)} 중 하나여야 합니다 (받은 값: {mode!r})"]})
+            return
+        # bool 은 int 의 하위 타입이라 isinstance(True, int) 가 참이다. 따로 막는다.
+        if isinstance(status, bool) or not isinstance(status, int) or not 400 <= status <= 599:
+            self._send(400, {"success": False, "errors": [
+                f"status 는 400~599 의 정수여야 합니다 (받은 값: {status!r})"]})
+            return
+
+        self._send(200, set_fault(mode, status))
 
     @staticmethod
     def _embedding(payload: dict, dim: int) -> dict:
