@@ -385,8 +385,8 @@ export const api = {
     },
     /**
      * 세션 하나의 메시지 전체.
-     * TODO(W2): PRD §10.1 표에는 이 경로가 없다. Spring 설계 시 확정할 것.
-     *           (후보: GET /api/bots/{botId}/logs/{conversationId})
+     * PRD §10.1 표에는 없던 경로이고, Spring 설계 때 이 주소로 확정해 구현했다.
+     * (ConversationLogController 의 GET /api/bots/{botId}/logs/{conversationId})
      */
     messages: (botId: Uuid, conversationId: Uuid) =>
       request<ChatMessage[]>(`/api/bots/${botId}/logs/${conversationId}`),

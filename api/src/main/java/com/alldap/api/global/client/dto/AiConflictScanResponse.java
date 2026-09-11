@@ -6,7 +6,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  * Python 의 {@code ConflictScanOut} — 스캔 한 번의 결과.
  *
  * <p><b>네 숫자를 따로 받는 이유:</b> "깨끗해서 0건"과 "못 재서 0건"은 다른 사실이다.
- * 합쳐 놓으면 구분이 안 되는데, 이 프로젝트는 그 부류의 버그를 이미 네 번 냈다
+ * 합쳐 놓으면 구분이 안 되는데, 이 프로젝트는 그 부류의 버그를 이미 반복해 냈다(AGENTS.md 의 "낸 버그" 절)
  * (answered_rate 분모 · 생존 편향 · 채점자 200자 · 잘린 답변).
  *
  * <p>{@code candidates} 가 Python 의 상한(기본 30)과 같으면 <b>아직 판정하지 않은 쌍이

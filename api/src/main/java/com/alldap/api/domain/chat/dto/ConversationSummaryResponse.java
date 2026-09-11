@@ -8,7 +8,8 @@ import java.util.UUID;
  *
  * <p>집계 필드({@code messageCount}, {@code hasFallback}, {@code firstUserMessage})는
  * 엔티티에 없는 값이다. 대화 건마다 messages 를 따로 조회하면 N+1 이 되므로
- * 한 번의 group by 쿼리로 채워야 한다(ConversationRepository TODO 참고).
+ * 한 번의 group by 쿼리로 채운다
+ * ({@code MessageRepository.aggregateByConversationIds}, 목록 집계는 쿼리 2번 고정).
  */
 public record ConversationSummaryResponse(
         UUID id,

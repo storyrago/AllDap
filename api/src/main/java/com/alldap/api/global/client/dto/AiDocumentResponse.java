@@ -18,7 +18,7 @@ import java.util.UUID;
  * 그래서 전역 설정을 건드리지 않고 이 경계 DTO 에만 {@code @JsonProperty} 를 붙인다.
  *
  * <p>Python 은 {@code created_at} 을 돌려주지 않는다. 문서 목록에 생성 시각이 필요하면
- * Spring 이 documents 테이블에서 직접 읽어 채워야 한다(TODO 는 DocumentService 참고).
+ * Spring 이 documents 테이블에서 직접 읽어 채워야 한다(TODO 는 {@code DocumentResponse.from} 참고).
  */
 public record AiDocumentResponse(
         @JsonProperty("id") UUID id,
