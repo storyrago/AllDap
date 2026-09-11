@@ -212,14 +212,19 @@ jobs:
       #         · app.answerable_check     DB(cursor) + 실제 임베딩 호출
       #         · app.bot_prompt_check     DB(fetch_bot_prompt) + 실제 생성 모델
       #         · app.noanswer_check       실제 생성 모델(모델별 비교 실험용)
+      #         · app.upload_e2e_check     DB(cursor) + 실제 임베딩 호출
       #       이 넷은 사람이 손으로 돌린다(AGENTS.md 의 해당 절에 실행 방법이 있다).
       #
       #    ⚠️ Postgres 서비스 컨테이너는 <일부러> 띄우지 않았다.
       #       DB 가 필요한 점검 3개가 하나같이 외부 API 도 함께 부르기 때문에,
       #       DB 를 띄워줘도 그 셋 중 어느 것도 CI 에서 돌 수 없다.
       #       즉 컨테이너를 띄우는 대가만 치르고 태울 수 있는 점검은 0개다.
+      #    ✅ app.parsers_check 는 진짜 PDF·DOCX·HWPX 를 읽지만 DB 도 외부 API 도 안 쓴다.
+      #       입력이 testdata/fixtures/ 에 <저장소 안에> 있어서다. 그래서 여기서 돈다.
+      #       같은 자산을 쓰는 app.upload_e2e_check 는 임베딩을 부르므로 못 태운다(위 목록).
       - name: 자체 점검 (DB·외부 API 없이 도는 것만)
         run: |
+          python -m app.parsers_check
           python -m app.chunker_check
           python -m app.retriever_check
           python -m app.evalrun_check
