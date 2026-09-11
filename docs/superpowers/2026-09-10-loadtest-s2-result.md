@@ -195,6 +195,12 @@ PR 3 이 `alldap_chat_duration_seconds` 를 만든 값어치가 이 한 줄이�
    계획서에 적힌 `S1loadtest!2026` 으로 로그인이 401 이었다. 이번 실행을 위해
    해시를 임시 교체했고 **실행 뒤 복원했다**(`AllDap-pr2/.s2-old-hash.txt`).
    → 다음 측정도 같은 일을 겪는다. 측정 전용 계정을 따로 두는 편이 낫다.
+   ✅ **2026-09-11 에 고쳤다.** `loadtest/account.py` 가 측정 전용 계정
+   (`LOADTEST_EMAIL`, 기본 `loadtest@example.com`)을 **가입 API 로** 만들고
+   (해시는 Spring 의 인코더만 만든다), 코퍼스를 가진 측정 봇의 주인을 그 계정으로
+   옮긴다. 비밀번호는 `LOADTEST_PASSWORD` 환경변수에서만 오고 기본값이 없다.
+   드라이버 다섯(`s1_baseline` · `s2_context` · `s4_context` · k6 둘)이 같은 환경변수를
+   보므로, **해시를 손으로 갈아끼우는 절차가 통째로 없어졌다.**
 3. **`/actuator/metrics/*` 는 인증에 막힌다.** 열려 있는 것은 `/actuator/prometheus`
    와 `/actuator/health` 뿐이라, 힙 확인은 Prometheus 질의로 해야 한다.
 4. **k6 v2 에서 요약 표의 표본 열이 비어 있다**(trend `values` 에 `count` 가 없다).

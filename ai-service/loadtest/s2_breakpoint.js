@@ -2,8 +2,10 @@
 //
 // 실행 (직접 부르지 말고 s2_context.py 가 인쇄한 값을 넣는다):
 //   cd ai-service && \
+//     LOADTEST_PASSWORD='...' \
 //     BOT_ID=<...> RUN_ID=<...> OUT=loadtest/results/S2-<runId>.json \
 //     k6 run loadtest/s2_breakpoint.js
+//   (계정은 loadtest/account.py 가 먼저 만들어둔 측정 전용 계정이다)
 //
 // 🔴 <중단하지 않는다.> S1 드라이버(s1_baseline.py:42)는 비200 이 하나라도 나오면
 //    즉시 멈추지만, S2 에 그 규칙을 물려주면 정확히 반대로 작동한다. S2 는 깨지는
@@ -17,8 +19,12 @@ import exec from 'k6/execution';
 import { Counter, Trend } from 'k6/metrics';
 
 const API      = __ENV.API      || 'http://localhost:8080';
-const EMAIL    = __ENV.EMAIL    || 'w2check@example.com';
-const PASSWORD = __ENV.PASSWORD || 'S1loadtest!2026';
+// 🔴 계정은 <측정 전용>이고 값은 환경변수에서만 온다(loadtest/account.py 가 만든다).
+//    예전에는 w2check@example.com / 비밀번호까지 기본값으로 박혀 있었다. 그 계정은
+//    W2 검증에 쓰던 것이라 측정 뒤 비밀번호가 원래대로 복원됐고, 그래서 다음 측정이
+//    매번 401 이었다. 그리고 박아둔 기본 비밀번호는 그 자체로 저장소에 커밋된 비밀번호다.
+const EMAIL    = __ENV.EMAIL    || __ENV.LOADTEST_EMAIL    || 'loadtest@example.com';
+const PASSWORD = __ENV.PASSWORD || __ENV.LOADTEST_PASSWORD;
 const BOT_ID   = __ENV.BOT_ID;
 const RUN_ID   = __ENV.RUN_ID;
 const OUT      = __ENV.OUT || 'loadtest/results/S2-unnamed.json';
@@ -110,6 +116,12 @@ export const options = {
 };
 
 export function setup() {
+  // 🔴 비밀번호에 기본값이 없다. 없으면 로그인 401 로 죽는데, 그 에러만 보면
+  //    "계정이 잘못됐나" 를 먼저 의심하게 된다. 여기서 <무엇이 빠졌는지>로 죽인다.
+  if (!PASSWORD) {
+    throw new Error('PASSWORD 가 없다. LOADTEST_PASSWORD 를 환경변수로 넘길 것 '
+      + '(계정은 loadtest/account.py 가 만든다).');
+  }
   // 🔴 하드코딩된 기본값을 두지 않는다. 봇을 지우고 다시 만들면 id 가 바뀌는데,
   //    기본값이 있으면 그때 <다른 코퍼스를 가진 봇>을 조용히 재게 되고
   //    "그때 뭘로 쟀지" 를 못 답한다. 없으면 죽는다.

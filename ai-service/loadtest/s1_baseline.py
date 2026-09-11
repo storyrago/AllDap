@@ -2,7 +2,6 @@
 
 실행:
     cd ai-service && .venv/bin/python -m loadtest.s1_baseline \
-        --email you@example.com --password '...' \
         --bot-id 628d2785-a128-486c-a1ac-556f19f06de3
 
 🔴 하루 한도의 94% 를 태운다. 다른 측정이 없는 날에 돌릴 것.
@@ -58,6 +57,8 @@ from datetime import datetime
 from pathlib import Path
 
 import httpx
+
+from .account import env_email, env_password
 
 # 근거가 <있는> 질문들. 게이트를 통과해 생성까지 태워야 지연을 잴 수 있다.
 # 근거 없는 질문을 섞으면 그 요청은 LLM 을 안 부르고 0.1초에 끝나 p50 을 끌어내린다.
@@ -150,11 +151,16 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="S1 지연 기준선(진짜 LLM)")
     parser.add_argument("--api", default="http://localhost:8080")
     parser.add_argument("--ai", default="http://localhost:8001")
-    parser.add_argument("--email", required=True)
-    parser.add_argument("--password", required=True)
+    # 기본값은 측정 전용 계정(loadtest/account.py). 환경변수가 없으면 아래에서 중단한다.
+    parser.add_argument("--email", default=env_email())
+    parser.add_argument("--password", default=env_password())
     parser.add_argument("--bot-id", required=True)
     parser.add_argument("--count", type=int, default=MAX_REQUESTS)
     args = parser.parse_args()
+
+    if not args.password:
+        print("중단: 비밀번호가 없다. LOADTEST_PASSWORD 를 넣거나 --password 로 넘길 것.")
+        return 1
 
     if args.count > MAX_REQUESTS:
         print(f"중단: --count 상한은 {MAX_REQUESTS} 입니다 "
