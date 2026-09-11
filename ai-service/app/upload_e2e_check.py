@@ -5,7 +5,7 @@
     cd ai-service && .venv/bin/python -m app.upload_e2e_check
 
     # ② 진짜 HTTP: uvicorn 을 띄워두고 밖에서 두드린다. 폴링도 실제로 돈다.
-    cd ai-service && .venv/uvicorn app.main:app --port 8001   # 다른 터미널
+    cd ai-service && .venv/bin/uvicorn app.main:app --port 8001   # 다른 터미널
     cd ai-service && .venv/bin/python -m app.upload_e2e_check --base-url http://localhost:8001
 
 🔴 이 파일이 생긴 이유 - "파서가 된다" 와 "업로드가 된다" 는 다른 사실이다

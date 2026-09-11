@@ -458,6 +458,20 @@ class Settings(BaseSettings):
     #    S2 에서 힙 가설이 "틀렸다"가 아니라 <발현하지 않았다>로 남은 이유가 이것이다:
     #    스레드 40 이 동시에 살아 있는 객체 수도 함께 묶고 있었다.
     #
+    # 🔴 ②가 <어떤 모습으로 터지는가>를 미리 적어둔다. 예측이 없으면 알아보지 못한다.
+    #    db.py 의 풀은 psycopg_pool 기본값을 그대로 쓴다: acquire timeout 30초,
+    #    max_waiting 0(대기열 무제한). 그래서 커넥션이 정말로 마르면 증상이 이렇다:
+    #      스레드 최대 70개가 줄을 선다 → 각자 30초를 기다린다 → PoolTimeout
+    #      → main.chat 에 그 핸들러가 없어 500 → Spring 은 Python 5xx 를
+    #        <서킷 실패로 센다> → 5건 누적에 서킷이 30초 열린다
+    #    🔴 즉 <용량 한계>가 "Python 이 죽었다" 와 같은 그림으로 보인다. S2 가 배제한
+    #       후보 셋(Tomcat · Hikari · anyio)에 넷째가 조용히 끼어드는 자리다.
+    #       재측정에서 처리량이 48 에 못 미치면 alldap_db_pool_requests_waiting 을
+    #       <먼저> 볼 것. 0 이 아니면 스레드가 아니라 이 풀이 벽이다.
+    #    ⚠️ 그런데도 풀 설정을 <이 PR 에서 바꾸지 않았다>. ③ 때문이다. timeout 을
+    #       함께 줄이면 다음 측정에서 "스레드를 올린 효과"와 "풀 정책을 바꾼 효과"가
+    #       한 그림에 섞인다. waiting > 0 이 실제로 관측되면 그때 바꿔 한 판 더 돈다.
+    #
     # 🔴 적용은 main.lifespan 에서만 한다. anyio 의 limiter 는 RunVar 라
     #    <이벤트 루프 스레드>에서만 만질 수 있고, 워커 스레드에서 건드리면
     #    NoEventLoopError 로 죽는다(main.chat 주석에 같은 제약이 적혀 있다).
@@ -516,9 +530,57 @@ def _check_prod(s: Settings) -> None:
         )
 
 
+# 범위가 정해진 값들. (키, 최소, 최대, 왜 그 상한인가)
+#
+# 🔴 _check_prod 와 달리 <환경에 상관없이> 돈다. 범위를 벗어난 값은 운영에서만
+#    위험한 것이 아니라 어디서든 그냥 틀린 값이다.
+_RANGES = (
+    (
+        "anyio_max_threads",
+        1,
+        200,
+        "Tomcat max-threads 가 200 이라 그보다 큰 값은 원리적으로 쓰이지 못합니다"
+        " - Spring 이 Python 을 동기 1:1 로 호출하기 때문입니다.",
+    ),
+)
+
+
+def _check_ranges(s: Settings) -> None:
+    """범위를 벗어난 설정값을 <기동 시점에 한국어로> 막는다.
+
+    왜 필요한가
+    ─────────────────────────────────────────────────────────────────────────
+    anyio_max_threads 를 0 으로 두면 main._apply_thread_limit 의
+    `limiter.total_tokens = 0` 에서 anyio 가 `ValueError: total_tokens must be >= 1`
+    을 던진다. 기동이 막히는 것 자체는 옳다(조용히 1로 내려가는 것보다 낫다).
+    문제는 <안내>다: 라이브러리 내부의 영어 예외라 어느 설정 키 때문인지 안 적힌다.
+    이 값은 .env.example 에 노출된 키라 사람이 손으로 고치는 자리다.
+
+    pydantic 의 Field(ge=, le=) 로 하지 않은 이유: 이 파일은 Field 를 한 번도
+    쓰지 않고 설정 검증을 _check_prod 한 곳에 모아두는 관례로 짜여 있다.
+    검증이 두 군데로 갈라지면 다음 사람이 어디를 봐야 할지 모른다.
+    """
+    problems = []
+    for name, lo, hi, why in _RANGES:
+        value = getattr(s, name)
+        # 파이썬은 lo <= value <= hi 처럼 비교를 이어 쓸 수 있다(수학 표기와 같다).
+        if not lo <= value <= hi:
+            problems.append(
+                f"{name.upper()} 가 {value} 입니다. {lo}~{hi} 사이로 고쳐주세요. {why}"
+            )
+
+    if problems:
+        raise RuntimeError(
+            "설정값이 허용 범위를 벗어나 기동을 중단합니다:\n  - "
+            + "\n  - ".join(problems)
+            + "\n환경변수를 확인해주세요. 항목은 ai-service/.env.example 에 있습니다."
+        )
+
+
 @lru_cache
 def get_settings() -> Settings:
     s = Settings()
     # lru_cache 라 프로세스당 한 번만 돈다. 어느 코드가 먼저 설정을 읽든 여기서 걸린다.
+    _check_ranges(s)
     _check_prod(s)
     return s

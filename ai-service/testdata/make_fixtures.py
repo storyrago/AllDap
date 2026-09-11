@@ -122,7 +122,8 @@ def make_docx(path: Path) -> None:
 #
 # 🔴 두 번째 문단을 <hp:run> 셋으로 쪼개 넣는다. 이것이 이 파일의 핵심이다.
 #    한글이 서식 경계마다 run 을 나누기 때문에, run 을 이어 붙이지 않으면
-#    "제3조 (장비" / " 지원) 입사 시" / " 노트북..." 처럼 조각난 문단이 나온다.
+#    "제7조 (장비" / " 지원) 입사 시" / " 노트북..." 처럼 조각난 문단이 나온다.
+#    (쪼갠 것은 PAGE2[0] = 제7조다. PAGE1 의 제3조는 수습기간이고 run 하나다)
 #    docs/W1-이해노트.md 의 이해 게이트 4번 항목이 바로 이 이야기다.
 _SECTION_TMPL = """<?xml version="1.0" encoding="UTF-8"?>
 <hs:sec xmlns:hs="http://www.hancom.co.kr/hwpml/2011/section"
