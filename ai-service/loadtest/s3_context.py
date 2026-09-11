@@ -13,7 +13,7 @@
 
 왜 이 파일이 있는가
 ─────────────────────────────────────────────────────────────────────────────
-S2 의 s2_context.py 와 같은 이유다 — "그때 뭘로 쟀지" 를 못 답하는 측정은 재현할 수
+S2 의 s2_context.py 와 같은 이유다. "그때 뭘로 쟀지" 를 못 답하는 측정은 재현할 수
 없고, 재현할 수 없으면 측정이 아니다.
 
 S3 는 거기에 하나를 더 얹는다: <판정 그 자체>다. S1·S2 는 숫자를 내고 사람이 읽었지만
@@ -68,7 +68,7 @@ WATCHED_STATUS = [404, 429, 400, 200, 0, 500, 503]
 ROUNDS: dict[str, dict] = {
     # 음성 대조. 한도를 아주 크게 두고 돌려 429 가 0 건임을 본다.
     "N": {"expected_total": 100, "pass_multiple": None, "expect_all_pass": True,
-          "why": "음성 대조 — 한도를 100000 으로 두면 429 가 한 건도 없어야 한다"},
+          "why": "음성 대조: 한도를 100000 으로 두면 429 가 한 건도 없어야 한다"},
     # 본 판정. 동시 100건에 정확히 한도만큼만 통과해야 한다.
     "A": {"expected_total": 100, "pass_multiple": 1, "expect_all_pass": False,
           "why": "동시 폭주에서 카운터가 새는가"},
@@ -85,7 +85,7 @@ ROUNDS: dict[str, dict] = {
 # 🔴 존재하지 않는 키를 쓰는 이유: WidgetController 의 순서가
 #    requirePlausiblePublicKey → rateLimiter.check → chatService 라, 형식만 맞고 없는 키는
 #    <카운터는 정상으로 세면서> findByPublicKey 에서 404 로 끝난다.
-#    LLM 0건 · 대화 로그 0건이다. (통과분에 한해 인덱스 SELECT 1회는 돈다 — 설계서 §1)
+#    LLM 0건 · 대화 로그 0건이다. (통과분에 한해 인덱스 SELECT 1회는 돈다. 설계서 §1)
 # 🔴 s3_ratelimit.js 의 기본값과 <반드시> 같아야 한다. 다르면 드라이버는 A 키를 404 로
 #    확인해놓고 k6 는 B 키를 두드려, 사전 확인이 아무것도 보증하지 못한다.
 FAKE_PUBLIC_KEY = "pk_s3loadtestFAKEkeyAAAAA"
@@ -95,7 +95,7 @@ WINDOW_MS = 60_000
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 순수 함수 — 서버도 시계도 안 탄다. s3_check.py 가 이 둘만 시험한다.
+# 순수 함수: 서버도 시계도 안 탄다. s3_check.py 가 이 둘만 시험한다.
 # ─────────────────────────────────────────────────────────────────────────────
 
 def next_window_start(now_ms: int, min_headroom_ms: int) -> int:
@@ -343,7 +343,7 @@ def cmd_before(args) -> int:
         # 🔴 한도 값은 <드라이버 값>이다. 도는 서버에게 물어볼 길이 없다.
         #    /actuator/configprops 는 노출 목록(health,metrics,prometheus)에 없고,
         #    열더라도 SecurityConfig 가 /actuator/prometheus 하나만 permitAll 이라 401 이다.
-        #    그리고 열지 않는다 — 한도 숫자 하나를 읽으려고 DB 접속 문자열·JWT 시크릿이
+        #    그리고 열지 않는다. 한도 숫자 하나를 읽으려고 DB 접속 문자열·JWT 시크릿이
         #    같은 응답에 실리는 경로를 만드는 셈이다. 설계서 §5-② 가 근거다.
         "widget_chat_per_minute": {"value": args.limit, "source": "driver"},
         # 한도를 못 물어보는 대신, 제한기가 <실제로 몇 건을 셌는가>를 다른 축에서 본다.

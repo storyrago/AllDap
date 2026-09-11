@@ -1,11 +1,11 @@
 """S2 실행의 <시작 조건>을 파일로 찍고, 실행 뒤 <경로를 진짜 탔는지> 대조한다.
 
 실행:
-    # 실행 전 — 봇을 고르고 조건을 남긴다. 인쇄된 두 줄을 k6 에 그대로 넘긴다.
+    # 실행 전: 봇을 고르고 조건을 남긴다. 인쇄된 두 줄을 k6 에 그대로 넘긴다.
     cd ai-service && .venv/bin/python -m loadtest.s2_context before \\
         --run-id 2026-09-10-1 --email w2check@example.com --password 'S1loadtest!2026'
 
-    # 실행 후 — 가짜 CF 호출 수를 요청 수와 맞춰본다.
+    # 실행 후: 가짜 CF 호출 수를 요청 수와 맞춰본다.
     cd ai-service && .venv/bin/python -m loadtest.s2_context after \\
         --run-id 2026-09-10-1 --k6-summary loadtest/results/S2-2026-09-10-1.json
 
@@ -28,7 +28,7 @@ S2 는 여기에 둘을 더 얹는다: <진짜 CF 를 태우고 있지 않은지
 
 🔴 기대 배수를 상수로 박지 않는다. reranker_enabled 가 켜져 있으면 요청당 3건
    (embed·rerank·generate), 꺼져 있으면 2건이다. 상수로 박으면 설정을 바꾼 날
-   <정상 실행이 무효로 판정된다> — 그리고 그건 "경로를 안 탔다" 와 구분이 안 된다.
+   <정상 실행이 무효로 판정된다>. 그리고 그건 "경로를 안 탔다" 와 구분이 안 된다.
 
 🔴 시작 조건은 되도록 <대상에게 물어본 값>으로 적는다. 드라이버 프로세스에서 얻은 값은
    요청을 처리하는 uvicorn 이나 가짜 CF 서버가 무엇으로 떠 있는지 말해주지 못한다.
@@ -237,7 +237,7 @@ def _pick_bot(bots: list[dict]) -> dict:
 
     🔴 문서가 가장 많은 봇을 쓴다. 부하테스트가 재려는 것은 <실제 코퍼스를 가진 봇>의
        검색·생성 경로이고, 문서 0건 봇을 고르면 게이트에서 막혀 전부 fallback 이 난다.
-       동점이면 먼저 만들어진 쪽 — 규칙에 임의성이 남으면 재현이 안 된다.
+       동점이면 먼저 만들어진 쪽: 규칙에 임의성이 남으면 재현이 안 된다.
     """
     if not bots:
         raise SystemExit("중단: 이 계정에 봇이 없다.")
@@ -245,7 +245,7 @@ def _pick_bot(bots: list[dict]) -> dict:
 
 
 def _corpus(bot_id: str) -> dict:
-    """코퍼스 크기. API 가 아니라 DB 에서 직접 센다 — 청크 수는 API 가 안 준다."""
+    """코퍼스 크기. API 가 아니라 DB 에서 직접 센다. 청크 수는 API 가 안 준다."""
     from app.db import cursor
 
     with cursor() as cur:
@@ -397,7 +397,7 @@ def cmd_after(args) -> int:
 
     # ① fallback 이 하나라도 있으면 그 실행은 무효다.
     if fallbacks == 0:
-        verdicts.append("OK   fallback 0건 — 생성 경로를 탔다")
+        verdicts.append("OK   fallback 0건: 생성 경로를 탔다")
     else:
         verdicts.append(
             f"무효 fallback {fallbacks}건. 그 요청들은 LLM 을 안 타 0.1초에 끝났고, "
@@ -435,7 +435,7 @@ def cmd_after(args) -> int:
         "verdicts": verdicts,
         "valid": all(v.startswith("OK") for v in verdicts),
         # 🔴 "유효" 는 <오염이 없다> 는 뜻이지 <결과가 좋다> 는 뜻이 아니다.
-        #    5xx 와 재시작은 여기서 판정하지 않는다 — 그건 S2 가 찾으려는 결과 그 자체이고,
+        #    5xx 와 재시작은 여기서 판정하지 않는다. 그건 S2 가 찾으려는 결과 그 자체이고,
         #    재시작 경계는 Grafana 패널을 눈으로 보고 사람이 표에 옮긴다.
         "valid_means": (
             "오염(fallback·경로 미탐)이 없다는 뜻이다. 5xx·재시작은 여기서 판정하지 않는다."

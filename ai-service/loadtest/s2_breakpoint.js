@@ -1,4 +1,4 @@
-// S2 breakpoint — 어디서 선형성이 깨지는가, 그때 무엇이 포화됐는가.
+// S2 breakpoint: 어디서 선형성이 깨지는가, 그때 무엇이 포화됐는가.
 //
 // 실행 (직접 부르지 말고 s2_context.py 가 인쇄한 값을 넣는다):
 //   cd ai-service && \
@@ -24,12 +24,12 @@ const RUN_ID   = __ENV.RUN_ID;
 const OUT      = __ENV.OUT || 'loadtest/results/S2-unnamed.json';
 
 // 🔴 예비 실행 스위치. k6 는 options.scenarios 가 있으면 --vus/--duration/--stage 를
-//    <조용히 무시한다> — 명령줄로 30초 예비 실행을 만들려다 12분을 돌리게 되는 자리다.
+//    <조용히 무시한다>. 명령줄로 30초 예비 실행을 만들려다 12분을 돌리게 되는 자리다.
 //    그래서 스위치를 스크립트 안에 둔다. 본 실행과 <같은 파일·같은 코드경로>를 타야
 //    예비 실행이 본 실행의 오염을 대신 걸러줄 수 있다.
 const DRYRUN = __ENV.DRYRUN === '1';
 
-// 계단식 6단계. 램프를 두지 않는다 — 꺾이는 지점이 단계 경계에 맞아떨어져야
+// 계단식 6단계. 램프를 두지 않는다. 꺾이는 지점이 단계 경계에 맞아떨어져야
 // "20 은 버텼고 40 에서 깨졌다" 를 표로 읽을 수 있다. 램프를 두면 꺾임이 두 단계
 // 사이로 번지고, 이 PR 의 산출물이 정확히 그 숫자다.
 const STAGES = DRYRUN ? [1] : [1, 5, 10, 20, 40, 80];
@@ -48,7 +48,7 @@ const WATCHED_STATUS = [200, 0, 429, 500, 502, 503, 504];  // 0 = 연결 실패�
 
 // 🔴 질문은 S1 이 쓴 5개를 <그대로> 쓴다. eval_questions 테이블 원문이다.
 //    S1 은 손으로 적었다가 테이블 문항과 16건 중 완전 일치 0건이었고, 5건 예행에서
-//    2건이 fallback 났다 — 회귀가 아니라 <다른 질문을 던진 것>이었다.
+//    2건이 fallback 났다. 회귀가 아니라 <다른 질문을 던진 것>이었다.
 //    fallback 은 LLM 을 안 타 0.1초에 끝나므로, 섞이면 재려던 곡선이 통째로 거짓이 된다.
 //    (리랭커가 정답 청크를 밀어내는 알려진 2건과 코퍼스에 정답이 없는 1건은
 //     S1 이 근거를 적어 빼놨다. 여기서 새로 적으면 그 판단이 사라진다.)
@@ -69,7 +69,7 @@ const chatFallback  = new Counter('chat_fallback');
 // ⚠️ thresholds 는 <판정용이 아니다.> k6 는 서브지표(chat_duration{stage:20,...})를
 //    summary 에 넣어주지 않는데, 임계값을 걸어두면 그 이름이 summary 에 생긴다.
 //    그래서 항상 참인 식(`p(99)>=0`)을 건다. 이 PR 은 SLO 를 정하지 않으므로
-//    <실패할 수 있는 임계값은 하나도 두지 않는다> — 두면 k6 가 종료코드로 판정을
+//    <실패할 수 있는 임계값은 하나도 두지 않는다>. 두면 k6 가 종료코드로 판정을
 //    내리게 되고, 판정은 전부 사후에 사람이 하는 것이 이 PR 의 규칙이다.
 const scenarios = {};
 const thresholds = {
@@ -83,7 +83,7 @@ STAGES.forEach((vus, i) => {
     vus: vus,
     duration: `${HOLD_S}s`,
     // startTime 이 <절대 시각>이라 단계가 밀리지 않는다. 앞 단계가 늦게 끝나도
-    // 다음 단계는 정해진 초에 시작한다 — 결과 표의 "몇 분대가 몇 VU 였나" 가 어긋나면
+    // 다음 단계는 정해진 초에 시작한다. 결과 표의 "몇 분대가 몇 VU 였나" 가 어긋나면
     // Grafana 시간축과 대조할 수 없다.
     startTime: `${i * HOLD_S}s`,
     exec: 'chat',
@@ -105,7 +105,7 @@ export const options = {
   // 🔴 기본 요약은 p90·p95 만 보여주고 p99 가 안 나온다. 이 PR 의 판정 근거가 p95·p99 다.
   //    avg 는 표에 싣되 판정에 쓰지 않는다(평균은 느린 꼬리를 감춘다).
   summaryTrendStats: ['min', 'med', 'p(95)', 'p(99)', 'max', 'avg'],
-  // 응답 본문을 버리지 않는다 — isFallback 을 읽어야 한다.
+  // 응답 본문을 버리지 않는다. isFallback 을 읽어야 한다.
   discardResponseBodies: false,
 };
 
@@ -123,7 +123,7 @@ export function setup() {
     throw new Error('RUN_ID 가 없다. s2_context.py before 가 인쇄한 값을 넣을 것.');
   }
 
-  // 로그인 1회. 토큰을 재사용한다 — 로그인에도 분당 제한이 있다.
+  // 로그인 1회. 토큰을 재사용한다. 로그인에도 분당 제한이 있다.
   const res = http.post(
     `${API}/api/auth/login`,
     JSON.stringify({ email: EMAIL, password: PASSWORD }),
@@ -165,7 +165,7 @@ export function chat(data) {
   if (res.status === 200) {
     chatDuration.add(res.timings.duration, { stage: stage, phase: phase });
     // 🔴 fallback 이 0 이 아니면 그 요청들은 LLM 경로를 안 탄 것이고, 그 실행은 무효다.
-    //    어느 질문이 걸렸는지까지 남긴다 — 개수만으로는 못 고친다.
+    //    어느 질문이 걸렸는지까지 남긴다. 개수만으로는 못 고친다.
     let isFallback = false;
     try {
       isFallback = res.json('isFallback') === true;
@@ -184,7 +184,7 @@ export function handleSummary(data) {
   const num = (v) => (typeof v === 'number' ? v.toFixed(0) : '-');
   const lines = [
     '',
-    `S2 breakpoint — runId=${RUN_ID}  botId=${BOT_ID}`,
+    `S2 breakpoint: runId=${RUN_ID}  botId=${BOT_ID}`,
     '단계  표본   p50      p95      p99      max      2xx     비2xx   fallback',
   ];
   STAGES.forEach((vus) => {

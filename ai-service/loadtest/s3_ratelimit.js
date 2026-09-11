@@ -1,4 +1,4 @@
-// S3 rate limit 정확성 — 동시 요청에서 요청 제한기의 카운터가 새는가.
+// S3 rate limit 정확성: 동시 요청에서 요청 제한기의 카운터가 새는가.
 //
 // 설계서: docs/superpowers/specs/2026-09-11-loadtest-pr4a-s3-ratelimit-design.md
 //
@@ -35,7 +35,7 @@ const OUT    = __ENV.OUT || `loadtest/results/S3-unnamed-${ROUND}.json`;
 //    이 시나리오가 싼 이유가 이것이다. WidgetController.chat 의 순서는
 //      requirePlausiblePublicKey → rateLimiter.check → chatService.chatAsWidget
 //    이고 chatAsWidget 의 첫 줄이 findByPublicKey 다. 형식만 맞고 없는 키를 쓰면
-//    <카운터는 정상으로 세면서> 거기서 BOT_NOT_FOUND(404)로 끝난다 — LLM 0건.
+//    <카운터는 정상으로 세면서> 거기서 BOT_NOT_FOUND(404)로 끝난다. LLM 0건.
 //
 //    ⚠️ 그래서 이 판정에서 "제한기까지 갔다" 의 증거는 200 이 아니라 <404> 다.
 //    ⚠️ 진짜 키로 덮으면 LLM 이 20번 돈다. 드라이버(s3_context.py before)가 실행 전에
@@ -51,7 +51,7 @@ const PUBLIC_KEY_2 = __ENV.PUBLIC_KEY_2 || 'pk_s3loadtestFAKEkeyBBBBB';
 //   판 C (키 축 분리): 키 2개. 키마다 404 20 · 429 80
 //
 // expected 는 <보낼 요청 수>다. judge_round 가 합계와 대조해 연결 실패(0)가
-// 섞였는지 가른다 — "덜 보냈다" 와 "많이 통과했다" 는 다른 사실이다.
+// 섞였는지 가른다. "덜 보냈다" 와 "많이 통과했다" 는 다른 사실이다.
 const ROUNDS = {
   N: { vus: 100, expected: 100 },
   A: { vus: 100, expected: 100 },
@@ -75,11 +75,11 @@ const WATCHED_STATUS = [404, 429, 400, 200, 0, 500, 503];
 // 이름을 S2 와 같게 둔다(chat_status · chat_duration). s3_context.py 가 S2 와 같은
 // 방식(summary.metrics["chat_status{status:404}"].values.count)으로 읽기 때문이다.
 const chatStatus   = new Counter('chat_status');
-// D(거절 경로의 비용). 429 의 지연 분포다 — Python 을 안 타는 순수 Spring 경로라
+// D(거절 경로의 비용). 429 의 지연 분포다. Python 을 안 타는 순수 Spring 경로라
 // "거절이 실제로 싼가" 를 이 값으로만 말할 수 있다.
 const chatDuration = new Trend('chat_duration', true);
 
-// 🔴 RUN_ID 가 없으면 죽는다. 기본값을 두지 않는 이유는 S2 와 같다 —
+// 🔴 RUN_ID 가 없으면 죽는다. 기본값을 두지 않는 이유는 S2 와 같다.
 //    세션 id 가 실행끼리 섞이면 "그때 뭘로 쟀지" 를 못 답한다.
 //    init 문맥(파일 최상단)에서 던지면 VU 가 하나도 돌기 전에 멈춘다.
 if (!RUN_ID) {
@@ -89,7 +89,7 @@ if (!ROUNDS[ROUND]) {
   throw new Error(`ROUND 가 N·A·B·C 중 하나여야 한다 (받은 값: ${ROUND})`);
 }
 // sessionId 는 @Size(max = 64) 다. 넘치면 <400> 이 나고, 그게 정확히 위에서 막으려는
-// 사고다. 길이를 여기서 미리 검사해 실행 전에 죽인다 — 100건을 쏜 뒤에 알면 늦다.
+// 사고다. 길이를 여기서 미리 검사해 실행 전에 죽인다. 100건을 쏜 뒤에 알면 늦다.
 const SESSION_MAX = `s3-${RUN_ID}-999`.length;
 if (SESSION_MAX > 64) {
   throw new Error(`RUN_ID 가 너무 길다. sessionId 가 ${SESSION_MAX}자로 64자를 넘는다.`);
@@ -98,7 +98,7 @@ if (SESSION_MAX > 64) {
 // ── 시나리오 ──────────────────────────────────────────────────────────
 //
 // per-vu-iterations 로 VU 당 정확히 1건. constant-vus 로 "몇 초간" 을 주면
-// VU 가 끝나는 대로 다음 반복을 돌아 <몇 건이 갔는지를 우리가 정하지 못한다> —
+// VU 가 끝나는 대로 다음 반복을 돌아 <몇 건이 갔는지를 우리가 정하지 못한다>.
 // 이 PR 의 판정이 개수 전체 일치라 요청 수가 먼저 확정돼야 한다.
 const scenarios = {};
 if (ROUND === 'B') {
@@ -126,7 +126,7 @@ if (ROUND === 'B') {
 
 // ⚠️ thresholds 는 <판정용이 아니다.> k6 는 태그가 붙은 서브지표를 summary 에
 //    넣어주지 않는데, 임계값을 걸어두면 그 이름이 summary 에 생긴다. 그래서 항상
-//    참인 식(count>=0)을 건다. 실패할 수 있는 임계값은 하나도 두지 않는다 —
+//    참인 식(count>=0)을 건다. 실패할 수 있는 임계값은 하나도 두지 않는다.
 //    두면 k6 가 종료코드로 판정을 내리게 된다.
 //
 // 🔴 그리고 이 등록이 judge_round 의 "0건과 계측 실패를 뭉개지 않는다" 규칙을
@@ -138,14 +138,14 @@ if (ROUND === 'B') {
 const thresholds = {};
 WATCHED_STATUS.forEach((code) => {
   thresholds[`chat_status{status:${code}}`] = ['count>=0'];
-  // 키 축(C 판). 다른 판에서는 0 으로 나오는 것이 정상이다 — 0 이 나오는 것 자체가
+  // 키 축(C 판). 다른 판에서는 0 으로 나오는 것이 정상이다. 0 이 나오는 것 자체가
   // "이 판은 키를 하나만 썼다" 는 기록이므로 지우지 않는다.
   thresholds[`chat_status{key:1,status:${code}}`] = ['count>=0'];
   thresholds[`chat_status{key:2,status:${code}}`] = ['count>=0'];
   // 버스트 축(B 판). 40건이 앞뒤로 20·20 으로 갈렸는지를 이 둘로 본다.
   thresholds[`chat_status{burst:pre,status:${code}}`] = ['count>=0'];
   thresholds[`chat_status{burst:post,status:${code}}`] = ['count>=0'];
-  // D — 거절 경로의 지연. 상태코드별로 <따로> 잰다. 404(통과분)와 429(거절분)를
+  // D: 거절 경로의 지연. 상태코드별로 <따로> 잰다. 404(통과분)와 429(거절분)를
   // 한 분포에 섞으면 "거절이 싸다" 를 말할 수 없다.
   thresholds[`chat_duration{status:${code}}`] = ['p(99)>=0'];
 });
@@ -169,7 +169,7 @@ export function widgetChat() {
 
   // 🔴 sessionId 를 반드시 싣는다. ChatRequest 는 message(@NotBlank, ≤2000) 와
   //    sessionId(@NotBlank, ≤64) 가 <둘 다> 필수다. 빠지면 @Valid 에서 400 이 나
-  //    rateLimiter.check 를 지나가지도 못한다 — 2026-09-09 사고가 정확히 이것이다.
+  //    rateLimiter.check 를 지나가지도 못한다. 2026-09-09 사고가 정확히 이것이다.
   const sessionId = `s3-${RUN_ID}-${exec.vu.idInTest}`;
 
   const res = http.post(
@@ -189,13 +189,13 @@ export function widgetChat() {
   chatDuration.add(res.timings.duration, { status: status, key: keyTag });
 }
 
-// 사후 판정에 쓸 표를 stdout 으로도 찍는다. 🔴 다만 이 표는 <판정이 아니다> —
+// 사후 판정에 쓸 표를 stdout 으로도 찍는다. 🔴 다만 이 표는 <판정이 아니다>.
 // judge_round 가 파일을 읽어 가른다. 여기 인쇄는 사람이 파일을 열기 전에
 // "숫자가 대충 맞는지" 를 먼저 보게 하려는 것뿐이다.
 export function handleSummary(data) {
   const count = (key) => {
     const m = data.metrics[key];
-    // undefined 와 0 을 갈라 돌려준다 — 위 thresholds 주석의 이유 그대로다.
+    // undefined 와 0 을 갈라 돌려준다. 위 thresholds 주석의 이유 그대로다.
     if (!m || !m.values || typeof m.values.count !== 'number') return null;
     return m.values.count;
   };
@@ -204,7 +204,7 @@ export function handleSummary(data) {
 
   const lines = [
     '',
-    `S3 rate limit — runId=${RUN_ID}  판=${ROUND}  기대 요청수=${ROUNDS[ROUND].expected}`,
+    `S3 rate limit: runId=${RUN_ID}  판=${ROUND}  기대 요청수=${ROUNDS[ROUND].expected}`,
     `publicKey=${PUBLIC_KEY}${ROUND === 'C' ? `  publicKey2=${PUBLIC_KEY_2}` : ''}`,
     '',
     '상태  전체   키1    키2    앞버스트 뒤버스트   p50(ms)  p95(ms)  max(ms)',

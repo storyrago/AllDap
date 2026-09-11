@@ -84,7 +84,7 @@ _vector_mode: str = ""
 #    이게 없으면 주입이 실제로 일어났다는 증거가 uvicorn 로그 줄 수밖에 없는데,
 #    로그는 세기도 어렵고 유실되기도 한다.
 #    counts 와 마찬가지로 <누적>이다. 판정은 전후 차이로 하므로(s4_context) 모드를
-#    바꿀 때 0 으로 되돌리지 않는다 — 되돌리면 "안 늘었다" 와 "방금 초기화됐다" 가 뭉개진다.
+#    바꿀 때 0 으로 되돌리지 않는다. 되돌리면 "안 늘었다" 와 "방금 초기화됐다" 가 뭉개진다.
 FAULT_MODES = ("none", "error_all", "error_rerank")
 _fault_mode: str = "none"
 _fault_status: int = 500
@@ -240,7 +240,7 @@ class Handler(BaseHTTPRequestHandler):
         self._send(200, {"success": True, "result": result})
 
     def _fault(self) -> None:
-        """POST /fault {"mode": ..., "status": ...} — 장애 주입 제어면.
+        """POST /fault {"mode": ..., "status": ...}: 장애 주입 제어면.
 
         ⚠️ 잘못된 입력에 <조용히 기본값으로 떨어지지 않는다.> mode 오타를 "none" 으로
            받아주면 주입했다고 믿은 채 정상 90초를 재게 되고, 그 실행은 대조군과

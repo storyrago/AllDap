@@ -52,7 +52,7 @@ def counts(**kw: int | None) -> dict[int, int | None]:
 
 
 def main() -> int:
-    print("judge_round — 정상 입력")
+    print("judge_round: 정상 입력")
     # 설계서 §5-④ 표의 첫 줄. A 판은 한도 20 에 100건이면 404 20 · 429 80 이다.
     ok, why = judge_round("A", counts(s404=20, s429=80), 20)
     check("A: {404:20, 429:80} 통과", ok, f"({why})")
@@ -66,7 +66,7 @@ def main() -> int:
     ok, why = judge_round("C", counts(s404=40, s429=160), 20)
     check("C: 키 둘이면 통과분도 2배 통과", ok, f"({why})")
 
-    print("\njudge_round — 일부러 깨뜨린 입력 (여기가 이 파일의 본체다)")
+    print("\njudge_round: 일부러 깨뜨린 입력 (여기가 이 파일의 본체다)")
     # 🔴 아래는 전부 `not ok` 만 보지 않고 <사유까지> 단언한다.
     #    이 파일의 음성 대조에서 실제로 드러난 약점이다: 400 가드를 통째로 없앴는데도
     #    "400 이면 실패" 케이스가 그대로 통과했다. 400 만 100건이면 404 개수 검사에도
@@ -85,7 +85,7 @@ def main() -> int:
     # 🔴 2026-09-09 사고. 본문에 sessionId 가 없어 @Valid 에서 튕기면 이 모양이다.
     #    요청이 rateLimiter.check 를 지나가지도 못했는데 "돌아갔다" 로 읽히면 안 된다.
     fails_because("A: 400 100건이면 실패(제한기에 도달 못 함)", "A", counts(s400=100), 20, "2026-09-09")
-    # 404 개수 검사에 가려지지 않는지도 본다 — 히스토그램이 정상인데 400 만 1건 섞인 경우.
+    # 404 개수 검사에 가려지지 않는지도 본다. 히스토그램이 정상인데 400 만 1건 섞인 경우.
     fails_because("A: 정상 히스토그램에 400 이 1건만 섞여도 실패", "A",
                   counts(s404=20, s429=79, s400=1), 20, "2026-09-09")
 
@@ -101,7 +101,7 @@ def main() -> int:
     # 모르는 판 이름. 오타로 다른 기대값을 적용하는 것을 막는다.
     fails_because("모르는 판 이름은 실패", "Z", counts(s404=20, s429=80), 20, "모르는 판 이름")
 
-    print("\njudge_round — 0건과 <안 셌다> 를 가르는가")
+    print("\njudge_round: 0건과 <안 셌다> 를 가르는가")
     # 🔴 이 저장소가 반복해 낸 부류(AGENTS.md 의 "낸 버그" 절). None(시계열 없음)을 0 으로 뭉개면
     #    400 이 났는데도 0 으로 보여 위의 사고 검사가 통째로 무력해진다.
     fails_because("400 시계열이 없으면 실패(0 이 아니다)", "A",
@@ -113,7 +113,7 @@ def main() -> int:
     partial: dict[int, int | None] = {404: 20, 429: 80}
     fails_because("감시 목록이 모자라면 실패", "A", partial, 20, "감시 목록이 어긋난다")
 
-    print("\nextract_counts — k6 요약 읽기")
+    print("\nextract_counts: k6 요약 읽기")
     summary = {"metrics": {f"chat_status{{status:{c}}}": {"values": {"count": 0}}
                            for c in WATCHED_STATUS}}
     summary["metrics"]["chat_status{status:404}"]["values"]["count"] = 20
@@ -133,7 +133,7 @@ def main() -> int:
     got = extract_counts(tagged, "A")
     check("round 태그가 붙은 키도 읽는다", all(got[c] == 1 for c in WATCHED_STATUS))
 
-    print("\nnext_window_start — 분 경계 정렬")
+    print("\nnext_window_start: 분 경계 정렬")
     base = 1_700_000_000_000 - (1_700_000_000_000 % WINDOW_MS)   # 어떤 분의 0초
     check("여유가 충분하면 지금 시작", next_window_start(base + 1_000, 20_000) == base + 1_000)
     check("여유가 딱 맞으면 지금 시작", next_window_start(base + 40_000, 20_000) == base + 40_000)
@@ -144,7 +144,7 @@ def main() -> int:
     nxt = next_window_start(base + 59_999, 20_000)
     check("돌려준 경계가 정확히 윈도우 시작", nxt % WINDOW_MS == 0, f"({nxt % WINDOW_MS})")
 
-    print("\nparse_prom_counter — 0 과 <계측 없음> 을 가르는가")
+    print("\nparse_prom_counter: 0 과 <계측 없음> 을 가르는가")
     text = (
         "# HELP alldap_ratelimit_recorded_total 설명\n"
         "# TYPE alldap_ratelimit_recorded_total counter\n"
@@ -161,7 +161,7 @@ def main() -> int:
     check("없는 라벨은 None (0.0 이 아니다)",
           parse_prom_counter(text, "alldap_ratelimit_rejected_total", {"bucket": "widget-chat"}) is None)
 
-    print("\nparse_prom_counter — 이름이 <접두사만> 같은 줄을 집지 않는가")
+    print("\nparse_prom_counter: 이름이 <접두사만> 같은 줄을 집지 않는가")
     # 🔴 2026-09-11. RateLimiter 가 등록하는 alldap.ratelimit.keys(게이지)와
     #    alldap.ratelimit.keys.cleared(카운터)는 Micrometer 를 거치면
     #    alldap_ratelimit_keys 와 alldap_ratelimit_keys_cleared_total 이 되어

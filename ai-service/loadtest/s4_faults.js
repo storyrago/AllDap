@@ -1,4 +1,4 @@
-// S4 장애 주입 — k6 시나리오. 20 VU 고정, 관리자 채팅 경로.
+// S4 장애 주입: k6 시나리오. 20 VU 고정, 관리자 채팅 경로.
 //
 // 실행 (판 하나당 한 번. 드라이버가 주입을 켜고 끄는 것과 <같은 시간축>으로 돈다):
 //   k6 run -e ROUND=F1 -e RUN_ID=2026-09-11-F1 -e BOT_ID=... loadtest/s4_faults.js
@@ -47,9 +47,9 @@ const VUS       = Number(__ENV.VUS       || 20);
 const WATCHED_STATUS = [200, 0, 422, 429, 500, 502, 503, 504];
 
 const ROUNDS = {
-  F1: 'Python 프로세스 종료 — 연결 실패 · 재시도 · 서킷 개폐',
-  F2: 'Python 5xx — 재시도가 <안> 도는 것이 산출물',
-  F3: 'rerank 조용한 실패 — 모든 외부 신호가 안 바뀌는 것이 산출물',
+  F1: 'Python 프로세스 종료: 연결 실패 · 재시도 · 서킷 개폐',
+  F2: 'Python 5xx: 재시도가 <안> 도는 것이 산출물',
+  F3: 'rerank 조용한 실패: 모든 외부 신호가 안 바뀌는 것이 산출물',
 };
 
 if (!BOT_ID) { throw new Error('BOT_ID 가 필요하다. s4_context.py before 가 인쇄한 값을 넣을 것.'); }
@@ -151,7 +151,7 @@ export function handleSummary(data) {
     const m = data.metrics[`chat_status{phase:${phase},status:${code}}`];
     return m && m.values ? (m.values.count || 0) : 0;
   };
-  const lines = ['', `S4 ${ROUND} — ${ROUNDS[ROUND]}`, `runId=${RUN_ID} botId=${BOT_ID}`, ''];
+  const lines = ['', `S4 ${ROUND}: ${ROUNDS[ROUND]}`, `runId=${RUN_ID} botId=${BOT_ID}`, ''];
   lines.push('구간     ' + WATCHED_STATUS.map((c) => String(c).padStart(6)).join(''));
   ['normal', 'inject'].forEach((phase) => {
     lines.push(phase.padEnd(9) + WATCHED_STATUS.map((c) => String(count(phase, c)).padStart(6)).join(''));

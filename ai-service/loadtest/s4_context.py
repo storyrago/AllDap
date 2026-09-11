@@ -57,7 +57,7 @@ WATCHED_STATUS = [200, 0, 422, 429, 500, 502, 503, 504]
 #
 # 🔴 PYTHON_SERVER_ERROR 의 태그가 "python_server_error" 가 아니라 "python_5xx" 다.
 #    이름으로 유추하면 틀리는 자리라, 실제 값을 옮겨 적고 여기 근거를 남긴다.
-#    (#112 가 enum 을 둔 이유와 같다 — 문자열을 손으로 쓰면 오타 한 글자에 시계열이 갈린다)
+#    (#112 가 enum 을 둔 이유와 같다. 문자열을 손으로 쓰면 오타 한 글자에 시계열이 갈린다)
 OUTCOME_SUCCESS = "success"
 OUTCOME_CIRCUIT_OPEN = "circuit_open"
 OUTCOME_CONNECT_FAILURE = "connect_failure"
@@ -70,24 +70,24 @@ ALL_OUTCOMES = [
 ROUNDS: dict[str, dict] = {
     "F1": {
         "fault": None,      # 가짜 CF 가 아니라 uvicorn 을 죽인다. 코드 0줄.
-        "why": "Python 프로세스 종료 — 연결 실패 · 재시도 · 서킷 개폐",
+        "why": "Python 프로세스 종료: 연결 실패 · 재시도 · 서킷 개폐",
         "how": "uvicorn 에 SIGTERM 을 보내고, 주입 구간이 끝나면 다시 띄운다(사람이 한다).",
     },
     "F2": {
         "fault": "error_all",
-        "why": "Python 5xx — 재시도가 <안> 도는 것이 산출물",
+        "why": "Python 5xx: 재시도가 <안> 도는 것이 산출물",
         "how": "가짜 CF 가 모든 모델 호출에 500 을 낸다.",
     },
     "F3": {
         "fault": "error_rerank",
-        "why": "rerank 조용한 실패 — 모든 외부 신호가 안 바뀌는 것이 산출물",
+        "why": "rerank 조용한 실패: 모든 외부 신호가 안 바뀌는 것이 산출물",
         "how": "가짜 CF 가 리랭커 호출에만 500 을 낸다. 지연은 그대로 유지한다.",
     },
 }
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 순수 함수 — 서버도 시계도 안 탄다. s4_check.py 가 이것들만 시험한다.
+# 순수 함수: 서버도 시계도 안 탄다. s4_check.py 가 이것들만 시험한다.
 # (파서 parse_prom_counter 도 순수 함수지만 s3 와 공용이라 promtext.py 에 있다)
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -160,12 +160,12 @@ def judge_fault_round(round_name: str, before: dict, after: dict, k6_counts: dic
     #    움직인다" 인데, 계측이 아예 안 붙어도 똑같이 안 움직인다. 정상 구간에 신호가
     #    있었다는 것을 먼저 확인해야 "안 잡힌다" 가 성립한다(설계서 §5-③).
     if normal.get(200, 0) <= 0:
-        fail("대조군이 없다 — 정상 구간에 200 이 한 건도 없다. 주입 전부터 뭔가 잘못된 것이라, "
+        fail("대조군이 없다. 정상 구간에 200 이 한 건도 없다. 주입 전부터 뭔가 잘못된 것이라, "
              "이 실행으로는 '주입 때문에 바뀌었다' 를 말할 수 없다. "
              "특히 F3 은 <지표가 안 움직이는 것>이 통과 조건이라, 대조군 없이는 "
              "'안 잡힌다' 와 '계측이 죽었다' 가 구별되지 않는다.")
     else:
-        reasons.append(f"OK   대조군 살아 있음 — 정상 구간 200 {normal[200]}건")
+        reasons.append(f"OK   대조군 살아 있음. 정상 구간 200 {normal[200]}건")
 
     fallback_total = k6_counts.get("fallback_total", 0)
     if fallback_total:
@@ -187,7 +187,7 @@ def judge_fault_round(round_name: str, before: dict, after: dict, k6_counts: dic
                  f"(retry-max-attempts 2). 안 돌면 AiServiceClient.isConnectFailure 가 "
                  f"ConnectException 을 못 알아본 것이다.")
         else:
-            reasons.append(f"OK   재시도 {retry:.0f}회 — 연결 실패에는 재시도가 돈다")
+            reasons.append(f"OK   재시도 {retry:.0f}회: 연결 실패에는 재시도가 돈다")
         if circuit <= 0:
             fail("circuit_open 이 0 이다. 서킷이 한 번도 안 열렸다면 5회 연속 실패가 "
                  "안 쌓였다는 뜻이라, 주입 구간이 너무 짧았거나 부하가 모자랐다.")
@@ -196,7 +196,7 @@ def judge_fault_round(round_name: str, before: dict, after: dict, k6_counts: dic
         # 🔴 톱니. 30초마다 HALF_OPEN 이 되어 무리가 통과하고 다시 열리는 것이
         #    1순위 가설이다. 90초 주입이면 2회 이상이어야 한다.
         if opened >= 2:
-            reasons.append(f"OK   서킷이 {opened:.0f}회 열렸다 — 30초 톱니가 재현됐다")
+            reasons.append(f"OK   서킷이 {opened:.0f}회 열렸다. 30초 톱니가 재현됐다")
         elif opened == 1:
             reasons.append("참고: 서킷이 1회만 열렸다. 톱니는 안 보인다. 주입 구간을 늘려 "
                            "다시 볼 것(90초면 2~3회가 기대값이다).")
@@ -215,7 +215,7 @@ def judge_fault_round(round_name: str, before: dict, after: dict, k6_counts: dic
         # 🔴 이 판을 넣은 유일한 이유다. 여기가 이 PR 에서 유일하게 <반증 가능한> 주장이고,
         #    틀렸다면 LLM 중복 과금이 실재한다는 뜻이라 곧바로 수정 슬라이스가 된다.
         if retry == 0:
-            reasons.append("OK   재시도 0회 — 5xx 에는 재시도가 안 돈다(중복 과금이 없다)")
+            reasons.append("OK   재시도 0회: 5xx 에는 재시도가 안 돈다(중복 과금이 없다)")
         else:
             fail(f"🔴 재시도가 {retry:.0f}회 돌았다. 5xx 는 요청이 Python 에 <도달했다>는 "
                  f"뜻이라 재시도하면 문서 행이 중복되거나 LLM 이 두 번 과금된다. "
@@ -240,7 +240,7 @@ def judge_fault_round(round_name: str, before: dict, after: dict, k6_counts: dic
             fail(f"주입 구간에 200 외의 상태코드가 있다: {bad_inject}. F3 은 리랭킹 실패가 "
                  f"200 으로 나가는 것을 보이는 판이라, 다른 코드가 섞이면 다른 장애가 함께 난 것이다.")
         else:
-            reasons.append(f"OK   주입 구간이 전부 200 ({inject.get(200, 0)}건) — 상태코드가 안 바뀐다")
+            reasons.append(f"OK   주입 구간이 전부 200 ({inject.get(200, 0)}건): 상태코드가 안 바뀐다")
 
         moved = {name: delta("outcomes", name) for name in ALL_OUTCOMES if name != OUTCOME_SUCCESS}
         moved = {k: v for k, v in moved.items() if v > 0}
@@ -248,7 +248,7 @@ def judge_fault_round(round_name: str, before: dict, after: dict, k6_counts: dic
             fail(f"실패 outcome 이 움직였다: {moved}. F3 은 어떤 지표에도 안 잡히는 것이 "
                  f"산출물이라, 잡혔다면 그건 <좋은 소식>이지만 이 판의 전제가 달라진 것이다.")
         else:
-            reasons.append("OK   실패 outcome 이 하나도 안 움직였다 — 어떤 숫자에도 안 잡힌다")
+            reasons.append("OK   실패 outcome 이 하나도 안 움직였다. 어떤 숫자에도 안 잡힌다")
 
         reasons.append(
             "🔴 이 판의 '통과' 는 좋은 일이 아니다. <장애가 보이지 않는다는 것이 확인됐다> 는 뜻이다. "
@@ -513,7 +513,7 @@ def cmd_after(args) -> int:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="S4 장애 주입 — 제어 · 회복 · 판정")
+    parser = argparse.ArgumentParser(description="S4 장애 주입: 제어 · 회복 · 판정")
     parser.add_argument("phase", choices=["before", "inject", "clear", "recover", "after"])
     parser.add_argument("--run-id", required=True)
     parser.add_argument("--round", choices=sorted(ROUNDS))

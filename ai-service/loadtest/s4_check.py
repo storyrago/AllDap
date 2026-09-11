@@ -81,7 +81,7 @@ def fails_because(name: str, round_name, before, after, counts, needle: str) -> 
 
 
 def main() -> int:
-    print("parse_prom_counter — 0 과 <계측 없음> 을 가르는가")
+    print("parse_prom_counter: 0 과 <계측 없음> 을 가르는가")
     # ⚠️ 이 함수는 이제 loadtest/promtext.py 한 벌뿐이다(s3_context·s4_context 의 복사본을 합쳤다).
     #    그래도 s3_check 와 s4_check 가 각각 점검하는 것은 일부러다: s3 는 게이지와 단일 라벨을,
     #    s4 는 두 태그 조합을 본다. 같은 함수를 서로 다른 각도에서 잡아주므로 한쪽으로 합치지 않는다.
@@ -99,7 +99,7 @@ def main() -> int:
                              {"operation": "chat", "outcome": "read_timeout"}) is None)
     check("라벨 없는 카운터도 읽는다", parse_prom_counter(prom, "alldap_ai_retry_total", {}) == 40.0)
 
-    print("\nparse_prom_counter — 이름이 <접두사만> 같은 줄을 집지 않는가")
+    print("\nparse_prom_counter: 이름이 <접두사만> 같은 줄을 집지 않는가")
     # 🔴 2026-09-11. Micrometer 타이머 하나는 _count·_sum·_max 세 줄로 나오고,
     #    그 셋의 공통 접두사(alldap_ai_call_seconds)는 <노출에 없는 이름>이다.
     #    이름 경계 검사가 없으면 그 없는 이름으로 물어도 _count 줄이 걸려 700.0 이 나온다.
@@ -131,7 +131,7 @@ def main() -> int:
     state, raw = read_circuit_state("")
     check("시계열이 없으면 여전히 unknown", (state, raw) == ("unknown", None), f"({state!r})")
 
-    print("read_circuit_state — <닫혔다> 와 <못 읽었다> 를 가르는가")
+    print("read_circuit_state: <닫혔다> 와 <못 읽었다> 를 가르는가")
     closed = "alldap_ai_circuit_state 0.0\n"
     check("0 이면 closed", read_circuit_state(closed)[0] == "closed")
     check("1 이면 half_open", read_circuit_state("alldap_ai_circuit_state 1.0\n")[0] == "half_open")
@@ -142,7 +142,7 @@ def main() -> int:
     check("시계열이 없으면 unknown (closed 가 아니다)", state == "unknown", f"({state!r})")
     check("그때 값은 None", raw is None, f"({raw!r})")
 
-    print("\njudge_fault_round — F1 (프로세스 종료)")
+    print("\njudge_fault_round: F1 (프로세스 종료)")
     before = signals()
     good_f1 = signals(outcomes={OUTCOME_CONNECT_FAILURE: 40.0, OUTCOME_CIRCUIT_OPEN: 300.0},
                       retry=40.0, transitions={"open": 3.0})
@@ -163,7 +163,7 @@ def main() -> int:
                           retry=40.0, transitions={"open": 0.0}),
                   k6(inject={503: 340}), "전이 카운터 계측을 의심")
 
-    print("\njudge_fault_round — F2 (Python 5xx). 이 PR 에서 유일한 반증 가능한 주장")
+    print("\njudge_fault_round: F2 (Python 5xx). 이 PR 에서 유일한 반증 가능한 주장")
     ok, why = judged("F2", before, signals(outcomes={OUTCOME_PYTHON_5XX: 200.0}, retry=0.0),
                      k6(inject={503: 200}))
     check("F2 정상: 5xx 가 늘고 재시도가 0이면 통과", ok, f"({why[:60]}…)")
@@ -175,7 +175,7 @@ def main() -> int:
     fails_because("F2: 5xx 가 안 늘면 실패(주입이 안 켜졌다)", "F2", before,
                   signals(retry=0.0), k6(inject={503: 200}), "python_5xx 가 0")
 
-    print("\njudge_fault_round — F3 (조용한 실패). <안 움직이는 것>이 통과다")
+    print("\njudge_fault_round: F3 (조용한 실패). <안 움직이는 것>이 통과다")
     f3_after = signals(outcomes={OUTCOME_SUCCESS: 700.0}, injected=150)
     ok, why = judged("F3", signals(injected=0), f3_after, k6(inject={200: 200}))
     check("F3 정상: 200 뿐이고 실패 outcome 이 안 움직이면 통과", ok, f"({why[:60]}…)")
@@ -209,7 +209,7 @@ def main() -> int:
     ok, why = judge_fault_round("F1", before, good_f1, {"normal": {}, "inject": {}})
     check("구간이 비면 실패", (not ok) and "둘 다 있어야" in " | ".join(why))
 
-    print("\ndelta 규칙 — after 에 시계열이 없는 것은 <0> 이다")
+    print("\ndelta 규칙: after 에 시계열이 없는 것은 <0> 이다")
     # Micrometer 는 태그 조합이 처음 쓰일 때 미터를 만든다. 그래서 after 의 부재는
     # "그 일이 한 번도 안 일어났다" 로 읽는 것이 맞다. before 의 부재와 뜻이 다르다.
     after_missing = signals(outcomes={OUTCOME_PYTHON_5XX: 200.0}, retry=None)
