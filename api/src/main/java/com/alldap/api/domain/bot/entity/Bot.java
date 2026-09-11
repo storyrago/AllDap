@@ -126,10 +126,15 @@ public class Bot extends BaseEntity {
      * <p>{@code @JdbcTypeCode(SqlTypes.ARRAY)} 로 Java 배열 ↔ Postgres 배열을 직접 매핑한다.
      * {@code @ElementCollection} 을 쓰면 별도 조인 테이블이 필요한데 스키마에는 그런 테이블이 없다.
      *
-     * <p>TODO(W2): 첫 기동 시 {@code ddl-auto=validate} 가 이 컬럼을 통과하는지 반드시 확인할 것.
-     *   Hibernate 가 기대하는 배열 타입 표기와 Postgres 의 {@code _text} 표기가 어긋나면
-     *   기동 단계에서 SchemaManagementException 이 난다. 그 경우 {@code columnDefinition}
-     *   지정 또는 커스텀 UserType 으로 대응한다.
+     * <p>✅ <b>{@code ddl-auto=validate} 통과는 확인됐다</b>(옛 TODO 를 지운 자리다).
+     *   걱정했던 것은 Hibernate 가 기대하는 배열 타입 표기와 Postgres 의 {@code _text} 표기가
+     *   어긋나 기동 단계에서 SchemaManagementException 이 나는 경우였는데, 그런 일은 없었다.
+     *   {@code columnDefinition} 지정도 커스텀 UserType 도 필요하지 않았다.
+     *
+     *   <p><b>근거는 1회성 기동 로그가 아니다.</b> 통합 테스트가 Testcontainers 로 매번
+     *   진짜 Postgres 를 띄우고 Flyway 를 적용한 뒤 {@code validate} 로 기동하므로,
+     *   이 매핑은 <b>테스트를 돌릴 때마다 다시 검증된다.</b> 스키마나 이 필드를 건드려 어긋나면
+     *   전체 통합 테스트가 기동 단계에서 한꺼번에 실패하는 형태로 드러난다.
      */
     @JdbcTypeCode(SqlTypes.ARRAY)
     @Column(name = "allowed_origins")
