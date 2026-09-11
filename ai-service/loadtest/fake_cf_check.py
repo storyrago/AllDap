@@ -16,7 +16,10 @@ from __future__ import annotations
 import json
 import os
 import threading
+import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+import httpx
 
 # ⚠️ get_settings 는 lru_cache 라 <처음 읽는 순간> 값이 굳는다.
 #    그래서 app.* 을 import 하기 <전에> 환경변수를 세팅한다.
@@ -179,6 +182,87 @@ def main() -> int:
             check(f"/stats {name} 시 중단", "중단" in str(e), f"({str(e)[:30]}...)")
         if payload is not None:
             bad.shutdown()
+
+    # ⑫ 장애 주입(S4). 여기부터는 <일부러 500 을 받는> 구간이라 맨 뒤에 둔다 —
+    #    앞의 지연·뉴런 검사가 주입된 호출을 섞어 보면 무엇을 잰 값인지 알 수 없게 된다.
+    base = "http://127.0.0.1:9101"
+
+    def set_fault(mode: str, status: int = 500) -> dict:
+        resp = httpx.post(f"{base}/fault", json={"mode": mode, "status": status}, timeout=10.0)
+        resp.raise_for_status()
+        return resp.json()
+
+    def injected() -> int:
+        return httpx.get(f"{base}/stats", timeout=10.0).json()["fault"]["injected"]
+
+    def call(model: str) -> int:
+        """모델을 부르고 <HTTP 상태 코드>를 돌려준다. 200 이면 예외가 안 난 것이다."""
+        payload = {"text": ["가"]} if model == s.embedding_model else (
+            {"query": "q", "contexts": [{"text": "a"}]} if model == s.reranker_model
+            else {"messages": [], "max_tokens": 1024})
+        try:
+            cf.run(model, payload)
+            return 200
+        except httpx.HTTPStatusError as e:
+            return e.response.status_code
+
+    # mode=none: 아무것도 안 바뀐다.
+    set_fault("none")
+    before = injected()
+    check("주입 none: 생성 200", call(s.chat_model) == 200)
+    check("주입 none: injected 안 늘어남", injected() == before, f"({injected() - before})")
+
+    # mode=error_all: 세 모델 전부 500, injected +3.
+    set_fault("error_all")
+    before = injected()
+    codes = [call(m) for m in (s.embedding_model, s.reranker_model, s.chat_model)]
+    check("주입 error_all: 셋 다 500", codes == [500, 500, 500], f"({codes})")
+    check("주입 error_all: injected +3", injected() - before == 3, f"(+{injected() - before})")
+
+    # mode=error_rerank: 리랭커<만> 500. 나머지를 건드리면 F3 이 재려는 것이 무너진다
+    #    (임베딩·생성까지 죽으면 사용자 응답이 503 이 되어 "보이지 않는 장애" 가 아니게 된다).
+    set_fault("error_rerank")
+    before = injected()
+    check("주입 error_rerank: 임베딩 200", call(s.embedding_model) == 200)
+    check("주입 error_rerank: 생성 200", call(s.chat_model) == 200)
+    check("주입 error_rerank: injected 안 늘어남", injected() == before, f"(+{injected() - before})")
+    started = time.perf_counter()
+    rerank_code = call(s.reranker_model)
+    elapsed_ms = (time.perf_counter() - started) * 1000
+    check("주입 error_rerank: 리랭커 500", rerank_code == 500, f"({rerank_code})")
+    check("주입 error_rerank: injected +1", injected() - before == 1, f"(+{injected() - before})")
+    # 🔴 지연을 유지하는지. 500 을 즉시 주면 종단 지연이 414ms 빨라져 "장애인데 빨라졌다" 가
+    #    되고, 장애와 지연 변화가 한 숫자에 섞인다. 그게 F3 판의 전제를 통째로 깬다.
+    check(
+        "주입 error_rerank: 지연을 그대로 유지",
+        elapsed_ms >= fake_cf.LATENCY_MS["rerank"],
+        f"({elapsed_ms:.0f}ms, 기대 {fake_cf.LATENCY_MS['rerank']}ms 이상)",
+    )
+
+    # /stats 의 fault 블록이 실제 상태와 일치하는지.
+    fault = httpx.get(f"{base}/stats", timeout=10.0).json()["fault"]
+    check("/stats fault.mode", fault["mode"] == "error_rerank", f"({fault['mode']})")
+    check("/stats fault.status", fault["status"] == 500, f"({fault['status']})")
+    check("/stats fault.injected", fault["injected"] == injected(), f"({fault['injected']})")
+
+    # 잘못된 mode 를 <조용히 받아주지 않는지>. 받아주면 주입했다고 믿은 채 정상을 재게 된다.
+    bad = httpx.post(f"{base}/fault", json={"mode": "오타"}, timeout=10.0)
+    check("잘못된 mode 는 400", bad.status_code == 400, f"({bad.status_code})")
+    check("잘못된 mode 는 상태를 안 바꾼다",
+          httpx.get(f"{base}/stats", timeout=10.0).json()["fault"]["mode"] == "error_rerank")
+
+    # ⑬ 🔴 주입을 끈 뒤 <뉴런 0.0 안전장치가 그대로 살아 있는지>.
+    #    뉴런 0.0 은 이 서버가 가짜라는 유일한 신호이고 s2_context.judge_fake_cf 가
+    #    그 값으로 진짜 Cloudflare 를 막는다. 주입 코드가 응답 조립 경로를 건드리면
+    #    그 안전장치가 <조용히> 꺼지고 하루 API 한도가 통째로 날아간다.
+    #    ⑦ 은 주입 <전>에 돌았으므로, 주입을 거친 뒤에 한 번 더 확인해야 회귀가 잡힌다.
+    set_fault("none")
+    for model in (s.embedding_model, s.reranker_model, s.chat_model):
+        check(f"주입 해제 뒤 200 {model}", call(model) == 200)
+    used = cf.neurons_used()
+    check("주입 해제 뒤에도 뉴런 0.0", all(v == 0.0 for v in used.values()), f"({used})")
+    for model in (s.embedding_model, s.reranker_model, s.chat_model):
+        check(f"주입 해제 뒤에도 뉴런 적립됨 {model}", model in used, f"({used.get(model)})")
 
     server.shutdown()
     print(f"\n{'실패 ' + ', '.join(failures) if failures else '전부 통과'}")
