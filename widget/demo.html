@@ -103,15 +103,20 @@
       <li>맨 아래 검은 띠(z-index 999999)보다 위젯이 위에 있다</li>
     </ul>
 
-    <p><strong>아직 확인할 수 없는 것</strong> — 서버가 없어서 실패하는 게 정상이다</p>
+    <p><strong>서버를 띄우면 함께 확인할 수 있는 것</strong> (2026-08-02 부터 전부 구현됐다)</p>
     <ul>
-      <li>봇 이름·색상 불러오기 → Spring <code>GET /api/w/{publicKey}/config</code> 미구현 (W2)</li>
-      <li>실제 대화·출처 카드·👍/👎 → Next.js <code>/w/[publicKey]</code> 페이지 미구현 (W2)<br>
-          지금은 채팅창 안에 "채팅 화면을 불러오지 못했습니다" 안내가 뜨는 게 정상 동작이다</li>
+      <li>봇 이름·색상 불러오기 → Spring <code>GET /api/w/{publicKey}/config</code></li>
+      <li>실제 대화·출처 카드·👍/👎 → Next.js <code>/w/[publicKey]</code> 페이지</li>
+      <li>⚠️ 봇의 <code>allowed_origins</code> 에 이 페이지의 origin
+          (<code>http://localhost:5500</code>)이 들어 있어야 설정 조회가 통과한다.
+          비어 있으면 "전부 허용" 이 아니라 <strong>전부 차단</strong>이다.</li>
+      <li>Spring 과 Next.js 를 안 띄웠다면 채팅창 안에 "채팅 화면을 불러오지 못했습니다"
+          안내가 뜨는 것이 정상이다(로더가 콘솔 에러로 죽지 않는지 보는 장치다)</li>
     </ul>
 
-    <p><strong>W2에서 이 페이지로 최종 검수</strong>: 문서를 올린 봇에게 질문 → 답변과 출처가 뜨고,
-       문서에 없는 질문에는 지어내지 않고 거절 문구가 뜨면 F-04 통과.</p>
+    <p><strong>F-04 최종 검수</strong>: 문서를 올린 봇에게 질문 → 답변과 출처가 뜨고,
+       문서에 없는 질문에는 지어내지 않고 거절 문구가 뜨면 통과.
+       2026-08-02 에 별도 origin 의 가짜 고객 사이트로 실측 통과했다.</p>
   </div>
 
   <h2>이 페이지를 여는 법</h2>
@@ -130,18 +135,22 @@ python3 -m http.server 5500
   위젯 설치 — 실제로는 위의 "한 줄"이지만, 검수용으로 3가지를 다르게 뒀다
   ===========================================================================
   ① src 를 상대 경로(./alldap-widget.js)로 둔 이유
-     Spring(:8080)이 아직 없어서 http://localhost:8080/widget/... 는 404 가 난다.
+     Spring 을 안 띄웠거나 빌드를 안 했으면 http://localhost:8080/widget/... 가 안 나온다.
+     (그 주소는 Gradle processResources 가 이 파일을 static/widget 으로 담아야 열린다)
      그러면 이 검수 페이지에서 아무것도 못 보게 되므로, 파일에서 직접 읽게 했다.
      ★ 실제 고객에게 주는 코드는 위의 절대 URL 한 줄이다.
 
   ② data-api-base / data-app-base
      위젯 JS 를 상대 경로로 읽으면 API 주소를 스스로 유추할 수 없어 직접 알려준다.
-     운영에서는 두 서비스를 한 도메인에 묶을 예정이라 이 속성이 필요 없다.
+     data-app-base 는 운영에서도 <영구히> 필요하다. 프론트는 Vercel, API 는 EC2+Caddy 라
+     두 origin 이 다르기 때문이다(옛 주석은 "한 도메인에 묶을 예정" 이라고 적고 있었다).
      (alldap-widget.js 의 resolveAppBase 주석 참고)
 
   ③ data-primary-color
-     bots 테이블에 색상 컬럼이 아직 없어서(db/V1__init.sql) 임시로 여기서 지정한다.
-     TODO(W2): bots.primary_color 를 추가하고 config 응답에 실으면 이 속성은 불필요해진다.
+     bots 테이블에 색상 컬럼이 아직 없어서 임시로 여기서 지정한다.
+     (스키마는 api/src/main/resources/db/migration/ 이 단일 진실 공급원이다.
+      루트 db/ 는 2026-07-31 Flyway 이관으로 없어진 경로다)
+     TODO: bots.primary_color 를 추가하고 config 응답에 실으면 이 속성은 불필요해진다.
 -->
 <script src="./alldap-widget.js"
         data-public-key="pk_local_dev"
