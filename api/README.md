@@ -212,7 +212,7 @@ Source       = { chunk_id, document_id, filename, score, preview }
 ### 🚫 하면 안 되는 것
 
 ```yaml
-# application.yaml — 절대 이렇게 하지 말 것
+# application.yaml : 절대 이렇게 하지 말 것
 spring:
   jackson:
     property-naming-strategy: SNAKE_CASE
