@@ -82,8 +82,9 @@ def fails_because(name: str, round_name, before, after, counts, needle: str) -> 
 
 def main() -> int:
     print("parse_prom_counter — 0 과 <계측 없음> 을 가르는가")
-    # ⚠️ s3_context 에 같은 함수가 있다(복사한 이유는 s4_context 의 그 함수 주석 참고).
-    #    복사본이라고 점검을 생략하면, 한쪽만 고쳐졌을 때 조용히 갈린다.
+    # ⚠️ 이 함수는 이제 loadtest/promtext.py 한 벌뿐이다(s3_context·s4_context 의 복사본을 합쳤다).
+    #    그래도 s3_check 와 s4_check 가 각각 점검하는 것은 일부러다: s3 는 게이지와 단일 라벨을,
+    #    s4 는 두 태그 조합을 본다. 같은 함수를 서로 다른 각도에서 잡아주므로 한쪽으로 합치지 않는다.
     prom = (
         'alldap_ai_call_seconds_count{operation="chat",outcome="success",} 700.0\n'
         'alldap_ai_call_seconds_count{operation="chat",outcome="circuit_open",} 12.0\n'
