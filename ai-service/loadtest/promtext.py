@@ -32,6 +32,18 @@ def parse_prom_counter(text: str, name: str, labels: dict[str, str]) -> float | 
             continue
         if not line.startswith(name):
             continue
+        # 🔴 이름 경계. startswith 만으로는 <접두사가 같은 다른 메트릭>이 함께 걸린다.
+        #    실례: alldap_ratelimit_keys(게이지)로 물으면
+        #    alldap_ratelimit_keys_cleared_total(카운터) 줄도 통과한다. 그 조회는 라벨이
+        #    {} 라 아래 라벨 검사가 빈 시퀀스의 all()=True 로 통과해 버려, 결국 <먼저
+        #    나오는 줄이 이긴다>. 지금까지 값이 맞았던 것은 파서 덕이 아니라
+        #    prometheus-metrics 1.x 가 알파벳 순으로 뱉기 때문이었다(기대도 안 한 보증이다).
+        #    Prometheus 노출 형식에서 메트릭 이름 뒤에 올 수 있는 것은 라벨을 여는 '{'
+        #    아니면 값 앞의 공백뿐이므로, 그 둘만 경계로 인정하면 위험이 원리적으로 닫힌다.
+        #    회귀 검사는 loadtest/s3_check.py · s4_check.py 에 있다(줄 순서를 뒤집어도
+        #    같은 값이 나오는지까지 단언한다).
+        if line[len(name):len(name) + 1] not in ("{", " "):
+            continue
         head, _, value = line.rpartition(" ")
         if not all(re.search(rf'{re.escape(k)}="{re.escape(v)}"', head) for k, v in labels.items()):
             continue

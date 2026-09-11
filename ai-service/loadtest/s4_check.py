@@ -99,6 +99,24 @@ def main() -> int:
                              {"operation": "chat", "outcome": "read_timeout"}) is None)
     check("라벨 없는 카운터도 읽는다", parse_prom_counter(prom, "alldap_ai_retry_total", {}) == 40.0)
 
+    print("\nparse_prom_counter — 이름이 <접두사만> 같은 줄을 집지 않는가")
+    # 🔴 2026-09-11. Micrometer 타이머 하나는 _count·_sum·_max 세 줄로 나오고,
+    #    그 셋의 공통 접두사(alldap_ai_call_seconds)는 <노출에 없는 이름>이다.
+    #    이름 경계 검사가 없으면 그 없는 이름으로 물어도 _count 줄이 걸려 700.0 이 나온다.
+    #    s3 쪽 케이스와 달리 여기는 라벨이 붙어 있고 그 라벨까지 맞아떨어지므로,
+    #    <라벨 조건이 있어도 못 막는다> 는 것을 함께 보인다.
+    timer = (
+        'alldap_ai_call_seconds_count{operation="chat",outcome="success",} 700.0\n'
+        'alldap_ai_call_seconds_sum{operation="chat",outcome="success",} 84.0\n'
+    )
+    tags = {"operation": "chat", "outcome": "success"}
+    for order, body in (("노출 순", timer),
+                        ("뒤집은 순", "".join(reversed(timer.splitlines(True))))):
+        got = parse_prom_counter(body, "alldap_ai_call_seconds", tags)
+        check(f"접두사만 같은(노출에 없는) 이름은 None({order})", got is None, f"({got!r})")
+        got = parse_prom_counter(body, "alldap_ai_call_seconds_sum", tags)
+        check(f"_sum 은 제 값을 읽는다({order})", got == 84.0, f"({got!r})")
+
     print("read_circuit_state — <닫혔다> 와 <못 읽었다> 를 가르는가")
     closed = "alldap_ai_circuit_state 0.0\n"
     check("0 이면 closed", read_circuit_state(closed)[0] == "closed")
