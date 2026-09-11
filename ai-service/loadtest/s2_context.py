@@ -3,7 +3,8 @@
 실행:
     # 실행 전: 봇을 고르고 조건을 남긴다. 인쇄된 두 줄을 k6 에 그대로 넘긴다.
     cd ai-service && .venv/bin/python -m loadtest.s2_context before \\
-        --run-id 2026-09-10-1 --email w2check@example.com --password 'S1loadtest!2026'
+        --run-id 2026-09-10-1
+    (계정은 LOADTEST_EMAIL·LOADTEST_PASSWORD 에서 온다. loadtest/account.py 가 먼저다)
 
     # 실행 후: 가짜 CF 호출 수를 요청 수와 맞춰본다.
     cd ai-service && .venv/bin/python -m loadtest.s2_context after \\
@@ -60,6 +61,8 @@ from datetime import datetime
 from pathlib import Path
 
 import httpx
+
+from .account import env_email, env_password
 
 RESULTS = Path(__file__).parent / "results"
 
@@ -458,14 +461,18 @@ def main() -> int:
     parser.add_argument("--run-id", required=True)
     parser.add_argument("--api", default="http://localhost:8080")
     parser.add_argument("--ai", default="http://localhost:8001")
-    parser.add_argument("--email", default="w2check@example.com")
-    parser.add_argument("--password")
+    # 🔴 계정은 <측정 전용>이고 기본값은 환경변수에서 온다. 예전에는 w2check@example.com
+    #    이 박혀 있었는데, 그건 W2 검증에 쓰던 계정이라 측정이 끝날 때마다 비밀번호를
+    #    되돌렸고 그래서 다음 측정이 매번 401 이었다(loadtest/account.py 참고).
+    parser.add_argument("--email", default=env_email())
+    parser.add_argument("--password", default=env_password())
     parser.add_argument("--k6-summary")
     args = parser.parse_args()
 
     if args.phase == "before":
         if not args.password:
-            print("중단: before 에는 --password 가 필요하다.")
+            print("중단: before 에는 비밀번호가 필요하다. "
+                  "LOADTEST_PASSWORD 를 넣거나 --password 로 넘길 것.")
             return 1
         return cmd_before(args)
 

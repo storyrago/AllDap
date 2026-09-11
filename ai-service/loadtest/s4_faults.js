@@ -1,7 +1,9 @@
 // S4 장애 주입: k6 시나리오. 20 VU 고정, 관리자 채팅 경로.
 //
 // 실행 (판 하나당 한 번. 드라이버가 주입을 켜고 끄는 것과 <같은 시간축>으로 돈다):
-//   k6 run -e ROUND=F1 -e RUN_ID=2026-09-11-F1 -e BOT_ID=... loadtest/s4_faults.js
+//   LOADTEST_PASSWORD='...' k6 run -e ROUND=F1 -e RUN_ID=2026-09-11-F1 -e BOT_ID=... \
+//     loadtest/s4_faults.js
+//   (계정은 loadtest/account.py 가 먼저 만들어둔 측정 전용 계정이다)
 //   (결과 JSON 은 handleSummary 가 OUT 경로로 직접 쓴다. --summary-export 는 필요 없다)
 //
 // 설계서: docs/superpowers/specs/2026-09-11-loadtest-pr4b-s4-fault-injection-design.md
@@ -23,8 +25,12 @@ import exec from 'k6/execution';
 import { Counter, Trend } from 'k6/metrics';
 
 const API      = __ENV.API      || 'http://localhost:8080';
-const EMAIL    = __ENV.EMAIL    || 'w2check@example.com';
-const PASSWORD = __ENV.PASSWORD || 'S1loadtest!2026';
+// 🔴 계정은 <측정 전용>이고 값은 환경변수에서만 온다(loadtest/account.py 가 만든다).
+//    예전에는 w2check@example.com / 비밀번호까지 기본값으로 박혀 있었다. 그 계정은
+//    W2 검증에 쓰던 것이라 측정 뒤 비밀번호가 원래대로 복원됐고, 그래서 다음 측정이
+//    매번 401 이었다. 그리고 박아둔 기본 비밀번호는 그 자체로 저장소에 커밋된 비밀번호다.
+const EMAIL    = __ENV.EMAIL    || __ENV.LOADTEST_EMAIL    || 'loadtest@example.com';
+const PASSWORD = __ENV.PASSWORD || __ENV.LOADTEST_PASSWORD;
 const BOT_ID   = __ENV.BOT_ID;
 const RUN_ID   = __ENV.RUN_ID;
 const ROUND    = __ENV.ROUND;
@@ -101,6 +107,13 @@ export const options = {
 };
 
 export function setup() {
+  // 🔴 비밀번호에 기본값이 없다. 없으면 로그인 401 로 죽는데, 그 에러만 보면
+  //    "계정이 잘못됐나" 를 먼저 의심하게 된다. 여기서 <무엇이 빠졌는지>로 죽인다.
+  if (!PASSWORD) {
+    throw new Error('PASSWORD 가 없다. LOADTEST_PASSWORD 를 환경변수로 넘길 것 '
+      + '(계정은 loadtest/account.py 가 만든다).');
+  }
+
   const res = http.post(`${API}/api/auth/login`,
     JSON.stringify({ email: EMAIL, password: PASSWORD }),
     { headers: { 'Content-Type': 'application/json' } });

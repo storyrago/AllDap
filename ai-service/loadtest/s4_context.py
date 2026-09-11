@@ -46,6 +46,7 @@ import httpx
 # 파서는 loadtest/promtext.py 한 벌만 있다. 여기서 import 해 <이 모듈의 이름으로도>
 # 남겨두므로, 이 파일에서 parse_prom_counter 를 가져다 쓰던 곳(s3_check · s4_check)은
 # 한 줄도 고치지 않아도 그대로 돈다.
+from loadtest.account import env_email, env_password
 from loadtest.promtext import MetricUnreadable, parse_prom_counter
 
 
@@ -521,8 +522,9 @@ def main() -> int:
     parser.add_argument("--actuator", default="http://localhost:8081")
     parser.add_argument("--cf", default="http://127.0.0.1:9001")
     parser.add_argument("--operation", default="chat")
-    parser.add_argument("--email", default="w2check@example.com")
-    parser.add_argument("--password")
+    # 계정 기본값은 환경변수에서 온다(loadtest/account.py 가 만든 측정 전용 계정).
+    parser.add_argument("--email", default=env_email())
+    parser.add_argument("--password", default=env_password())
     parser.add_argument("--vus", type=int, default=20)
     parser.add_argument("--normal-s", type=int, default=60)
     parser.add_argument("--inject-s", type=int, default=90)
@@ -535,7 +537,8 @@ def main() -> int:
             print("중단: before 에는 --round 가 필요하다.")
             return 1
         if not args.password:
-            print("중단: before 에는 --password 가 필요하다.")
+            print("중단: before 에는 비밀번호가 필요하다. "
+                  "LOADTEST_PASSWORD 를 넣거나 --password 로 넘길 것.")
             return 1
         return cmd_before(args)
     if args.phase == "inject":
@@ -544,7 +547,8 @@ def main() -> int:
         return cmd_clear(args)
     if args.phase == "recover":
         if not args.password:
-            print("중단: recover 에는 --password 가 필요하다.")
+            print("중단: recover 에는 비밀번호가 필요하다. "
+                  "LOADTEST_PASSWORD 를 넣거나 --password 로 넘길 것.")
             return 1
         return cmd_recover(args)
     if not args.k6_summary:
