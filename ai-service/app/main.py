@@ -97,10 +97,10 @@ async def lifespan(app: FastAPI):
 #    아무도 안 쓴 영어만 나란히 선다. "빈칸이 아니라 그럴듯한 값" 이라 눈으로는
 #    못 잡는다 = 검사가 필요하다 (app/openapi_check.py).
 #
-# 🔴 각 경로의 docstring 첫 줄에 있는 `\f` 는 오타가 아니다. <지우지 말 것.>
-#    FastAPI 는 docstring 을 API 설명(description)으로 자동으로 쓰는데, `\f`(form feed)
-#    뒤는 문서에서 잘라낸다. 즉 <docstring 을 지운 것이 아니라 렌더링만 끈 것>이고
-#    내용은 코드에 그대로 남아 있다(`함수.__doc__` 로 확인된다).
+# 🔴 각 경로에 `description=_NO_DESCRIPTION` 이 붙어 있다. <지우지 말 것.>
+#    FastAPI 는 docstring 을 API 설명(description)으로 자동으로 쓰는데, 데코레이터에
+#    `description` 이 주어지면 docstring 을 아예 읽지 않는다. 즉 <docstring 을 지운 것이
+#    아니라 렌더링만 끈 것>이고 내용은 코드에 그대로 남아 있다(`함수.__doc__` 로 확인된다).
 #
 #    왜 껐나: 이 저장소는 "왜 그렇게 돼 있는가" 를 코드 주석에 길게 남기는 습관이 있는데,
 #    그게 두 스택에서 <비대칭>으로 나타났다. springdoc 은 Javadoc 을 읽지 않아
@@ -108,6 +108,20 @@ async def lifespan(app: FastAPI):
 #    그래서 같은 습관이 한쪽에서는 안 보이고 이쪽에서만 전부 쏟아져,
 #    /docs 를 나란히 놓으면 Python 쪽만 난잡했다. 화면에 남기는 것은 `summary` 한 줄이다.
 #
+# 이 값을 주면 FastAPI 가 docstring 을 <읽지 않는다>. 생성 단계에서 빈 문자열로
+# 정리되어 결국 description 이 없는 것과 같아진다.
+#
+# 🔴 왜 빈 문자열("")이 아니라 공백 한 칸인가: "" 는 거짓값이라
+#    `description or cleandoc(docstring)` 에서 docstring 쪽으로 떨어진다.
+#    실측으로 확인했다(3.11 에서 설명이 그대로 새어나왔다).
+#
+# 🔴 왜 docstring 맨 앞의 `\f` 를 안 쓰는가: 2026-09-13 에 그렇게 했다가 CI 에서
+#    16건 전부 실패했다. inspect.cleandoc 이 3.11 에서는 첫 줄에 lstrip() 을 걸고
+#    `\f` 도 파이썬이 공백으로 치기 때문에 통째로 지워진다. 3.13 은 lstrip(' ') 이라
+#    살아남는다. 즉 <로컬(3.13)에서만 동작하고 CI·운영(3.11)에서는 안 되는> 방식이었다.
+_NO_DESCRIPTION = " "
+
+
 # 왜 태그를 나누는가: 태그가 없으면 /docs 에서 16개가 전부 `default` 한 덩어리로
 # 나와 `/health` 와 `/internal/chat` 이 한 줄에 나란히 선다. 즉 <어디까지가 제품
 # 기능이고 어디부터가 운영 도구인지>가 화면에서 사라진다.
@@ -200,9 +214,14 @@ app = FastAPI(
 )
 
 
-@app.get("/health", tags=["운영"], summary="헬스체크 (DB 포함)")
+@app.get(
+    "/health",
+    tags=["운영"],
+    summary="헬스체크 (DB 포함)",
+    description=_NO_DESCRIPTION,
+)
 def health() -> dict:
-    """\f
+    """
     이 서비스가 살아 있는지 본다. DB 까지 확인한다.
 
     프로세스가 응답하는 것만으로는 부족해서 커넥션을 하나 빌려 `SELECT 1` 을 던진다.
@@ -219,9 +238,10 @@ def health() -> dict:
     "/internal/debug/cf-stats",
     tags=["운영"],
     summary="Cloudflare 호출 통계 (모델별 뉴런·지연)",
+    description=_NO_DESCRIPTION,
 )
 def cf_stats() -> dict:
-    """\f
+    """
     모델별 Cloudflare 호출 수·뉴런·지연 백분위. 부하테스트 S1 이 읽는다.
 
     🔴 이 값은 <이 프로세스가 시작된 뒤>의 누적이다. 측정 구간을 나누려면
@@ -246,9 +266,10 @@ def cf_stats() -> dict:
     "/internal/debug/cf-config",
     tags=["운영"],
     summary="이 프로세스가 보는 Cloudflare 주소",
+    description=_NO_DESCRIPTION,
 )
 def cf_config() -> dict:
-    """\f
+    """
     이 프로세스가 <실제로 어느 Cloudflare 주소를 보고 있는지>. 부하테스트가 읽는다.
 
     🔴 왜 필요한가: 부하테스트 드라이버는 자기 셸의 CF_BASE_URL 밖에 모른다.
@@ -262,9 +283,14 @@ def cf_config() -> dict:
     return {"cf_base_url": get_settings().cf_base_url}
 
 
-@app.get("/internal/metrics", tags=["운영"], summary="Prometheus 지표")
+@app.get(
+    "/internal/metrics",
+    tags=["운영"],
+    summary="Prometheus 지표",
+    description=_NO_DESCRIPTION,
+)
 async def prometheus_metrics() -> Response:
-    """\f
+    """
     Prometheus 스크레이프 엔드포인트. 부하테스트 S2 가 읽는다.
 
     🔴 <async def 여야 한다.> metrics.render() 안의 anyio limiter 조회는 이벤트 루프
@@ -347,13 +373,14 @@ def _process_document(doc_id: UUID, bot_id: UUID, filename: str, data: bytes) ->
     status_code=202,
     tags=["문서"],
     summary="문서 업로드 (비동기 처리)",
+    description=_NO_DESCRIPTION,
 )
 async def upload_document(
     bot_id: UUID,
     background: BackgroundTasks,
     file: UploadFile = File(...),
 ) -> DocumentOut:
-    """\f
+    """
     문서 1건을 받아 `documents` 행만 만들고 202 로 즉시 답한다. 처리는 백그라운드다.
 
     🔴 <b>왜 202 인가:</b> 파싱·청킹까지는 빠르지만 임베딩은 외부 API 호출이라
@@ -406,9 +433,10 @@ async def upload_document(
     response_model=list[DocumentOut],
     tags=["문서"],
     summary="문서 목록 조회",
+    description=_NO_DESCRIPTION,
 )
 def list_documents(bot_id: UUID) -> list[DocumentOut]:
-    """\f
+    """
     봇 하나의 문서 목록을 최신순으로 준다. 업로드 진행 상황을 보는 창이다.
 
     업로드가 202 로 끝나므로(`upload_document`) 처리 결과를 알 방법이 이것뿐이다.
@@ -450,9 +478,10 @@ def list_documents(bot_id: UUID) -> list[DocumentOut]:
     response_model=None,
     tags=["문서"],
     summary="문서 삭제",
+    description=_NO_DESCRIPTION,
 )
 def delete_document(bot_id: UUID, doc_id: UUID) -> None:
-    """\f
+    """
     문서 1건을 지운다. 청크는 CASCADE 로 함께 사라진다.
 
     🔴 <b>경로에 bot_id 가 반드시 있어야 한다.</b> `/internal/*` 에는 인증이 없어서
@@ -481,9 +510,10 @@ def delete_document(bot_id: UUID, doc_id: UUID) -> None:
     response_model=ChatResponse,
     tags=["채팅"],
     summary="질문에 답한다 (검색 + 생성)",
+    description=_NO_DESCRIPTION,
 )
 def chat(req: ChatRequest) -> ChatResponse:
-    """\f
+    """
     질문 하나를 받아 문서에서 근거를 찾고 답변을 만든다. 이 제품의 핵심 경로다.
 
     흐름: 질문 임베딩 → pgvector 유사도 검색 → 근거 판정 → (근거가 있으면) LLM 호출.
@@ -572,11 +602,12 @@ def chat(req: ChatRequest) -> ChatResponse:
     response_model=list[EvalQuestionOut],
     tags=["품질 평가"],
     summary="테스트 질문 자동 생성",
+    description=_NO_DESCRIPTION,
 )
 def generate_eval_questions(
     bot_id: UUID, req: GenerateQuestionsRequest
 ) -> list[EvalQuestionOut]:
-    """\f
+    """
     문서 청크에서 테스트 질문·정답 쌍을 만들어 저장한다.
 
     왜 <동기>인가 (업로드는 202 인데)
@@ -655,9 +686,10 @@ def generate_eval_questions(
     response_model=list[EvalQuestionOut],
     tags=["품질 평가"],
     summary="테스트 질문 목록 조회",
+    description=_NO_DESCRIPTION,
 )
 def list_eval_questions(bot_id: UUID) -> list[EvalQuestionOut]:
-    """\f
+    """
     테스트 질문 목록. 비활성(is_active=false) 도 함께 준다. 화면에서 켜고 꺼야 하기 때문."""
     with cursor() as cur:
         cur.execute(
@@ -680,11 +712,12 @@ def list_eval_questions(bot_id: UUID) -> list[EvalQuestionOut]:
     response_model=EvalQuestionOut,
     tags=["품질 평가"],
     summary="테스트 질문 수정",
+    description=_NO_DESCRIPTION,
 )
 def update_eval_question(
     bot_id: UUID, question_id: UUID, req: UpdateEvalQuestionRequest
 ) -> EvalQuestionOut:
-    """\f
+    """
     테스트 질문 1건을 고친다. 보낸 필드만 바꾼다.
 
     <b>왜 Spring 이 직접 UPDATE 하지 않고 여기로 오는가.</b>
@@ -734,9 +767,10 @@ def update_eval_question(
     status_code=202,
     tags=["품질 평가"],
     summary="평가 실행 시작 (비동기)",
+    description=_NO_DESCRIPTION,
 )
 def start_eval_run(bot_id: UUID, background: BackgroundTasks) -> EvalRunOut:
-    """\f
+    """
     평가를 시작한다. 즉시 running 상태의 실행을 돌려주고 채점은 백그라운드에서 진행한다.
 
     왜 <비동기>인가 — 질문 생성(/eval/questions/generate)은 동기인데
@@ -777,9 +811,10 @@ def start_eval_run(bot_id: UUID, background: BackgroundTasks) -> EvalRunOut:
     response_model=list[EvalRunOut],
     tags=["품질 평가"],
     summary="평가 실행 이력 조회",
+    description=_NO_DESCRIPTION,
 )
 def list_eval_runs(bot_id: UUID) -> list[EvalRunOut]:
-    """\f
+    """
     실행 이력. 최신순.
 
     화면은 이 목록을 폴링해 status 가 completed 로 바뀌는 걸 본다.
@@ -812,9 +847,10 @@ def list_eval_runs(bot_id: UUID) -> list[EvalRunOut]:
     response_model=ConflictScanOut,
     tags=["문서 충돌"],
     summary="문서 충돌 진단 실행",
+    description=_NO_DESCRIPTION,
 )
 def scan_conflicts(bot_id: UUID) -> ConflictScanOut:
-    """\f
+    """
     문서끼리 어긋나는 곳을 훑는다.
 
     왜 <동기>인가 (평가 실행은 202 인데)
@@ -840,9 +876,10 @@ def scan_conflicts(bot_id: UUID) -> ConflictScanOut:
     response_model=list[ConflictOut],
     tags=["문서 충돌"],
     summary="문서 충돌 목록 조회",
+    description=_NO_DESCRIPTION,
 )
 def list_conflicts(bot_id: UUID, status: str = "open") -> list[ConflictOut]:
-    """\f
+    """
     충돌 목록. 기본은 관리자가 아직 안 본 것(open)만.
 
     ⚠️ bot_id 로 반드시 좁힌다. /internal/* 에는 인증이 없어서
@@ -885,11 +922,12 @@ def list_conflicts(bot_id: UUID, status: str = "open") -> list[ConflictOut]:
     response_model=ConflictOut,
     tags=["문서 충돌"],
     summary="문서 충돌 처리 상태 변경",
+    description=_NO_DESCRIPTION,
 )
 def update_conflict_status(
     bot_id: UUID, conflict_id: UUID, req: ConflictStatusRequest
 ) -> ConflictOut:
-    """\f
+    """
     충돌 1건의 상태를 바꾼다 (주로 오탐을 'ignored' 로 치우는 용도).
 
     🔴 경로에 bot_id 가 <반드시> 있어야 한다.
