@@ -1,51 +1,201 @@
+<div align="center">
+
 # AllDap
 
-문서를 올리면 **출처가 표시되는 한국어 RAG 챗봇**을 만들어주고,
+**문서를 올리면 출처가 표시되는 한국어 RAG 챗봇**을 만들어주고,
 그 챗봇이 얼마나 정확한지 **자동 평가 리포트로 증명**하는 서비스.
 
-> 상세 기획은 [`docs/PRD_v0.4.md`](docs/PRD_v0.4.md), 설계 결정 이력은 [`docs/decisions.md`](docs/decisions.md).
+site: **https://all-dap.vercel.app**
+
+<br/>
+
+![Next.js](https://img.shields.io/badge/Next.js%2016-000000?style=flat-square&logo=nextdotjs&logoColor=white)
+![Spring Boot](https://img.shields.io/badge/Spring%20Boot%204-6DB33F?style=flat-square&logo=springboot&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=flat-square&logo=fastapi&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL%2016%20+%20pgvector-4169E1?style=flat-square&logo=postgresql&logoColor=white)
+![AWS](https://img.shields.io/badge/AWS%20EC2%20·%20RDS-232F3E?style=flat-square&logo=amazonwebservices&logoColor=white)
+
+</div>
 
 ---
 
-## 아키텍처 (하이브리드)
+## Table of Contents
 
+- [Demo](#demo)
+- [핵심 지표](#핵심-지표)
+- [System Architecture](#system-architecture)
+- [ERD](#erd)
+- [Tech Stack](#tech-stack)
+- [Monitoring](#monitoring)
+- [Documentation](#documentation)
+
+---
+
+## Demo
+
+### 1. 문서 업로드
+
+PDF · DOCX · HWPX 를 올리면 파싱 → 청킹 → 임베딩이 백그라운드로 돌고,
+`pending → processing → ready` 로 상태가 바뀝니다.
+임베딩은 수십 초가 걸릴 수 있어 업로드 응답(202)과 처리를 분리했습니다.
+
+![문서 업로드](docs/images/demo-1-upload.png)
+
+### 2. 출처가 붙은 답변
+
+답변마다 **어느 문서의 어느 대목에서 나왔는지**를 함께 내려줍니다.
+
+![출처가 붙은 답변](docs/images/demo-2-answer.png)
+
+### 3. 근거가 없으면 답하지 않는다
+
+이 제품이 존재하는 이유입니다. 문서에 근거가 없으면 지어내지 않고 fallback 합니다.
+방어선이 두 겹입니다.
+
+| 겹 | 무엇 | 어디서 막히나 |
+|---|---|---|
+| 1차 | 검색 단계 판정 (`answerable_max_distance`) | **LLM 을 아예 호출하지 않는다** |
+| 2차 | 생성 단계 (`NO_ANSWER`) | LLM 이 근거를 읽고 "없다" 고 답한다 |
+
+문서에 없는 질문 10개로 재면 **10/10 fallback**, 대조군(문서에 답이 있는 질문) 3/3 정상 답변입니다.
+그중 **8건은 1차에서 잘려 LLM 을 부르지도 않습니다.**
+
+![근거 없을 때 fallback](docs/images/demo-3-fallback.png)
+
+### 4. 품질 대시보드
+
+**이 프로젝트의 심장입니다.** 청크에서 테스트 질문을 자동 생성하고,
+답변 생성과 **계열이 다른** 모델로 채점합니다(자기 채점 방지).
+
+![품질 대시보드](docs/images/demo-4-quality.png)
+
+### 5. 한 줄 설치 위젯
+
+고객 사이트에 `<script>` 한 줄을 넣으면 로더가 iframe 으로 채팅 화면을 띄웁니다.
+허용하지 않은 도메인은 차단됩니다(빈 허용 목록은 "전부 허용" 이 아니라 **"전부 차단"** 입니다).
+
+```html
+<script src="https://alldap.duckdns.org/widget/alldap-widget.js"
+        data-public-key="pk_xxxxxxxx"></script>
 ```
- [브라우저]
-      │
-      ▼
- ┌──────────────────────────────────────────────────┐
- │ Next.js (App Router) :3000                       │  ← 관리자 대시보드 + 공개 페이지 + 위젯 페이지
- │  /dashboard  /bot/[botId]/{documents,chat,       │     (전 화면 브라우저 실측 통과)
- │   quality,logs,settings}  /w/[publicKey]         │
- └──────────────────────────────────────────────────┘
-      │ HTTPS (REST + JWT)
-      ▼
- ┌──────────────────────────────────────────────────┐
- │ Spring Boot API :8080                            │  ← 외부에 노출되는 유일한 서비스
- │  인증(JWT)·권한·봇/문서 메타·대화 로그             │     (W2)
- └──────────────────────────────────────────────────┘
-      │ REST (내부망 전용 · 인증 없음)
-      ▼
- ┌──────────────────────────────────────────────────┐
- │ Python AI Service :8001                          │  ← 외부 비노출. /internal/* 만 제공
- │  파싱·청킹·임베딩·검색·생성·평가                    │     (W1)
- └──────────────────────────────────────────────────┘
-      │ SQL                        │ HTTPS
-      ▼                            ▼
- ┌───────────────────┐   ┌──────────────────────┐
- │ PostgreSQL :5432  │   │ 외부 LLM API         │
- │  + pgvector       │   │  임베딩 / 답변 생성   │
- └───────────────────┘   └──────────────────────┘
-      ▲
-      └── Spring Boot API (JPA)
-```
 
-**원칙**
-- 외부 트래픽은 Spring만 받는다. `/internal/*`은 인증이 없으므로 **절대 외부 노출 금지**.
-- 외부 LLM API 키는 Python 서비스만 가진다. Spring도 Next.js도 키를 갖지 않는다.
-- 브라우저는 Python(:8001)을 직접 부르지 않는다. 반드시 Spring(:8080)을 거친다.
+![위젯 설치](docs/images/demo-5-widget.png)
 
-### 테이블 소유권 (두 서비스가 같은 DB를 공유하므로 반드시 지킬 것)
+---
+
+## 핵심 지표
+
+검색 품질을 개선하고 **같은 평가셋으로 before/after 를 쟀습니다.**
+같은 16문항 · 50문서 · 306청크 · 같은 모델 · `temperature=0` · 설정당 3회 이상.
+
+| 설정 | 전체 충실성 | 회당 오답 | 회당 완전오답 | 채팅 지연 |
+|---|---|---|---|---|
+| 벡터 검색만 (before) | 0.781 | 1.75 | 1.00 | 0.67초 |
+| **리랭커 + 하이브리드 (after, 현재 기본값)** | **0.875** | **0.00** | **0.00** | 1.56초 |
+
+🔴 **결정적 근거는 평균이 아니라 오답입니다.** fallback 개수는 네 설정 모두 2로 같습니다.
+즉 켠다고 "못 답하는 질문" 이 느는 게 아니라, fallback 의 **내용물**이 바뀌면서
+**자신 있게 틀린 답이 사라집니다.** fallback 은 안전한 실패("담당자에게 문의하세요")지만
+오답은 사용자가 잘못된 정보를 신뢰하게 만듭니다.
+
+<details>
+<summary><b>수치보다 이 과정이 더 중요합니다</b></summary>
+
+<br/>
+
+측정을 믿을 수 있게 만들기까지 **뭉개진 사실**을 네 번 찾아 고쳤습니다.
+
+1. **응답률의 분모에 처리 실패가 섞여 있었다.** "답을 못 했다" 와 "물어보지도 못했다" 는 다릅니다.
+2. **`avg_faithfulness` 로 설정을 비교하고 있었다.** 답을 덜 할수록 올라가는 지표였습니다(생존 편향).
+   분모를 기록하는 컬럼을 추가하고 "전체 충실성" 을 새로 정의했습니다.
+3. **채점자와 리랭커가 청크의 앞 200자만 보고 있었다.** 생성 모델은 전체를 보는데
+   판정자는 절반만 봤습니다. **정답을 맞힌 답변이 0점**을 받고 있었습니다.
+4. **진짜 병목은 검색 알고리즘이 아니라 청킹이었다.** 478자 청크 하나에 조항 4개가 들어 있었고,
+   그 임베딩은 네 주제의 평균이라 구체적인 질문에 걸리지 않았습니다.
+   **후보에 못 들어온 문서는 리랭커가 순위를 올려줄 수도 없습니다.**
+
+그리고 `temperature=0` 을 명시한 뒤에도 **재현되지 않았습니다.**
+같은 설정 4회가 0.781 · 0.781 · 0.781 · 0.813 으로 갈렸습니다(폭 0.032).
+검색은 완전히 결정적이었고(두 실행의 top5 가 순서까지 동일) 갈린 것은 생성 모델이었습니다.
+→ **0.032 보다 작은 개선은 노이즈와 구별되지 않습니다. 설정당 3회 이상 잽니다.**
+
+</details>
+
+---
+
+## System Architecture
+
+<img src="docs/images/architecture.png" alt="AllDap 시스템 아키텍처" width="100%">
+
+<!--
+  🔴 이 그림은 아직 안 들어왔다. docs/images/architecture.png 로 넣으면 위 자리에 뜬다.
+     그림이 <반드시> 담아야 하는 것 (아래 표·원칙과 어긋나면 안 된다):
+
+     ① 배포 경계 4개가 상자로 갈라져 있을 것
+        Vercel / AWS EC2 / AWS RDS / 외부 API
+     ② EC2 안에 컨테이너가 <셋> 이라는 것 (caddy · api · ai-service)
+        - 한 상자로 묶으면 "한 컨테이너" 로 읽힌다. 실제로는 이미지도 셋이다
+     ③ 그 셋 중 caddy 만 호스트에 포트를 게시한다는 것
+        - 이 그림이 하려는 말의 핵심이다
+     ④ 화살표 방향: 브라우저 → Vercel → Caddy → Spring → Python
+        Spring → RDS(JPA) · Spring → Toss / Python → RDS(SQL) · Python → Cloudflare·Gemini
+     ⑤ Prometheus·Grafana·k6 를 그린다면 EC2 <밖> 에 둘 것 (운영 스택에 없다)
+-->
+
+**배포 경계마다 도는 곳이 다릅니다.**
+
+| 경계 | 무엇이 도나 | 어떻게 배포되나 |
+|---|---|---|
+| **Vercel** | Next.js 16 | `main` 머지 시 자동 |
+| **AWS EC2** t3.micro · 1GB | Caddy · Spring Boot · FastAPI | CI 가 GHCR 에 올린 이미지를 `docker pull` |
+| └ **docker compose 네트워크** | **컨테이너 3개: `caddy` · `api` · `ai-service`** | 한 덩어리가 아니라 **따로 도는 셋**이고, 같은 브리지 네트워크라 서로를 이름으로 부른다 |
+| **AWS RDS** | PostgreSQL 16 + pgvector | 관리형. 같은 VPC 라 인터넷을 거치지 않는다 |
+| **외부 API** | Cloudflare · Gemini · Toss | 우리가 배포하지 않는다 |
+| **CI/CD** | GitHub Actions · GHCR | 1GB 서버에서는 Gradle 컴파일이 OOM 이라 빌드를 CI 로 뺐다 |
+| **계측 · 부하테스트** | Prometheus · Grafana · k6 | **운영 스택에 없다.** 로컬과 부하테스트에서만 띄운다 |
+
+🔴 **그 셋 중 `caddy` 만 호스트에 포트를 게시합니다.** `docker-compose.prod.yml` 에서
+**`ports:` 를 쓰는 서비스가 `caddy` 하나뿐**이고, `api` 와 `ai-service` 에는 아예 없습니다.
+그래서 Spring 의 :8080 도, Python 의 :8001 도 **호스트에 뜨지 않습니다.**
+특히 FastAPI 의 `/internal/*` 에는 인증이 없어서, 포트가 하나라도 열리면 누구나 남의 봇 문서를 읽습니다.
+**"방화벽으로 막는다" 가 아니라 애초에 호스트에 뜨지 않게** 했습니다.
+방화벽 규칙은 잊거나 실수로 지울 수 있지만, 안 열린 포트는 실수할 여지가 없습니다.
+배포 후 밖에서 Python(:8001)·Spring 직통(:8080)·RDS(5432) 셋 다 막혀 있는 것을 실측했습니다.
+
+**원칙 셋. 이걸 어기면 구조가 무너집니다.**
+
+1. **외부 트래픽은 Spring 만 받습니다.** 브라우저에서 오는 길은 Caddy → Spring 하나뿐이고,
+   나머지 경로로는 밖에서 들어올 수 없습니다.
+2. **외부 LLM API 키는 Python 서비스만 가집니다.** Spring 도 Next.js 도 키를 갖지 않습니다.
+3. **Next.js 는 API 게이트웨이가 아닙니다.** 브라우저는 Python 을 직접 부르지 않고,
+   인증·권한·`bot_id` 격리는 전부 Spring 이 책임집니다.
+
+**왜 두 언어로 나눴나.** AI 파이프라인(문서 파싱·임베딩·평가)은 Python 생태계가 사실상 필수고,
+인증·트랜잭션·권한은 Spring 이 강합니다. 국내에서도 카카오페이(모델은 Python, 서빙은 Kotlin+Spring),
+쏘카가 같은 구조를 씁니다.
+
+<details>
+<summary><b>알려진 약점 (숨기지 않습니다)</b></summary>
+
+<br/>
+
+- **공유 DB 는 마이크로서비스 안티패턴입니다.** 1인 개발에서는 데이터 동기화 비용이 분리 이득보다
+  커서 택했지만, 팀·트래픽이 커지면 DB 를 나누고 API 로만 통신해야 합니다.
+- **Spring 이 Python 을 동기 호출하므로 Python 이 죽으면 채팅이 죽습니다.**
+  `AiServiceClient.call()` 안에 타임아웃·재시도·서킷브레이커를 붙였습니다.
+  **재시도는 연결 실패에만 합니다.** 5xx 는 Python 이 이미 요청을 받았다는 뜻이라,
+  재시도하면 문서 행이 중복되거나 LLM 이 두 번 과금됩니다.
+- **배포 대상이 3개입니다.** "운영할 것의 개수를 최소화한다" 는 원칙과 충돌하는 선택이며,
+  풀스택 역량 증명을 위해 알고 택했습니다.
+- **백그라운드 처리가 FastAPI `BackgroundTasks`** 라 프로세스가 죽으면 작업이 유실됩니다.
+  트래픽이 붙으면 Redis + RQ 로 교체해야 합니다.
+
+</details>
+
+<details>
+<summary><b>테이블 소유권 (두 서비스가 같은 DB 를 공유하므로 반드시 지킬 것)</b></summary>
+
+<br/>
 
 | 테이블 | 쓰기 | 읽기 | 들어온 마이그레이션 |
 |---|---|---|---|
@@ -59,418 +209,102 @@
 | `billing_methods` | Spring | — | V6 (V7 에서 계정당 여러 장) |
 
 `usage_events` 는 append-only 과금 원장이고, `billing_methods.billing_key_enc` 는
-앱에서 AES-256-GCM 으로 암호화한 **암호문**이라 SQL 로 읽어도 쓸 수 없다.
-Python 은 이 둘을 건드리지 않는다.
+앱에서 **AES-256-GCM** 으로 암호화한 암호문이라 SQL 로 읽어도 쓸 수 없습니다.
+Python 은 이 둘을 건드리지 않습니다.
 
-스키마의 단일 진실 공급원은 `api/src/main/resources/db/migration/` 의 Flyway 마이그레이션이다.
-Spring의 `ddl-auto`는 반드시 `validate` 또는 `none`.
-마이그레이션은 Flyway가 관리하며 **Spring이 기동할 때** 적용됩니다. `V1__init.sql`은 수정 금지 — 변경은 `V2__*.sql`로만. (근거: `docs/decisions.md`)
+스키마의 단일 진실 공급원은 `api/src/main/resources/db/migration/` 의 Flyway 마이그레이션입니다.
+마이그레이션은 **Spring 이 기동할 때** 적용되고, Spring 의 `ddl-auto` 는 반드시 `validate` 또는 `none`
+입니다. Hibernate 가 스키마를 건드리면 Python 쪽이 깨집니다.
+`V1__init.sql` 은 수정 금지입니다. 변경은 `V2__*.sql` 로만 합니다.
 
-**왜 나눴나:** AI 파이프라인(문서 파싱·임베딩·평가)은 Python 생태계가 사실상 필수고,
-인증·트랜잭션·권한은 Spring이 강하다. 국내에서도 카카오페이(모델은 Python,
-서빙은 Kotlin+Spring), 쏘카 등이 같은 구조를 쓴다.
-
-**알려진 약점(숨기지 말 것):**
-- 공유 DB는 마이크로서비스 안티패턴이다. 1인 개발에서는 데이터 동기화 비용이 분리 이득보다 커서 택했지만, 팀·트래픽이 커지면 DB를 나누고 API로만 통신해야 한다.
-- Spring이 Python을 동기 호출하므로 Python이 죽으면 채팅이 죽는다. 2026-08-17에 `AiServiceClient.call()` 안에 타임아웃·재시도·서킷브레이커를 붙였다. **재시도는 연결 실패에만 한다** (5xx는 Python이 이미 요청을 받았다는 뜻이라, 재시도하면 문서 행이 중복되거나 LLM이 두 번 과금된다).
-- 프론트를 Next.js로 분리하면서 **배포 대상이 3개**가 됐다. "운영할 것의 개수를 최소화한다"는 원칙과 충돌하는 선택이며, 풀스택 역량 증명을 위해 알고 택했다. (PRD §11.3)
+</details>
 
 ---
 
-## 디렉터리 구조
+## ERD
+
+<img src="docs/images/erd.png" alt="AllDap ERD" width="100%">
+
+> 편집용 원본은 [`docs/images/erd.mmd`](docs/images/erd.mmd) (Mermaid) 입니다.
+> 고친 뒤 `npx -p @mermaid-js/mermaid-cli mmdc -i docs/images/erd.mmd -o docs/images/erd.png -w 2400 -s 2 -b white` 로 다시 뽑습니다.
+
+> 🔴 **`eval_runs.question_count` · `scored_count`(V3)가 이 스키마에서 가장 중요한 두 칸입니다.**
+> 이게 없으면 `avg_faithfulness` 를 해석할 수 없습니다.
+> 답을 덜 할수록 평균이 올라가는 **생존 편향**에 걸리기 때문입니다.
+
+---
+
+## Tech Stack
+
+| Field | Stack |
+|---|---|
+| **Frontend** | ![Next.js](https://img.shields.io/badge/Next.js%2016.2-000000?style=flat-square&logo=nextdotjs&logoColor=white) ![React](https://img.shields.io/badge/React%2019.2-61DAFB?style=flat-square&logo=react&logoColor=black) ![TypeScript](https://img.shields.io/badge/TypeScript%205-3178C6?style=flat-square&logo=typescript&logoColor=white) ![Tailwind CSS](https://img.shields.io/badge/Tailwind%20CSS%204-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white) |
+| **Backend** | ![Java](https://img.shields.io/badge/Java%2021-ED8B00?style=flat-square&logo=openjdk&logoColor=white) ![Spring Boot](https://img.shields.io/badge/Spring%20Boot%204.0.7-6DB33F?style=flat-square&logo=springboot&logoColor=white) ![Spring Security](https://img.shields.io/badge/Spring%20Security%20·%20JWT-6DB33F?style=flat-square&logo=springsecurity&logoColor=white) ![Hibernate](https://img.shields.io/badge/JPA%20·%20Hibernate-59666C?style=flat-square&logo=hibernate&logoColor=white) ![Flyway](https://img.shields.io/badge/Flyway-CC0200?style=flat-square&logo=flyway&logoColor=white) ![Gradle](https://img.shields.io/badge/Gradle%209.5-02303A?style=flat-square&logo=gradle&logoColor=white) |
+| **AI Service** | ![Python](https://img.shields.io/badge/Python%203.11-3776AB?style=flat-square&logo=python&logoColor=white) ![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=flat-square&logo=fastapi&logoColor=white) ![Pydantic](https://img.shields.io/badge/Pydantic%20v2-E92063?style=flat-square&logo=pydantic&logoColor=white) ![PyMuPDF](https://img.shields.io/badge/PyMuPDF%20·%20python--docx-FF6F00?style=flat-square) |
+| **LLM / Embedding** | ![Cloudflare](https://img.shields.io/badge/Cloudflare%20Workers%20AI-F38020?style=flat-square&logo=cloudflare&logoColor=white) ![Google Gemini](https://img.shields.io/badge/Google%20Gemini-8E75B2?style=flat-square&logo=googlegemini&logoColor=white) |
+| **Database** | ![PostgreSQL](https://img.shields.io/badge/PostgreSQL%2016-4169E1?style=flat-square&logo=postgresql&logoColor=white) ![pgvector](https://img.shields.io/badge/pgvector%20·%20HNSW-4169E1?style=flat-square) |
+| **Infra** | ![AWS EC2](https://img.shields.io/badge/AWS%20EC2-FF9900?style=flat-square&logo=amazonec2&logoColor=white) ![AWS RDS](https://img.shields.io/badge/AWS%20RDS-527FFF?style=flat-square&logo=amazonrds&logoColor=white) ![Vercel](https://img.shields.io/badge/Vercel-000000?style=flat-square&logo=vercel&logoColor=white) ![Docker](https://img.shields.io/badge/Docker%20Compose-2496ED?style=flat-square&logo=docker&logoColor=white) ![Caddy](https://img.shields.io/badge/Caddy-1F88C0?style=flat-square&logo=caddy&logoColor=white) |
+| **CI/CD** | ![GitHub Actions](https://img.shields.io/badge/GitHub%20Actions-2088FF?style=flat-square&logo=githubactions&logoColor=white) ![GHCR](https://img.shields.io/badge/GHCR-181717?style=flat-square&logo=github&logoColor=white) |
+| **Monitoring** | ![Prometheus](https://img.shields.io/badge/Prometheus-E6522C?style=flat-square&logo=prometheus&logoColor=white) ![Grafana](https://img.shields.io/badge/Grafana-F46800?style=flat-square&logo=grafana&logoColor=white) ![k6](https://img.shields.io/badge/k6-7D64FF?style=flat-square&logo=k6&logoColor=white) |
+| **Payment** | ![Toss Payments](https://img.shields.io/badge/Toss%20Payments%20(빌링키)-0064FF?style=flat-square&logo=tossbank&logoColor=white) |
+
+**API 문서**는 springdoc(Spring) 과 FastAPI 자동 생성 문서(Python) 양쪽에 있고,
+**운영에서는 두 겹으로 막아 열리지 않습니다**(경로 차단 + 생성 차단).
+두 겹이 각각 동작하는 것을 CI 가 확인합니다.
+
+---
+
+## Monitoring
+
+Prometheus + Grafana 로 계측하고 k6 로 부하를 걸어 **처리량 천장이 어디인지, 그 벽의 정체가
+무엇인지**를 찾았습니다.
+
+![부하테스트 Grafana](docs/images/loadtest-5d-grafana.png)
+
+**병목은 Python 의 anyio 스레드풀이었습니다.** `main.chat` 이 `async def` 가 아니라 `def` 라
+워커 스레드에서 돕니다. 그 상한을 40 에서 80 으로 올리자 처리량 천장이 올라갔습니다.
+
+| 동시 사용자(VU) | before (스레드 40) | after (스레드 80) | 배수 |
+|---|---|---|---|
+| 20 | 11.8 req/s | 11.8 req/s | ×1.00 |
+| 40 | **24.0 ← before 천장** | 23.7 | ×0.99 |
+| **80** | 23.9 (평평해진다) | **47.3** | **×1.98** |
+| 160 | (안 쟀다) | **48.2 ← after 천장** | |
+
+🔴 **이 표에서 가장 강한 줄은 47.3 이 아니라 40 이하가 소수점까지 같다는 것입니다.**
+그 구간은 스레드가 남아돌아 상한과 무관한데, 실제로 한 칸도 안 움직였습니다.
+**바꾼 것이 스레드 상한 하나뿐이라는 것을 측정이 스스로 증명합니다.**
+80·160 만 쟀다면 47.3 이 스레드 덕인지 다른 무엇 덕인지 말할 근거가 없었을 것입니다.
+
+전체 리포트: [`docs/부하테스트-리포트.md`](docs/부하테스트-리포트.md)
+
+---
+
+## Documentation
+
+| 문서 | 내용 |
+|---|---|
+| [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md) | 로컬 실행 (db → api → ai-service → web 순서) |
+| [`docs/INTERNAL-API.md`](docs/INTERNAL-API.md) | Spring 이 호출하는 Python `/internal` 컨트랙트 |
+| [`docs/VERIFICATION.md`](docs/VERIFICATION.md) | 무엇이 어디까지 검증됐나. **"안 나빠졌다" 와 "재보지 않았다" 의 구분** |
+| [`docs/DEPLOY.md`](docs/DEPLOY.md) | 배포 절차와 그 과정에서 밟은 함정 |
+| [`docs/부하테스트-리포트.md`](docs/부하테스트-리포트.md) | 부하테스트 시리즈 종합 |
+| [`docs/PRD_v0.4.md`](docs/PRD_v0.4.md) | 제품 요구사항 정의서 |
+| [`docs/decisions.md`](docs/decisions.md) | 설계 결정 로그 (날짜 \| 무엇을 \| 왜 \| 검토한 대안) |
+| [`docs/W1-이해노트.md`](docs/W1-이해노트.md) | RAG 파이프라인을 왜 그렇게 짰는가 |
+| [`AGENTS.md`](AGENTS.md) | AI 코딩 에이전트용 저장소 컨텍스트 (원본) |
+
+## Project Structure
 
 ```
 AllDap/
-├── web/           Next.js (App Router): 관리자 대시보드 · 위젯 페이지     ✅ 전 화면 동작 (브라우저 실측)
-│   ├── app/(site)/          랜딩 · 인증
-│   ├── app/(dashboard)/     봇 목록 · 봇별 화면
-│   ├── components/          공통 UI 조각
-│   └── lib/{api,types}.ts   Spring API 호출 래퍼 · 응답 타입
-├── api/           Spring Boot API (:8080)                             ✅ 인증·봇·문서·채팅·로그·위젯·평가·사용량·결제
-│   ├── src/main/java/com/alldap/api/{global,domain}/...
-│   └── src/main/resources/db/migration/
-│       └── V1__init.sql ~ V8__*.sql   스키마 단일 진실 공급원 (Flyway가 api 기동 시 적용)
-├── ai-service/    Python FastAPI AI 서비스 (:8001)                     ✅ W1 완료 조건 실측 통과
-│   └── app/{parsers,chunker,retriever,generator,db,config,schemas,main}.py
-├── widget/        임베드용 위젯 스크립트 (한 줄 설치)                     ✅ 별도 origin 실제 설치 실측
-│   └── alldap-widget.js
-├── .github/       CI 워크플로 · PR 템플릿
-├── docs/
-│   ├── PRD_v0.4.md    제품 요구사항 정의서
-│   └── decisions.md   설계 결정 로그 (날짜 | 무엇을 | 왜 | 검토한 대안)
-├── docker-compose.yml  PostgreSQL + pgvector
-├── AGENTS.md           AI 협업 컨텍스트 (원본)
-├── CLAUDE.md           └ @AGENTS.md 포인터 한 줄
-└── README.md           이 파일
+├── web/           Next.js (App Router): 관리자 대시보드 · 공개 페이지 · 위젯 페이지
+├── api/           Spring Boot API (:8080)
+│   └── src/main/resources/db/migration/   V1 ~ V8 · 스키마 단일 진실 공급원
+├── ai-service/    Python FastAPI AI 서비스 (:8001)
+│   └── testdata/  파서 fixture · 평가 코퍼스 50문서
+├── widget/        임베드용 위젯 스크립트 (한 줄 설치)
+├── observability/ Prometheus · Grafana 설정
+├── scripts/       부하테스트 · 배포 검증
+└── docs/          위 표 참고
 ```
-
-> **✅ 는 실제로 돌려봤다는 뜻입니다.** `web/`과 `widget/`은 2026-08-02에 브라우저로
-> 가입 → 봇 생성 → 문서 업로드 → 근거가 붙은 답변 → fallback → 로그 → 별도 origin의
-> 가짜 고객 사이트에 위젯 설치까지 한 번에 돌려서 확인했습니다.
-> 그 과정에서 **통합 테스트가 전부 초록불인 채로 두 개의 버그가 나왔습니다**
-> (새로고침 시 로그아웃, iframe에서 나가는 요청의 Origin이 고객 사이트가 아니라 우리 앱이라
-> 위젯 설정 조회가 반드시 403). 자세한 내용은 `AGENTS.md`의 "브라우저 실측" 절에 있습니다.
-
----
-
-## 실행 방법
-
-의존 순서대로 **db → api → ai-service → web** 으로 올립니다.
-아래로 갈수록 위의 것이 떠 있어야 동작합니다.
-
-> ⚠️ **`api`가 `ai-service`보다 먼저입니다.** 2026-07-31에 스키마를 Flyway로 옮기면서
-> 순서가 바뀌었습니다. 예전에는 컨테이너만 띄우면 테이블이 생겼지만, 이제는
-> **Spring이 한 번 기동해야 테이블이 만들어집니다.** Python을 먼저 띄우면 테이블이 없어 실패합니다.
-
-### 0. 사전 준비
-
-- Docker Desktop
-- Python 3.11+
-- JDK 21
-- Node.js 20+
-
-### ⚠️ 예전 볼륨이 남아 있다면 첫 기동이 막힙니다
-
-두 가지가 바뀌었습니다.
-① DB명·계정·비밀번호가 `dadap` → `alldap`,
-② 스키마 적용이 Docker init → **Flyway**로 이관.
-
-②가 특히 문제입니다. 예전 방식으로 테이블이 이미 들어간 볼륨에는 Flyway 이력 테이블이
-없어서, Spring이 이렇게 말하며 기동을 거부합니다:
-
-```
-Found non-empty schema(s) "public" but no schema history table.
-```
-
-볼륨을 비우고 다시 시작하세요.
-
-```bash
-docker compose down -v      # -v 가 핵심: 데이터 볼륨까지 삭제한다
-docker compose up -d
-```
-
-`-v`는 데이터를 지웁니다. 로컬 개발 데이터뿐이라 지금은 괜찮습니다.
-**파일럿 이후에는 이 명령을 쓸 수 없고, 그때부터가 Flyway를 도입한 이유입니다** —
-스키마를 고칠 때 볼륨을 날리는 대신 `V2__*.sql`을 추가하면 됩니다.
-
-### 1. DB 띄우기
-
-```bash
-docker compose up -d
-docker compose logs -f db     # "database system is ready" 뜨면 완료
-```
-
-이 단계에서는 **빈 데이터베이스만 생깁니다.** 테이블은 다음 단계에서
-Spring이 Flyway로 만듭니다(`api/src/main/resources/db/migration/V1__init.sql`).
-
-접속 정보: `postgresql://alldap:alldap@localhost:5432/alldap`
-(포트는 `127.0.0.1`에만 바인딩돼 있어 외부에서 접근할 수 없습니다)
-
-**스키마를 바꿔야 한다면** `V1__init.sql`을 고치지 말고 `V2__설명.sql`을 새로 추가하세요.
-이미 적용된 마이그레이션을 수정하면 체크섬이 안 맞아 다음 기동이 실패합니다.
-
-### 2. Spring API 실행 (:8080) — 여기서 테이블이 만들어집니다
-
-```bash
-cd api
-./gradlew bootRun
-```
-
-기동하면서 Flyway가 `db/migration/`의 마이그레이션을 번호 순서대로 적용해 테이블을 만듭니다.
-그다음 Hibernate가 `ddl-auto: validate`로 엔티티와 스키마가 맞는지 검사합니다.
-**둘 중 하나라도 실패하면 앱이 뜨지 않습니다** — 이건 버그가 아니라 의도된 안전장치입니다.
-
-확인:
-
-```bash
-# 🔴 8080 이 아니라 8081 이다. actuator 는 management 포트로 분리돼 있다
-# (api/src/main/resources/application.yaml 의 management.server.port).
-# 운영에서는 이 포트를 호스트에 아예 열지 않아 밖에서 부를 수 없다.
-curl localhost:8081/actuator/health
-# → {"status":"UP"}
-```
-
-> **`api/`의 엔드포인트는 전부 구현돼 있습니다.** 인증·봇 CRUD·문서·관리자 채팅·대화 로그·
-> 위젯 공개 API·평가·사용량·결제 수단·요금제까지, 진짜 톰캣 + 진짜 PostgreSQL(Testcontainers)
-> 위에서 도는 통합 테스트로 검증합니다.
-> 스택: Gradle-Groovy / Java 21(Temurin) / Spring Boot **4.0.7** / Gradle 9.5.1 / `com.alldap.api`
-
-`application.yaml`에서 절대 바꾸면 안 되는 것:
-
-```yaml
-spring:
-  jpa:
-    hibernate:
-      ddl-auto: validate    # ← update / create 절대 금지. Python 쪽 스키마가 깨진다.
-```
-
-### 3. AI 서비스 실행 (:8001)
-
-> 2단계(Spring 기동)를 먼저 하세요. 테이블이 없으면 여기서 실패합니다.
-
-```bash
-cd ai-service
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-
-cp .env.example .env
-# .env 열어서 GOOGLE_API_KEY(질문 생성용) 와
-# CF_ACCOUNT_ID · CF_API_TOKEN(임베딩 · 답변 생성 · 채점 · 리랭커) 채우기
-# 나머지 값(모델·검색 설정)은 기본값 그대로 두면 됩니다
-
-uvicorn app.main:app --reload --port 8001
-```
-
-API 문서(자동 생성): http://localhost:8001/docs
-
-> 🔴 **V1 시드 봇(`pk_local_dev`)을 지우지 마세요.** 이름은 "테스트 봇"이지만 더 이상
-> 로컬 전용이 아닙니다. 공개 `/demo` 화면이 `NEXT_PUBLIC_DEMO_PUBLIC_KEY` 미설정 시
-> 이 키로 떨어지고(`web/components/DemoConsole.tsx`), `api/`의 통합 테스트도 이 봇이
-> 있다고 전제합니다. 시드는 `bots` 한 행뿐이고 `users`는 건드리지 않으므로
-> **로그인 가능한 계정은 들어 있지 않습니다.** 근거는 `docs/decisions.md`.
-
-#### 동작 확인
-
-```bash
-BOT=00000000-0000-0000-0000-000000000001   # V1 시드 봇 (publicKey: pk_local_dev)
-
-curl localhost:8001/health
-# → {"status":"ok"}
-
-# 문서 업로드 (202 즉시 응답, 처리는 백그라운드)
-curl -F "file=@규정.pdf" localhost:8001/internal/bots/$BOT/documents
-
-# 처리 상태 확인 — status가 ready 될 때까지 (pending → processing → ready | failed)
-curl localhost:8001/internal/bots/$BOT/documents
-
-# 질문
-curl -X POST localhost:8001/internal/chat \
-  -H 'Content-Type: application/json' \
-  -d "{\"bot_id\":\"$BOT\",\"message\":\"휴학 신청 기간이 언제야?\"}"
-```
-
-### 4. 웹 프론트 실행 (:3000)
-
-> `api`(:8080)가 떠 있어야 화면이 동작합니다. 브라우저는 Spring만 호출하므로,
-> Spring이 없으면 로그인부터 막힙니다.
-
-```bash
-cd web
-npm install
-
-cp .env.local.example .env.local
-# NEXT_PUBLIC_API_BASE_URL 이 http://localhost:8080 인지 확인
-
-npm run dev        # http://localhost:3000
-```
-
-브라우저는 Spring(:8080)만 호출합니다. Python(:8001)을 직접 부르지 않습니다.
-Next.js는 API 게이트웨이가 아니며, 인증·권한·`bot_id` 격리는 전부 Spring이 책임집니다.
-
----
-
-## W1 완료 기준 — ✅ 3개 전부 실측 통과 (2026-07-31)
-
-- [x] 문서 업로드 → 상태가 `ready`로 바뀜
-- [x] 질문 → 출처(`sources`)가 포함된 답변이 나옴
-- [x] **문서에 없는 질문 10개 → 10개 모두 `is_fallback: true`** (기준: 8개 이상)
-
-세 번째가 가장 중요하다. 환각을 막지 못하면 이 제품은 의미가 없다.
-
-> ⚠️ **당시 10/10은 2차 방어선(`NO_ANSWER`)이 혼자 막아낸 결과였다.**
-> 환각 억제는 두 겹이다. 검색 단계 컷오프(`max_distance`)와 생성 단계(`NO_ANSWER`).
-> 그런데 1차인 `max_distance=0.55`는 거의 작동하지 않아서,
-> "근거가 없으면 LLM을 아예 호출하지 않는다"는 비용 절감 경로가 열리지 않았다.
->
-> ✅ **2026-09-06에 1차 방어선을 되살렸다. 다만 `max_distance`를 낮춰서가 아니다.**
-> 낮추는 쪽은 실측으로 기각됐다. 컷을 낮추면 근거로 쓸 청크가 **함께** 줄어들고,
-> 근거가 줄면 답이 틀린다(0.45는 회당 오답 2건, 0.43은 3건). 그래서 살린 방법은
-> **판정과 컷을 분리한 것**이다. 한 값이 반대 방향을 원하는 두 일을 겸하고 있었다.
->
-> | 역할 | 원하는 값 |
-> |---|---|
-> | 어떤 청크를 근거로 쓸지 (개수) | **높아야** 한다 → `max_distance = 0.55` 유지 |
-> | 근거가 있기는 한가 (판정) | **낮아야** 한다 → `answerable_max_distance = 0.44` 신설 |
->
-> 벡터 최근접 거리가 `answerable_max_distance`보다 멀면 근거를 통째로 버리고 LLM을 부르지 않는다.
-> 그 결과 **검색컷(LLM 미호출)이 1/10에서 8/10으로 올라갔고**, 평가 문항은 하나도 걸리지 않아
-> 전체 충실성·관련성·응답률이 소수점까지 그대로다. "효과가 없다"가 아니라 "부작용이 없다"로 읽어야 한다.
->
-> 옛 기록의 "0.33 근처면 작동한다"는 **반증됐다.** 그 숫자는 정답 청크까지의 거리였고,
-> 판정에 쓰는 최근접 거리(`d1`)의 최대는 0.4026이라 0.33으로 자르면 멀쩡한 문항이 잘린다.
-> 재현: `cd ai-service && .venv/bin/python -m app.answerable_check`
->
-> ⚠️ 이 값은 코퍼스와 임베딩 모델에 딸려 있다. 둘 중 하나라도 바뀌면 무효다.
-
-### PDF·DOCX 는 어디까지 확인됐나 (섞어서 말하지 말 것)
-
-축이 다섯이다. **2026-09-11 에 <종단>과 <재현 가능성>이 닫혔고, <대용량> 하나가 열려 있다.**
-(여러 문서는 그전부터 닫혀 있었고, 파서 단위는 ✅ 였지만 재현할 수 없는 ✅ 였다)
-
-🔴 **"재현 가능성이 닫혔다" 의 뜻을 좁혀 읽을 것.** 2026-07-31 에 쓴 그 파일을 되살린 것이
-아니라 **앞으로는 다시 돌려볼 수 있다**는 뜻이다. 새로 만든 자산이라 옛 ✅ 를 소급해서
-증명하지 않는다.
-
-| 축 | 판정 |
-|---|---|
-| 파서 단위 (파일 → 텍스트 추출) | ✅ 저장소 안 한글 PDF·DOCX·HWPX 로 확인. **CI 에서 돈다** (그 자산이 못 덮는 것은 아래) |
-| 업로드 파이프라인 종단 (→ `status=ready`) | ✅ 세 형식 전부 `ready` 까지. Spring 경유도 봤지만 **자동화는 Python 직행만** |
-| 여러 문서에서의 동작 | ✅ 코퍼스 50문서·306청크 |
-| **대용량 문서** | ❌ **미검증. 아래 이유로 일부러 안 닫았다** |
-| 재현 가능성 | ✅ **앞으로는 다시 돌려볼 수 있다.** 옛 파일의 복원이 아니라 <새 자산>이다 |
-
-**닫은 방법.** `ai-service/testdata/fixtures/` 에 한글 PDF(2페이지)·DOCX(본문+표)·
-HWPX(`<hp:run>` 3분할 문단)를 넣고 점검 둘을 붙였다.
-
-```
-cd ai-service && .venv/bin/python -m app.parsers_check      # 파일 → 텍스트 (DB·외부 API 없음)
-cd ai-service && .venv/bin/python -m app.upload_e2e_check   # 업로드 → ready (진짜 DB·진짜 임베딩)
-```
-
-- `parsers_check` 15건은 **CI 에서 돈다**(DB 도 외부 API 도 안 쓴다). 이 저장소는 짜둔 검사가
-  아무 데서도 안 도는 사고를 두 번 냈다(오픈 리다이렉트, `Forwarded` 점검 명령).
-- **파서를 일부러 셋 망가뜨려 점검이 빨간불이 되는 것을 보고 되돌렸다.** HWPX run 병합 제거,
-  DOCX 표 순회 제거, PDF 페이지 구분자 제거. 통과하는 검사를 만드는 것과 **실패할 줄 아는**
-  검사를 만드는 것은 다른 일이다.
-- `upload_e2e_check` 는 `ready` 가 무엇을 뜻하는지까지 본다: `chunk_count` 컬럼만 보지 않고
-  DB 의 청크 수·**임베딩이 전부 찼는지**·차원이 `EMBEDDING_DIM` 과 맞는지를 직접 센다.
-  그 컬럼은 *INSERT 하려던 개수*고 임베딩이 실제로 들어갔는지는 다른 사실이다.
-- 종단은 셋 다 태웠다. **Python `/internal` 직행 · 진짜 uvicorn + 진짜 HTTP · Spring 경유.**
-  Spring 경유는 자동화돼 있지 않고 손으로 한 번 돌렸다(`pending → processing → ready` 전이를
-  직접 봤다. 한글 파일명과 camelCase 변환도 정상). 자동화하지 않은 이유는 계정·봇을 만들어야
-  하는데 `users`·`bots` 쓰기가 Spring 소유이기 때문이다.
-- 옛 간접 증거("실제 PDF 51쌍 0 오탐", `docs/decisions.md` 2026-08-05)는 **이제 근거로
-  쓰지 않는다.** 직접 본 것이 생겼다. 지우지 않고 남기는 이유는 **무엇이 왜 추론이었는지가
-  재료이기 때문이다**: 그 "쌍" 은 청크 쌍을 pgvector 최근접으로 고른 것이라 *청킹·임베딩까지는
-  갔다*는 뜻이었지, `status=ready` 로 바뀌는 것을 본 것이 아니었다. 게다가 **DOCX 에는 그
-  간접 근거조차 없었다.** "거기까지는 돌았을 것" 과 "종단을 봤다" 는 다른 사실이다.
-
-🔴 **대용량 문서는 ❌ 그대로다. 못 한 것이 아니라 안 한 것이다.**
-fixture 는 수 KB 라 pymupdf 가 PDF 를 통째로 메모리에 올리는 문제(운영 1GB 인스턴스 OOM)의
-구간에 아예 못 간다. 거길 재려면 **수십 MB PDF 를 저장소에 커밋해야 하는데 그건 재현 자산이
-아니라 짐이다.** 메모리 프로파일이 필요한 별도 슬라이스다. 지금 그 구간을 피해 가는 방법은
-업로드 상한을 환경변수로 빼둔 것뿐이다(`docs/DEPLOY.md`).
-
-⚠️ **위 ✅ 가 덮지 않는 것 셋.** 적어두지 않으면 ✅ 가 실제보다 넓게 읽힌다.
-
-- **줄바꿈된 PDF 는 검증되지 않는다.** pymupdf 의 `insert_text` 는 줄바꿈을 하지 않고 넘치면
-  조용히 자르므로, fixture 는 각 줄을 페이지 폭 안에 맞춰 만들었다(생성기가 폭 초과를 빌드
-  시점에 막는다). **실제 PDF 는 문단이 여러 줄로 접혀 오고 추출 결과도 그 줄바꿈을 갖는다.**
-- **fixture PDF 는 "한글·워드가 만든 PDF" 가 아니다.** pymupdf 내장 CJK 폰트로 우리가 만든
-  것이라, 그 도구들이 내는 글리프 매핑·CID 인코딩 변종은 못 잡는다(외부 폰트를 저장소에 넣지
-  않으려고 택했다).
-- **fixture HWPX 는 최소 골격이다.** `Contents/section*.xml` 의 `<hp:p>`·`<hp:t>` 만 갖췄다.
-  파서가 읽는 것이 정확히 그 둘뿐이라 파서 관점에서는 충분하지만 "진짜 한글 파일" 은 아니다.
-
-**"안 나빠졌다" 와 "재보지 않았다" 는 다르다.** 대용량 축이 후자다.
-
----
-
-## Python 내부 API 컨트랙트 (Spring이 호출하는 대상)
-
-Spring이 이 규격에 맞춰 호출합니다. JSON 필드는 전부 **snake_case**입니다.
-(프론트가 보는 camelCase 로의 변환은 Spring 이 DTO 로 받아서 합니다. Python 응답을 그대로 흘려보내지 않습니다)
-
-| 메서드 | 경로 | 요청 | 응답 |
-|---|---|---|---|
-| GET | `/health` | — | `{"status":"ok"}` |
-| POST | `/internal/bots/{bot_id}/documents` | multipart, 필드명 **`file`** | `202` + `DocumentOut` |
-| GET | `/internal/bots/{bot_id}/documents` | — | `DocumentOut[]` |
-| DELETE | `/internal/bots/{bot_id}/documents/{doc_id}` | — | `204` |
-| POST | `/internal/chat` | `{bot_id, message(1~2000자), session_id(≤64자)}` | `ChatResponse` |
-
-```
-DocumentOut  = { id, filename, file_type, status, error_message, char_count, chunk_count }
-               status ∈ pending | processing | ready | failed
-ChatResponse = { answer, sources[], is_fallback, latency_ms }
-Source       = { chunk_id, document_id, filename, score, preview }
-               score 는 0~1 (1 - 코사인거리, 높을수록 관련성 높음), preview 는 본문 앞 200자
-```
-
-평가(W3)와 문서 충돌 스캔도 같은 규칙으로 열려 있습니다.
-
-| 메서드 | 경로 | 하는 일 |
-|---|---|---|
-| POST | `/internal/bots/{bot_id}/eval/questions/generate` | 청크 표본에서 (질문, 정답) 쌍 생성 (동기 200, 재호출은 누적) |
-| GET · PATCH | `/internal/bots/{bot_id}/eval/questions[/{id}]` | 테스트 질문 목록 · 부분 수정 |
-| POST · GET | `/internal/bots/{bot_id}/eval/runs` | 평가 실행 (202 + 폴링) · 실행 이력 |
-| POST · GET · PATCH | `/internal/bots/{bot_id}/conflicts[/scan\|/{id}]` | 문서끼리 어긋나는 곳 스캔 · 목록 · 오탐 치우기 |
-
-정확한 요청·응답 스키마는 `ai-service/app/schemas.py`와 자동 생성 문서(`/docs`)를 보세요.
-README에 전부 옮겨 적으면 반드시 어긋납니다.
-
-### 봇별 설정(`system_prompt` · `fallback_message`)은 이 요청에 실리지 않는다
-
-`POST /internal/chat`은 **둘 중 어느 것도 받지 않습니다.** 이건 지금도 사실입니다.
-그런데 **둘 다 실제로 반영됩니다.** 반영 경로가 서로 다를 뿐입니다.
-
-- `fallback_message` → Spring이 응답의 `is_fallback == true`를 보고 봇의 문구로 **치환**한다.
-  (`ChatService.resolveAnswer`. Python은 봇별 문구를 모른다)
-- `system_prompt` → **Python이 `bots` 테이블에서 직접 읽는다.** (2026-08-13부터, PRD F-06 충족)
-  `ai-service/app/generator.py`의 `fetch_bot_prompt` + `build_system_prompt`.
-
-**왜 Spring이 실어 보내지 않고 Python이 직접 읽는가.** 성능이 아니라 **평가** 때문입니다.
-`evalrun`은 Spring을 거치지 않으므로, Spring이 실어 보내는 방식이면 평가만 기본 프롬프트로 돌아
-"평가에서는 좋았는데 실사용은 다르다"가 됩니다. 부수 효과로 Spring은 한 줄도 고치지 않았습니다.
-→ **`AiChatRequest`에 `system_prompt` 필드를 추가하지 마세요.** 경로가 둘이 되면 어느 쪽이
-이겼는지 알 수 없어지고, 평가와 실사용이 다시 갈라집니다.
-
-⚠️ **한계: 봇 지침으로 `NO_ANSWER` 규칙을 뚫을 수 있다는 것이 실측됐습니다.** 결합은 대체가
-아니라 덧붙임이고("충돌하면 봇 지침이 우선") 기본 규칙을 앞에 두지만, 프롬프트로 프롬프트를
-막는 데는 한계가 있습니다. 막지 못하니 대신 **잽니다**: `.venv/bin/python -m app.bot_prompt_check`.
-봇 지침을 설정하거나 바꾼 뒤 이걸 돌려 깨지는지 보세요.
-
----
-
-## 다음 단계
-
-| 주차 | 할 일 | 상태 |
-|---|---|---|
-| 0 | W1 첫 실행 검증 + 코드 이해 게이트 4문항 | ✅ 완료 (`docs/W1-이해노트.md`) |
-| W1 | Python AI 서비스 (파싱→청킹→임베딩→검색→생성) | ✅ 완료 조건 3개 실측 통과 |
-| W2 | Spring Boot API 계층 + Next.js 화면 + 임베드 위젯 | ✅ 완료 (브라우저 · 위젯 실제 설치까지 실측) |
-| W3 | **품질 대시보드**: 테스트 질문 자동 생성 → LLM-as-judge 채점 → 리포트 | ✅ 완료 |
-| W4 | 하이브리드 검색 + 리랭커 → **평가로 before/after 비교** | ✅ 완료 (2026-08-13) |
-
-**W4 결과 (같은 16문항 · 50문서 · 306청크 · 같은 모델 · `temperature=0` · 설정당 3회 이상)**
-
-| 설정 | 전체 충실성 | 회당 오답 | 회당 완전오답 | 채팅 지연 |
-|---|---|---|---|---|
-| 벡터만 (before) | 0.781 | 1.75 | 1.00 | 0.67초 |
-| 리랭커 + 하이브리드 (after, 현재 기본값) | **0.875** | **0.00** | **0.00** | 1.56초 |
-
-🔴 **결정적 근거는 평균이 아니라 오답이다.** fallback 개수는 네 설정 모두 2로 같다.
-즉 켠다고 "못 답하는 질문"이 느는 게 아니라, fallback의 **내용물**이 바뀌면서
-**자신 있게 틀린 답이 사라진다.** fallback은 안전한 실패("담당자에게 문의하세요")지만
-오답은 사용자가 잘못된 정보를 신뢰하게 만든다. 이 제품이 존재하는 이유가 그것이다.
-
-그리고 면접에서 더 강한 재료는 수치 자체가 아니라 **측정을 믿을 수 있게 만든 과정**이다.
-올랐다고 생각한 것이 생존 편향이었고, 채점자가 근거의 앞 200자만 보고 있었고,
-진짜 병목은 검색 알고리즘이 아니라 청킹이었다. 자세한 기록은 `AGENTS.md`에 있다.
-
-배포는 2026-09-07에 끝났다(EC2 + RDS + Vercel). 절차와 함정은 `docs/DEPLOY.md`.
-
----
-
-## 알아둘 것
-
-- 임베딩 모델을 바꾸면 `EMBEDDING_DIM`과 마이그레이션의 `VECTOR(n)`을 **함께** 바꿔야 한다.
-  (V1은 수정 금지. Flyway 체크섬이 깨진다. 새 마이그레이션으로 `ALTER` 할 것.
-  `V2__embedding_1024.sql`이 그 예다)
-  순서도 중요하다: 인덱스 드롭 → `UPDATE chunks SET embedding = NULL` → `ALTER ... TYPE VECTOR(n)`
-  → 인덱스 재생성 → 재임베딩(`.venv/bin/python -m app.reembed`).
-  데이터가 있는 채로 `ALTER` 하면 실패한다.
-- 🔴 **`V1__init.sql`의 "1536 = OpenAI text-embedding-3-small 기준" 주석은 사실이 아니고, 차원도 1536이 아니다.**
-  현재 임베딩은 **Cloudflare Workers AI `@cf/baai/bge-m3`(1024차원)**이고, V2에서 차원을 바꿨다.
-  주석 한 글자만 고쳐도 Flyway 체크섬이 깨져 기동이 막히므로 **일부러 두었다.** 이 줄이 그 정정본이다.
-- ⚠️ **임베딩과 생성의 제공자가 다르다.** 임베딩·답변 생성·채점·리랭커는 Cloudflare,
-  테스트 질문 생성만 Google Gemini다. 한쪽만 보고 "Cloudflare로 옮겼다"고 말하면 안 된다.
-  임베딩을 옮긴 이유는 성능이 아니라 **약관과 한도**다. Gemini 무료 등급은 입력을 학습에 쓰는데,
-  이 제품은 고객 사내 문서를 받는 것이 목적이다.
-- 구버전 `.hwp`는 바이너리 포맷이라 미지원. 사용자에게 `.hwpx` 저장을 안내한다.
-  (Java 쪽 `hwplib`으로 붙이는 것도 방법이지만 아직 안 했다)
-- 백그라운드 처리는 FastAPI `BackgroundTasks`라 프로세스가 죽으면 작업이 유실된다.
-  트래픽이 붙으면 Redis + RQ로 교체할 것.
-- 에러 응답 포맷은 전 계층 공통이다:
-  `{ "error": { "code": "...", "message": "무엇을 어떻게 하면 되는지까지 담은 한국어 설명" } }`
-- `.env`는 커밋되지 않는다(`.gitignore`). 새 키가 필요해지면 `.env.example`에 항목만 추가할 것.

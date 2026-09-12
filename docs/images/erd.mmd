@@ -1,0 +1,105 @@
+erDiagram
+    users ||--o{ bots : "소유"
+    users ||--o{ usage_events : "사용량 원장"
+    users ||--o{ billing_methods : "결제 수단 (최대 5장)"
+    bots ||--o{ documents : ""
+    bots ||--o{ chunks : ""
+    bots ||--o{ conversations : ""
+    bots ||--o{ eval_questions : ""
+    bots ||--o{ eval_runs : ""
+    bots ||--o{ doc_conflicts : ""
+    documents ||--o{ chunks : "파싱 · 청킹 결과"
+    conversations ||--o{ messages : ""
+    chunks ||--o{ eval_questions : "출처 청크"
+    chunks ||--o{ doc_conflicts : "충돌한 청크 쌍"
+    eval_runs ||--o{ eval_results : ""
+    eval_questions ||--o{ eval_results : ""
+
+    users {
+        uuid id PK
+        varchar email UK
+        varchar password_hash
+        varchar plan "free | pro (V8)"
+        varchar billing_customer_key UK "V6"
+    }
+    bots {
+        uuid id PK
+        uuid user_id FK
+        varchar public_key UK "위젯 설치 코드에 노출된다"
+        text system_prompt "Python 이 직접 읽는다"
+        text fallback_message "Spring 이 치환한다"
+        text_array allowed_origins "비어 있으면 전부 차단"
+    }
+    documents {
+        uuid id PK
+        uuid bot_id FK
+        varchar file_type "pdf | docx | hwpx | txt | md"
+        varchar status "pending | processing | ready | failed"
+        int chunk_count
+    }
+    chunks {
+        uuid id PK
+        uuid document_id FK
+        uuid bot_id FK
+        text content
+        vector embedding "1024 (bge-m3), HNSW 코사인"
+        text tokens "키워드 검색용"
+    }
+    conversations {
+        uuid id PK
+        uuid bot_id FK
+        varchar session_id
+        varchar channel "widget | test"
+    }
+    messages {
+        uuid id PK
+        uuid conversation_id FK
+        varchar role "user | assistant"
+        jsonb sources
+        boolean is_fallback
+        smallint feedback
+    }
+    eval_questions {
+        uuid id PK
+        uuid bot_id FK
+        text question
+        text ground_truth
+        uuid source_chunk_id FK
+    }
+    eval_runs {
+        uuid id PK
+        uuid bot_id FK
+        jsonb config "top_k, hybrid, reranker, model"
+        numeric avg_faithfulness
+        numeric answered_rate
+        int question_count "V3: 전체 충실성의 분모"
+        int scored_count "V3: 실제로 채점된 수"
+    }
+    eval_results {
+        uuid id PK
+        uuid run_id FK
+        uuid question_id FK
+        numeric faithfulness
+        numeric relevancy
+    }
+    doc_conflicts {
+        uuid id PK
+        uuid bot_id FK
+        text topic "무엇에 대한 충돌인가"
+        text a_says
+        text b_says
+        varchar status "open | ignored | resolved | clear"
+    }
+    usage_events {
+        uuid id PK
+        uuid user_id FK
+        varchar kind "chat_answer | eval_run"
+        uuid source_ref "kind 와 묶어 UNIQUE = 멱등"
+    }
+    billing_methods {
+        uuid id PK
+        uuid user_id FK
+        varchar billing_key_enc "AES-256-GCM 암호문"
+        varchar card_number_masked
+        boolean is_default "부분 유니크 인덱스로 1장 보장"
+    }
