@@ -16,6 +16,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
+import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -76,6 +77,9 @@ public class WidgetController {
      *
      * <p>내부 설정이 새어나가지 않도록 응답은 반드시 {@link WidgetConfigResponse} 로 만든다.
      */
+    // 위젯은 고객 사이트에 심겨 <방문자>가 쓴다. JWT 가 없다.
+    // 보호는 publicKey + Origin 검증 + rate limit 이다(이 클래스 주석 참고).
+    @SecurityRequirements
     @GetMapping("/config")
     public ResponseEntity<WidgetConfigResponse> getConfig(
             @PathVariable String publicKey,
@@ -102,6 +106,8 @@ public class WidgetController {
      * <p>Origin 을 받아 넘기지만 <b>차단에 쓰지는 않는다</b>(위 클래스 주석의 구조적 이유).
      * 진단용으로 기록한다.
      */
+    // 위젯 채팅. 인증 없이 열린 유일한 문이고 실질 방어선은 rate limit 이다.
+    @SecurityRequirements
     @PostMapping("/chat")
     public ResponseEntity<ChatResponse> chat(
             @PathVariable String publicKey,

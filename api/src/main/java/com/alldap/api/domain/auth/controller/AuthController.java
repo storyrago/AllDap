@@ -11,6 +11,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -37,6 +38,9 @@ public class AuthController {
      * Location 은 "만들어진 리소스를 여기서 조회하라"는 뜻인데,
      * 우리 API 에는 사용자 단건 조회 경로가 없다(PRD §10.1). 없는 주소를 가리킬 수는 없다.
      */
+    // 전역 JWT 요구를 해제한다. 이 애노테이션의 <유무>가 공통 401 을 붙일지 판정하는 신호이기도 하다
+    // (OpenApiConfig 참고). 보안 표기와 401 표기가 자동으로 맞는다.
+    @SecurityRequirements
     @PostMapping("/signup")
     public ResponseEntity<AuthResponse> signup(@Valid @RequestBody SignupRequest request) {
         AuthResponse response = authService.signup(request);
@@ -60,6 +64,10 @@ public class AuthController {
      * <b>영원히</b> 추측을 이어갈 수 있다. 연속 <b>실패</b>를 세어 끊는 두 번째 겹은
      * {@code AuthService.login} 에 있다(거기서 IP 가 필요해 아래처럼 넘겨준다).
      */
+    // 전역 JWT 요구를 해제한다. 로그인 자체가 토큰을 <발급받는> 요청이다.
+    // ⚠️ 이 경로의 401(INVALID_CREDENTIALS)은 "토큰이 없어서" 가 아니라 "비밀번호가 틀려서" 다.
+    //    별개 사실이므로 공통 401 이 아니라 엔드포인트별 @ApiResponse 로 단다(PR 2).
+    @SecurityRequirements
     @PostMapping("/login")
     public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request,
                                               HttpServletRequest servletRequest) {
