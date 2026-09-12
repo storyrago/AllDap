@@ -202,8 +202,10 @@ ai-service/loadtest/s2_breakpoint.js     신규
 
 `brew install k6` 가 선행된다(현재 `k6 not found`).
 
-- 로그인 1회 → JWT 재사용. `w2check@example.com` / `S1loadtest!2026`
-  (비밀번호는 S1 측정 때 바꿔둔 것이다. 원래 해시는 `AllDap-pr2/.s1-old-hash.txt`)
+- 로그인 1회 → JWT 재사용. 계정은 `LOADTEST_EMAIL`(기본 `loadtest@example.com`)·`LOADTEST_PASSWORD`
+  환경변수에서 온다. 저장소에 비밀번호를 적지 않는다.
+  측정 전에 `cd ai-service && LOADTEST_PASSWORD='...' .venv/bin/python -m loadtest.account` 를 한 번 돌린다
+  (PR #133, 2026-09-11. 그전에는 `w2check@example.com` 의 해시를 측정마다 손으로 갈아끼웠고, 그 손작업을 없앤 것이다)
 - **`botId` 는 하드코딩하지 않는다.** 로그인 뒤 그 계정의 봇 목록에서 집어
   **시작 조건 파일에 기록한다.** 봇을 지우고 다시 만들면 id 가 바뀌는데, 하드코딩하면
   그때 실행이 404 로 죽거나 <다른 코퍼스를 가진 봇>을 재게 된다. 어느 쪽이든
