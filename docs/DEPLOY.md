@@ -316,6 +316,18 @@ nc -zv <RDS엔드포인트> 5432                                # 실패해야 �
 # ⑤ 내부에서는 되는가
 docker compose -f docker-compose.prod.yml exec api curl -s http://ai-service:8001/health
 
+# 🔴 ⑤-b Python 의 API 문서가 <닫혀 있는가>. 반드시 <내부에서> 확인한다
+#    밖에서 보면 ③ 때문에 어차피 연결이 안 되므로 404 인지 아닌지를 알 수 없다.
+#    즉 밖에서 하는 검사는 <걸려야 할 것이 걸리는지>를 영원히 못 본다.
+#    여기서 보는 것은 네트워크 격리가 아니라 <둘째 겹>(APP_ENV=prod 로 문서 생성을 끈 것)이다.
+for p in /docs /redoc /openapi.json; do
+  docker compose -f docker-compose.prod.yml exec -T api \
+    curl -s -o /dev/null -w "$p %{http_code}\n" "http://ai-service:8001$p"
+done
+#   → 셋 다 404.  200 이 하나라도 있으면 APP_ENV=prod 가 컨테이너에 안 들어간 것이다.
+#   ⚠️ 위 ⑤ 의 /health 가 200 인 것이 이 404 의 대조군이다. /health 까지 404 면
+#      문서가 닫힌 것이 아니라 <주소를 잘못 짚은 것>이다.
+
 # ⑥ 메모리 여유 (1GB 라 눈으로 봐둘 것)
 free -h && docker stats --no-stream
 ```
