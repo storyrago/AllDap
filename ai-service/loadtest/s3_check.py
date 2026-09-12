@@ -18,11 +18,14 @@ from __future__ import annotations
 from loadtest.promtext import MetricUnreadable
 from loadtest.s3_context import (
     WATCHED_STATUS,
+    build_parser,
     WINDOW_MS,
     extract_counts,
+    judge_ratelimit_axis,
     judge_round,
     next_window_start,
     parse_prom_counter,
+    ratelimit_readings,
 )
 
 _failures: list[str] = []
@@ -208,6 +211,91 @@ def main() -> int:
     # 대조군: 시계열이 아예 없는 것은 여전히 None 이다(예외가 아니다).
     check("시계열이 없는 것은 여전히 None",
           parse_prom_counter("", "alldap_ratelimit_keys", {}) is None)
+
+    print("\nratelimit_readings: 한 스냅샷에서 셋을 갈라 읽는가")
+    # 실제 /actuator/prometheus 노출 모양이다. mode 태그가 붙은 줄이 둘 있어서,
+    # 라벨을 bucket 하나로만 물으면 <먼저 나오는 줄이 이긴다>. 그것까지 본다.
+    prom = (
+        "# TYPE alldap_ratelimit_rejected_total counter\n"
+        'alldap_ratelimit_rejected_total{bucket="login-failure",mode="blocked",} 4.0\n'
+        'alldap_ratelimit_rejected_total{bucket="widget-chat",mode="check",} 80.0\n'
+        'alldap_ratelimit_recorded_total{bucket="login-failure",} 11.0\n'
+        "alldap_ratelimit_keys 3.0\n"
+    )
+    r = ratelimit_readings(prom)
+    check("widget-chat 의 check 거절을 읽는다", r["rejected_check"] == 80.0, f"({r['rejected_check']!r})")
+    # 🔴 여기가 핵심이다. login-failure 에는 blocked 줄이 <있지만> widget-chat 에는 없다.
+    #    bucket 만으로 물으면 4.0 이 잡혀 "위젯 채팅에 blocked 거절이 있다" 는 거짓이 된다.
+    check("다른 버킷의 blocked 를 제 것으로 읽지 않는다", r["rejected_blocked"] is None,
+          f"({r['rejected_blocked']!r})")
+    check("다른 버킷의 recorded 를 제 것으로 읽지 않는다", r["recorded"] is None, f"({r['recorded']!r})")
+
+    print("\njudge_ratelimit_axis: 429 교차 검증 (옛 축이 정상을 실패로 불렀던 자리다)")
+    # 🔴 2026-09-12 수정의 본체. 옛 축은 recorded_total{bucket=widget-chat} 의 증가분이었고,
+    #    그 시계열은 원리적으로 생길 수 없어서 멀쩡한 네 판이 전부 valid:false 로 끝났다.
+    none_all: dict[str, float | None] = {"rejected_check": None, "rejected_blocked": None, "recorded": None}
+
+    def axis(counts_, before_, after_):
+        results = judge_ratelimit_axis(counts_, before_, after_)
+        return all(o for o, _ in results), " | ".join(w for _, w in results)
+
+    ok, why = axis(counts(s404=20, s429=80), none_all,
+                   {**none_all, "rejected_check": 80.0})
+    check("A: 거절 80 = 429 80 통과(전값이 없으면 0)", ok, f"({why[:60]}…)")
+
+    ok, why = axis(counts(s404=20, s429=80),
+                   {**none_all, "rejected_check": 300.0},
+                   {**none_all, "rejected_check": 380.0})
+    check("A: 전값이 있으면 증가분으로 본다", ok, f"({why[:60]}…)")
+
+    # 🔴 없는 것이 정상임을 못박은 줄. 이 단언이 없으면 누가 옛 축을 되살려도 아무 일이 안 난다.
+    ok, why = axis(counts(s404=20, s429=80), none_all, {**none_all, "rejected_check": 80.0})
+    check("recorded 부재를 <정상>이라고 말한다", ok and "이것이 정상이다" in why)
+    ok, why = axis(counts(s404=20, s429=80), none_all,
+                   {**none_all, "rejected_check": 80.0, "recorded": 1.0})
+    check("recorded 가 <생기면> 실패(전제가 깨졌다)",
+          (not ok) and "생길 수 없는 시계열" in why, f"({why[-80:]})")
+
+    ok, why = axis(counts(s404=20, s429=80), none_all,
+                   {**none_all, "rejected_check": 80.0, "rejected_blocked": 2.0})
+    check("blocked 거절이 생기면 실패(본 축이 덜 센다)",
+          (not ok) and "덜 센다" in why, f"({why[-70:]})")
+
+    # 제한기가 센 것과 k6 가 받은 것이 어긋나는 경우. 429 를 낸 주체가 제한기가 아닐 수 있다.
+    ok, why = axis(counts(s404=20, s429=80), none_all, {**none_all, "rejected_check": 79.0})
+    check("거절 79 vs 429 80 이면 실패(1건도 용납하지 않는다)",
+          (not ok) and "제한기가 센 거절은 79건" in why, f"({why[-60:]})")
+
+    # 🔴 옛 축은 사전 확인 요청 1건 때문에 ±1 여유를 뒀다. 새 축은 그 여유가 <필요 없다>:
+    #    사전 확인은 404 로 끝나므로 거절을 만들지 않는다. 여유를 되살리면 1건의 누락을 놓친다.
+    ok, why = axis(counts(s404=20, s429=80), none_all, {**none_all, "rejected_check": 81.0})
+    check("거절 81 vs 429 80 도 실패(사전 확인 여유를 두지 않는다)", not ok, f"({why[-60:]})")
+
+    # N 판(음성 대조): 429 가 0 이고 시계열도 없는 것이 정상이다.
+    ok, why = axis(counts(s404=100), none_all, none_all)
+    check("N: 429 0건 · 거절 시계열 없음 통과", ok, f"({why[:60]}…)")
+
+    # Spring 재기동. 단조 증가해야 하는 값이 줄었다.
+    ok, why = axis(counts(s404=20, s429=80), {**none_all, "rejected_check": 300.0},
+                   {**none_all, "rejected_check": 80.0})
+    check("거절 카운터가 줄면 실패(재기동)", (not ok) and "재기동" in why, f"({why[-50:]})")
+
+    # 🔴 429 시계열 자체가 없는 경우. 0 으로 뭉개면 "거절 0건이었다" 로 둔갑한다.
+    ok, why = axis(counts(s404=20, s429=None), none_all, none_all)
+    check("429 를 <안 셌다>면 대조하지 않고 실패", (not ok) and "세지 않은" in why, f"({why[-50:]})")
+
+    print("\n기본값: 실제로 쓴 값과 같은가")
+    # 🔴 --headroom-ms 의 기본값은 20000 이었는데 A·B·C 판을 전부 60000 으로 돌렸다.
+    #    기본값과 실사용이 다르면 그 기본값은 거짓말이고, 다음 사람은 거짓말을 쓴다.
+    #    <윈도우 하나 전체>여야 하는 이유: cmd_before 가 가짜 키 사전 확인 요청 1건을
+    #    먼저 보내고 경계 정렬을 하므로, 여유가 윈도우보다 짧으면 그 1건과 같은 윈도우에서
+    #    k6 가 시작할 수 있다. 그러면 그 1건이 한도 20 중 하나를 먹어 통과분이 19건이 되고,
+    #    제한기가 정확한데도 판정이 실패한다(거짓 실패).
+    defaults = {a.dest: a.default for a in build_parser()._actions}   # noqa: SLF001 - 기본값 단언용
+    check("--headroom-ms 기본값이 윈도우 하나 전체다", defaults["headroom_ms"] == WINDOW_MS,
+          f"({defaults['headroom_ms']} vs {WINDOW_MS})")
+    check("--limit 기본값은 application.yaml 과 같은 20", defaults["limit"] == 20,
+          f"({defaults['limit']})")
 
     print(f"\n{'실패 ' + ', '.join(_failures) if _failures else '전부 통과'}")
     return 1 if _failures else 0

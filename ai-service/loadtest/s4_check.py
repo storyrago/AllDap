@@ -29,6 +29,7 @@ from loadtest.s4_context import (
     judge_fault_round,
     parse_prom_counter,
     read_circuit_state,
+    recover_gate_reason,
 )
 
 _failures: list[str] = []
@@ -215,6 +216,21 @@ def main() -> int:
     after_missing = signals(outcomes={OUTCOME_PYTHON_5XX: 200.0}, retry=None)
     ok, why = judged("F2", before, after_missing, k6(inject={503: 200}))
     check("retry 시계열이 없으면 0 회로 읽어 F2 가 통과", ok, f"({why[:50]}…)")
+
+    print("\nrecover_gate_reason: after 보다 먼저 돌지 못하게 막는가")
+    # 🔴 2026-09-12. recover 는 서킷을 닫으려고 성공 1건을 <직접 만든다>. 그 건수가
+    #    after 스냅샷에 섞여 F3 의 success 증가분이 1,800 이 아니라 1,801 이었다.
+    #    순서를 바꾸는 것만으로는 부족하다. 절차로만 지키는 규칙은 빠뜨려도 아무 일이
+    #    안 일어나므로 언젠가 빠뜨린다. 그래서 코드로 막고, 그 막는 코드를 여기서 시험한다.
+    reason = recover_gate_reason(False, "2026-09-12-F2")
+    check("verdict 가 없으면 거부한다", reason is not None)
+    check("거부 문구가 <무엇을 하면 되는지>까지 말한다",
+          bool(reason) and "after" in reason and "2026-09-12-F2" in reason,
+          f"({(reason or '')[:40]}…)")
+    # 🔴 막는 쪽만 시험하면 <항상 막는 가드>도 통과한다. 그러면 recover 를 영원히 못 돌리고,
+    #    recover 는 다음 판으로 넘어가는 유일한 관문이라 측정 자체가 멈춘다.
+    check("verdict 가 있으면 통과시킨다(항상 막는 가드가 아니다)",
+          recover_gate_reason(True, "2026-09-12-F2") is None)
 
     print(f"\n{'실패 ' + ', '.join(_failures) if _failures else '전부 통과'}")
     return 1 if _failures else 0

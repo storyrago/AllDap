@@ -9,9 +9,28 @@
     cd ai-service && .venv/bin/python -m loadtest.s4_context inject \\
         --run-id 2026-09-11-F1 --round F1
 
+    cd ai-service && .venv/bin/python -m loadtest.s4_context clear \\
+        --run-id 2026-09-11-F1
+
     cd ai-service && .venv/bin/python -m loadtest.s4_context after \\
         --run-id 2026-09-11-F1 --round F1 \\
         --k6-summary loadtest/results/S4-2026-09-11-F1.json
+
+    cd ai-service && .venv/bin/python -m loadtest.s4_context recover \\
+        --run-id 2026-09-11-F1
+
+🔴 순서는 before → inject → clear → <after> → recover 다. 2026-09-12 에 바뀌었다
+─────────────────────────────────────────────────────────────────────────────
+그전에는 clear → recover → after 였다. 그러면 recover 가 서킷을 닫으려고 <직접 만드는>
+성공 1건이 after 의 스냅샷에 들어간다. 실제로 F3 의 success 증가분이 1,800 이 아니라
+1,801 이었고, 원리적으로는 transition(to=closed) 한 건도 함께 섞인다.
+판정은 전부 "늘었나 / 0인가" 라 결론이 뒤집히지는 않았지만, 숫자를 그대로 인용하면
+1씩 어긋난다. <측정하는 도구가 측정 대상을 만들어내는> 모양이라 부류 자체가 나쁘다.
+
+그래서 순서를 바꾸고, 순서를 절차가 아니라 <코드로> 못박았다: cmd_recover 는 그 run_id 의
+verdict 파일(= after 가 이미 돌았다는 증거)이 없으면 거부한다. 절차로만 지키는 규칙은
+빠뜨려도 아무 일이 안 일어나므로 언젠가 빠뜨린다. 봇 소유권을 "검사" 하지 않고 조회 쿼리에
+못박은 것(findByIdAndUserId)과 같은 이유다.
 
 설계서: docs/superpowers/specs/2026-09-11-loadtest-pr4b-s4-fault-injection-design.md
 
@@ -113,6 +132,32 @@ def read_circuit_state(prom_text: str) -> tuple[str, float | None]:
     if value is None:
         return "unknown", None
     return {0.0: "closed", 1.0: "half_open", 2.0: "open"}.get(value, "unknown"), value
+
+
+def recover_gate_reason(verdict_exists: bool, run_id: str) -> str | None:
+    """recover 를 지금 돌려도 되는가. 돌려도 되면 None, 안 되면 <안내 문구>를 돌려준다.
+
+    🔴 왜 이것이 필요한가: recover 는 서킷을 닫으려고 성공 한 건을 <직접 만든다>.
+       그 건수가 after 스냅샷에 들어가면 측정값이 1 어긋난다(2026-09-12 수정 전에
+       F3 의 success 증가분이 실제로 1,801 이었다). after 가 먼저 돌았다는 증거는
+       verdict 파일의 존재뿐이라, 그것으로 관문을 만든다.
+
+    🔴 왜 순수 함수로 뽑았는가: 이 판정이 cmd_recover 안에 섞여 있으면 서버 셋을 띄우지
+       않고는 시험할 수 없고, 시험할 수 없는 가드는 <있다고 믿는 가드>가 된다.
+       이 저장소가 두 번 데인 자리다(redirect.check.ts · Forwarded 점검 명령).
+       s4_check.py 가 양쪽 분기를 다 시험한다.
+    """
+    if verdict_exists:
+        return None
+    return (
+        f"중단: {run_id} 의 verdict 파일이 없다. recover 보다 after 를 먼저 돌려야 한다.\n"
+        f"  이유: recover 는 서킷을 닫으려고 채팅 성공 1건을 직접 만든다. after 를 나중에 "
+        f"돌리면 그 1건이 스냅샷에 섞여 success 증가분이 1 커진다.\n"
+        f"  할 일: `s4_context after --run-id {run_id} --k6-summary loadtest/results/S4-{run_id}.json` "
+        f"를 먼저 돌린 뒤 이 명령을 다시 실행할 것.\n"
+        f"  (after 를 건너뛰고 싶더라도 건너뛸 수 없다. recover 는 다음 판으로 넘어가는 "
+        f"유일한 관문이고, 이 판의 판정이 없으면 다음 판이 무엇 위에 얹히는지 알 수 없다.)"
+    )
 
 
 def judge_fault_round(round_name: str, before: dict, after: dict, k6_counts: dict) -> tuple[bool, list[str]]:
@@ -415,7 +460,8 @@ def cmd_inject(args) -> int:
     if spec["fault"] is None:
         print("F1: 가짜 CF 주입이 아니다. 지금 uvicorn 프로세스에 SIGTERM 을 보낼 것.")
         print(f"  예: pkill -f 'uvicorn app.main:app'      (주입 {context['inject_seconds']}초)")
-        print("  끝나면 같은 명령으로 uvicorn 을 다시 띄우고 `s4_context recover` 를 돌린다.")
+        print("  끝나면 같은 명령으로 uvicorn 을 다시 띄우고, `s4_context after` 를 돌린 "
+              "<뒤에> `s4_context recover` 를 돌린다.")
         return 0
     state = _set_fault(context["cf_base"], spec["fault"])
     print(f"주입 켬: {state}")
@@ -426,15 +472,29 @@ def cmd_inject(args) -> int:
 def cmd_clear(args) -> int:
     context = json.loads(_context_path(args.run_id).read_text())
     if ROUNDS[context["round"]]["fault"] is None:
-        print("F1: 가짜 CF 주입이 아니다. uvicorn 을 다시 띄운 뒤 recover 를 돌릴 것.")
+        print("F1: 가짜 CF 주입이 아니다. uvicorn 을 다시 띄울 것.")
+        print("  다음: after 를 먼저 돌리고(그 뒤에) recover 를 돌린다. "
+              "recover 가 만드는 성공 1건이 after 스냅샷에 섞이지 않게 하려는 순서다.")
         return 0
     print(f"주입 끔: {_set_fault(context['cf_base'], 'none')}")
+    print("다음: after 를 먼저 돌리고(그 뒤에) recover 를 돌린다. "
+          "recover 가 만드는 성공 1건이 after 스냅샷에 섞이지 않게 하려는 순서다.")
     return 0
 
 
 def cmd_recover(args) -> int:
-    """서킷이 닫혔음을 <확인>한다. 다음 판으로 넘어가는 유일한 관문이다."""
+    """서킷이 닫혔음을 <확인>한다. 다음 판으로 넘어가는 유일한 관문이다.
+
+    ⚠️ after 보다 <뒤에> 돌아야 한다. 근거와 판정은 recover_gate_reason 에 있다.
+    """
     context = json.loads(_context_path(args.run_id).read_text())
+
+    # 🔴 순서를 코드로 못박는다. 이 검사가 없으면 순서는 사람의 기억에만 있다.
+    gate = recover_gate_reason(_verdict_path(args.run_id).exists(), args.run_id)
+    if gate:
+        print(gate)
+        return 1
+
     client = httpx.Client(timeout=130.0)
     resp = client.post(f"{context['api_base']}/api/auth/login",
                        json={"email": args.email, "password": args.password})
@@ -510,6 +570,8 @@ def cmd_after(args) -> int:
     print(f"\n저장: {_verdict_path(args.run_id)}")
     for r in reasons:
         print(f"  {r}")
+    print(f"\n다음: `s4_context recover --run-id {args.run_id}` 로 서킷이 닫힌 것을 "
+          f"상태로 확인한 뒤 다음 판을 시작할 것.")
     return 0 if ok else 1
 
 
