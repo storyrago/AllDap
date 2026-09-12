@@ -82,7 +82,7 @@ psycopg 풀과 k6 는 **before 에 없던 후보다.** before 의 병목 판정�
 어느 단계에서든 이 값이 0 이 아닌 표본이 하나라도 있으면, **그 단계의 처리량은
 포화 지표로 쓰지 않고 "차단 구간" 으로 따로 적는다.**
 
-`alldap_db_pool_requests_waiting` 도 단계마다 찍는다 — 30초짜리 `PoolTimeout` 대기는
+`alldap_db_pool_requests_waiting` 도 단계마다 찍는다 - 30초짜리 `PoolTimeout` 대기는
 15초 스크레이프 두 번 사이에 통째로 들어갈 수 있어, 포화가 있었는데 그래프에 안 남는
 판이 가능하다. probe 간격은 **5초**로 둔다.
 
@@ -97,10 +97,10 @@ psycopg 풀과 k6 는 **before 에 없던 후보다.** before 의 병목 판정�
 4. cf-stats `neurons` 가 **전 모델 0.0**
 
 **이 판이 더하는 넷**
-5. 🔴 `alldap_anyio_threads_total` **실측 80** — 시작 조건 파일에 **설정값과 따로** 적는다.
+5. 🔴 `alldap_anyio_threads_total` **실측 80** - 시작 조건 파일에 **설정값과 따로** 적는다.
    `app/metrics_check.py` ⑤ 는 로컬 `TestClient` 의 lifespan 을 본 것이지 측정 대상
    프로세스를 본 것이 아니다. 실측이 80 이 아니면 이 판은 80 을 잰 것이 아니다.
-6. `alldap_db_pool_open == 1` — 0 이면 풀 선 넷이 의미가 없다.
+6. `alldap_db_pool_open == 1` - 0 이면 풀 선 넷이 의미가 없다.
 7. 단계별 `alldap_db_pool_requests_waiting` 기록.
 8. 단계별 k6 프로세스 CPU 기록.
 
@@ -114,7 +114,7 @@ psycopg 풀과 k6 는 **before 에 없던 후보다.** before 의 병목 판정�
 | fallback > 0 | 폐기 |
 | 가짜 CF 호출 배수 ≠ 3 (±0.05) | 폐기 |
 | **OOM 이 아닌** 재시작 | 폐기 |
-| **`-XX:+ExitOnOutOfMemoryError` 로 죽은** 재시작 | **폐기가 아니라 결과** — 힙이 새 벽이라는 결론 그 자체 |
+| **`-XX:+ExitOnOutOfMemoryError` 로 죽은** 재시작 | **폐기가 아니라 결과** - 힙이 새 벽이라는 결론 그 자체 |
 | 못 가림 | 무효로 두고 다시 돈다 |
 
 🔴 위 다섯째 줄이 성립하려면 **Spring 에 `-XX:+ExitOnOutOfMemoryError` 가 실제로

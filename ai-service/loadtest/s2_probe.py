@@ -128,14 +128,27 @@ def _k6_cpu(pid: int | None) -> float | None:
         return None
 
 
-def _stage_of(elapsed_s: float) -> tuple[int | None, bool]:
+def _stage_of(elapsed_s: float, offset_s: float = 0.0) -> tuple[int | None, bool]:
     """경과 초 → (그때의 VU 단계, 판정 구간인가).
 
     k6 의 각 시나리오는 startTime = i*HOLD_S 로 <절대 시각>에 시작한다(s2_breakpoint.js).
-    그래서 경과 초만으로 단계를 되짚을 수 있다.
+    그래서 k6 시나리오 시계 기준의 경과 초만 있으면 단계를 되짚을 수 있다.
     앞 WARMUP_DISCARD_S 초는 k6 집계에서 버리는 구간이라 여기서도 같은 경계로 가른다 -
     다른 경계를 쓰면 "그 단계의 지연" 과 "그 단계의 내부 지표" 가 다른 구간을 말하게 된다.
+
+    🔴 offset_s 가 필요한 이유. 이 관측기는 k6 를 <띄운 뒤에> 따로 시작하므로 두 시계의
+       원점이 다르다. 보정하지 않으면 이 함수는 <같은 이름으로 다른 구간>을 가리키고,
+       그 표는 "40 VU 의 내부 지표" 라고 적힌 채 20 VU 구간을 말한다.
+       2026-09-12 실행에서 실제로 13.6초가 어긋났고, 40 VU 구간의 표본이 20 VU 로
+       귀속돼 borrowed=40 이 20 VU 칸에 찍혔다. 값이 틀린 것이 아니라 <라벨>이 틀린 것이다.
+
+       offset_s = (관측기 시작 시각) - (k6 시나리오 t0). k6 시나리오 t0 는 프로세스 시작
+       시각에 부팅과 setup() 로그인 시간을 더한 값이라 정확히는 알 수 없지만, 그 항은
+       1초 안쪽이고 여기서 가르는 경계는 20초짜리라 판정을 바꾸지 않는다.
+       (같은 종류의 경계 어긋남을 파도 2 가 S4 에서 겪었다. 거기서는 0.6초가 정상 구간
+        503 을 7건 만들었다 - 판정 대상이 초 단위였기 때문이다.)
     """
+    elapsed_s = elapsed_s + offset_s
     if elapsed_s < 0:
         return None, False
     idx = int(elapsed_s // HOLD_S)
@@ -145,10 +158,36 @@ def _stage_of(elapsed_s: float) -> tuple[int | None, bool]:
     return STAGES[idx], within >= WARMUP_DISCARD_S
 
 
+def _k6_start_epoch(pid: int | None) -> float | None:
+    """k6 프로세스의 시작 시각(epoch). 못 읽으면 None.
+
+    🔴 <시작할 때> 재둔다. 끝난 뒤에는 프로세스가 사라져 물어볼 데가 없다.
+       ps 의 lstart 는 로케일에 따라 형식이 달라(한국어 로캘이면 "2026년 9월 12일 ...")
+       파싱이 깨진다. 그래서 형식을 파싱하지 않고 <경과 초>를 주는 etimes 를 쓴다.
+    """
+    if pid is None:
+        return None
+    try:
+        out = subprocess.run(["ps", "-o", "etimes=", "-p", str(pid)],
+                             capture_output=True, text=True, timeout=5).stdout.strip()
+        return time.time() - float(out.split()[0])
+    except (subprocess.SubprocessError, OSError, ValueError, IndexError):
+        return None
+
+
 def cmd_sample(args) -> int:
     RESULTS.mkdir(exist_ok=True)
     path = _jsonl_path(args.run_id)
     start = time.time()
+    k6_start = _k6_start_epoch(args.k6_pid)
+    # 🔴 오프셋을 <파일에> 적는다. 접을 때 사람이 기억해 넘기게 하면 빠뜨릴 수 있고,
+    #    빠뜨려도 표는 멀쩡히 나온다 - 라벨만 틀린 채로. 그게 가장 나쁜 실패다.
+    offset = round(start - k6_start, 1) if k6_start is not None else None
+    if offset is None:
+        print("경고: k6 시작 시각을 못 읽었다. 단계 귀속 오프셋 0 으로 둔다 "
+              "(--k6-pid 를 안 넘겼거나 프로세스가 이미 끝났다). fold 에서 --offset-s 로 줄 것.")
+    else:
+        print(f"k6 대비 관측 시작 오프셋: {offset}s (이 값만큼 앞으로 당겨 단계에 귀속한다)")
     started_at = datetime.now().isoformat(timespec="seconds")
     print(f"관측 시작 {started_at}  interval={args.interval}s  duration={args.duration}s")
     print(f"기록: {path}")
@@ -165,6 +204,8 @@ def cmd_sample(args) -> int:
             "stages": STAGES,
             "hold_seconds": HOLD_S,
             "warmup_discard_seconds": WARMUP_DISCARD_S,
+            "k6_start_epoch": k6_start,
+            "stage_offset_s": offset,
             "ai_metrics": args.ai_metrics,
             "spring_metrics": args.spring_metrics,
         }, ensure_ascii=False) + "\n")
@@ -175,7 +216,7 @@ def cmd_sample(args) -> int:
             elapsed = now - start
             if elapsed > args.duration:
                 break
-            stage, measuring = _stage_of(elapsed)
+            stage, measuring = _stage_of(elapsed, offset or 0.0)
             row: dict = {
                 "kind": "sample",
                 "at": datetime.now().isoformat(timespec="seconds"),
@@ -230,6 +271,18 @@ def cmd_fold(args) -> int:
     rows = [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
     header = next((r for r in rows if r.get("kind") == "header"), {})
     samples = [r for r in rows if r.get("kind") == "sample"]
+
+    # 🔴 sample 이 이미 오프셋을 적용해 stage 를 적었지만, 못 읽었거나(offset=None)
+    #    나중에 더 정확한 값을 알게 된 경우를 위해 fold 에서 <다시> 귀속할 수 있게 둔다.
+    #    이 값을 넘기면 파일에 적힌 stage 를 무시하고 elapsed_s 에서 새로 계산한다.
+    if args.offset_s is not None:
+        already = header.get("stage_offset_s") or 0.0
+        extra = args.offset_s - already
+        print(f"단계 귀속을 다시 계산한다: 파일의 오프셋 {already}s → {args.offset_s}s "
+              f"(차이 {extra:+.1f}s)")
+        for r in samples:
+            r["stage"], measuring = _stage_of(r["elapsed_s"], args.offset_s)
+            r["phase"] = "measure" if measuring else "warmup"
 
     scrape_errors = {
         "py": sum(1 for r in samples if "py_error" in r),
@@ -300,6 +353,8 @@ def main() -> int:
 
     f = sub.add_parser("fold", help="단계별로 접는다")
     f.add_argument("--run-id", required=True)
+    f.add_argument("--offset-s", type=float, default=None,
+                   help="k6 대비 관측 시작 오프셋(초). 주면 단계 귀속을 다시 계산한다")
     f.set_defaults(func=cmd_fold)
 
     args = p.parse_args()
