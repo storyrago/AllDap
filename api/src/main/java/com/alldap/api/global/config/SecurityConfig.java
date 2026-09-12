@@ -6,6 +6,7 @@ import com.alldap.api.global.exception.ApiAccessDeniedHandler;
 import com.alldap.api.global.exception.ApiAuthenticationEntryPoint;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.env.Environment;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -39,18 +40,42 @@ import java.util.List;
 public class SecurityConfig {
 
     /**
+     * springdoc 이 쓰는 기본 경로들. <b>로컬에서만</b> 인증 없이 열린다(아래 분기 참고).
+     *
+     * <p>상수로 빼둔 이유: 짝 테스트({@code OpenApiProdExposureIntegrationTest})가 같은 경로를
+     * 검사해야 하는데, 문자열을 양쪽에 적으면 한쪽만 고쳐져 <b>테스트가 엉뚱한 주소를 재게 된다</b>.
+     *
+     * <p>네 갈래를 모두 적는 이유:
+     * <ul>
+     *   <li>{@code /v3/api-docs} 자체는 {@code /v3/api-docs/**} 에 걸리지 않는다(하위 경로만 매칭)</li>
+     *   <li>{@code /v3/api-docs/**} 는 Swagger UI 가 부르는 {@code /swagger-config} 를 포함한다</li>
+     *   <li>{@code /v3/api-docs.yaml} 은 같은 문서의 YAML 표현이다. 빼면 JSON 만 열려 어긋난다</li>
+     *   <li>{@code /swagger-ui.html} 은 {@code /swagger-ui/index.html} 로 가는 입구다</li>
+     * </ul>
+     */
+    static final String[] OPEN_API_PATHS = {
+            "/v3/api-docs",
+            "/v3/api-docs/**",
+            "/v3/api-docs.yaml",
+            "/swagger-ui.html",
+            "/swagger-ui/**",
+    };
+
+    /**
      * @param jwtService                 JWT 필터를 여기서 직접 조립하기 위해 주입받는다.
      *                                   필터를 빈으로 만들지 않는 이유는 {@link JwtAuthenticationFilter} 주석 참고.
      * @param authenticationEntryPoint   인증 실패(401) 응답을 공통 포맷으로 쓰는 컴포넌트
      * @param accessDeniedHandler        인가 실패(403) 응답을 공통 포맷으로 쓰는 컴포넌트
      * @param corsConfigurationSource    어느 오리진의 요청을 허용할지 정하는 규칙 (아래 빈)
+     * @param environment              활성 프로파일을 보고 API 문서 경로를 열지 말지 정한다(아래 참고)
      */
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http,
                                                    JwtService jwtService,
                                                    ApiAuthenticationEntryPoint authenticationEntryPoint,
                                                    ApiAccessDeniedHandler accessDeniedHandler,
-                                                   CorsConfigurationSource corsConfigurationSource) throws Exception {
+                                                   CorsConfigurationSource corsConfigurationSource,
+                                                   Environment environment) throws Exception {
         http
                 // CORS 를 Security 필터 체인 안에서 처리한다.
                 // 여기 배선하면 스프링 시큐리티가 CorsFilter 를 체인 <b>맨 앞쪽</b>(인가 판단보다 먼저)에 넣어준다.
@@ -60,7 +85,8 @@ public class SecurityConfig {
                 .httpBasic(basic -> basic.disable())
                 .formLogin(form -> form.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authorizeHttpRequests(auth -> auth
+                .authorizeHttpRequests(auth -> {
+                    auth
                         // ── 공개 경로 ───────────────────────────────────────────────
                         // 가입·로그인은 당연히 토큰 없이 호출된다.
                         .requestMatchers("/api/auth/signup", "/api/auth/login").permitAll()
@@ -85,9 +111,29 @@ public class SecurityConfig {
                         //  위 .cors(...) 배선으로 프리플라이트는 CorsFilter 가 인가 판단 <b>전에</b> 끝내므로
                         //  더 이상 필요 없고, 남겨두면 모든 경로에 대해 OPTIONS 를 인증 없이 열어두는 셈이라
                         //  "어떤 경로가 존재하는지"를 떠보는 통로만 남는다)
-                        // ── 그 외 전부 인증 필요 ────────────────────────────────────
-                        .anyRequest().authenticated()
-                )
+                        ;
+
+                    // ── API 문서: 운영이 아닐 때만 연다 ─────────────────────────
+                    // 🔴 노출 방어 두 겹 중 <②> 다. ① 은 application-prod.yaml 이 문서 생성 자체를 끄는 것.
+                    //    두 겹으로 두는 이유: ① 만 두면 나중에 누가 그 설정을 되돌리는 순간 전부 열리고,
+                    //    ② 만 두면 문서는 계속 생성되면서 401 뒤에 숨어 있을 뿐이라 계정 하나만 있으면 읽힌다.
+                    //    (요금제 불변식을 PlanService 와 BillingService.delete 양쪽에서 막은 것과 같은 논리다.
+                    //     한쪽만 두면 우회 경로가 생겨 규칙이 없는 것과 같아진다)
+                    //
+                    // 🔴 판정을 <허용 목록>이 아니라 "prod 가 아니면 연다" 로 적은 것은 의도다.
+                    //    JwtService·BillingCrypto 의 가드는 반대로(개발 프로파일 허용 목록) 판정하는데,
+                    //    그건 "모르는 이름은 운영일 수 있다" 로 보수적으로 굴어야 하는 <비밀값> 이라서다.
+                    //    여기서 같은 방식을 쓰면 staging 같은 이름에서 문서가 <닫혀> 전시가 안 되는데,
+                    //    그건 안전 쪽 실패가 아니라 목적 상실이다. 반면 prod 는 이 저장소의 유일한 운영 스위치이고
+                    //    docker-compose.prod.yml 이 그것을 준다(docs/DEPLOY.md).
+                    //    ⚠️ 운영 프로파일 이름을 늘릴 때는 이 줄을 함께 볼 것.
+                    if (!environment.matchesProfiles("prod")) {
+                        auth.requestMatchers(OPEN_API_PATHS).permitAll();
+                    }
+
+                    // ── 그 외 전부 인증 필요 ────────────────────────────────────
+                    auth.anyRequest().authenticated();
+                })
                 // 인증·인가 실패도 PRD §10.3 공통 포맷 {"error":{"code":...,"message":...}} 으로 내보낸다.
                 // 이 두 줄이 없으면 Spring Security 기본 응답(빈 본문 401 / HTML 403)이 나가
                 // 프론트의 ApiErrorBody 파싱이 깨진다. 컨트롤러까지 도달하지 못한 요청이라
