@@ -1,0 +1,38 @@
+{
+  "run_id": "2026-09-12-A",
+  "round": "A",
+  "finished_at": "2026-09-12T14:50:29.272",
+  "limit": {
+    "value": 20,
+    "source": "driver"
+  },
+  "counts": {
+    "404": 20,
+    "429": 80,
+    "400": 0,
+    "200": 0,
+    "0": 0,
+    "500": 0,
+    "503": 0
+  },
+  "expected_total": 100,
+  "expected_pass": 20,
+  "ratelimit_readings_before": {
+    "rejected_check": null,
+    "rejected_blocked": null,
+    "recorded": null
+  },
+  "ratelimit_readings_after": {
+    "rejected_check": 80.0,
+    "rejected_blocked": null,
+    "recorded": null
+  },
+  "verdicts": [
+    "OK   통과: 404 20건 · 429 80건 (기대 20 / 80, 한도 20 × 1).",
+    "OK   alldap_ratelimit_recorded_total{bucket=widget-chat} 시계열이 없다. <이것이 정상이다.> 그 카운터는 RateLimiter.record() 만 올리고 호출자는 login-failure 버킷뿐이며, 위젯 채팅은 check() 를 지난다. 이 부재를 \"제한기를 한 번도 안 지났다\" 로 읽지 말 것.",
+    "OK   alldap_ratelimit_rejected_total{bucket=widget-chat,mode=blocked} 가 없다. 위젯 채팅의 거절은 전부 mode=\"check\" 여야 한다(isBlocked() 호출자는 AuthService.login 하나다).",
+    "OK   제한기가 센 거절 80건 = k6 가 받은 429 80건 (정확히 일치). 사전 확인 요청은 404 로 끝나 거절을 만들지 않으므로 여기에 여유를 두지 않는다."
+  ],
+  "valid": true,
+  "valid_means": "이 판의 상태코드 히스토그램이 기대와 정확히 일치한다는 뜻이다."
+}

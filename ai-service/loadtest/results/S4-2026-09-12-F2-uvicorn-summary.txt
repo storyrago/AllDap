@@ -1,0 +1,16 @@
+# S4-2026-09-12-F2 uvicorn 로그 요약 (원본은 *.log 라 .gitignore 에 걸린다)
+# 원본: S4-2026-09-12-F2-uvicorn.log, 총 8257줄
+
+## 기동 조건
+INFO:     Started server process [15746]
+14:51:00 INFO app.main: anyio 기본 스레드풀 상한: 40 -> 40 (설정 ANYIO_MAX_THREADS)
+INFO:     Application startup complete.
+
+## ASGI 예외 건수 (= 가짜 CF 주입 건수와 대조)
+64
+
+## 예외 종류
+  64 httpx.HTTPStatusError: Server error '500 Internal Server Error' 
+
+## 리랭킹 실패(원래 순서 유지) 줄 수 (F3 의 신호. F2 에서는 0 이어야 한다)
+0

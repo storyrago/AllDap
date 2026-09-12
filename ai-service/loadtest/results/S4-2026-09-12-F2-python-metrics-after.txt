@@ -1,0 +1,64 @@
+# HELP python_gc_objects_collected_total Objects collected during gc
+# TYPE python_gc_objects_collected_total counter
+python_gc_objects_collected_total{generation="0"} 153379.0
+python_gc_objects_collected_total{generation="1"} 60163.0
+python_gc_objects_collected_total{generation="2"} 935.0
+# HELP python_gc_objects_uncollectable_total Uncollectable objects found during GC
+# TYPE python_gc_objects_uncollectable_total counter
+python_gc_objects_uncollectable_total{generation="0"} 0.0
+python_gc_objects_uncollectable_total{generation="1"} 0.0
+python_gc_objects_uncollectable_total{generation="2"} 0.0
+# HELP python_gc_collections_total Number of times this generation was collected
+# TYPE python_gc_collections_total counter
+python_gc_collections_total{generation="0"} 229.0
+python_gc_collections_total{generation="1"} 20.0
+python_gc_collections_total{generation="2"} 1.0
+# HELP python_info Python platform information
+# TYPE python_info gauge
+python_info{implementation="CPython",major="3",minor="13",patchlevel="9",version="3.13.9"} 1.0
+# HELP alldap_anyio_threads_borrowed anyio 기본 스레드풀에서 지금 쓰이고 있는 스레드 수
+# TYPE alldap_anyio_threads_borrowed gauge
+alldap_anyio_threads_borrowed 0.0
+# HELP alldap_anyio_threads_total anyio 기본 스레드풀의 상한 (config.anyio_max_threads 를 lifespan 이 적용한 값)
+# TYPE alldap_anyio_threads_total gauge
+alldap_anyio_threads_total 40.0
+# HELP alldap_chat_duration_seconds /internal/chat 처리 시간 (Python 몫)
+# TYPE alldap_chat_duration_seconds histogram
+alldap_chat_duration_seconds_bucket{le="0.1"} 0.0
+alldap_chat_duration_seconds_bucket{le="0.25"} 16.0
+alldap_chat_duration_seconds_bucket{le="0.5"} 57.0
+alldap_chat_duration_seconds_bucket{le="1.0"} 57.0
+alldap_chat_duration_seconds_bucket{le="1.5"} 57.0
+alldap_chat_duration_seconds_bucket{le="2.0"} 766.0
+alldap_chat_duration_seconds_bucket{le="3.0"} 766.0
+alldap_chat_duration_seconds_bucket{le="5.0"} 766.0
+alldap_chat_duration_seconds_bucket{le="8.0"} 766.0
+alldap_chat_duration_seconds_bucket{le="13.0"} 766.0
+alldap_chat_duration_seconds_bucket{le="21.0"} 766.0
+alldap_chat_duration_seconds_bucket{le="34.0"} 766.0
+alldap_chat_duration_seconds_bucket{le="60.0"} 766.0
+alldap_chat_duration_seconds_bucket{le="120.0"} 766.0
+alldap_chat_duration_seconds_bucket{le="+Inf"} 766.0
+alldap_chat_duration_seconds_count 766.0
+alldap_chat_duration_seconds_sum 1218.5240560230013
+# HELP alldap_chat_duration_seconds_created /internal/chat 처리 시간 (Python 몫)
+# TYPE alldap_chat_duration_seconds_created gauge
+alldap_chat_duration_seconds_created 1.789192260780459e+09
+# HELP alldap_chat_inflight 지금 /internal/chat 을 실제로 처리 중인 요청 수 (대기 큐 아님. 큐는 tomcat_threads_busy_threads - alldap_anyio_threads_borrowed 로 읽을 것)
+# TYPE alldap_chat_inflight gauge
+alldap_chat_inflight 0.0
+# HELP alldap_db_pool_size psycopg 풀에 지금 만들어져 있는 커넥션 수 (상한이 아니라 실제 생성된 수)
+# TYPE alldap_db_pool_size gauge
+alldap_db_pool_size 10.0
+# HELP alldap_db_pool_max psycopg 풀의 커넥션 상한 (db.get_pool 의 max_size)
+# TYPE alldap_db_pool_max gauge
+alldap_db_pool_max 10.0
+# HELP alldap_db_pool_available psycopg 풀에서 지금 아무도 안 쓰는 커넥션 수
+# TYPE alldap_db_pool_available gauge
+alldap_db_pool_available 10.0
+# HELP alldap_db_pool_requests_waiting 지금 psycopg 커넥션을 기다리는 요청 수 (이 값이 0 이 아니면 풀이 벽이다)
+# TYPE alldap_db_pool_requests_waiting gauge
+alldap_db_pool_requests_waiting 0.0
+# HELP alldap_db_pool_open psycopg 풀이 만들어져 있으면 1, 아직 없으면 0 (0 이면 위 풀 지표는 의미가 없다)
+# TYPE alldap_db_pool_open gauge
+alldap_db_pool_open 1.0

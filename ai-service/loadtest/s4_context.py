@@ -54,6 +54,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 import sys
 import time
@@ -322,6 +323,44 @@ def _prom(actuator: str) -> str:
     return resp.text
 
 
+def read_python_runtime(python_metrics: str) -> dict:
+    """측정 대상 <Python 프로세스>의 스레드풀 조건을 읽는다.
+
+    🔴 설정값과 실측값을 <따로> 적는다. 둘을 하나로 적으면 "설정을 40 으로 줬다" 와
+       "그 프로세스가 실제로 40 이었다" 가 뭉개진다. 손쓸 곳이 다르다: 앞은 셸을
+       고치는 것이고 뒤는 lifespan 이 안 돈 것이다.
+
+    🔴 app/metrics_check.py ⑤ 로는 이걸 대신할 수 없다. 그 검사는 로컬 TestClient 의
+       lifespan 을 보는 것이지 <지금 8001 을 듣고 있는 프로세스>를 보는 것이 아니다.
+
+    못 읽으면 None 이 아니라 error 를 남긴다. "안 읽었다" 와 "읽었더니 없더라" 는
+    다른 사실이고, 판을 폐기할지 결정하는 근거가 달라진다.
+    """
+    block: dict = {
+        "metrics_url": python_metrics,
+        # 🔴 이것은 <드라이버 셸>의 환경변수다. 측정 대상 프로세스의 설정이 아니다.
+        #    uvicorn 을 다른 셸에서 띄웠으면 여기가 null 인 것이 정상이고, 그때도
+        #    아래 실측값은 40 일 수 있다. 이름에 of_driver 를 박아두지 않으면
+        #    "설정이 안 먹었다" 로 오독된다. 판정에 쓰는 것은 <실측값>뿐이다.
+        "anyio_max_threads_env_of_driver": os.environ.get("ANYIO_MAX_THREADS"),
+        "anyio_threads_total_observed": None,
+        "error": None,
+    }
+    try:
+        resp = httpx.get(python_metrics, timeout=10.0)
+        resp.raise_for_status()
+    except Exception as exc:  # noqa: BLE001 - 원인을 그대로 남기는 것이 목적이다
+        block["error"] = f"지표를 못 받았다: {exc!r}"
+        return block
+    try:
+        block["anyio_threads_total_observed"] = parse_prom_counter(
+            resp.text, "alldap_anyio_threads_total", {}
+        )
+    except MetricUnreadable as exc:
+        block["error"] = f"alldap_anyio_threads_total 은 <있는데> 값을 못 읽었다: {exc}"
+    return block
+
+
 def collect_signals(actuator: str, cf_base: str | None, operation: str = "chat") -> dict:
     """판정에 쓰는 신호를 한 번에 모은다. before 와 after 가 같은 함수를 쓴다.
 
@@ -438,6 +477,8 @@ def cmd_before(args) -> int:
         "normal_seconds": args.normal_s,
         "inject_seconds": args.inject_s,
         "signals_before": signals,
+        # 🔴 이 판이 <어떤 스레드 상한에서> 돈 것인지. 설정값과 실측값을 따로 적는다.
+        "python_runtime": read_python_runtime(args.python_metrics),
     }
     RESULTS.mkdir(exist_ok=True)
     _context_path(args.run_id).write_text(json.dumps(context, ensure_ascii=False, indent=2, default=str))
@@ -584,6 +625,8 @@ def main() -> int:
     parser.add_argument("--actuator", default="http://localhost:8081")
     parser.add_argument("--cf", default="http://127.0.0.1:9001")
     parser.add_argument("--operation", default="chat")
+    parser.add_argument("--python-metrics",
+                        default="http://127.0.0.1:8001/internal/metrics")
     # 계정 기본값은 환경변수에서 온다(loadtest/account.py 가 만든 측정 전용 계정).
     parser.add_argument("--email", default=env_email())
     parser.add_argument("--password", default=env_password())
