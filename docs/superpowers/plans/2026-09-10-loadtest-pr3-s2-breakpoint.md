@@ -17,7 +17,9 @@
 - **커밋 메시지는 `<타입>: <한국어 요약>`** — feat / fix / refactor / test / docs / chore / review (AGENTS.md:282).
 - **테스트 관례는 pytest 가 아니라 `*_check.py` 자체 점검 스크립트다.** `python -m` 으로 돌고, 각 항목을 `OK`/`FAIL` 로 찍고, 실패가 하나라도 있으면 종료코드 1 을 돌려준다. `app/evaluator_check.py`·`loadtest/fake_cf_check.py` 가 선례다.
 - **가짜 CF 지연값은 이 PR 에서 바꾸지 않는다** — `loadtest/fake_cf.py:LATENCY_MS = {"embed": 235, "rerank": 414, "generate": 937}`.
-- **계정**: `w2check@example.com` / `S1loadtest!2026` (원래 해시는 `AllDap-pr2/.s1-old-hash.txt`).
+- **계정**: 측정 전용 계정(기본 `loadtest@example.com`). 비밀번호는 저장소에 적지 않고 `LOADTEST_PASSWORD` 환경변수로만 넘긴다(이메일을 바꾸려면 `LOADTEST_EMAIL`).
+  측정 전에 `cd ai-service && LOADTEST_PASSWORD='...' .venv/bin/python -m loadtest.account` 를 한 번 돌려 계정과 측정 봇 소유권을 맞춘다.
+  ⚠️ 이 줄은 원래 `w2check@example.com` / 고정 비밀번호였다. PR #133(2026-09-11)이 그 손작업과 코드 기본값을 없앴으므로 옛 값으로 로그인하면 401 이다.
 - **`botId` 를 코드에 하드코딩하지 않는다.** 로그인 뒤 봇 목록에서 골라 시작 조건 파일에 적고, k6 는 환경변수로 받는다.
 - **개선하지 않는다.** 병목이 보여도 이 PR 에서는 고치지 않는다(PR 5 의 before 가 사라진다).
 - **prometheus-client 버전은 `prometheus-client==0.26.0`.** `requirements.txt` 는 이 저장소에서 정확 버전 고정이 규칙이다(파일 상단 주석의 사고 기록 참고).
@@ -1060,8 +1062,8 @@ import exec from 'k6/execution';
 import { Counter, Trend } from 'k6/metrics';
 
 const API      = __ENV.API      || 'http://localhost:8080';
-const EMAIL    = __ENV.EMAIL    || 'w2check@example.com';
-const PASSWORD = __ENV.PASSWORD || 'S1loadtest!2026';
+const EMAIL    = __ENV.EMAIL    || __ENV.LOADTEST_EMAIL    || 'loadtest@example.com';
+const PASSWORD = __ENV.PASSWORD || __ENV.LOADTEST_PASSWORD;
 const BOT_ID   = __ENV.BOT_ID;
 const RUN_ID   = __ENV.RUN_ID;
 const OUT      = __ENV.OUT || 'loadtest/results/S2-unnamed.json';
@@ -1378,7 +1380,8 @@ git commit -m "feat: 계단식 6단계 S2 시나리오를 중단 없이 끝까�
 실행:
     # 실행 전 — 봇을 고르고 조건을 남긴다. 인쇄된 두 줄을 k6 에 그대로 넘긴다.
     cd ai-service && .venv/bin/python -m loadtest.s2_context before \\
-        --run-id 2026-09-10-1 --email w2check@example.com --password 'S1loadtest!2026'
+        --run-id 2026-09-10-1
+    (계정은 LOADTEST_EMAIL·LOADTEST_PASSWORD 에서 온다. loadtest/account.py 가 먼저다)
 
     # 실행 후 — 가짜 CF 호출 수를 요청 수와 맞춰본다.
     cd ai-service && .venv/bin/python -m loadtest.s2_context after \\
@@ -1622,14 +1625,17 @@ def main() -> int:
     parser.add_argument("--run-id", required=True)
     parser.add_argument("--api", default="http://localhost:8080")
     parser.add_argument("--ai", default="http://localhost:8001")
-    parser.add_argument("--email", default="w2check@example.com")
-    parser.add_argument("--password")
+    # 🔴 계정 기본값은 환경변수에서 온다(loadtest/account.py 의 env_email·env_password).
+    #    비밀번호 기본값을 코드에 박으면 그 값이 곧 저장소에 커밋된 비밀번호다.
+    parser.add_argument("--email", default=env_email())
+    parser.add_argument("--password", default=env_password())
     parser.add_argument("--k6-summary")
     args = parser.parse_args()
 
     if args.phase == "before":
         if not args.password:
-            print("중단: before 에는 --password 가 필요하다.")
+            print("중단: before 에는 비밀번호가 필요하다. "
+                  "LOADTEST_PASSWORD 를 넣거나 --password 로 넘길 것.")
             return 1
         return cmd_before(args)
 
@@ -1650,7 +1656,7 @@ Task 3 Step 5 의 터미널 A~D 가 다 떠 있어야 한다(Spring 은 Task 4 �
 ```bash
 cd /Users/cheonjamin/projects/AllDap/ai-service && \
   .venv/bin/python -m loadtest.s2_context before \
-    --run-id smoke --password 'S1loadtest!2026'
+    --run-id smoke
 ```
 
 기대: JSON 이 찍히고 맨 아래 두 줄이
@@ -1670,7 +1676,7 @@ RUN_ID=smoke
 ```bash
 cd /Users/cheonjamin/projects/AllDap/ai-service && \
   CF_BASE_URL=https://api.cloudflare.com/client/v4 .venv/bin/python -m loadtest.s2_context before \
-    --run-id guard-check --password 'S1loadtest!2026'; echo "exit=$?"
+    --run-id guard-check; echo "exit=$?"
 ```
 
 기대: `중단: CF_BASE_URL 이 진짜 Cloudflare 다 ...` 와 `exit=1`
@@ -1790,7 +1796,7 @@ import json,sys; print(f\"heap max = {json.load(sys.stdin)['measurements'][0]['v
 ```bash
 RUN_ID=$(date +%Y-%m-%d)
 cd /Users/cheonjamin/projects/AllDap/ai-service && \
-  .venv/bin/python -m loadtest.s2_context before --run-id "$RUN_ID" --password 'S1loadtest!2026'
+  .venv/bin/python -m loadtest.s2_context before --run-id "$RUN_ID"
 ```
 
 인쇄된 `BOT_ID=` 값을 복사한다.
@@ -1839,7 +1845,7 @@ print({m: r['count'] for m, r in d.items()})
 ```bash
 RUN_ID=$(date +%Y-%m-%d)
 cd /Users/cheonjamin/projects/AllDap/ai-service && \
-  .venv/bin/python -m loadtest.s2_context before --run-id "$RUN_ID" --password 'S1loadtest!2026'
+  .venv/bin/python -m loadtest.s2_context before --run-id "$RUN_ID"
 ```
 
 > cf-stats 에 리셋 API 가 없는 것은 일부러다(`cf._latencies` 주석). 측정 구간의 시작은
