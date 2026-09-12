@@ -88,18 +88,125 @@ async def lifespan(app: FastAPI):
     close_pool()
 
 
-app = FastAPI(title="AllDap AI Service", version="0.1.0", lifespan=lifespan)
+# ── OpenAPI 문서 메타데이터 ──────────────────────────────────────────
+#
+# 🔴 경로마다 `summary=` 를 <반드시> 적는다. 안 적으면 비는 것이 아니라,
+#    FastAPI 가 함수 이름을 `.title()` 로 바꿔 영어 제목을 채워 넣는다
+#    (`upload_document` → "Upload Document"). 즉 빠뜨려도 /docs 가 멀쩡해 보인다.
+#    한국어 설명은 docstring 에서 오는데 그건 <펼쳐야> 보이므로, 목록 화면에서는
+#    아무도 안 쓴 영어만 나란히 선다. "빈칸이 아니라 그럴듯한 값" 이라 눈으로는
+#    못 잡는다 = 검사가 필요하다 (app/openapi_check.py).
+#
+# 왜 태그를 나누는가: 태그가 없으면 /docs 에서 16개가 전부 `default` 한 덩어리로
+# 나와 `/health` 와 `/internal/chat` 이 한 줄에 나란히 선다. 즉 <어디까지가 제품
+# 기능이고 어디부터가 운영 도구인지>가 화면에서 사라진다.
+# Spring 쪽 `@Tag` 와 정확히 같은 개념이고 문법만 다르다
+# (FastAPI 는 앱에 `openapi_tags` 로 목록을 선언하고, 각 경로가 `tags=[...]` 로 고른다).
+OPENAPI_TAGS = [
+    {
+        "name": "문서",
+        "description": "파싱·청킹·임베딩. 업로드는 비동기라 202 로 답하고 상태는 폴링으로 확인한다.",
+    },
+    {
+        "name": "채팅",
+        "description": "검색과 생성. 근거가 없으면 LLM 을 부르지 않는다.",
+    },
+    {
+        "name": "품질 평가",
+        "description": "테스트 질문 자동 생성과 LLM-as-judge 채점. 이 제품의 핵심 기능이다.",
+    },
+    {
+        "name": "문서 충돌",
+        "description": "서로 다른 값을 말하는 문서 쌍을 찾아 알려준다.",
+    },
+    {
+        "name": "운영",
+        "description": "헬스체크·지표·디버그. 제품 기능이 아니라 우리가 들여다보는 창이다.",
+    },
+]
+
+API_DESCRIPTION = """\
+🔴 **이 서비스는 내부망 전용이다. 절대 외부에 노출하지 말 것.**
+
+`/internal/*` 에는 **인증이 없다.** 요청이 여기까지 닿았다는 것 자체가
+"앞단에서 이미 확인이 끝났다" 는 전제이고, 그 전제가 깨지면 봇 사이의
+데이터 격리가 통째로 무너진다. 실제 방어선은 두 가지뿐이다.
+
+- 배포에서 이 서비스에 포트를 열지 않는다 (compose 가 `ports:` 를 쓰지 않는다).
+- 경로마다 `bot_id` 를 받아 조회 조건에 못박는다 (검사가 아니라 `WHERE` 절이다).
+
+**외부에 노출되는 API 는 Spring(:8080) 하나뿐이다.** 인증·권한·대화 로그 저장은
+전부 Spring 이 맡고, 이 서비스는 AI 작업(파싱·임베딩·검색·생성·평가)만 한다.
+사용자에게 보이는 문구 치환(예: fallback 메시지)도 Spring 의 몫이다.
+"""
+
+def _docs_kwargs() -> dict:
+    """운영(APP_ENV=prod)에서는 API 문서 생성을 <아예> 끈다.
+
+    왜 네트워크 격리 한 겹으로는 부족한가
+    ─────────────────────────────────────────────────────────────────────────
+    이 서비스의 /internal/* 에는 인증이 없다. "외부에 노출되지 않는다" 는
+    전제 하나에 전부 얹혀 있고, 지금 그 전제를 지키는 것은 <보안그룹과
+    compose 의 ports 생략> 뿐이다. 즉 방어선이 한 겹이다.
+    그 한 겹이 풀리는 데는 실수 하나로 충분하다 - 보안그룹 인바운드를 잘못
+    열거나, compose 에 ports 를 한 줄 붙이거나, 앞단 프록시가 /internal/*
+    로 가는 경로를 얻는 것. 그때 문서가 열려 있으면 새는 것이 "엔드포인트
+    하나를 맞힐 수 있다" 가 아니라 <경로·스키마 목록 전부>고, Swagger UI 의
+    Try it out 으로 <실제 호출>까지 된다.
+    그래서 문서는 네트워크와 독립된 둘째 겹으로 막는다. 앞단 Spring 이
+    PR #142 에서 같은 판단을 했다(생성 끄기 + 경로 차단, 두 겹).
+
+    왜 새 설정 축을 만들지 않는가
+    ─────────────────────────────────────────────────────────────────────────
+    DOCS_ENABLED 같은 변수를 따로 두면 축이 둘이 되고, 둘이 어긋나는 순간
+    "운영인데 문서가 열린" 조합이 설정 실수 하나로 생긴다. 이미 있는
+    app_env(= Spring 의 SPRING_PROFILES_ACTIVE=prod 와 짝을 이루는 축) 하나에
+    얹어 <운영이면 반드시 닫힌다> 를 구조로 보장한다.
+
+    🔴 openapi_url 을 함께 끄는 것이 핵심이다.
+       docs_url 만 끄면 화면만 사라지고 /openapi.json 은 그대로 나간다.
+       그 파일이 경로·스키마·요청 본문 형식을 전부 담은 원본이라 사람이
+       읽기에는 오히려 Swagger UI 보다 편하다. 화면을 닫고 명세를 열어두는
+       것은 막은 것이 아니다.
+
+    ⚠️ 반대 방향도 단언한다: prod 가 아니면 <빈 dict> 를 돌려주므로
+       FastAPI 기본값이 그대로 쓰인다. 개발 환경의 동작은 한 글자도 바뀌지 않는다.
+    """
+    if get_settings().app_env == "prod":
+        return {"docs_url": None, "redoc_url": None, "openapi_url": None}
+    return {}
 
 
-@app.get("/health")
+app = FastAPI(
+    title="AllDap AI Service",
+    version="0.1.0",
+    description=API_DESCRIPTION,
+    openapi_tags=OPENAPI_TAGS,
+    lifespan=lifespan,
+    # 운영에서 docs_url·redoc_url·openapi_url 셋을 None 으로 덮는다. 근거는 위 함수.
+    **_docs_kwargs(),
+)
+
+
+@app.get("/health", tags=["운영"], summary="헬스체크 (DB 포함)")
 def health() -> dict:
+    """이 서비스가 살아 있는지 본다. DB 까지 확인한다.
+
+    프로세스가 응답하는 것만으로는 부족해서 커넥션을 하나 빌려 `SELECT 1` 을 던진다.
+    이 서비스가 하는 일이 전부 DB 를 거치므로(청크 조회·문서 상태 갱신),
+    DB 가 죽었는데 200 을 돌려주면 "살아 있다" 가 거짓말이 된다.
+    """
     with cursor() as cur:
         cur.execute("SELECT 1")
         cur.fetchone()
     return {"status": "ok"}
 
 
-@app.get("/internal/debug/cf-stats")
+@app.get(
+    "/internal/debug/cf-stats",
+    tags=["운영"],
+    summary="Cloudflare 호출 통계 (모델별 뉴런·지연)",
+)
 def cf_stats() -> dict:
     """모델별 Cloudflare 호출 수·뉴런·지연 백분위. 부하테스트 S1 이 읽는다.
 
@@ -121,7 +228,11 @@ def cf_stats() -> dict:
     return stats
 
 
-@app.get("/internal/debug/cf-config")
+@app.get(
+    "/internal/debug/cf-config",
+    tags=["운영"],
+    summary="이 프로세스가 보는 Cloudflare 주소",
+)
 def cf_config() -> dict:
     """이 프로세스가 <실제로 어느 Cloudflare 주소를 보고 있는지>. 부하테스트가 읽는다.
 
@@ -136,7 +247,7 @@ def cf_config() -> dict:
     return {"cf_base_url": get_settings().cf_base_url}
 
 
-@app.get("/internal/metrics")
+@app.get("/internal/metrics", tags=["운영"], summary="Prometheus 지표")
 async def prometheus_metrics() -> Response:
     """Prometheus 스크레이프 엔드포인트. 부하테스트 S2 가 읽는다.
 
@@ -214,12 +325,38 @@ def _process_document(doc_id: UUID, bot_id: UUID, filename: str, data: bytes) ->
         _fail(f"처리 중 오류가 발생했습니다: {type(e).__name__}")
 
 
-@app.post("/internal/bots/{bot_id}/documents", response_model=DocumentOut, status_code=202)
+@app.post(
+    "/internal/bots/{bot_id}/documents",
+    response_model=DocumentOut,
+    status_code=202,
+    tags=["문서"],
+    summary="문서 업로드 (비동기 처리)",
+)
 async def upload_document(
     bot_id: UUID,
     background: BackgroundTasks,
     file: UploadFile = File(...),
 ) -> DocumentOut:
+    """문서 1건을 받아 `documents` 행만 만들고 202 로 즉시 답한다. 처리는 백그라운드다.
+
+    🔴 <b>왜 202 인가:</b> 파싱·청킹까지는 빠르지만 임베딩은 외부 API 호출이라
+    수십 초가 걸릴 수 있다. 그 시간을 HTTP 요청 안에서 기다리면 Spring 쪽 타임아웃에
+    먼저 걸린다. 그래서 여기서는 <받았다는 사실>만 확정하고(행 생성, `status='pending'`),
+    나머지를 `BackgroundTasks` 로 넘긴다.
+
+    상태 전이: `pending` → `processing` → `ready` 또는 `failed`.
+    실패하면 `error_message` 에 사용자에게 그대로 보여줄 수 있는 한국어 사유가 들어간다.
+    진행 상황은 `list_documents` 를 폴링해서 본다.
+
+    🔴 <b>대가가 있다. 알고 남긴 한계다:</b> `BackgroundTasks` 는 이 프로세스 안에서만
+    산다. 처리 도중 프로세스가 죽으면 그 작업은 사라지고, 문서는 `processing` 에
+    <영원히 멈춘다>. 되살려주는 재시도도, 유실을 알려주는 신호도 없다.
+    트래픽이 붙으면 Redis + RQ 같은 외부 큐로 옮겨야 한다(`_process_document` 주석).
+
+    여기서 바로 거절하는 것은 셋뿐이다: 용량 초과(413) · 빈 파일(400) ·
+    지원하지 않는 확장자(400). 셋 다 파일을 열어보지 않고도 판정할 수 있는 것들이고,
+    내용이 깨진 경우는 백그라운드에서 `failed` 로 남는다.
+    """
     s = get_settings()
     data = await file.read()
 
@@ -247,8 +384,26 @@ async def upload_document(
     return DocumentOut(id=doc_id, filename=filename, file_type=ftype, status="pending")
 
 
-@app.get("/internal/bots/{bot_id}/documents", response_model=list[DocumentOut])
+@app.get(
+    "/internal/bots/{bot_id}/documents",
+    response_model=list[DocumentOut],
+    tags=["문서"],
+    summary="문서 목록 조회",
+)
 def list_documents(bot_id: UUID) -> list[DocumentOut]:
+    """봇 하나의 문서 목록을 최신순으로 준다. 업로드 진행 상황을 보는 창이다.
+
+    업로드가 202 로 끝나므로(`upload_document`) 처리 결과를 알 방법이 이것뿐이다.
+    프론트가 이 목록을 폴링하다가 `ready` 나 `failed` 를 보면 멈춘다.
+
+    ⚠️ `status` 는 열거형이 아니라 <문자열>로 오간다. 이 값을 정하는 쪽은 Python 이고
+    받는 쪽은 Spring 인데, Java enum 으로 받아두면 Python 이 상태를 하나 추가하는 순간
+    Spring 이 <문서 목록 조회 자체를> 못 하게 된다. 두 서비스의 배포 순서에 강하려고
+    문자열로 둔 것이다(근거는 Spring 쪽 `Document.java` 의 `status` 필드 주석).
+
+    ⚠️ `bot_id` 를 조회 조건에 못박는다. `/internal/*` 에는 인증이 없어서
+    이 `WHERE` 절이 봇 사이 격리의 전부다.
+    """
     with cursor() as cur:
         cur.execute(
             """SELECT id, filename, file_type, status, error_message, char_count, chunk_count
@@ -271,7 +426,13 @@ def list_documents(bot_id: UUID) -> list[DocumentOut]:
 #   "Status code 204 must not have a response body" 로 앱이 뜨지도 못하고 죽는다.
 #   (요청이 올 때가 아니라 라우트를 등록하는 import 시점에 터진다)
 #   response_model=None 은 "애너테이션에서 추론하지 말라"는 명시적 지시다.
-@app.delete("/internal/bots/{bot_id}/documents/{doc_id}", status_code=204, response_model=None)
+@app.delete(
+    "/internal/bots/{bot_id}/documents/{doc_id}",
+    status_code=204,
+    response_model=None,
+    tags=["문서"],
+    summary="문서 삭제",
+)
 def delete_document(bot_id: UUID, doc_id: UUID) -> None:
     """문서 1건을 지운다. 청크는 CASCADE 로 함께 사라진다.
 
@@ -296,8 +457,38 @@ def delete_document(bot_id: UUID, doc_id: UUID) -> None:
 
 # ── 채팅 ─────────────────────────────────────────────────────────────
 
-@app.post("/internal/chat", response_model=ChatResponse)
+@app.post(
+    "/internal/chat",
+    response_model=ChatResponse,
+    tags=["채팅"],
+    summary="질문에 답한다 (검색 + 생성)",
+)
 def chat(req: ChatRequest) -> ChatResponse:
+    """질문 하나를 받아 문서에서 근거를 찾고 답변을 만든다. 이 제품의 핵심 경로다.
+
+    흐름: 질문 임베딩 → pgvector 유사도 검색 → 근거 판정 → (근거가 있으면) LLM 호출.
+
+    🔴 <b>환각 억제가 두 겹이다. 성능·편의를 이유로 완화하지 말 것.</b>
+
+    1. <b>검색 단계</b> (`retriever.search`). 벡터 최근접 거리가
+       `answerable_max_distance` 보다 멀면 근거를 <통째로 버린다>. 그러면
+       `generator.generate` 가 <b>LLM 을 아예 부르지 않고</b> 곧바로 fallback 한다
+       (비용도 지연도 들지 않는다). 남은 청크에는 별도로 `max_distance` 컷이 걸린다.
+       판정과 컷을 다른 값으로 나눠 둔 이유는 `retriever.search` 주석에 있다.
+    2. <b>생성 단계</b>. 시스템 프롬프트가 "근거에 없으면 `NO_ANSWER` 만 답하라" 를
+       강제하고, 응답에 그 토큰이 오면 fallback 으로 친다.
+
+    1번은 코드고 2번은 프롬프트다. 2번은 봇별 지침 한 줄로 뚫릴 수 있다는 것이
+    실측돼 있어서(`app/bot_prompt_check.py`), 1번이 있고 없고가 중요하다.
+
+    🔴 <b>fallback 일 때도 이 서비스는 문구를 바꾸지 않는다.</b> `is_fallback=True` 라는
+    <사실>만 돌려주고, 봇마다 다른 안내 문구로 치환하는 것은 Spring 이 한다.
+    여기서 치환하면 평가(`evalrun`)가 그 문구를 진짜 답변으로 채점하게 된다.
+
+    ⚠️ 답변을 <받지 못한> 경우(모델 응답이 잘리거나 비었을 때)는 fallback 이 아니라
+    503 `GENERATION_INCOMPLETE` 다. 근거를 찾고도 "문서에서 답을 못 찾았다" 로
+    내보내면 제품이 거짓말을 하는 것이라 둘을 갈랐다(아래 `GenerationFailed` 분기).
+    """
     started = time.perf_counter()
     # 🔴 계측을 try/finally 로 감싼다. 아래 503(GenerationFailed) 경로도 <히스토그램에 들어가야>
     #    한다 — 30초 걸려 실패한 요청은 지연 통계에서 빠질 것이 아니라 거기 있어야 하는 사실이다.
@@ -359,6 +550,8 @@ def chat(req: ChatRequest) -> ChatResponse:
 @app.post(
     "/internal/bots/{bot_id}/eval/questions/generate",
     response_model=list[EvalQuestionOut],
+    tags=["품질 평가"],
+    summary="테스트 질문 자동 생성",
 )
 def generate_eval_questions(
     bot_id: UUID, req: GenerateQuestionsRequest
@@ -436,7 +629,12 @@ def generate_eval_questions(
     ]
 
 
-@app.get("/internal/bots/{bot_id}/eval/questions", response_model=list[EvalQuestionOut])
+@app.get(
+    "/internal/bots/{bot_id}/eval/questions",
+    response_model=list[EvalQuestionOut],
+    tags=["품질 평가"],
+    summary="테스트 질문 목록 조회",
+)
 def list_eval_questions(bot_id: UUID) -> list[EvalQuestionOut]:
     """테스트 질문 목록. 비활성(is_active=false) 도 함께 준다 — 화면에서 켜고 꺼야 하기 때문."""
     with cursor() as cur:
@@ -458,6 +656,8 @@ def list_eval_questions(bot_id: UUID) -> list[EvalQuestionOut]:
 @app.patch(
     "/internal/bots/{bot_id}/eval/questions/{question_id}",
     response_model=EvalQuestionOut,
+    tags=["품질 평가"],
+    summary="테스트 질문 수정",
 )
 def update_eval_question(
     bot_id: UUID, question_id: UUID, req: UpdateEvalQuestionRequest
@@ -505,7 +705,13 @@ def update_eval_question(
     )
 
 
-@app.post("/internal/bots/{bot_id}/eval/runs", response_model=EvalRunOut, status_code=202)
+@app.post(
+    "/internal/bots/{bot_id}/eval/runs",
+    response_model=EvalRunOut,
+    status_code=202,
+    tags=["품질 평가"],
+    summary="평가 실행 시작 (비동기)",
+)
 def start_eval_run(bot_id: UUID, background: BackgroundTasks) -> EvalRunOut:
     """평가를 시작한다. 즉시 running 상태의 실행을 돌려주고 채점은 백그라운드에서 진행한다.
 
@@ -542,7 +748,12 @@ def start_eval_run(bot_id: UUID, background: BackgroundTasks) -> EvalRunOut:
     return EvalRunOut(id=r[0], status=r[1], config=r[2], created_at=r[3])
 
 
-@app.get("/internal/bots/{bot_id}/eval/runs", response_model=list[EvalRunOut])
+@app.get(
+    "/internal/bots/{bot_id}/eval/runs",
+    response_model=list[EvalRunOut],
+    tags=["품질 평가"],
+    summary="평가 실행 이력 조회",
+)
 def list_eval_runs(bot_id: UUID) -> list[EvalRunOut]:
     """실행 이력. 최신순.
 
@@ -571,7 +782,12 @@ def list_eval_runs(bot_id: UUID) -> list[EvalRunOut]:
 
 # ── 문서 간 모순 (진단) ───────────────────────────────────────────────
 
-@app.post("/internal/bots/{bot_id}/conflicts/scan", response_model=ConflictScanOut)
+@app.post(
+    "/internal/bots/{bot_id}/conflicts/scan",
+    response_model=ConflictScanOut,
+    tags=["문서 충돌"],
+    summary="문서 충돌 진단 실행",
+)
 def scan_conflicts(bot_id: UUID) -> ConflictScanOut:
     """문서끼리 어긋나는 곳을 훑는다.
 
@@ -593,7 +809,12 @@ def scan_conflicts(bot_id: UUID) -> ConflictScanOut:
     return ConflictScanOut(**conflicts.scan(bot_id).model_dump())
 
 
-@app.get("/internal/bots/{bot_id}/conflicts", response_model=list[ConflictOut])
+@app.get(
+    "/internal/bots/{bot_id}/conflicts",
+    response_model=list[ConflictOut],
+    tags=["문서 충돌"],
+    summary="문서 충돌 목록 조회",
+)
 def list_conflicts(bot_id: UUID, status: str = "open") -> list[ConflictOut]:
     """충돌 목록. 기본은 관리자가 아직 안 본 것(open)만.
 
@@ -632,7 +853,12 @@ def list_conflicts(bot_id: UUID, status: str = "open") -> list[ConflictOut]:
     ]
 
 
-@app.patch("/internal/bots/{bot_id}/conflicts/{conflict_id}", response_model=ConflictOut)
+@app.patch(
+    "/internal/bots/{bot_id}/conflicts/{conflict_id}",
+    response_model=ConflictOut,
+    tags=["문서 충돌"],
+    summary="문서 충돌 처리 상태 변경",
+)
 def update_conflict_status(
     bot_id: UUID, conflict_id: UUID, req: ConflictStatusRequest
 ) -> ConflictOut:
