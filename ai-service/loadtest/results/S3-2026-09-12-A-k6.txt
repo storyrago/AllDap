@@ -1,0 +1,36 @@
+
+         /\      Grafana   /‾‾/  
+    /\  /  \     |\  __   /  /   
+   /  \/    \    | |/ /  /   ‾‾\ 
+  /          \   |   (  |  (‾)  |
+ / __________ \  |_|\_\  \_____/ 
+
+
+     execution: local
+        script: loadtest/s3_ratelimit.js
+        output: -
+
+     scenarios: (100.00%) 1 scenario, 100 max VUs, 1m30s max duration (incl. graceful stop):
+              * burst: 1 iterations for each of 100 VUs (maxDuration: 1m0s, exec: widgetChat, gracefulStop: 30s)
+
+
+S3 rate limit: runId=2026-09-12-A  판=A  기대 요청수=100
+publicKey=pk_s3loadtestFAKEkeyAAAAA
+
+상태  전체   키1    키2    앞버스트 뒤버스트   p50(ms)  p95(ms)  max(ms)
+ 404     20     20      0        20        0      18.9     23.8     24.3
+ 429     80     80      0        80        0      17.3     25.3     25.7
+ 400      0      0      0         0        0       0.0      0.0      0.0
+ 200      0      0      0         0        0       0.0      0.0      0.0
+   0      0      0      0         0        0       0.0      0.0      0.0
+ 500      0      0      0         0        0       0.0      0.0      0.0
+ 503      0      0      0         0        0       0.0      0.0      0.0
+
+감시 상태코드 합계 = 100 (기대 100)
+
+🔴 위 숫자는 아직 <판정이 아니다.> s3_context.py after 의 judge_round 가
+   히스토그램 <전체 일치>로 가른다. 400 이 1건이라도 있으면(2026-09-09 사고)
+   또는 200 이 1건이라도 있으면(진짜 봇을 때렸다) 그 판은 무효다.
+
+running (0m00.0s), 000/100 VUs, 100 complete and 0 interrupted iterations
+burst ✓ [ 100% ] 100 VUs  0m00.0s/1m0s  100/100 iters, 1 per VU

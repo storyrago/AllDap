@@ -1,0 +1,1223 @@
+# HELP alldap_ai_call_seconds Python AI 서비스 호출 1건. outcome 이 실패 원인을 가른다.
+# TYPE alldap_ai_call_seconds summary
+alldap_ai_call_seconds_count{operation="chat",outcome="circuit_open"} 243396
+alldap_ai_call_seconds_sum{operation="chat",outcome="circuit_open"} 3.966434491
+alldap_ai_call_seconds_count{operation="chat",outcome="python_5xx"} 64
+alldap_ai_call_seconds_sum{operation="chat",outcome="python_5xx"} 27.082181837
+alldap_ai_call_seconds_count{operation="chat",outcome="success"} 702
+alldap_ai_call_seconds_sum{operation="chat",outcome="success"} 1195.460909577
+# HELP alldap_ai_call_seconds_max Python AI 서비스 호출 1건. outcome 이 실패 원인을 가른다.
+# TYPE alldap_ai_call_seconds_max gauge
+alldap_ai_call_seconds_max{operation="chat",outcome="circuit_open"} 9.30792E-4
+alldap_ai_call_seconds_max{operation="chat",outcome="python_5xx"} 0.293799
+alldap_ai_call_seconds_max{operation="chat",outcome="success"} 1.664965417
+# HELP alldap_ai_circuit_state AI 서비스 서킷 상태 (0=닫힘 1=탐색 2=열림)
+# TYPE alldap_ai_circuit_state gauge
+alldap_ai_circuit_state 0.0
+# HELP alldap_ai_circuit_transition_total 서킷 상태가 바뀐 횟수
+# TYPE alldap_ai_circuit_transition_total counter
+alldap_ai_circuit_transition_total{to="closed"} 1.0
+alldap_ai_circuit_transition_total{to="open"} 3.0
+# HELP alldap_ratelimit_keys 제한기가 지금 들고 있는 카운터 키 수. MAX_KEYS 에 가까워지면 clear 가 임박한 것이다.
+# TYPE alldap_ratelimit_keys gauge
+alldap_ratelimit_keys 8.0
+# HELP alldap_ratelimit_keys_cleared_total MAX_KEYS 초과로 카운터 맵을 통째로 비운 횟수. 버킷을 가리지 않으므로 태그가 없다.
+# TYPE alldap_ratelimit_keys_cleared_total counter
+alldap_ratelimit_keys_cleared_total 0.0
+# HELP alldap_ratelimit_recorded_total record() 로 쌓은 횟수. 거절이 아니라 누적이다.
+# TYPE alldap_ratelimit_recorded_total counter
+alldap_ratelimit_recorded_total{bucket="login-failure"} 1.0
+# HELP alldap_ratelimit_rejected_total 요청 제한기가 거절한 횟수. mode 로 차단 연장 여부가 갈린다.
+# TYPE alldap_ratelimit_rejected_total counter
+alldap_ratelimit_rejected_total{bucket="widget-chat",mode="check"} 80.0
+# HELP application_ready_time_seconds Time taken for the application to be ready to service requests
+# TYPE application_ready_time_seconds gauge
+application_ready_time_seconds{main_application_class="com.alldap.api.ApiApplication"} 2.817
+# HELP application_started_time_seconds Time taken to start the application
+# TYPE application_started_time_seconds gauge
+application_started_time_seconds{main_application_class="com.alldap.api.ApiApplication"} 2.813
+# HELP disk_free_bytes Usable space for path
+# TYPE disk_free_bytes gauge
+disk_free_bytes{path="/Users/cheonjamin/projects/AllDap/api/."} 2.18510426112E11
+# HELP disk_total_bytes Total space for path
+# TYPE disk_total_bytes gauge
+disk_total_bytes{path="/Users/cheonjamin/projects/AllDap/api/."} 4.94384795648E11
+# HELP executor_active_threads The approximate number of threads that are actively executing tasks
+# TYPE executor_active_threads gauge
+executor_active_threads{name="applicationTaskExecutor"} 0.0
+# HELP executor_completed_tasks_total The approximate total number of tasks that have completed execution
+# TYPE executor_completed_tasks_total counter
+executor_completed_tasks_total{name="applicationTaskExecutor"} 0.0
+# HELP executor_pool_core_threads The core number of threads for the pool
+# TYPE executor_pool_core_threads gauge
+executor_pool_core_threads{name="applicationTaskExecutor"} 8.0
+# HELP executor_pool_max_threads The maximum allowed number of threads in the pool
+# TYPE executor_pool_max_threads gauge
+executor_pool_max_threads{name="applicationTaskExecutor"} 2.147483647E9
+# HELP executor_pool_size_threads The current number of threads in the pool
+# TYPE executor_pool_size_threads gauge
+executor_pool_size_threads{name="applicationTaskExecutor"} 0.0
+# HELP executor_queue_remaining_tasks The number of additional elements that this queue can ideally accept without blocking
+# TYPE executor_queue_remaining_tasks gauge
+executor_queue_remaining_tasks{name="applicationTaskExecutor"} 2.147483647E9
+# HELP executor_queued_tasks The approximate number of tasks that are queued for execution
+# TYPE executor_queued_tasks gauge
+executor_queued_tasks{name="applicationTaskExecutor"} 0.0
+# HELP hikaricp_connections Total connections
+# TYPE hikaricp_connections gauge
+hikaricp_connections{pool="HikariPool-1"} 10.0
+# HELP hikaricp_connections_acquire_seconds Connection acquire time
+# TYPE hikaricp_connections_acquire_seconds summary
+hikaricp_connections_acquire_seconds_count{pool="HikariPool-1"} 244900
+hikaricp_connections_acquire_seconds_sum{pool="HikariPool-1"} 735.693
+# HELP hikaricp_connections_acquire_seconds_max Connection acquire time
+# TYPE hikaricp_connections_acquire_seconds_max gauge
+hikaricp_connections_acquire_seconds_max{pool="HikariPool-1"} 0.004
+# HELP hikaricp_connections_active Active connections
+# TYPE hikaricp_connections_active gauge
+hikaricp_connections_active{pool="HikariPool-1"} 0.0
+# HELP hikaricp_connections_creation_seconds Connection creation time
+# TYPE hikaricp_connections_creation_seconds summary
+hikaricp_connections_creation_seconds_count{pool="HikariPool-1"} 0
+hikaricp_connections_creation_seconds_sum{pool="HikariPool-1"} 0.0
+# HELP hikaricp_connections_creation_seconds_max Connection creation time
+# TYPE hikaricp_connections_creation_seconds_max gauge
+hikaricp_connections_creation_seconds_max{pool="HikariPool-1"} 0.0
+# HELP hikaricp_connections_idle Idle connections
+# TYPE hikaricp_connections_idle gauge
+hikaricp_connections_idle{pool="HikariPool-1"} 10.0
+# HELP hikaricp_connections_max Max connections
+# TYPE hikaricp_connections_max gauge
+hikaricp_connections_max{pool="HikariPool-1"} 10.0
+# HELP hikaricp_connections_min Min connections
+# TYPE hikaricp_connections_min gauge
+hikaricp_connections_min{pool="HikariPool-1"} 10.0
+# HELP hikaricp_connections_pending Pending threads
+# TYPE hikaricp_connections_pending gauge
+hikaricp_connections_pending{pool="HikariPool-1"} 0.0
+# HELP hikaricp_connections_timeout_total Connection timeout total count
+# TYPE hikaricp_connections_timeout_total counter
+hikaricp_connections_timeout_total{pool="HikariPool-1"} 0.0
+# HELP hikaricp_connections_usage_seconds Connection usage time
+# TYPE hikaricp_connections_usage_seconds summary
+hikaricp_connections_usage_seconds_count{pool="HikariPool-1"} 244900
+hikaricp_connections_usage_seconds_sum{pool="HikariPool-1"} 887.951
+# HELP hikaricp_connections_usage_seconds_max Connection usage time
+# TYPE hikaricp_connections_usage_seconds_max gauge
+hikaricp_connections_usage_seconds_max{pool="HikariPool-1"} 0.069
+# HELP http_server_requests_active_seconds  
+# TYPE http_server_requests_active_seconds histogram
+http_server_requests_active_seconds_bucket{exception="none",method="GET",outcome="SUCCESS",status="200",uri="UNKNOWN",le="120.0"} 0
+http_server_requests_active_seconds_bucket{exception="none",method="GET",outcome="SUCCESS",status="200",uri="UNKNOWN",le="137.438953471"} 0
+http_server_requests_active_seconds_bucket{exception="none",method="GET",outcome="SUCCESS",status="200",uri="UNKNOWN",le="160.345445716"} 0
+http_server_requests_active_seconds_bucket{exception="none",method="GET",outcome="SUCCESS",status="200",uri="UNKNOWN",le="183.251937961"} 0
+http_server_requests_active_seconds_bucket{exception="none",method="GET",outcome="SUCCESS",status="200",uri="UNKNOWN",le="206.158430206"} 0
+http_server_requests_active_seconds_bucket{exception="none",method="GET",outcome="SUCCESS",status="200",uri="UNKNOWN",le="229.064922451"} 0
+http_server_requests_active_seconds_bucket{exception="none",method="GET",outcome="SUCCESS",status="200",uri="UNKNOWN",le="251.971414696"} 0
+http_server_requests_active_seconds_bucket{exception="none",method="GET",outcome="SUCCESS",status="200",uri="UNKNOWN",le="274.877906944"} 0
+http_server_requests_active_seconds_bucket{exception="none",method="GET",outcome="SUCCESS",status="200",uri="UNKNOWN",le="366.503875925"} 0
+http_server_requests_active_seconds_bucket{exception="none",method="GET",outcome="SUCCESS",status="200",uri="UNKNOWN",le="458.129844906"} 0
+http_server_requests_active_seconds_bucket{exception="none",method="GET",outcome="SUCCESS",status="200",uri="UNKNOWN",le="549.755813887"} 0
+http_server_requests_active_seconds_bucket{exception="none",method="GET",outcome="SUCCESS",status="200",uri="UNKNOWN",le="641.381782868"} 0
+http_server_requests_active_seconds_bucket{exception="none",method="GET",outcome="SUCCESS",status="200",uri="UNKNOWN",le="733.007751849"} 0
+http_server_requests_active_seconds_bucket{exception="none",method="GET",outcome="SUCCESS",status="200",uri="UNKNOWN",le="824.63372083"} 0
+http_server_requests_active_seconds_bucket{exception="none",method="GET",outcome="SUCCESS",status="200",uri="UNKNOWN",le="916.259689811"} 0
+http_server_requests_active_seconds_bucket{exception="none",method="GET",outcome="SUCCESS",status="200",uri="UNKNOWN",le="1007.885658792"} 0
+http_server_requests_active_seconds_bucket{exception="none",method="GET",outcome="SUCCESS",status="200",uri="UNKNOWN",le="1099.511627776"} 0
+http_server_requests_active_seconds_bucket{exception="none",method="GET",outcome="SUCCESS",status="200",uri="UNKNOWN",le="1466.015503701"} 0
+http_server_requests_active_seconds_bucket{exception="none",method="GET",outcome="SUCCESS",status="200",uri="UNKNOWN",le="1832.519379626"} 0
+http_server_requests_active_seconds_bucket{exception="none",method="GET",outcome="SUCCESS",status="200",uri="UNKNOWN",le="2199.023255551"} 0
+http_server_requests_active_seconds_bucket{exception="none",method="GET",outcome="SUCCESS",status="200",uri="UNKNOWN",le="2565.527131476"} 0
+http_server_requests_active_seconds_bucket{exception="none",method="GET",outcome="SUCCESS",status="200",uri="UNKNOWN",le="2932.031007401"} 0
+http_server_requests_active_seconds_bucket{exception="none",method="GET",outcome="SUCCESS",status="200",uri="UNKNOWN",le="3298.534883326"} 0
+http_server_requests_active_seconds_bucket{exception="none",method="GET",outcome="SUCCESS",status="200",uri="UNKNOWN",le="3665.038759251"} 0
+http_server_requests_active_seconds_bucket{exception="none",method="GET",outcome="SUCCESS",status="200",uri="UNKNOWN",le="4031.542635176"} 0
+http_server_requests_active_seconds_bucket{exception="none",method="GET",outcome="SUCCESS",status="200",uri="UNKNOWN",le="4398.046511104"} 0
+http_server_requests_active_seconds_bucket{exception="none",method="GET",outcome="SUCCESS",status="200",uri="UNKNOWN",le="5864.062014805"} 0
+http_server_requests_active_seconds_bucket{exception="none",method="GET",outcome="SUCCESS",status="200",uri="UNKNOWN",le="7200.0"} 0
+http_server_requests_active_seconds_bucket{exception="none",method="GET",outcome="SUCCESS",status="200",uri="UNKNOWN",le="+Inf"} 0
+http_server_requests_active_seconds_bucket{exception="none",method="POST",outcome="SUCCESS",status="200",uri="UNKNOWN",le="120.0"} 0
+http_server_requests_active_seconds_bucket{exception="none",method="POST",outcome="SUCCESS",status="200",uri="UNKNOWN",le="137.438953471"} 0
+http_server_requests_active_seconds_bucket{exception="none",method="POST",outcome="SUCCESS",status="200",uri="UNKNOWN",le="160.345445716"} 0
+http_server_requests_active_seconds_bucket{exception="none",method="POST",outcome="SUCCESS",status="200",uri="UNKNOWN",le="183.251937961"} 0
+http_server_requests_active_seconds_bucket{exception="none",method="POST",outcome="SUCCESS",status="200",uri="UNKNOWN",le="206.158430206"} 0
+http_server_requests_active_seconds_bucket{exception="none",method="POST",outcome="SUCCESS",status="200",uri="UNKNOWN",le="229.064922451"} 0
+http_server_requests_active_seconds_bucket{exception="none",method="POST",outcome="SUCCESS",status="200",uri="UNKNOWN",le="251.971414696"} 0
+http_server_requests_active_seconds_bucket{exception="none",method="POST",outcome="SUCCESS",status="200",uri="UNKNOWN",le="274.877906944"} 0
+http_server_requests_active_seconds_bucket{exception="none",method="POST",outcome="SUCCESS",status="200",uri="UNKNOWN",le="366.503875925"} 0
+http_server_requests_active_seconds_bucket{exception="none",method="POST",outcome="SUCCESS",status="200",uri="UNKNOWN",le="458.129844906"} 0
+http_server_requests_active_seconds_bucket{exception="none",method="POST",outcome="SUCCESS",status="200",uri="UNKNOWN",le="549.755813887"} 0
+http_server_requests_active_seconds_bucket{exception="none",method="POST",outcome="SUCCESS",status="200",uri="UNKNOWN",le="641.381782868"} 0
+http_server_requests_active_seconds_bucket{exception="none",method="POST",outcome="SUCCESS",status="200",uri="UNKNOWN",le="733.007751849"} 0
+http_server_requests_active_seconds_bucket{exception="none",method="POST",outcome="SUCCESS",status="200",uri="UNKNOWN",le="824.63372083"} 0
+http_server_requests_active_seconds_bucket{exception="none",method="POST",outcome="SUCCESS",status="200",uri="UNKNOWN",le="916.259689811"} 0
+http_server_requests_active_seconds_bucket{exception="none",method="POST",outcome="SUCCESS",status="200",uri="UNKNOWN",le="1007.885658792"} 0
+http_server_requests_active_seconds_bucket{exception="none",method="POST",outcome="SUCCESS",status="200",uri="UNKNOWN",le="1099.511627776"} 0
+http_server_requests_active_seconds_bucket{exception="none",method="POST",outcome="SUCCESS",status="200",uri="UNKNOWN",le="1466.015503701"} 0
+http_server_requests_active_seconds_bucket{exception="none",method="POST",outcome="SUCCESS",status="200",uri="UNKNOWN",le="1832.519379626"} 0
+http_server_requests_active_seconds_bucket{exception="none",method="POST",outcome="SUCCESS",status="200",uri="UNKNOWN",le="2199.023255551"} 0
+http_server_requests_active_seconds_bucket{exception="none",method="POST",outcome="SUCCESS",status="200",uri="UNKNOWN",le="2565.527131476"} 0
+http_server_requests_active_seconds_bucket{exception="none",method="POST",outcome="SUCCESS",status="200",uri="UNKNOWN",le="2932.031007401"} 0
+http_server_requests_active_seconds_bucket{exception="none",method="POST",outcome="SUCCESS",status="200",uri="UNKNOWN",le="3298.534883326"} 0
+http_server_requests_active_seconds_bucket{exception="none",method="POST",outcome="SUCCESS",status="200",uri="UNKNOWN",le="3665.038759251"} 0
+http_server_requests_active_seconds_bucket{exception="none",method="POST",outcome="SUCCESS",status="200",uri="UNKNOWN",le="4031.542635176"} 0
+http_server_requests_active_seconds_bucket{exception="none",method="POST",outcome="SUCCESS",status="200",uri="UNKNOWN",le="4398.046511104"} 0
+http_server_requests_active_seconds_bucket{exception="none",method="POST",outcome="SUCCESS",status="200",uri="UNKNOWN",le="5864.062014805"} 0
+http_server_requests_active_seconds_bucket{exception="none",method="POST",outcome="SUCCESS",status="200",uri="UNKNOWN",le="7200.0"} 0
+http_server_requests_active_seconds_bucket{exception="none",method="POST",outcome="SUCCESS",status="200",uri="UNKNOWN",le="+Inf"} 0
+# HELP http_server_requests_active_seconds_gcount  
+# TYPE http_server_requests_active_seconds_gcount gauge
+http_server_requests_active_seconds_gcount{exception="none",method="GET",outcome="SUCCESS",status="200",uri="UNKNOWN"} 0
+http_server_requests_active_seconds_gcount{exception="none",method="POST",outcome="SUCCESS",status="200",uri="UNKNOWN"} 0
+# HELP http_server_requests_active_seconds_gsum  
+# TYPE http_server_requests_active_seconds_gsum gauge
+http_server_requests_active_seconds_gsum{exception="none",method="GET",outcome="SUCCESS",status="200",uri="UNKNOWN"} 0.0
+http_server_requests_active_seconds_gsum{exception="none",method="POST",outcome="SUCCESS",status="200",uri="UNKNOWN"} 0.0
+# HELP http_server_requests_active_seconds_max  
+# TYPE http_server_requests_active_seconds_max gauge
+http_server_requests_active_seconds_max{exception="none",method="GET",outcome="SUCCESS",status="200",uri="UNKNOWN"} 0.0
+http_server_requests_active_seconds_max{exception="none",method="POST",outcome="SUCCESS",status="200",uri="UNKNOWN"} 0.0
+# HELP http_server_requests_seconds  
+# TYPE http_server_requests_seconds histogram
+http_server_requests_seconds_bucket{error="none",exception="none",method="GET",outcome="SUCCESS",status="200",uri="/api/bots",le="0.001"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="GET",outcome="SUCCESS",status="200",uri="/api/bots",le="0.001048576"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="GET",outcome="SUCCESS",status="200",uri="/api/bots",le="0.001398101"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="GET",outcome="SUCCESS",status="200",uri="/api/bots",le="0.001747626"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="GET",outcome="SUCCESS",status="200",uri="/api/bots",le="0.002097151"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="GET",outcome="SUCCESS",status="200",uri="/api/bots",le="0.002446676"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="GET",outcome="SUCCESS",status="200",uri="/api/bots",le="0.002796201"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="GET",outcome="SUCCESS",status="200",uri="/api/bots",le="0.003145726"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="GET",outcome="SUCCESS",status="200",uri="/api/bots",le="0.003495251"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="GET",outcome="SUCCESS",status="200",uri="/api/bots",le="0.003844776"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="GET",outcome="SUCCESS",status="200",uri="/api/bots",le="0.004194304"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="GET",outcome="SUCCESS",status="200",uri="/api/bots",le="0.005592405"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="GET",outcome="SUCCESS",status="200",uri="/api/bots",le="0.006990506"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="GET",outcome="SUCCESS",status="200",uri="/api/bots",le="0.008388607"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="GET",outcome="SUCCESS",status="200",uri="/api/bots",le="0.009786708"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="GET",outcome="SUCCESS",status="200",uri="/api/bots",le="0.011184809"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="GET",outcome="SUCCESS",status="200",uri="/api/bots",le="0.01258291"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="GET",outcome="SUCCESS",status="200",uri="/api/bots",le="0.013981011"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="GET",outcome="SUCCESS",status="200",uri="/api/bots",le="0.015379112"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="GET",outcome="SUCCESS",status="200",uri="/api/bots",le="0.016777216"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="GET",outcome="SUCCESS",status="200",uri="/api/bots",le="0.022369621"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="GET",outcome="SUCCESS",status="200",uri="/api/bots",le="0.027962026"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="GET",outcome="SUCCESS",status="200",uri="/api/bots",le="0.033554431"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="GET",outcome="SUCCESS",status="200",uri="/api/bots",le="0.039146836"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="GET",outcome="SUCCESS",status="200",uri="/api/bots",le="0.044739241"} 2
+http_server_requests_seconds_bucket{error="none",exception="none",method="GET",outcome="SUCCESS",status="200",uri="/api/bots",le="0.050331646"} 2
+http_server_requests_seconds_bucket{error="none",exception="none",method="GET",outcome="SUCCESS",status="200",uri="/api/bots",le="0.055924051"} 2
+http_server_requests_seconds_bucket{error="none",exception="none",method="GET",outcome="SUCCESS",status="200",uri="/api/bots",le="0.061516456"} 2
+http_server_requests_seconds_bucket{error="none",exception="none",method="GET",outcome="SUCCESS",status="200",uri="/api/bots",le="0.067108864"} 2
+http_server_requests_seconds_bucket{error="none",exception="none",method="GET",outcome="SUCCESS",status="200",uri="/api/bots",le="0.089478485"} 2
+http_server_requests_seconds_bucket{error="none",exception="none",method="GET",outcome="SUCCESS",status="200",uri="/api/bots",le="0.111848106"} 3
+http_server_requests_seconds_bucket{error="none",exception="none",method="GET",outcome="SUCCESS",status="200",uri="/api/bots",le="0.134217727"} 3
+http_server_requests_seconds_bucket{error="none",exception="none",method="GET",outcome="SUCCESS",status="200",uri="/api/bots",le="0.156587348"} 3
+http_server_requests_seconds_bucket{error="none",exception="none",method="GET",outcome="SUCCESS",status="200",uri="/api/bots",le="0.178956969"} 3
+http_server_requests_seconds_bucket{error="none",exception="none",method="GET",outcome="SUCCESS",status="200",uri="/api/bots",le="0.20132659"} 3
+http_server_requests_seconds_bucket{error="none",exception="none",method="GET",outcome="SUCCESS",status="200",uri="/api/bots",le="0.223696211"} 3
+http_server_requests_seconds_bucket{error="none",exception="none",method="GET",outcome="SUCCESS",status="200",uri="/api/bots",le="0.246065832"} 3
+http_server_requests_seconds_bucket{error="none",exception="none",method="GET",outcome="SUCCESS",status="200",uri="/api/bots",le="0.268435456"} 3
+http_server_requests_seconds_bucket{error="none",exception="none",method="GET",outcome="SUCCESS",status="200",uri="/api/bots",le="0.357913941"} 3
+http_server_requests_seconds_bucket{error="none",exception="none",method="GET",outcome="SUCCESS",status="200",uri="/api/bots",le="0.447392426"} 3
+http_server_requests_seconds_bucket{error="none",exception="none",method="GET",outcome="SUCCESS",status="200",uri="/api/bots",le="0.536870911"} 3
+http_server_requests_seconds_bucket{error="none",exception="none",method="GET",outcome="SUCCESS",status="200",uri="/api/bots",le="0.626349396"} 3
+http_server_requests_seconds_bucket{error="none",exception="none",method="GET",outcome="SUCCESS",status="200",uri="/api/bots",le="0.715827881"} 3
+http_server_requests_seconds_bucket{error="none",exception="none",method="GET",outcome="SUCCESS",status="200",uri="/api/bots",le="0.805306366"} 3
+http_server_requests_seconds_bucket{error="none",exception="none",method="GET",outcome="SUCCESS",status="200",uri="/api/bots",le="0.894784851"} 3
+http_server_requests_seconds_bucket{error="none",exception="none",method="GET",outcome="SUCCESS",status="200",uri="/api/bots",le="0.984263336"} 3
+http_server_requests_seconds_bucket{error="none",exception="none",method="GET",outcome="SUCCESS",status="200",uri="/api/bots",le="1.073741824"} 3
+http_server_requests_seconds_bucket{error="none",exception="none",method="GET",outcome="SUCCESS",status="200",uri="/api/bots",le="1.431655765"} 3
+http_server_requests_seconds_bucket{error="none",exception="none",method="GET",outcome="SUCCESS",status="200",uri="/api/bots",le="1.789569706"} 3
+http_server_requests_seconds_bucket{error="none",exception="none",method="GET",outcome="SUCCESS",status="200",uri="/api/bots",le="2.147483647"} 3
+http_server_requests_seconds_bucket{error="none",exception="none",method="GET",outcome="SUCCESS",status="200",uri="/api/bots",le="2.505397588"} 3
+http_server_requests_seconds_bucket{error="none",exception="none",method="GET",outcome="SUCCESS",status="200",uri="/api/bots",le="2.863311529"} 3
+http_server_requests_seconds_bucket{error="none",exception="none",method="GET",outcome="SUCCESS",status="200",uri="/api/bots",le="3.22122547"} 3
+http_server_requests_seconds_bucket{error="none",exception="none",method="GET",outcome="SUCCESS",status="200",uri="/api/bots",le="3.579139411"} 3
+http_server_requests_seconds_bucket{error="none",exception="none",method="GET",outcome="SUCCESS",status="200",uri="/api/bots",le="3.937053352"} 3
+http_server_requests_seconds_bucket{error="none",exception="none",method="GET",outcome="SUCCESS",status="200",uri="/api/bots",le="4.294967296"} 3
+http_server_requests_seconds_bucket{error="none",exception="none",method="GET",outcome="SUCCESS",status="200",uri="/api/bots",le="5.726623061"} 3
+http_server_requests_seconds_bucket{error="none",exception="none",method="GET",outcome="SUCCESS",status="200",uri="/api/bots",le="7.158278826"} 3
+http_server_requests_seconds_bucket{error="none",exception="none",method="GET",outcome="SUCCESS",status="200",uri="/api/bots",le="8.589934591"} 3
+http_server_requests_seconds_bucket{error="none",exception="none",method="GET",outcome="SUCCESS",status="200",uri="/api/bots",le="10.021590356"} 3
+http_server_requests_seconds_bucket{error="none",exception="none",method="GET",outcome="SUCCESS",status="200",uri="/api/bots",le="11.453246121"} 3
+http_server_requests_seconds_bucket{error="none",exception="none",method="GET",outcome="SUCCESS",status="200",uri="/api/bots",le="12.884901886"} 3
+http_server_requests_seconds_bucket{error="none",exception="none",method="GET",outcome="SUCCESS",status="200",uri="/api/bots",le="14.316557651"} 3
+http_server_requests_seconds_bucket{error="none",exception="none",method="GET",outcome="SUCCESS",status="200",uri="/api/bots",le="15.748213416"} 3
+http_server_requests_seconds_bucket{error="none",exception="none",method="GET",outcome="SUCCESS",status="200",uri="/api/bots",le="17.179869184"} 3
+http_server_requests_seconds_bucket{error="none",exception="none",method="GET",outcome="SUCCESS",status="200",uri="/api/bots",le="22.906492245"} 3
+http_server_requests_seconds_bucket{error="none",exception="none",method="GET",outcome="SUCCESS",status="200",uri="/api/bots",le="28.633115306"} 3
+http_server_requests_seconds_bucket{error="none",exception="none",method="GET",outcome="SUCCESS",status="200",uri="/api/bots",le="30.0"} 3
+http_server_requests_seconds_bucket{error="none",exception="none",method="GET",outcome="SUCCESS",status="200",uri="/api/bots",le="+Inf"} 3
+http_server_requests_seconds_count{error="none",exception="none",method="GET",outcome="SUCCESS",status="200",uri="/api/bots"} 3
+http_server_requests_seconds_sum{error="none",exception="none",method="GET",outcome="SUCCESS",status="200",uri="/api/bots"} 0.174181417
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="401",uri="/api/auth/login",le="0.001"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="401",uri="/api/auth/login",le="0.001048576"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="401",uri="/api/auth/login",le="0.001398101"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="401",uri="/api/auth/login",le="0.001747626"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="401",uri="/api/auth/login",le="0.002097151"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="401",uri="/api/auth/login",le="0.002446676"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="401",uri="/api/auth/login",le="0.002796201"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="401",uri="/api/auth/login",le="0.003145726"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="401",uri="/api/auth/login",le="0.003495251"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="401",uri="/api/auth/login",le="0.003844776"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="401",uri="/api/auth/login",le="0.004194304"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="401",uri="/api/auth/login",le="0.005592405"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="401",uri="/api/auth/login",le="0.006990506"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="401",uri="/api/auth/login",le="0.008388607"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="401",uri="/api/auth/login",le="0.009786708"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="401",uri="/api/auth/login",le="0.011184809"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="401",uri="/api/auth/login",le="0.01258291"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="401",uri="/api/auth/login",le="0.013981011"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="401",uri="/api/auth/login",le="0.015379112"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="401",uri="/api/auth/login",le="0.016777216"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="401",uri="/api/auth/login",le="0.022369621"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="401",uri="/api/auth/login",le="0.027962026"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="401",uri="/api/auth/login",le="0.033554431"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="401",uri="/api/auth/login",le="0.039146836"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="401",uri="/api/auth/login",le="0.044739241"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="401",uri="/api/auth/login",le="0.050331646"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="401",uri="/api/auth/login",le="0.055924051"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="401",uri="/api/auth/login",le="0.061516456"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="401",uri="/api/auth/login",le="0.067108864"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="401",uri="/api/auth/login",le="0.089478485"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="401",uri="/api/auth/login",le="0.111848106"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="401",uri="/api/auth/login",le="0.134217727"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="401",uri="/api/auth/login",le="0.156587348"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="401",uri="/api/auth/login",le="0.178956969"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="401",uri="/api/auth/login",le="0.20132659"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="401",uri="/api/auth/login",le="0.223696211"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="401",uri="/api/auth/login",le="0.246065832"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="401",uri="/api/auth/login",le="0.268435456"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="401",uri="/api/auth/login",le="0.357913941"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="401",uri="/api/auth/login",le="0.447392426"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="401",uri="/api/auth/login",le="0.536870911"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="401",uri="/api/auth/login",le="0.626349396"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="401",uri="/api/auth/login",le="0.715827881"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="401",uri="/api/auth/login",le="0.805306366"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="401",uri="/api/auth/login",le="0.894784851"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="401",uri="/api/auth/login",le="0.984263336"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="401",uri="/api/auth/login",le="1.073741824"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="401",uri="/api/auth/login",le="1.431655765"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="401",uri="/api/auth/login",le="1.789569706"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="401",uri="/api/auth/login",le="2.147483647"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="401",uri="/api/auth/login",le="2.505397588"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="401",uri="/api/auth/login",le="2.863311529"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="401",uri="/api/auth/login",le="3.22122547"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="401",uri="/api/auth/login",le="3.579139411"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="401",uri="/api/auth/login",le="3.937053352"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="401",uri="/api/auth/login",le="4.294967296"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="401",uri="/api/auth/login",le="5.726623061"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="401",uri="/api/auth/login",le="7.158278826"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="401",uri="/api/auth/login",le="8.589934591"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="401",uri="/api/auth/login",le="10.021590356"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="401",uri="/api/auth/login",le="11.453246121"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="401",uri="/api/auth/login",le="12.884901886"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="401",uri="/api/auth/login",le="14.316557651"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="401",uri="/api/auth/login",le="15.748213416"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="401",uri="/api/auth/login",le="17.179869184"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="401",uri="/api/auth/login",le="22.906492245"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="401",uri="/api/auth/login",le="28.633115306"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="401",uri="/api/auth/login",le="30.0"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="401",uri="/api/auth/login",le="+Inf"} 1
+http_server_requests_seconds_count{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="401",uri="/api/auth/login"} 1
+http_server_requests_seconds_sum{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="401",uri="/api/auth/login"} 0.078649833
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="404",uri="/api/w/{publicKey}/chat",le="0.001"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="404",uri="/api/w/{publicKey}/chat",le="0.001048576"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="404",uri="/api/w/{publicKey}/chat",le="0.001398101"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="404",uri="/api/w/{publicKey}/chat",le="0.001747626"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="404",uri="/api/w/{publicKey}/chat",le="0.002097151"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="404",uri="/api/w/{publicKey}/chat",le="0.002446676"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="404",uri="/api/w/{publicKey}/chat",le="0.002796201"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="404",uri="/api/w/{publicKey}/chat",le="0.003145726"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="404",uri="/api/w/{publicKey}/chat",le="0.003495251"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="404",uri="/api/w/{publicKey}/chat",le="0.003844776"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="404",uri="/api/w/{publicKey}/chat",le="0.004194304"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="404",uri="/api/w/{publicKey}/chat",le="0.005592405"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="404",uri="/api/w/{publicKey}/chat",le="0.006990506"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="404",uri="/api/w/{publicKey}/chat",le="0.008388607"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="404",uri="/api/w/{publicKey}/chat",le="0.009786708"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="404",uri="/api/w/{publicKey}/chat",le="0.011184809"} 3
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="404",uri="/api/w/{publicKey}/chat",le="0.01258291"} 6
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="404",uri="/api/w/{publicKey}/chat",le="0.013981011"} 7
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="404",uri="/api/w/{publicKey}/chat",le="0.015379112"} 10
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="404",uri="/api/w/{publicKey}/chat",le="0.016777216"} 15
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="404",uri="/api/w/{publicKey}/chat",le="0.022369621"} 21
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="404",uri="/api/w/{publicKey}/chat",le="0.027962026"} 21
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="404",uri="/api/w/{publicKey}/chat",le="0.033554431"} 21
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="404",uri="/api/w/{publicKey}/chat",le="0.039146836"} 21
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="404",uri="/api/w/{publicKey}/chat",le="0.044739241"} 21
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="404",uri="/api/w/{publicKey}/chat",le="0.050331646"} 21
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="404",uri="/api/w/{publicKey}/chat",le="0.055924051"} 21
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="404",uri="/api/w/{publicKey}/chat",le="0.061516456"} 21
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="404",uri="/api/w/{publicKey}/chat",le="0.067108864"} 21
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="404",uri="/api/w/{publicKey}/chat",le="0.089478485"} 21
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="404",uri="/api/w/{publicKey}/chat",le="0.111848106"} 21
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="404",uri="/api/w/{publicKey}/chat",le="0.134217727"} 21
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="404",uri="/api/w/{publicKey}/chat",le="0.156587348"} 21
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="404",uri="/api/w/{publicKey}/chat",le="0.178956969"} 21
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="404",uri="/api/w/{publicKey}/chat",le="0.20132659"} 21
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="404",uri="/api/w/{publicKey}/chat",le="0.223696211"} 21
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="404",uri="/api/w/{publicKey}/chat",le="0.246065832"} 21
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="404",uri="/api/w/{publicKey}/chat",le="0.268435456"} 21
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="404",uri="/api/w/{publicKey}/chat",le="0.357913941"} 21
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="404",uri="/api/w/{publicKey}/chat",le="0.447392426"} 21
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="404",uri="/api/w/{publicKey}/chat",le="0.536870911"} 21
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="404",uri="/api/w/{publicKey}/chat",le="0.626349396"} 21
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="404",uri="/api/w/{publicKey}/chat",le="0.715827881"} 21
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="404",uri="/api/w/{publicKey}/chat",le="0.805306366"} 21
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="404",uri="/api/w/{publicKey}/chat",le="0.894784851"} 21
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="404",uri="/api/w/{publicKey}/chat",le="0.984263336"} 21
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="404",uri="/api/w/{publicKey}/chat",le="1.073741824"} 21
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="404",uri="/api/w/{publicKey}/chat",le="1.431655765"} 21
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="404",uri="/api/w/{publicKey}/chat",le="1.789569706"} 21
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="404",uri="/api/w/{publicKey}/chat",le="2.147483647"} 21
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="404",uri="/api/w/{publicKey}/chat",le="2.505397588"} 21
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="404",uri="/api/w/{publicKey}/chat",le="2.863311529"} 21
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="404",uri="/api/w/{publicKey}/chat",le="3.22122547"} 21
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="404",uri="/api/w/{publicKey}/chat",le="3.579139411"} 21
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="404",uri="/api/w/{publicKey}/chat",le="3.937053352"} 21
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="404",uri="/api/w/{publicKey}/chat",le="4.294967296"} 21
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="404",uri="/api/w/{publicKey}/chat",le="5.726623061"} 21
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="404",uri="/api/w/{publicKey}/chat",le="7.158278826"} 21
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="404",uri="/api/w/{publicKey}/chat",le="8.589934591"} 21
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="404",uri="/api/w/{publicKey}/chat",le="10.021590356"} 21
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="404",uri="/api/w/{publicKey}/chat",le="11.453246121"} 21
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="404",uri="/api/w/{publicKey}/chat",le="12.884901886"} 21
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="404",uri="/api/w/{publicKey}/chat",le="14.316557651"} 21
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="404",uri="/api/w/{publicKey}/chat",le="15.748213416"} 21
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="404",uri="/api/w/{publicKey}/chat",le="17.179869184"} 21
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="404",uri="/api/w/{publicKey}/chat",le="22.906492245"} 21
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="404",uri="/api/w/{publicKey}/chat",le="28.633115306"} 21
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="404",uri="/api/w/{publicKey}/chat",le="30.0"} 21
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="404",uri="/api/w/{publicKey}/chat",le="+Inf"} 21
+http_server_requests_seconds_count{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="404",uri="/api/w/{publicKey}/chat"} 21
+http_server_requests_seconds_sum{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="404",uri="/api/w/{publicKey}/chat"} 0.31901779
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="409",uri="/api/auth/signup",le="0.001"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="409",uri="/api/auth/signup",le="0.001048576"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="409",uri="/api/auth/signup",le="0.001398101"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="409",uri="/api/auth/signup",le="0.001747626"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="409",uri="/api/auth/signup",le="0.002097151"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="409",uri="/api/auth/signup",le="0.002446676"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="409",uri="/api/auth/signup",le="0.002796201"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="409",uri="/api/auth/signup",le="0.003145726"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="409",uri="/api/auth/signup",le="0.003495251"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="409",uri="/api/auth/signup",le="0.003844776"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="409",uri="/api/auth/signup",le="0.004194304"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="409",uri="/api/auth/signup",le="0.005592405"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="409",uri="/api/auth/signup",le="0.006990506"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="409",uri="/api/auth/signup",le="0.008388607"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="409",uri="/api/auth/signup",le="0.009786708"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="409",uri="/api/auth/signup",le="0.011184809"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="409",uri="/api/auth/signup",le="0.01258291"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="409",uri="/api/auth/signup",le="0.013981011"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="409",uri="/api/auth/signup",le="0.015379112"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="409",uri="/api/auth/signup",le="0.016777216"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="409",uri="/api/auth/signup",le="0.022369621"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="409",uri="/api/auth/signup",le="0.027962026"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="409",uri="/api/auth/signup",le="0.033554431"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="409",uri="/api/auth/signup",le="0.039146836"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="409",uri="/api/auth/signup",le="0.044739241"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="409",uri="/api/auth/signup",le="0.050331646"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="409",uri="/api/auth/signup",le="0.055924051"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="409",uri="/api/auth/signup",le="0.061516456"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="409",uri="/api/auth/signup",le="0.067108864"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="409",uri="/api/auth/signup",le="0.089478485"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="409",uri="/api/auth/signup",le="0.111848106"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="409",uri="/api/auth/signup",le="0.134217727"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="409",uri="/api/auth/signup",le="0.156587348"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="409",uri="/api/auth/signup",le="0.178956969"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="409",uri="/api/auth/signup",le="0.20132659"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="409",uri="/api/auth/signup",le="0.223696211"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="409",uri="/api/auth/signup",le="0.246065832"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="409",uri="/api/auth/signup",le="0.268435456"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="409",uri="/api/auth/signup",le="0.357913941"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="409",uri="/api/auth/signup",le="0.447392426"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="409",uri="/api/auth/signup",le="0.536870911"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="409",uri="/api/auth/signup",le="0.626349396"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="409",uri="/api/auth/signup",le="0.715827881"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="409",uri="/api/auth/signup",le="0.805306366"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="409",uri="/api/auth/signup",le="0.894784851"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="409",uri="/api/auth/signup",le="0.984263336"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="409",uri="/api/auth/signup",le="1.073741824"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="409",uri="/api/auth/signup",le="1.431655765"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="409",uri="/api/auth/signup",le="1.789569706"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="409",uri="/api/auth/signup",le="2.147483647"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="409",uri="/api/auth/signup",le="2.505397588"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="409",uri="/api/auth/signup",le="2.863311529"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="409",uri="/api/auth/signup",le="3.22122547"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="409",uri="/api/auth/signup",le="3.579139411"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="409",uri="/api/auth/signup",le="3.937053352"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="409",uri="/api/auth/signup",le="4.294967296"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="409",uri="/api/auth/signup",le="5.726623061"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="409",uri="/api/auth/signup",le="7.158278826"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="409",uri="/api/auth/signup",le="8.589934591"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="409",uri="/api/auth/signup",le="10.021590356"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="409",uri="/api/auth/signup",le="11.453246121"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="409",uri="/api/auth/signup",le="12.884901886"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="409",uri="/api/auth/signup",le="14.316557651"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="409",uri="/api/auth/signup",le="15.748213416"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="409",uri="/api/auth/signup",le="17.179869184"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="409",uri="/api/auth/signup",le="22.906492245"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="409",uri="/api/auth/signup",le="28.633115306"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="409",uri="/api/auth/signup",le="30.0"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="409",uri="/api/auth/signup",le="+Inf"} 1
+http_server_requests_seconds_count{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="409",uri="/api/auth/signup"} 1
+http_server_requests_seconds_sum{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="409",uri="/api/auth/signup"} 0.076770958
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="429",uri="/api/w/{publicKey}/chat",le="0.001"} 23
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="429",uri="/api/w/{publicKey}/chat",le="0.001048576"} 24
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="429",uri="/api/w/{publicKey}/chat",le="0.001398101"} 29
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="429",uri="/api/w/{publicKey}/chat",le="0.001747626"} 36
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="429",uri="/api/w/{publicKey}/chat",le="0.002097151"} 41
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="429",uri="/api/w/{publicKey}/chat",le="0.002446676"} 46
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="429",uri="/api/w/{publicKey}/chat",le="0.002796201"} 50
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="429",uri="/api/w/{publicKey}/chat",le="0.003145726"} 52
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="429",uri="/api/w/{publicKey}/chat",le="0.003495251"} 53
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="429",uri="/api/w/{publicKey}/chat",le="0.003844776"} 58
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="429",uri="/api/w/{publicKey}/chat",le="0.004194304"} 63
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="429",uri="/api/w/{publicKey}/chat",le="0.005592405"} 70
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="429",uri="/api/w/{publicKey}/chat",le="0.006990506"} 72
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="429",uri="/api/w/{publicKey}/chat",le="0.008388607"} 78
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="429",uri="/api/w/{publicKey}/chat",le="0.009786708"} 80
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="429",uri="/api/w/{publicKey}/chat",le="0.011184809"} 80
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="429",uri="/api/w/{publicKey}/chat",le="0.01258291"} 80
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="429",uri="/api/w/{publicKey}/chat",le="0.013981011"} 80
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="429",uri="/api/w/{publicKey}/chat",le="0.015379112"} 80
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="429",uri="/api/w/{publicKey}/chat",le="0.016777216"} 80
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="429",uri="/api/w/{publicKey}/chat",le="0.022369621"} 80
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="429",uri="/api/w/{publicKey}/chat",le="0.027962026"} 80
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="429",uri="/api/w/{publicKey}/chat",le="0.033554431"} 80
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="429",uri="/api/w/{publicKey}/chat",le="0.039146836"} 80
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="429",uri="/api/w/{publicKey}/chat",le="0.044739241"} 80
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="429",uri="/api/w/{publicKey}/chat",le="0.050331646"} 80
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="429",uri="/api/w/{publicKey}/chat",le="0.055924051"} 80
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="429",uri="/api/w/{publicKey}/chat",le="0.061516456"} 80
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="429",uri="/api/w/{publicKey}/chat",le="0.067108864"} 80
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="429",uri="/api/w/{publicKey}/chat",le="0.089478485"} 80
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="429",uri="/api/w/{publicKey}/chat",le="0.111848106"} 80
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="429",uri="/api/w/{publicKey}/chat",le="0.134217727"} 80
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="429",uri="/api/w/{publicKey}/chat",le="0.156587348"} 80
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="429",uri="/api/w/{publicKey}/chat",le="0.178956969"} 80
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="429",uri="/api/w/{publicKey}/chat",le="0.20132659"} 80
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="429",uri="/api/w/{publicKey}/chat",le="0.223696211"} 80
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="429",uri="/api/w/{publicKey}/chat",le="0.246065832"} 80
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="429",uri="/api/w/{publicKey}/chat",le="0.268435456"} 80
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="429",uri="/api/w/{publicKey}/chat",le="0.357913941"} 80
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="429",uri="/api/w/{publicKey}/chat",le="0.447392426"} 80
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="429",uri="/api/w/{publicKey}/chat",le="0.536870911"} 80
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="429",uri="/api/w/{publicKey}/chat",le="0.626349396"} 80
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="429",uri="/api/w/{publicKey}/chat",le="0.715827881"} 80
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="429",uri="/api/w/{publicKey}/chat",le="0.805306366"} 80
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="429",uri="/api/w/{publicKey}/chat",le="0.894784851"} 80
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="429",uri="/api/w/{publicKey}/chat",le="0.984263336"} 80
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="429",uri="/api/w/{publicKey}/chat",le="1.073741824"} 80
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="429",uri="/api/w/{publicKey}/chat",le="1.431655765"} 80
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="429",uri="/api/w/{publicKey}/chat",le="1.789569706"} 80
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="429",uri="/api/w/{publicKey}/chat",le="2.147483647"} 80
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="429",uri="/api/w/{publicKey}/chat",le="2.505397588"} 80
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="429",uri="/api/w/{publicKey}/chat",le="2.863311529"} 80
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="429",uri="/api/w/{publicKey}/chat",le="3.22122547"} 80
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="429",uri="/api/w/{publicKey}/chat",le="3.579139411"} 80
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="429",uri="/api/w/{publicKey}/chat",le="3.937053352"} 80
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="429",uri="/api/w/{publicKey}/chat",le="4.294967296"} 80
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="429",uri="/api/w/{publicKey}/chat",le="5.726623061"} 80
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="429",uri="/api/w/{publicKey}/chat",le="7.158278826"} 80
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="429",uri="/api/w/{publicKey}/chat",le="8.589934591"} 80
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="429",uri="/api/w/{publicKey}/chat",le="10.021590356"} 80
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="429",uri="/api/w/{publicKey}/chat",le="11.453246121"} 80
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="429",uri="/api/w/{publicKey}/chat",le="12.884901886"} 80
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="429",uri="/api/w/{publicKey}/chat",le="14.316557651"} 80
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="429",uri="/api/w/{publicKey}/chat",le="15.748213416"} 80
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="429",uri="/api/w/{publicKey}/chat",le="17.179869184"} 80
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="429",uri="/api/w/{publicKey}/chat",le="22.906492245"} 80
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="429",uri="/api/w/{publicKey}/chat",le="28.633115306"} 80
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="429",uri="/api/w/{publicKey}/chat",le="30.0"} 80
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="429",uri="/api/w/{publicKey}/chat",le="+Inf"} 80
+http_server_requests_seconds_count{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="429",uri="/api/w/{publicKey}/chat"} 80
+http_server_requests_seconds_sum{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="429",uri="/api/w/{publicKey}/chat"} 0.22472462
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SERVER_ERROR",status="503",uri="/api/bots/{botId}/chat",le="0.001"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SERVER_ERROR",status="503",uri="/api/bots/{botId}/chat",le="0.001048576"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SERVER_ERROR",status="503",uri="/api/bots/{botId}/chat",le="0.001398101"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SERVER_ERROR",status="503",uri="/api/bots/{botId}/chat",le="0.001747626"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SERVER_ERROR",status="503",uri="/api/bots/{botId}/chat",le="0.002097151"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SERVER_ERROR",status="503",uri="/api/bots/{botId}/chat",le="0.002446676"} 7
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SERVER_ERROR",status="503",uri="/api/bots/{botId}/chat",le="0.002796201"} 181
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SERVER_ERROR",status="503",uri="/api/bots/{botId}/chat",le="0.003145726"} 1377
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SERVER_ERROR",status="503",uri="/api/bots/{botId}/chat",le="0.003495251"} 4069
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SERVER_ERROR",status="503",uri="/api/bots/{botId}/chat",le="0.003844776"} 7049
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SERVER_ERROR",status="503",uri="/api/bots/{botId}/chat",le="0.004194304"} 9532
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SERVER_ERROR",status="503",uri="/api/bots/{botId}/chat",le="0.005592405"} 25111
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SERVER_ERROR",status="503",uri="/api/bots/{botId}/chat",le="0.006990506"} 145602
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SERVER_ERROR",status="503",uri="/api/bots/{botId}/chat",le="0.008388607"} 215938
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SERVER_ERROR",status="503",uri="/api/bots/{botId}/chat",le="0.009786708"} 232448
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SERVER_ERROR",status="503",uri="/api/bots/{botId}/chat",le="0.011184809"} 238418
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SERVER_ERROR",status="503",uri="/api/bots/{botId}/chat",le="0.01258291"} 240556
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SERVER_ERROR",status="503",uri="/api/bots/{botId}/chat",le="0.013981011"} 241456
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SERVER_ERROR",status="503",uri="/api/bots/{botId}/chat",le="0.015379112"} 242048
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SERVER_ERROR",status="503",uri="/api/bots/{botId}/chat",le="0.016777216"} 242781
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SERVER_ERROR",status="503",uri="/api/bots/{botId}/chat",le="0.022369621"} 243240
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SERVER_ERROR",status="503",uri="/api/bots/{botId}/chat",le="0.027962026"} 243382
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SERVER_ERROR",status="503",uri="/api/bots/{botId}/chat",le="0.033554431"} 243393
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SERVER_ERROR",status="503",uri="/api/bots/{botId}/chat",le="0.039146836"} 243396
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SERVER_ERROR",status="503",uri="/api/bots/{botId}/chat",le="0.044739241"} 243396
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SERVER_ERROR",status="503",uri="/api/bots/{botId}/chat",le="0.050331646"} 243396
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SERVER_ERROR",status="503",uri="/api/bots/{botId}/chat",le="0.055924051"} 243396
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SERVER_ERROR",status="503",uri="/api/bots/{botId}/chat",le="0.061516456"} 243396
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SERVER_ERROR",status="503",uri="/api/bots/{botId}/chat",le="0.067108864"} 243396
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SERVER_ERROR",status="503",uri="/api/bots/{botId}/chat",le="0.089478485"} 243396
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SERVER_ERROR",status="503",uri="/api/bots/{botId}/chat",le="0.111848106"} 243396
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SERVER_ERROR",status="503",uri="/api/bots/{botId}/chat",le="0.134217727"} 243396
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SERVER_ERROR",status="503",uri="/api/bots/{botId}/chat",le="0.156587348"} 243396
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SERVER_ERROR",status="503",uri="/api/bots/{botId}/chat",le="0.178956969"} 243396
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SERVER_ERROR",status="503",uri="/api/bots/{botId}/chat",le="0.20132659"} 243396
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SERVER_ERROR",status="503",uri="/api/bots/{botId}/chat",le="0.223696211"} 243396
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SERVER_ERROR",status="503",uri="/api/bots/{botId}/chat",le="0.246065832"} 243396
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SERVER_ERROR",status="503",uri="/api/bots/{botId}/chat",le="0.268435456"} 243411
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SERVER_ERROR",status="503",uri="/api/bots/{botId}/chat",le="0.357913941"} 243453
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SERVER_ERROR",status="503",uri="/api/bots/{botId}/chat",le="0.447392426"} 243453
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SERVER_ERROR",status="503",uri="/api/bots/{botId}/chat",le="0.536870911"} 243453
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SERVER_ERROR",status="503",uri="/api/bots/{botId}/chat",le="0.626349396"} 243453
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SERVER_ERROR",status="503",uri="/api/bots/{botId}/chat",le="0.715827881"} 243453
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SERVER_ERROR",status="503",uri="/api/bots/{botId}/chat",le="0.805306366"} 243453
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SERVER_ERROR",status="503",uri="/api/bots/{botId}/chat",le="0.894784851"} 243453
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SERVER_ERROR",status="503",uri="/api/bots/{botId}/chat",le="0.984263336"} 243453
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SERVER_ERROR",status="503",uri="/api/bots/{botId}/chat",le="1.073741824"} 243453
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SERVER_ERROR",status="503",uri="/api/bots/{botId}/chat",le="1.431655765"} 243453
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SERVER_ERROR",status="503",uri="/api/bots/{botId}/chat",le="1.789569706"} 243460
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SERVER_ERROR",status="503",uri="/api/bots/{botId}/chat",le="2.147483647"} 243460
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SERVER_ERROR",status="503",uri="/api/bots/{botId}/chat",le="2.505397588"} 243460
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SERVER_ERROR",status="503",uri="/api/bots/{botId}/chat",le="2.863311529"} 243460
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SERVER_ERROR",status="503",uri="/api/bots/{botId}/chat",le="3.22122547"} 243460
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SERVER_ERROR",status="503",uri="/api/bots/{botId}/chat",le="3.579139411"} 243460
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SERVER_ERROR",status="503",uri="/api/bots/{botId}/chat",le="3.937053352"} 243460
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SERVER_ERROR",status="503",uri="/api/bots/{botId}/chat",le="4.294967296"} 243460
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SERVER_ERROR",status="503",uri="/api/bots/{botId}/chat",le="5.726623061"} 243460
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SERVER_ERROR",status="503",uri="/api/bots/{botId}/chat",le="7.158278826"} 243460
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SERVER_ERROR",status="503",uri="/api/bots/{botId}/chat",le="8.589934591"} 243460
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SERVER_ERROR",status="503",uri="/api/bots/{botId}/chat",le="10.021590356"} 243460
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SERVER_ERROR",status="503",uri="/api/bots/{botId}/chat",le="11.453246121"} 243460
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SERVER_ERROR",status="503",uri="/api/bots/{botId}/chat",le="12.884901886"} 243460
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SERVER_ERROR",status="503",uri="/api/bots/{botId}/chat",le="14.316557651"} 243460
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SERVER_ERROR",status="503",uri="/api/bots/{botId}/chat",le="15.748213416"} 243460
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SERVER_ERROR",status="503",uri="/api/bots/{botId}/chat",le="17.179869184"} 243460
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SERVER_ERROR",status="503",uri="/api/bots/{botId}/chat",le="22.906492245"} 243460
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SERVER_ERROR",status="503",uri="/api/bots/{botId}/chat",le="28.633115306"} 243460
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SERVER_ERROR",status="503",uri="/api/bots/{botId}/chat",le="30.0"} 243460
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SERVER_ERROR",status="503",uri="/api/bots/{botId}/chat",le="+Inf"} 243460
+http_server_requests_seconds_count{error="none",exception="none",method="POST",outcome="SERVER_ERROR",status="503",uri="/api/bots/{botId}/chat"} 243460
+http_server_requests_seconds_sum{error="none",exception="none",method="POST",outcome="SERVER_ERROR",status="503",uri="/api/bots/{botId}/chat"} 1717.540513489
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/auth/login",le="0.001"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/auth/login",le="0.001048576"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/auth/login",le="0.001398101"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/auth/login",le="0.001747626"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/auth/login",le="0.002097151"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/auth/login",le="0.002446676"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/auth/login",le="0.002796201"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/auth/login",le="0.003145726"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/auth/login",le="0.003495251"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/auth/login",le="0.003844776"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/auth/login",le="0.004194304"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/auth/login",le="0.005592405"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/auth/login",le="0.006990506"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/auth/login",le="0.008388607"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/auth/login",le="0.009786708"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/auth/login",le="0.011184809"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/auth/login",le="0.01258291"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/auth/login",le="0.013981011"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/auth/login",le="0.015379112"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/auth/login",le="0.016777216"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/auth/login",le="0.022369621"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/auth/login",le="0.027962026"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/auth/login",le="0.033554431"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/auth/login",le="0.039146836"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/auth/login",le="0.044739241"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/auth/login",le="0.050331646"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/auth/login",le="0.055924051"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/auth/login",le="0.061516456"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/auth/login",le="0.067108864"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/auth/login",le="0.089478485"} 5
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/auth/login",le="0.111848106"} 5
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/auth/login",le="0.134217727"} 5
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/auth/login",le="0.156587348"} 5
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/auth/login",le="0.178956969"} 5
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/auth/login",le="0.20132659"} 5
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/auth/login",le="0.223696211"} 5
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/auth/login",le="0.246065832"} 5
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/auth/login",le="0.268435456"} 5
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/auth/login",le="0.357913941"} 5
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/auth/login",le="0.447392426"} 5
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/auth/login",le="0.536870911"} 5
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/auth/login",le="0.626349396"} 5
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/auth/login",le="0.715827881"} 5
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/auth/login",le="0.805306366"} 5
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/auth/login",le="0.894784851"} 5
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/auth/login",le="0.984263336"} 5
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/auth/login",le="1.073741824"} 5
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/auth/login",le="1.431655765"} 5
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/auth/login",le="1.789569706"} 5
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/auth/login",le="2.147483647"} 5
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/auth/login",le="2.505397588"} 5
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/auth/login",le="2.863311529"} 5
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/auth/login",le="3.22122547"} 5
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/auth/login",le="3.579139411"} 5
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/auth/login",le="3.937053352"} 5
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/auth/login",le="4.294967296"} 5
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/auth/login",le="5.726623061"} 5
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/auth/login",le="7.158278826"} 5
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/auth/login",le="8.589934591"} 5
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/auth/login",le="10.021590356"} 5
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/auth/login",le="11.453246121"} 5
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/auth/login",le="12.884901886"} 5
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/auth/login",le="14.316557651"} 5
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/auth/login",le="15.748213416"} 5
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/auth/login",le="17.179869184"} 5
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/auth/login",le="22.906492245"} 5
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/auth/login",le="28.633115306"} 5
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/auth/login",le="30.0"} 5
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/auth/login",le="+Inf"} 5
+http_server_requests_seconds_count{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/auth/login"} 5
+http_server_requests_seconds_sum{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/auth/login"} 0.3494155
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/bots/{botId}/chat",le="0.001"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/bots/{botId}/chat",le="0.001048576"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/bots/{botId}/chat",le="0.001398101"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/bots/{botId}/chat",le="0.001747626"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/bots/{botId}/chat",le="0.002097151"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/bots/{botId}/chat",le="0.002446676"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/bots/{botId}/chat",le="0.002796201"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/bots/{botId}/chat",le="0.003145726"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/bots/{botId}/chat",le="0.003495251"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/bots/{botId}/chat",le="0.003844776"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/bots/{botId}/chat",le="0.004194304"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/bots/{botId}/chat",le="0.005592405"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/bots/{botId}/chat",le="0.006990506"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/bots/{botId}/chat",le="0.008388607"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/bots/{botId}/chat",le="0.009786708"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/bots/{botId}/chat",le="0.011184809"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/bots/{botId}/chat",le="0.01258291"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/bots/{botId}/chat",le="0.013981011"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/bots/{botId}/chat",le="0.015379112"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/bots/{botId}/chat",le="0.016777216"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/bots/{botId}/chat",le="0.022369621"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/bots/{botId}/chat",le="0.027962026"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/bots/{botId}/chat",le="0.033554431"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/bots/{botId}/chat",le="0.039146836"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/bots/{botId}/chat",le="0.044739241"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/bots/{botId}/chat",le="0.050331646"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/bots/{botId}/chat",le="0.055924051"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/bots/{botId}/chat",le="0.061516456"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/bots/{botId}/chat",le="0.067108864"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/bots/{botId}/chat",le="0.089478485"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/bots/{botId}/chat",le="0.111848106"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/bots/{botId}/chat",le="0.134217727"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/bots/{botId}/chat",le="0.156587348"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/bots/{botId}/chat",le="0.178956969"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/bots/{botId}/chat",le="0.20132659"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/bots/{botId}/chat",le="0.223696211"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/bots/{botId}/chat",le="0.246065832"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/bots/{botId}/chat",le="0.268435456"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/bots/{botId}/chat",le="0.357913941"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/bots/{botId}/chat",le="0.447392426"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/bots/{botId}/chat",le="0.536870911"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/bots/{botId}/chat",le="0.626349396"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/bots/{botId}/chat",le="0.715827881"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/bots/{botId}/chat",le="0.805306366"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/bots/{botId}/chat",le="0.894784851"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/bots/{botId}/chat",le="0.984263336"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/bots/{botId}/chat",le="1.073741824"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/bots/{botId}/chat",le="1.431655765"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/bots/{botId}/chat",le="1.789569706"} 663
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/bots/{botId}/chat",le="2.147483647"} 702
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/bots/{botId}/chat",le="2.505397588"} 702
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/bots/{botId}/chat",le="2.863311529"} 702
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/bots/{botId}/chat",le="3.22122547"} 702
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/bots/{botId}/chat",le="3.579139411"} 702
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/bots/{botId}/chat",le="3.937053352"} 702
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/bots/{botId}/chat",le="4.294967296"} 702
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/bots/{botId}/chat",le="5.726623061"} 702
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/bots/{botId}/chat",le="7.158278826"} 702
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/bots/{botId}/chat",le="8.589934591"} 702
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/bots/{botId}/chat",le="10.021590356"} 702
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/bots/{botId}/chat",le="11.453246121"} 702
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/bots/{botId}/chat",le="12.884901886"} 702
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/bots/{botId}/chat",le="14.316557651"} 702
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/bots/{botId}/chat",le="15.748213416"} 702
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/bots/{botId}/chat",le="17.179869184"} 702
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/bots/{botId}/chat",le="22.906492245"} 702
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/bots/{botId}/chat",le="28.633115306"} 702
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/bots/{botId}/chat",le="30.0"} 702
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/bots/{botId}/chat",le="+Inf"} 702
+http_server_requests_seconds_count{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/bots/{botId}/chat"} 702
+http_server_requests_seconds_sum{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/bots/{botId}/chat"} 1206.13003676
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="201",uri="/api/auth/signup",le="0.001"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="201",uri="/api/auth/signup",le="0.001048576"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="201",uri="/api/auth/signup",le="0.001398101"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="201",uri="/api/auth/signup",le="0.001747626"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="201",uri="/api/auth/signup",le="0.002097151"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="201",uri="/api/auth/signup",le="0.002446676"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="201",uri="/api/auth/signup",le="0.002796201"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="201",uri="/api/auth/signup",le="0.003145726"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="201",uri="/api/auth/signup",le="0.003495251"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="201",uri="/api/auth/signup",le="0.003844776"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="201",uri="/api/auth/signup",le="0.004194304"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="201",uri="/api/auth/signup",le="0.005592405"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="201",uri="/api/auth/signup",le="0.006990506"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="201",uri="/api/auth/signup",le="0.008388607"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="201",uri="/api/auth/signup",le="0.009786708"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="201",uri="/api/auth/signup",le="0.011184809"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="201",uri="/api/auth/signup",le="0.01258291"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="201",uri="/api/auth/signup",le="0.013981011"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="201",uri="/api/auth/signup",le="0.015379112"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="201",uri="/api/auth/signup",le="0.016777216"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="201",uri="/api/auth/signup",le="0.022369621"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="201",uri="/api/auth/signup",le="0.027962026"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="201",uri="/api/auth/signup",le="0.033554431"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="201",uri="/api/auth/signup",le="0.039146836"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="201",uri="/api/auth/signup",le="0.044739241"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="201",uri="/api/auth/signup",le="0.050331646"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="201",uri="/api/auth/signup",le="0.055924051"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="201",uri="/api/auth/signup",le="0.061516456"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="201",uri="/api/auth/signup",le="0.067108864"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="201",uri="/api/auth/signup",le="0.089478485"} 0
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="201",uri="/api/auth/signup",le="0.111848106"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="201",uri="/api/auth/signup",le="0.134217727"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="201",uri="/api/auth/signup",le="0.156587348"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="201",uri="/api/auth/signup",le="0.178956969"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="201",uri="/api/auth/signup",le="0.20132659"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="201",uri="/api/auth/signup",le="0.223696211"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="201",uri="/api/auth/signup",le="0.246065832"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="201",uri="/api/auth/signup",le="0.268435456"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="201",uri="/api/auth/signup",le="0.357913941"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="201",uri="/api/auth/signup",le="0.447392426"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="201",uri="/api/auth/signup",le="0.536870911"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="201",uri="/api/auth/signup",le="0.626349396"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="201",uri="/api/auth/signup",le="0.715827881"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="201",uri="/api/auth/signup",le="0.805306366"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="201",uri="/api/auth/signup",le="0.894784851"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="201",uri="/api/auth/signup",le="0.984263336"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="201",uri="/api/auth/signup",le="1.073741824"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="201",uri="/api/auth/signup",le="1.431655765"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="201",uri="/api/auth/signup",le="1.789569706"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="201",uri="/api/auth/signup",le="2.147483647"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="201",uri="/api/auth/signup",le="2.505397588"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="201",uri="/api/auth/signup",le="2.863311529"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="201",uri="/api/auth/signup",le="3.22122547"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="201",uri="/api/auth/signup",le="3.579139411"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="201",uri="/api/auth/signup",le="3.937053352"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="201",uri="/api/auth/signup",le="4.294967296"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="201",uri="/api/auth/signup",le="5.726623061"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="201",uri="/api/auth/signup",le="7.158278826"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="201",uri="/api/auth/signup",le="8.589934591"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="201",uri="/api/auth/signup",le="10.021590356"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="201",uri="/api/auth/signup",le="11.453246121"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="201",uri="/api/auth/signup",le="12.884901886"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="201",uri="/api/auth/signup",le="14.316557651"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="201",uri="/api/auth/signup",le="15.748213416"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="201",uri="/api/auth/signup",le="17.179869184"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="201",uri="/api/auth/signup",le="22.906492245"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="201",uri="/api/auth/signup",le="28.633115306"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="201",uri="/api/auth/signup",le="30.0"} 1
+http_server_requests_seconds_bucket{error="none",exception="none",method="POST",outcome="SUCCESS",status="201",uri="/api/auth/signup",le="+Inf"} 1
+http_server_requests_seconds_count{error="none",exception="none",method="POST",outcome="SUCCESS",status="201",uri="/api/auth/signup"} 1
+http_server_requests_seconds_sum{error="none",exception="none",method="POST",outcome="SUCCESS",status="201",uri="/api/auth/signup"} 0.101211083
+# HELP http_server_requests_seconds_max  
+# TYPE http_server_requests_seconds_max gauge
+http_server_requests_seconds_max{error="none",exception="none",method="GET",outcome="SUCCESS",status="200",uri="/api/bots"} 0.0
+http_server_requests_seconds_max{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="401",uri="/api/auth/login"} 0.0
+http_server_requests_seconds_max{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="404",uri="/api/w/{publicKey}/chat"} 0.0
+http_server_requests_seconds_max{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="409",uri="/api/auth/signup"} 0.0
+http_server_requests_seconds_max{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="429",uri="/api/w/{publicKey}/chat"} 0.0
+http_server_requests_seconds_max{error="none",exception="none",method="POST",outcome="SERVER_ERROR",status="503",uri="/api/bots/{botId}/chat"} 0.3006605
+http_server_requests_seconds_max{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/auth/login"} 0.076080958
+http_server_requests_seconds_max{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/bots/{botId}/chat"} 1.693904916
+http_server_requests_seconds_max{error="none",exception="none",method="POST",outcome="SUCCESS",status="201",uri="/api/auth/signup"} 0.0
+# HELP jdbc_connections_active Current number of active connections that have been allocated from the data source.
+# TYPE jdbc_connections_active gauge
+jdbc_connections_active{name="dataSource"} 0.0
+# HELP jdbc_connections_idle Number of established but idle connections.
+# TYPE jdbc_connections_idle gauge
+jdbc_connections_idle{name="dataSource"} 10.0
+# HELP jdbc_connections_max Maximum number of active connections that can be allocated at the same time.
+# TYPE jdbc_connections_max gauge
+jdbc_connections_max{name="dataSource"} 10.0
+# HELP jdbc_connections_min Minimum number of idle connections in the pool.
+# TYPE jdbc_connections_min gauge
+jdbc_connections_min{name="dataSource"} 10.0
+# HELP jvm_info JVM version info
+# TYPE jvm_info gauge
+jvm_info{runtime="OpenJDK Runtime Environment",vendor="Eclipse Adoptium",version="21.0.11+10-LTS"} 1
+# HELP jvm_buffer_count_buffers An estimate of the number of buffers in the pool
+# TYPE jvm_buffer_count_buffers gauge
+jvm_buffer_count_buffers{id="direct"} 22.0
+jvm_buffer_count_buffers{id="mapped"} 0.0
+jvm_buffer_count_buffers{id="mapped - 'non-volatile memory'"} 0.0
+# HELP jvm_buffer_memory_used_bytes An estimate of the memory that the Java virtual machine is using for this buffer pool
+# TYPE jvm_buffer_memory_used_bytes gauge
+jvm_buffer_memory_used_bytes{id="direct"} 188416.0
+jvm_buffer_memory_used_bytes{id="mapped"} 0.0
+jvm_buffer_memory_used_bytes{id="mapped - 'non-volatile memory'"} 0.0
+# HELP jvm_buffer_total_capacity_bytes An estimate of the total capacity of the buffers in this pool
+# TYPE jvm_buffer_total_capacity_bytes gauge
+jvm_buffer_total_capacity_bytes{id="direct"} 188416.0
+jvm_buffer_total_capacity_bytes{id="mapped"} 0.0
+jvm_buffer_total_capacity_bytes{id="mapped - 'non-volatile memory'"} 0.0
+# HELP jvm_classes_loaded_classes The number of classes that are currently loaded in the Java virtual machine
+# TYPE jvm_classes_loaded_classes gauge
+jvm_classes_loaded_classes 23313.0
+# HELP jvm_classes_loaded_count_classes_total The number of classes loaded in the Java virtual machine
+# TYPE jvm_classes_loaded_count_classes_total counter
+jvm_classes_loaded_count_classes_total 23885.0
+# HELP jvm_classes_unloaded_classes_total The number of classes unloaded in the Java virtual machine
+# TYPE jvm_classes_unloaded_classes_total counter
+jvm_classes_unloaded_classes_total 572.0
+# HELP jvm_compilation_time_ms_total The approximate accumulated elapsed time spent in compilation
+# TYPE jvm_compilation_time_ms_total counter
+jvm_compilation_time_ms_total{compiler="HotSpot 64-Bit Tiered Compilers"} 2479.0
+# HELP jvm_gc_concurrent_phase_time_seconds Time spent in concurrent phase
+# TYPE jvm_gc_concurrent_phase_time_seconds summary
+jvm_gc_concurrent_phase_time_seconds_count{action="end of concurrent GC pause",cause="No GC",gc="G1 Concurrent GC"} 104
+jvm_gc_concurrent_phase_time_seconds_sum{action="end of concurrent GC pause",cause="No GC",gc="G1 Concurrent GC"} 0.122
+# HELP jvm_gc_concurrent_phase_time_seconds_max Time spent in concurrent phase
+# TYPE jvm_gc_concurrent_phase_time_seconds_max gauge
+jvm_gc_concurrent_phase_time_seconds_max{action="end of concurrent GC pause",cause="No GC",gc="G1 Concurrent GC"} 0.0
+# HELP jvm_gc_live_data_size_bytes Size of long-lived heap memory pool after reclamation
+# TYPE jvm_gc_live_data_size_bytes gauge
+jvm_gc_live_data_size_bytes 5.302844E7
+# HELP jvm_gc_max_data_size_bytes Max size of long-lived heap memory pool
+# TYPE jvm_gc_max_data_size_bytes gauge
+jvm_gc_max_data_size_bytes 6.442450944E9
+# HELP jvm_gc_memory_allocated_bytes_total Incremented for an increase in the size of the (young) heap memory pool after one GC to before the next
+# TYPE jvm_gc_memory_allocated_bytes_total counter
+jvm_gc_memory_allocated_bytes_total 4.8624566272E10
+# HELP jvm_gc_memory_promoted_bytes_total Count of positive increases in the size of the old generation memory pool before GC to after GC
+# TYPE jvm_gc_memory_promoted_bytes_total counter
+jvm_gc_memory_promoted_bytes_total 2.330824E7
+# HELP jvm_gc_overhead An approximation of the percent of CPU time used by GC activities over the last lookback period or since monitoring began, whichever is shorter, in the range [0..1]
+# TYPE jvm_gc_overhead gauge
+jvm_gc_overhead 0.00117
+# HELP jvm_gc_pause_seconds Time spent in GC pause
+# TYPE jvm_gc_pause_seconds summary
+jvm_gc_pause_seconds_count{action="end of minor GC",cause="CodeCache GC Threshold",gc="G1 Young Generation"} 3
+jvm_gc_pause_seconds_sum{action="end of minor GC",cause="CodeCache GC Threshold",gc="G1 Young Generation"} 0.005
+jvm_gc_pause_seconds_count{action="end of minor GC",cause="G1 Evacuation Pause",gc="G1 Young Generation"} 442
+jvm_gc_pause_seconds_sum{action="end of minor GC",cause="G1 Evacuation Pause",gc="G1 Young Generation"} 0.378
+# HELP jvm_gc_pause_seconds_max Time spent in GC pause
+# TYPE jvm_gc_pause_seconds_max gauge
+jvm_gc_pause_seconds_max{action="end of minor GC",cause="CodeCache GC Threshold",gc="G1 Young Generation"} 0.0
+jvm_gc_pause_seconds_max{action="end of minor GC",cause="G1 Evacuation Pause",gc="G1 Young Generation"} 0.001
+# HELP jvm_memory_committed_bytes The amount of memory in bytes that is committed for the Java virtual machine to use
+# TYPE jvm_memory_committed_bytes gauge
+jvm_memory_committed_bytes{area="heap",id="G1 Eden Space"} 1.21634816E8
+jvm_memory_committed_bytes{area="heap",id="G1 Old Gen"} 7.1303168E7
+jvm_memory_committed_bytes{area="heap",id="G1 Survivor Space"} 4194304.0
+jvm_memory_committed_bytes{area="nonheap",id="CodeCache"} 2.62144E7
+jvm_memory_committed_bytes{area="nonheap",id="Compressed Class Space"} 1.7235968E7
+jvm_memory_committed_bytes{area="nonheap",id="Metaspace"} 1.11280128E8
+# HELP jvm_memory_max_bytes The maximum amount of memory in bytes that can be used for memory management
+# TYPE jvm_memory_max_bytes gauge
+jvm_memory_max_bytes{area="heap",id="G1 Eden Space"} -1.0
+jvm_memory_max_bytes{area="heap",id="G1 Old Gen"} 6.442450944E9
+jvm_memory_max_bytes{area="heap",id="G1 Survivor Space"} -1.0
+jvm_memory_max_bytes{area="nonheap",id="CodeCache"} 5.0331648E7
+jvm_memory_max_bytes{area="nonheap",id="Compressed Class Space"} 1.073741824E9
+jvm_memory_max_bytes{area="nonheap",id="Metaspace"} -1.0
+# HELP jvm_memory_usage_after_gc The percentage of long-lived heap pool used after the last GC event, in the range [0..1]
+# TYPE jvm_memory_usage_after_gc gauge
+jvm_memory_usage_after_gc{area="heap",pool="long-lived"} 0.008248390009005865
+# HELP jvm_memory_used_bytes The amount of used memory
+# TYPE jvm_memory_used_bytes gauge
+jvm_memory_used_bytes{area="heap",id="G1 Eden Space"} 2.5165824E7
+jvm_memory_used_bytes{area="heap",id="G1 Old Gen"} 5.3139848E7
+jvm_memory_used_bytes{area="heap",id="G1 Survivor Space"} 346552.0
+jvm_memory_used_bytes{area="nonheap",id="CodeCache"} 1.3351808E7
+jvm_memory_used_bytes{area="nonheap",id="Compressed Class Space"} 1.6632288E7
+jvm_memory_used_bytes{area="nonheap",id="Metaspace"} 1.0969316E8
+# HELP jvm_threads_daemon_threads The current number of live daemon threads
+# TYPE jvm_threads_daemon_threads gauge
+jvm_threads_daemon_threads 41.0
+# HELP jvm_threads_live_threads The current number of live threads including both daemon and non-daemon threads
+# TYPE jvm_threads_live_threads gauge
+jvm_threads_live_threads 48.0
+# HELP jvm_threads_peak_threads The peak live thread count since the Java virtual machine started or peak was reset
+# TYPE jvm_threads_peak_threads gauge
+jvm_threads_peak_threads 88.0
+# HELP jvm_threads_started_threads_total The total number of application threads started in the JVM
+# TYPE jvm_threads_started_threads_total counter
+jvm_threads_started_threads_total 895.0
+# HELP jvm_threads_states_threads The current number of threads
+# TYPE jvm_threads_states_threads gauge
+jvm_threads_states_threads{state="blocked"} 0.0
+jvm_threads_states_threads{state="new"} 0.0
+jvm_threads_states_threads{state="runnable"} 11.0
+jvm_threads_states_threads{state="terminated"} 0.0
+jvm_threads_states_threads{state="timed-waiting"} 10.0
+jvm_threads_states_threads{state="waiting"} 27.0
+# HELP logback_events_total Number of log events that were enabled by the effective log level
+# TYPE logback_events_total counter
+logback_events_total{level="debug"} 244165.0
+logback_events_total{level="error"} 122.0
+logback_events_total{level="info"} 718.0
+logback_events_total{level="trace"} 0.0
+logback_events_total{level="warn"} 730603.0
+# HELP process_cpu_time_ns_total The "cpu time" used by the Java Virtual Machine process
+# TYPE process_cpu_time_ns_total counter
+process_cpu_time_ns_total 2.00774278E11
+# HELP process_cpu_usage The "recent cpu usage" for the Java Virtual Machine process
+# TYPE process_cpu_usage gauge
+process_cpu_usage 0.018373639762333933
+# HELP process_files_max_files The maximum file descriptor count
+# TYPE process_files_max_files gauge
+process_files_max_files 1048576.0
+# HELP process_files_open_files The open file descriptor count
+# TYPE process_files_open_files gauge
+process_files_open_files 133.0
+# HELP process_start_time_seconds Start time of the process since unix epoch.
+# TYPE process_start_time_seconds gauge
+process_start_time_seconds 1.789192110022E9
+# HELP process_uptime_seconds The uptime of the Java virtual machine
+# TYPE process_uptime_seconds gauge
+process_uptime_seconds 506.596
+# HELP spring_data_repository_invocations_seconds Duration of repository invocations
+# TYPE spring_data_repository_invocations_seconds summary
+spring_data_repository_invocations_seconds_count{exception="None",method="aggregateMetrics",repository="BotRepository",state="SUCCESS"} 3
+spring_data_repository_invocations_seconds_sum{exception="None",method="aggregateMetrics",repository="BotRepository",state="SUCCESS"} 0.147924751
+spring_data_repository_invocations_seconds_count{exception="None",method="existsByEmail",repository="UserRepository",state="SUCCESS"} 2
+spring_data_repository_invocations_seconds_sum{exception="None",method="existsByEmail",repository="UserRepository",state="SUCCESS"} 0.032965083
+spring_data_repository_invocations_seconds_count{exception="None",method="findAllByUserIdOrderByCreatedAtDesc",repository="BotRepository",state="SUCCESS"} 3
+spring_data_repository_invocations_seconds_sum{exception="None",method="findAllByUserIdOrderByCreatedAtDesc",repository="BotRepository",state="SUCCESS"} 0.010649417
+spring_data_repository_invocations_seconds_count{exception="None",method="findByEmail",repository="UserRepository",state="SUCCESS"} 6
+spring_data_repository_invocations_seconds_sum{exception="None",method="findByEmail",repository="UserRepository",state="SUCCESS"} 0.018926124
+spring_data_repository_invocations_seconds_count{exception="None",method="findByIdAndUserId",repository="BotRepository",state="SUCCESS"} 244162
+spring_data_repository_invocations_seconds_sum{exception="None",method="findByIdAndUserId",repository="BotRepository",state="SUCCESS"} 169.595037402
+spring_data_repository_invocations_seconds_count{exception="None",method="findByPublicKey",repository="BotRepository",state="SUCCESS"} 21
+spring_data_repository_invocations_seconds_sum{exception="None",method="findByPublicKey",repository="BotRepository",state="SUCCESS"} 0.076457085
+spring_data_repository_invocations_seconds_count{exception="None",method="findFirstByBotIdAndSessionIdAndChannelOrderByCreatedAtDesc",repository="ConversationRepository",state="SUCCESS"} 244162
+spring_data_repository_invocations_seconds_sum{exception="None",method="findFirstByBotIdAndSessionIdAndChannelOrderByCreatedAtDesc",repository="ConversationRepository",state="SUCCESS"} 150.592766458
+spring_data_repository_invocations_seconds_count{exception="None",method="getReferenceById",repository="ConversationRepository",state="SUCCESS"} 702
+spring_data_repository_invocations_seconds_sum{exception="None",method="getReferenceById",repository="ConversationRepository",state="SUCCESS"} 0.050190114
+spring_data_repository_invocations_seconds_count{exception="None",method="recordChatAnswer",repository="UsageEventRepository",state="SUCCESS"} 702
+spring_data_repository_invocations_seconds_sum{exception="None",method="recordChatAnswer",repository="UsageEventRepository",state="SUCCESS"} 2.264186245
+spring_data_repository_invocations_seconds_count{exception="None",method="save",repository="ConversationRepository",state="SUCCESS"} 244162
+spring_data_repository_invocations_seconds_sum{exception="None",method="save",repository="ConversationRepository",state="SUCCESS"} 5.463072614
+spring_data_repository_invocations_seconds_count{exception="None",method="save",repository="MessageRepository",state="SUCCESS"} 244864
+spring_data_repository_invocations_seconds_sum{exception="None",method="save",repository="MessageRepository",state="SUCCESS"} 3.588108573
+spring_data_repository_invocations_seconds_count{exception="None",method="saveAndFlush",repository="UserRepository",state="SUCCESS"} 1
+spring_data_repository_invocations_seconds_sum{exception="None",method="saveAndFlush",repository="UserRepository",state="SUCCESS"} 0.019730417
+# HELP spring_data_repository_invocations_seconds_max Duration of repository invocations
+# TYPE spring_data_repository_invocations_seconds_max gauge
+spring_data_repository_invocations_seconds_max{exception="None",method="aggregateMetrics",repository="BotRepository",state="SUCCESS"} 0.0
+spring_data_repository_invocations_seconds_max{exception="None",method="existsByEmail",repository="UserRepository",state="SUCCESS"} 0.0
+spring_data_repository_invocations_seconds_max{exception="None",method="findAllByUserIdOrderByCreatedAtDesc",repository="BotRepository",state="SUCCESS"} 0.0
+spring_data_repository_invocations_seconds_max{exception="None",method="findByEmail",repository="UserRepository",state="SUCCESS"} 0.002783583
+spring_data_repository_invocations_seconds_max{exception="None",method="findByIdAndUserId",repository="BotRepository",state="SUCCESS"} 0.016920542
+spring_data_repository_invocations_seconds_max{exception="None",method="findByPublicKey",repository="BotRepository",state="SUCCESS"} 0.0
+spring_data_repository_invocations_seconds_max{exception="None",method="findFirstByBotIdAndSessionIdAndChannelOrderByCreatedAtDesc",repository="ConversationRepository",state="SUCCESS"} 0.016971125
+spring_data_repository_invocations_seconds_max{exception="None",method="getReferenceById",repository="ConversationRepository",state="SUCCESS"} 2.11292E-4
+spring_data_repository_invocations_seconds_max{exception="None",method="recordChatAnswer",repository="UsageEventRepository",state="SUCCESS"} 0.008057958
+spring_data_repository_invocations_seconds_max{exception="None",method="save",repository="ConversationRepository",state="SUCCESS"} 8.07416E-4
+spring_data_repository_invocations_seconds_max{exception="None",method="save",repository="MessageRepository",state="SUCCESS"} 8.40833E-4
+spring_data_repository_invocations_seconds_max{exception="None",method="saveAndFlush",repository="UserRepository",state="SUCCESS"} 0.0
+# HELP spring_security_authorizations_active_seconds  
+# TYPE spring_security_authorizations_active_seconds summary
+spring_security_authorizations_active_seconds_count{spring_security_authentication_type="n/a",spring_security_authorization_decision="unknown",spring_security_object="request"} 0
+spring_security_authorizations_active_seconds_sum{spring_security_authentication_type="n/a",spring_security_authorization_decision="unknown",spring_security_object="request"} 0.0
+# HELP spring_security_authorizations_active_seconds_max  
+# TYPE spring_security_authorizations_active_seconds_max gauge
+spring_security_authorizations_active_seconds_max{spring_security_authentication_type="n/a",spring_security_authorization_decision="unknown",spring_security_object="request"} 0.0
+# HELP spring_security_authorizations_seconds  
+# TYPE spring_security_authorizations_seconds summary
+spring_security_authorizations_seconds_count{error="none",spring_security_authentication_type="UsernamePasswordAuthenticationToken",spring_security_authorization_decision="true",spring_security_object="request"} 244165
+spring_security_authorizations_seconds_sum{error="none",spring_security_authentication_type="UsernamePasswordAuthenticationToken",spring_security_authorization_decision="true",spring_security_object="request"} 1.243254071
+spring_security_authorizations_seconds_count{error="none",spring_security_authentication_type="n/a",spring_security_authorization_decision="true",spring_security_object="request"} 125
+spring_security_authorizations_seconds_sum{error="none",spring_security_authentication_type="n/a",spring_security_authorization_decision="true",spring_security_object="request"} 0.004167875
+# HELP spring_security_authorizations_seconds_max  
+# TYPE spring_security_authorizations_seconds_max gauge
+spring_security_authorizations_seconds_max{error="none",spring_security_authentication_type="UsernamePasswordAuthenticationToken",spring_security_authorization_decision="true",spring_security_object="request"} 0.001127375
+spring_security_authorizations_seconds_max{error="none",spring_security_authentication_type="n/a",spring_security_authorization_decision="true",spring_security_object="request"} 1.6958E-5
+# HELP spring_security_filterchains_JwtAuthenticationFilter_after_total  
+# TYPE spring_security_filterchains_JwtAuthenticationFilter_after_total counter
+spring_security_filterchains_JwtAuthenticationFilter_after_total{spring_security_filterchain_position="0",spring_security_filterchain_size="0",spring_security_reached_filter_name="none",spring_security_reached_filter_section="after"} 244289.0
+# HELP spring_security_filterchains_JwtAuthenticationFilter_before_total  
+# TYPE spring_security_filterchains_JwtAuthenticationFilter_before_total counter
+spring_security_filterchains_JwtAuthenticationFilter_before_total{spring_security_filterchain_position="0",spring_security_filterchain_size="0",spring_security_reached_filter_name="none",spring_security_reached_filter_section="before"} 244290.0
+# HELP spring_security_filterchains_access_exceptions_after_total  
+# TYPE spring_security_filterchains_access_exceptions_after_total counter
+spring_security_filterchains_access_exceptions_after_total{spring_security_filterchain_position="0",spring_security_filterchain_size="0",spring_security_reached_filter_name="none",spring_security_reached_filter_section="after"} 244289.0
+# HELP spring_security_filterchains_access_exceptions_before_total  
+# TYPE spring_security_filterchains_access_exceptions_before_total counter
+spring_security_filterchains_access_exceptions_before_total{spring_security_filterchain_position="0",spring_security_filterchain_size="0",spring_security_reached_filter_name="none",spring_security_reached_filter_section="before"} 244290.0
+# HELP spring_security_filterchains_active_seconds  
+# TYPE spring_security_filterchains_active_seconds summary
+spring_security_filterchains_active_seconds_count{spring_security_filterchain_position="0",spring_security_filterchain_size="0",spring_security_reached_filter_name="none",spring_security_reached_filter_section="after"} 0
+spring_security_filterchains_active_seconds_sum{spring_security_filterchain_position="0",spring_security_filterchain_size="0",spring_security_reached_filter_name="none",spring_security_reached_filter_section="after"} 0.0
+spring_security_filterchains_active_seconds_count{spring_security_filterchain_position="0",spring_security_filterchain_size="0",spring_security_reached_filter_name="none",spring_security_reached_filter_section="before"} 0
+spring_security_filterchains_active_seconds_sum{spring_security_filterchain_position="0",spring_security_filterchain_size="0",spring_security_reached_filter_name="none",spring_security_reached_filter_section="before"} 0.0
+# HELP spring_security_filterchains_active_seconds_max  
+# TYPE spring_security_filterchains_active_seconds_max gauge
+spring_security_filterchains_active_seconds_max{spring_security_filterchain_position="0",spring_security_filterchain_size="0",spring_security_reached_filter_name="none",spring_security_reached_filter_section="after"} 0.0
+spring_security_filterchains_active_seconds_max{spring_security_filterchain_position="0",spring_security_filterchain_size="0",spring_security_reached_filter_name="none",spring_security_reached_filter_section="before"} 0.0
+# HELP spring_security_filterchains_authentication_anonymous_after_total  
+# TYPE spring_security_filterchains_authentication_anonymous_after_total counter
+spring_security_filterchains_authentication_anonymous_after_total{spring_security_filterchain_position="0",spring_security_filterchain_size="0",spring_security_reached_filter_name="none",spring_security_reached_filter_section="after"} 244289.0
+# HELP spring_security_filterchains_authentication_anonymous_before_total  
+# TYPE spring_security_filterchains_authentication_anonymous_before_total counter
+spring_security_filterchains_authentication_anonymous_before_total{spring_security_filterchain_position="0",spring_security_filterchain_size="0",spring_security_reached_filter_name="none",spring_security_reached_filter_section="before"} 244290.0
+# HELP spring_security_filterchains_authorization_after_total  
+# TYPE spring_security_filterchains_authorization_after_total counter
+spring_security_filterchains_authorization_after_total{spring_security_filterchain_position="0",spring_security_filterchain_size="0",spring_security_reached_filter_name="none",spring_security_reached_filter_section="after"} 244289.0
+# HELP spring_security_filterchains_authorization_before_total  
+# TYPE spring_security_filterchains_authorization_before_total counter
+spring_security_filterchains_authorization_before_total{spring_security_filterchain_position="0",spring_security_filterchain_size="0",spring_security_reached_filter_name="none",spring_security_reached_filter_section="before"} 244290.0
+# HELP spring_security_filterchains_context_async_after_total  
+# TYPE spring_security_filterchains_context_async_after_total counter
+spring_security_filterchains_context_async_after_total{spring_security_filterchain_position="0",spring_security_filterchain_size="0",spring_security_reached_filter_name="none",spring_security_reached_filter_section="after"} 244289.0
+# HELP spring_security_filterchains_context_async_before_total  
+# TYPE spring_security_filterchains_context_async_before_total counter
+spring_security_filterchains_context_async_before_total{spring_security_filterchain_position="0",spring_security_filterchain_size="0",spring_security_reached_filter_name="none",spring_security_reached_filter_section="before"} 244290.0
+# HELP spring_security_filterchains_context_holder_after_total  
+# TYPE spring_security_filterchains_context_holder_after_total counter
+spring_security_filterchains_context_holder_after_total{spring_security_filterchain_position="0",spring_security_filterchain_size="0",spring_security_reached_filter_name="none",spring_security_reached_filter_section="after"} 244289.0
+# HELP spring_security_filterchains_context_holder_before_total  
+# TYPE spring_security_filterchains_context_holder_before_total counter
+spring_security_filterchains_context_holder_before_total{spring_security_filterchain_position="0",spring_security_filterchain_size="0",spring_security_reached_filter_name="none",spring_security_reached_filter_section="before"} 244290.0
+# HELP spring_security_filterchains_context_servlet_after_total  
+# TYPE spring_security_filterchains_context_servlet_after_total counter
+spring_security_filterchains_context_servlet_after_total{spring_security_filterchain_position="0",spring_security_filterchain_size="0",spring_security_reached_filter_name="none",spring_security_reached_filter_section="after"} 244289.0
+# HELP spring_security_filterchains_context_servlet_before_total  
+# TYPE spring_security_filterchains_context_servlet_before_total counter
+spring_security_filterchains_context_servlet_before_total{spring_security_filterchain_position="0",spring_security_filterchain_size="0",spring_security_reached_filter_name="none",spring_security_reached_filter_section="before"} 244290.0
+# HELP spring_security_filterchains_cors_after_total  
+# TYPE spring_security_filterchains_cors_after_total counter
+spring_security_filterchains_cors_after_total{spring_security_filterchain_position="0",spring_security_filterchain_size="0",spring_security_reached_filter_name="none",spring_security_reached_filter_section="after"} 244289.0
+# HELP spring_security_filterchains_cors_before_total  
+# TYPE spring_security_filterchains_cors_before_total counter
+spring_security_filterchains_cors_before_total{spring_security_filterchain_position="0",spring_security_filterchain_size="0",spring_security_reached_filter_name="none",spring_security_reached_filter_section="before"} 244290.0
+# HELP spring_security_filterchains_header_after_total  
+# TYPE spring_security_filterchains_header_after_total counter
+spring_security_filterchains_header_after_total{spring_security_filterchain_position="0",spring_security_filterchain_size="0",spring_security_reached_filter_name="none",spring_security_reached_filter_section="after"} 244289.0
+# HELP spring_security_filterchains_header_before_total  
+# TYPE spring_security_filterchains_header_before_total counter
+spring_security_filterchains_header_before_total{spring_security_filterchain_position="0",spring_security_filterchain_size="0",spring_security_reached_filter_name="none",spring_security_reached_filter_section="before"} 244290.0
+# HELP spring_security_filterchains_logout_after_total  
+# TYPE spring_security_filterchains_logout_after_total counter
+spring_security_filterchains_logout_after_total{spring_security_filterchain_position="0",spring_security_filterchain_size="0",spring_security_reached_filter_name="none",spring_security_reached_filter_section="after"} 244289.0
+# HELP spring_security_filterchains_logout_before_total  
+# TYPE spring_security_filterchains_logout_before_total counter
+spring_security_filterchains_logout_before_total{spring_security_filterchain_position="0",spring_security_filterchain_size="0",spring_security_reached_filter_name="none",spring_security_reached_filter_section="before"} 244290.0
+# HELP spring_security_filterchains_requestcache_after_total  
+# TYPE spring_security_filterchains_requestcache_after_total counter
+spring_security_filterchains_requestcache_after_total{spring_security_filterchain_position="0",spring_security_filterchain_size="0",spring_security_reached_filter_name="none",spring_security_reached_filter_section="after"} 244289.0
+# HELP spring_security_filterchains_requestcache_before_total  
+# TYPE spring_security_filterchains_requestcache_before_total counter
+spring_security_filterchains_requestcache_before_total{spring_security_filterchain_position="0",spring_security_filterchain_size="0",spring_security_reached_filter_name="none",spring_security_reached_filter_section="before"} 244290.0
+# HELP spring_security_filterchains_seconds  
+# TYPE spring_security_filterchains_seconds summary
+spring_security_filterchains_seconds_count{error="none",spring_security_filterchain_position="13",spring_security_filterchain_size="13",spring_security_reached_filter_name="AuthorizationFilter",spring_security_reached_filter_section="before"} 244290
+spring_security_filterchains_seconds_sum{error="none",spring_security_filterchain_position="13",spring_security_filterchain_size="13",spring_security_reached_filter_name="AuthorizationFilter",spring_security_reached_filter_section="before"} 21.00651515
+spring_security_filterchains_seconds_count{error="none",spring_security_filterchain_position="13",spring_security_filterchain_size="13",spring_security_reached_filter_name="DisableEncodeUrlFilter",spring_security_reached_filter_section="after"} 244289
+spring_security_filterchains_seconds_sum{error="none",spring_security_filterchain_position="13",spring_security_filterchain_size="13",spring_security_reached_filter_name="DisableEncodeUrlFilter",spring_security_reached_filter_section="after"} 5.023240169
+# HELP spring_security_filterchains_seconds_max  
+# TYPE spring_security_filterchains_seconds_max gauge
+spring_security_filterchains_seconds_max{error="none",spring_security_filterchain_position="13",spring_security_filterchain_size="13",spring_security_reached_filter_name="AuthorizationFilter",spring_security_reached_filter_section="before"} 1.67666E-4
+spring_security_filterchains_seconds_max{error="none",spring_security_filterchain_position="13",spring_security_filterchain_size="13",spring_security_reached_filter_name="DisableEncodeUrlFilter",spring_security_reached_filter_section="after"} 8.5334E-5
+# HELP spring_security_filterchains_session_management_after_total  
+# TYPE spring_security_filterchains_session_management_after_total counter
+spring_security_filterchains_session_management_after_total{spring_security_filterchain_position="0",spring_security_filterchain_size="0",spring_security_reached_filter_name="none",spring_security_reached_filter_section="after"} 244289.0
+# HELP spring_security_filterchains_session_management_before_total  
+# TYPE spring_security_filterchains_session_management_before_total counter
+spring_security_filterchains_session_management_before_total{spring_security_filterchain_position="0",spring_security_filterchain_size="0",spring_security_reached_filter_name="none",spring_security_reached_filter_section="before"} 244290.0
+# HELP spring_security_filterchains_session_urlencoding_after_total  
+# TYPE spring_security_filterchains_session_urlencoding_after_total counter
+spring_security_filterchains_session_urlencoding_after_total{spring_security_filterchain_position="0",spring_security_filterchain_size="0",spring_security_reached_filter_name="none",spring_security_reached_filter_section="after"} 244289.0
+# HELP spring_security_filterchains_session_urlencoding_before_total  
+# TYPE spring_security_filterchains_session_urlencoding_before_total counter
+spring_security_filterchains_session_urlencoding_before_total{spring_security_filterchain_position="0",spring_security_filterchain_size="0",spring_security_reached_filter_name="none",spring_security_reached_filter_section="before"} 244290.0
+# HELP spring_security_http_secured_requests_active_seconds  
+# TYPE spring_security_http_secured_requests_active_seconds summary
+spring_security_http_secured_requests_active_seconds_count 1
+spring_security_http_secured_requests_active_seconds_sum 0.001528791
+# HELP spring_security_http_secured_requests_active_seconds_max  
+# TYPE spring_security_http_secured_requests_active_seconds_max gauge
+spring_security_http_secured_requests_active_seconds_max 0.001530375
+# HELP spring_security_http_secured_requests_seconds  
+# TYPE spring_security_http_secured_requests_seconds summary
+spring_security_http_secured_requests_seconds_count{error="none"} 244289
+spring_security_http_secured_requests_seconds_sum{error="none"} 2892.389280772
+# HELP spring_security_http_secured_requests_seconds_max  
+# TYPE spring_security_http_secured_requests_seconds_max gauge
+spring_security_http_secured_requests_seconds_max{error="none"} 1.693521208
+# HELP system_cpu_count The number of processors available to the Java virtual machine
+# TYPE system_cpu_count gauge
+system_cpu_count 12.0
+# HELP system_cpu_usage The "recent cpu usage" of the system the application is running in
+# TYPE system_cpu_usage gauge
+system_cpu_usage 0.2222222222222222
+# HELP system_load_average_1m The sum of the number of runnable entities queued to available processors and the number of runnable entities running on the available processors averaged over a period of time
+# TYPE system_load_average_1m gauge
+system_load_average_1m 4.35595703125
+# HELP tomcat_cache_access_total  
+# TYPE tomcat_cache_access_total counter
+tomcat_cache_access_total 0.0
+# HELP tomcat_cache_hit_total  
+# TYPE tomcat_cache_hit_total counter
+tomcat_cache_hit_total 0.0
+# HELP tomcat_connections_config_max_connections  
+# TYPE tomcat_connections_config_max_connections gauge
+tomcat_connections_config_max_connections{name="http-nio-8080"} 8192.0
+# HELP tomcat_connections_current_connections  
+# TYPE tomcat_connections_current_connections gauge
+tomcat_connections_current_connections{name="http-nio-8080"} 1.0
+# HELP tomcat_connections_keepalive_current_connections  
+# TYPE tomcat_connections_keepalive_current_connections gauge
+tomcat_connections_keepalive_current_connections{name="http-nio-8080"} 0.0
+# HELP tomcat_global_error_total  
+# TYPE tomcat_global_error_total counter
+tomcat_global_error_total{name="http-nio-8080"} 243563.0
+# HELP tomcat_global_received_bytes_total  
+# TYPE tomcat_global_received_bytes_total counter
+tomcat_global_received_bytes_total{name="http-nio-8080"} 2.5316115E7
+# HELP tomcat_global_request_max_seconds  
+# TYPE tomcat_global_request_max_seconds gauge
+tomcat_global_request_max_seconds{name="http-nio-8080"} 1.932
+# HELP tomcat_global_request_seconds  
+# TYPE tomcat_global_request_seconds summary
+tomcat_global_request_seconds_count{name="http-nio-8080"} 244274
+tomcat_global_request_seconds_sum{name="http-nio-8080"} 2810.961
+# HELP tomcat_global_sent_bytes_total  
+# TYPE tomcat_global_sent_bytes_total counter
+tomcat_global_sent_bytes_total{name="http-nio-8080"} 3.9197142E7
+# HELP tomcat_servlet_error_total  
+# TYPE tomcat_servlet_error_total counter
+tomcat_servlet_error_total{name="dispatcherServlet"} 0.0
+# HELP tomcat_servlet_request_max_seconds  
+# TYPE tomcat_servlet_request_max_seconds gauge
+tomcat_servlet_request_max_seconds{name="dispatcherServlet"} 1.933
+# HELP tomcat_servlet_request_seconds  
+# TYPE tomcat_servlet_request_seconds summary
+tomcat_servlet_request_seconds_count{name="dispatcherServlet"} 244274
+tomcat_servlet_request_seconds_sum{name="dispatcherServlet"} 2929.182
+# HELP tomcat_sessions_active_current_sessions  
+# TYPE tomcat_sessions_active_current_sessions gauge
+tomcat_sessions_active_current_sessions 0.0
+# HELP tomcat_sessions_active_max_sessions  
+# TYPE tomcat_sessions_active_max_sessions gauge
+tomcat_sessions_active_max_sessions 0.0
+# HELP tomcat_sessions_alive_max_seconds  
+# TYPE tomcat_sessions_alive_max_seconds gauge
+tomcat_sessions_alive_max_seconds 0.0
+# HELP tomcat_sessions_created_sessions_total  
+# TYPE tomcat_sessions_created_sessions_total counter
+tomcat_sessions_created_sessions_total 0.0
+# HELP tomcat_sessions_expired_sessions_total  
+# TYPE tomcat_sessions_expired_sessions_total counter
+tomcat_sessions_expired_sessions_total 0.0
+# HELP tomcat_sessions_rejected_sessions_total  
+# TYPE tomcat_sessions_rejected_sessions_total counter
+tomcat_sessions_rejected_sessions_total 0.0
+# HELP tomcat_threads_busy_threads  
+# TYPE tomcat_threads_busy_threads gauge
+tomcat_threads_busy_threads{name="http-nio-8080"} 0.0
+# HELP tomcat_threads_config_max_threads  
+# TYPE tomcat_threads_config_max_threads gauge
+tomcat_threads_config_max_threads{name="http-nio-8080"} 200.0
+# HELP tomcat_threads_current_threads  
+# TYPE tomcat_threads_current_threads gauge
+tomcat_threads_current_threads{name="http-nio-8080"} 10.0

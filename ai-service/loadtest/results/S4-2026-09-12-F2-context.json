@@ -1,0 +1,50 @@
+{
+  "run_id": "2026-09-12-F2",
+  "round": "F2",
+  "round_why": "Python 5xx: 재시도가 <안> 도는 것이 산출물",
+  "round_how": "가짜 CF 가 모든 모델 호출에 500 을 낸다.",
+  "fault_mode": "error_all",
+  "commit": "28b5495b2f0e72721dc1aceb5db6f159ec7d3253",
+  "started_at": "2026-09-12T14:51:41",
+  "api_base": "http://localhost:8080",
+  "actuator_base": "http://localhost:8081",
+  "cf_base": "http://127.0.0.1:9001",
+  "operation": "chat",
+  "bot": {
+    "id": "628d2785-a128-486c-a1ac-556f19f06de3",
+    "name": "W2 검증 봇",
+    "document_count": 50
+  },
+  "vus": 20,
+  "normal_seconds": 60,
+  "inject_seconds": 90,
+  "signals_before": {
+    "outcomes": {
+      "success": null,
+      "circuit_open": null,
+      "connect_failure": null,
+      "read_timeout": null,
+      "connection_lost": null,
+      "python_5xx": null,
+      "python_4xx": null,
+      "answer_incomplete": null,
+      "decode_error": null
+    },
+    "retry": null,
+    "transitions": {
+      "open": 0.0,
+      "closed": 0.0,
+      "half_open": null
+    },
+    "circuit_state": "closed",
+    "circuit_state_raw": 0.0,
+    "fault_injected": 0,
+    "fault_mode": "none"
+  },
+  "python_runtime": {
+    "metrics_url": "http://127.0.0.1:8001/internal/metrics",
+    "anyio_max_threads_env_of_driver": null,
+    "anyio_threads_total_observed": 40.0,
+    "error": null
+  }
+}
