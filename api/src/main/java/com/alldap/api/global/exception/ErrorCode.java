@@ -63,10 +63,12 @@ public enum ErrorCode {
             "요청 본문 형식을 처리할 수 없습니다. Content-Type 헤더를 application/json 으로 지정하고 JSON 본문을 보내주세요."),
 
     // ── 파일 ────────────────────────────────────────────────────────────
+    // 구버전 .hwp 도 이 코드로 나간다. 판정은 Python(parsers.py)이 하고, Spring 은 그 400 을
+    // 그대로 이 코드로 옮긴다. 사용자에게 보이는 문구는 Python 이 보낸 것이다.
+    // (예전에는 LEGACY_HWP_NOT_SUPPORTED 를 따로 뒀지만 아무 데서도 쓰이지 않아 2026-09-13 에 지웠다.
+    //  .hwp 지원을 붙이게 되면 그때 판정 자리와 함께 다시 만들 것)
     UNSUPPORTED_FILE_TYPE(HttpStatus.BAD_REQUEST, "UNSUPPORTED_FILE_TYPE",
             "지원하지 않는 파일 형식입니다. pdf, docx, hwpx, txt, md 파일을 올려주세요."),
-    LEGACY_HWP_NOT_SUPPORTED(HttpStatus.BAD_REQUEST, "LEGACY_HWP_NOT_SUPPORTED",
-            "구버전 .hwp 는 지원하지 않습니다. 한글에서 .hwpx 로 저장한 뒤 올려주세요."),
     // 413. Spring 7 에서 PAYLOAD_TOO_LARGE 는 deprecated 다 —
     // RFC 9110 이 이 상태 코드의 이름을 "Content Too Large" 로 바꿨기 때문. 숫자는 동일하다.
     FILE_TOO_LARGE(HttpStatus.CONTENT_TOO_LARGE, "FILE_TOO_LARGE",
