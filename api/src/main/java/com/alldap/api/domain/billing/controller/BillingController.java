@@ -3,6 +3,8 @@ package com.alldap.api.domain.billing.controller;
 import com.alldap.api.domain.billing.dto.BillingMethodsResponse;
 import com.alldap.api.domain.billing.dto.RegisterBillingMethodRequest;
 import com.alldap.api.domain.billing.service.BillingService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -30,6 +32,7 @@ import java.util.UUID;
  *
  * <p>{@code SecurityConfig} 를 고칠 필요가 없다 — {@code /api/**} 는 {@code anyRequest().authenticated()} 다.
  */
+@Tag(name = "결제 수단", description = "토스 빌링키 기반 카드 등록. 계정당 최대 5장이고 기본 카드는 1장이다.")
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/billing/methods")
@@ -38,6 +41,7 @@ public class BillingController {
     private final BillingService billingService;
 
     /** GET /api/billing/methods — 카드가 없으면 {@code methods: []}, customerKey 는 항상 온다 */
+    @Operation(summary = "등록된 카드 목록 조회")
     @GetMapping
     public ResponseEntity<BillingMethodsResponse> list(@AuthenticationPrincipal UUID userId) {
         return ResponseEntity.ok(billingService.find(userId));
@@ -50,6 +54,7 @@ public class BillingController {
      * 화면에 보이는 카드의 출처를 "이 응답 하나" 로 고정하면 "등록 직후만 다르게 보이는" 버그가 생길 자리가 없다.
      * 5장이 넘으면 <b>409</b>(토스를 부르기 전에 막는다).
      */
+    @Operation(summary = "카드 등록 (토스 빌링키 발급)")
     @PostMapping
     public ResponseEntity<BillingMethodsResponse> register(
             @AuthenticationPrincipal UUID userId,
@@ -64,6 +69,7 @@ public class BillingController {
      * 가 공통 포맷으로 — 없거나 남의 것이면 <b>404</b>, 기본 카드인데 다른 카드가 남아 있으면 <b>409</b>,
      * 토스가 죽었거나 응답이 없으면 <b>503</b>(이때 카드는 그대로 남는다).
      */
+    @Operation(summary = "카드 삭제")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@AuthenticationPrincipal UUID userId, @PathVariable UUID id) {
         billingService.delete(userId, id);
@@ -76,6 +82,7 @@ public class BillingController {
      * <p>PUT 인 이유: 같은 요청을 몇 번 보내도 결과가 같다(멱등). "기본으로" 버튼 연타가 안전하다는 뜻이다.
      * 이미 기본이면 아무것도 바꾸지 않고 200 이다 — 오류가 아니다.
      */
+    @Operation(summary = "기본 카드 지정")
     @PutMapping("/{id}/default")
     public ResponseEntity<BillingMethodsResponse> setDefault(
             @AuthenticationPrincipal UUID userId, @PathVariable UUID id) {

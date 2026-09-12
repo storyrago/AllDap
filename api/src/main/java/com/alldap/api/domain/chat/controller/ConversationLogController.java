@@ -16,6 +16,8 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -24,6 +26,7 @@ import java.util.UUID;
 /**
  * 대화 로그 API (PRD §10.1 {@code GET /api/bots/{botId}/logs}). 인증 필요.
  */
+@Tag(name = "대화 로그", description = "위젯·관리자 채팅에서 오간 대화 기록.")
 @RestController
 @RequestMapping("/api/bots/{botId}/logs")
 @RequiredArgsConstructor
@@ -47,6 +50,7 @@ public class ConversationLogController {
      * {@code from}·{@code to} 는 {@code YYYY-MM-DD} 이며 <b>둘 다 그 날짜를 포함</b>한다
      * (시간대 처리는 서비스가 한다 — KST 기준).
      */
+    @Operation(summary = "대화 목록 조회")
     @GetMapping
     public ResponseEntity<PageResponse<ConversationSummaryResponse>> getLogs(
             @AuthenticationPrincipal UUID userId,
@@ -70,6 +74,7 @@ public class ConversationLogController {
      * <p>페이지네이션을 두지 않았다: 한 세션의 메시지는 대화 특성상 수십 건을 넘기 어렵다.
      * 넘기 시작하면 그때 붙인다.
      */
+    @Operation(summary = "대화 상세(메시지 목록) 조회")
     @GetMapping("/{conversationId}")
     public ResponseEntity<List<MessageResponse>> getMessages(@AuthenticationPrincipal UUID userId,
                                                              @PathVariable UUID botId,

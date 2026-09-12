@@ -12,6 +12,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 
 import java.util.List;
 import java.util.UUID;
@@ -22,6 +24,7 @@ import java.util.UUID;
  * <p>경로가 두 갈래({@code /api/bots/{botId}/documents} 와 {@code /api/documents/{docId}})라
  * 클래스 레벨 {@code @RequestMapping} 을 두지 않고 메서드마다 전체 경로를 적는다.
  */
+@Tag(name = "문서", description = "봇의 지식 원본. 업로드는 비동기로 처리된다.")
 @RestController
 @RequiredArgsConstructor
 public class DocumentController {
@@ -37,6 +40,7 @@ public class DocumentController {
      *
      * <p>응답은 {@code 202 Accepted} 가 의미상 맞다 — 요청을 접수했을 뿐 처리는 아직 끝나지 않았다.
      */
+    @Operation(summary = "문서 업로드 (비동기 처리)")
     @PostMapping("/api/bots/{botId}/documents")
     public ResponseEntity<DocumentResponse> uploadDocument(@AuthenticationPrincipal UUID userId,
                                                            @PathVariable UUID botId,
@@ -48,6 +52,7 @@ public class DocumentController {
     }
 
     /** GET /api/bots/{botId}/documents — 문서 목록 (프론트가 상태 폴링에 사용) */
+    @Operation(summary = "문서 목록 조회")
     @GetMapping("/api/bots/{botId}/documents")
     public ResponseEntity<List<DocumentResponse>> getDocuments(@AuthenticationPrincipal UUID userId,
                                                                @PathVariable UUID botId) {
@@ -55,6 +60,7 @@ public class DocumentController {
     }
 
     /** DELETE /api/documents/{docId} — 문서 삭제 (청크도 CASCADE 로 함께 삭제된다) */
+    @Operation(summary = "문서 삭제")
     @DeleteMapping("/api/documents/{docId}")
     public ResponseEntity<Void> deleteDocument(@AuthenticationPrincipal UUID userId,
                                                @PathVariable UUID docId) {

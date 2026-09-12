@@ -24,6 +24,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 
 import java.time.Duration;
 
@@ -62,6 +64,7 @@ import java.time.Duration;
  *    즉 Origin 검증은 "브라우저를 통한 무단 사용" 만 막고, <b>결정적 방어는 rate limit</b> 이다.
  */
 @Slf4j
+@Tag(name = "위젯 공개 API", description = "고객 사이트에 심긴 위젯이 부른다. 인증 없이 열린 유일한 문이다.")
 @RestController
 @RequestMapping("/api/w/{publicKey}")
 @RequiredArgsConstructor
@@ -79,6 +82,7 @@ public class WidgetController {
      */
     // 위젯은 고객 사이트에 심겨 <방문자>가 쓴다. JWT 가 없다.
     // 보호는 publicKey + Origin 검증 + rate limit 이다(이 클래스 주석 참고).
+    @Operation(summary = "위젯 설정 조회 (Origin 검증)")
     @SecurityRequirements
     @GetMapping("/config")
     public ResponseEntity<WidgetConfigResponse> getConfig(
@@ -107,6 +111,7 @@ public class WidgetController {
      * 진단용으로 기록한다.
      */
     // 위젯 채팅. 인증 없이 열린 유일한 문이고 실질 방어선은 rate limit 이다.
+    @Operation(summary = "위젯 채팅 (인증 없음, 분당 요청 제한)")
     @SecurityRequirements
     @PostMapping("/chat")
     public ResponseEntity<ChatResponse> chat(

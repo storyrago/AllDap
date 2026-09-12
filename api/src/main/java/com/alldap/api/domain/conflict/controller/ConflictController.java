@@ -16,6 +16,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 
 import java.util.List;
 import java.util.UUID;
@@ -27,6 +29,7 @@ import java.util.UUID;
  * 받으면 남의 id 를 적어 보내는 것만으로 격리가 무너진다. 소유권 확인은 서비스가 하고,
  * <b>Python 을 부르기 전에</b> 끝난다 — Python 의 {@code /internal/*} 에는 인증이 없기 때문이다.
  */
+@Tag(name = "문서 충돌", description = "서로 다른 값을 말하는 문서 쌍을 찾아 알려준다.")
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/bots/{botId}/conflicts")
@@ -41,6 +44,7 @@ public class ConflictController {
      * {@code ignored}(오탐 표시)와 {@code clear}(판정 결과 모순 아님)까지 섞어 보여주면
      * 목록이 금세 노이즈로 덮인다. 지난 판정을 되짚고 싶을 때만 status 를 바꿔 부른다.
      */
+    @Operation(summary = "충돌 목록 조회")
     @GetMapping
     public ResponseEntity<List<ConflictResponse>> getConflicts(
             @AuthenticationPrincipal UUID userId,
@@ -59,6 +63,7 @@ public class ConflictController {
      * <p>경로 끝에 {@code /scan} 을 붙인 이유: 같은 {@code /conflicts} 에 POST 를 두면
      * "충돌을 직접 하나 등록한다"와 구분되지 않는다.
      */
+    @Operation(summary = "충돌 진단 실행")
     @PostMapping("/scan")
     public ResponseEntity<ConflictScanResponse> scan(@AuthenticationPrincipal UUID userId,
                                                      @PathVariable UUID botId) {
@@ -71,6 +76,7 @@ public class ConflictController {
      * <p><b>경로에 botId 가 반드시 들어간다.</b> conflictId 만 받으면 소유권을 확인할 대상이
      * 없어서, id 만 알아내면 남의 봇 충돌을 치울 수 있다.
      */
+    @Operation(summary = "충돌 처리 상태 변경")
     @PatchMapping("/{conflictId}")
     public ResponseEntity<ConflictResponse> updateStatus(
             @AuthenticationPrincipal UUID userId,

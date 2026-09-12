@@ -5,6 +5,8 @@ import com.alldap.api.domain.bot.dto.BotSummaryResponse;
 import com.alldap.api.domain.bot.dto.CreateBotRequest;
 import com.alldap.api.domain.bot.dto.UpdateBotRequest;
 import com.alldap.api.domain.bot.service.BotService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -39,6 +41,7 @@ import java.util.UUID;
  * <p>여기서 userId 가 null 이 되는 경우는 없다 — SecurityConfig 가 {@code /api/bots/**} 를
  * {@code authenticated()} 로 잠가둬서, 인증 없는 요청은 컨트롤러에 도달하기 전에 401 로 끊긴다.
  */
+@Tag(name = "봇", description = "챗봇 생성과 설정. 모든 조회는 소유자 본인의 봇으로 격리된다.")
 @RestController
 @RequestMapping("/api/bots")
 @RequiredArgsConstructor
@@ -52,6 +55,7 @@ public class BotController {
      * <p>상세 조회와 달리 {@link BotSummaryResponse} 다. 카드에 얹을 집계(문서 수·주간 대화 수·
      * 최근 평가 점수)가 붙는다. 두 응답의 타입을 나눈 이유는 그 DTO 주석 참고.
      */
+    @Operation(summary = "내 봇 목록 조회")
     @GetMapping
     public ResponseEntity<List<BotSummaryResponse>> getMyBots(@AuthenticationPrincipal UUID userId) {
         return ResponseEntity.ok(botService.findMyBots(userId));
@@ -63,6 +67,7 @@ public class BotController {
      * <p>{@code Location} 헤더를 붙인다. 여기는 AuthController 와 달리 만들어진 리소스를
      * 조회할 경로({@code GET /api/bots/{botId}})가 실제로 존재하기 때문이다.
      */
+    @Operation(summary = "봇 생성")
     @PostMapping
     public ResponseEntity<BotResponse> createBot(@AuthenticationPrincipal UUID userId,
                                                  @Valid @RequestBody CreateBotRequest request) {
@@ -71,6 +76,7 @@ public class BotController {
     }
 
     /** GET /api/bots/{botId} — 봇 상세 */
+    @Operation(summary = "봇 단건 조회")
     @GetMapping("/{botId}")
     public ResponseEntity<BotResponse> getBot(@AuthenticationPrincipal UUID userId,
                                               @PathVariable UUID botId) {
@@ -78,6 +84,7 @@ public class BotController {
     }
 
     /** PATCH /api/bots/{botId} — 봇 설정 부분 수정 */
+    @Operation(summary = "봇 설정 수정")
     @PatchMapping("/{botId}")
     public ResponseEntity<BotResponse> updateBot(@AuthenticationPrincipal UUID userId,
                                                  @PathVariable UUID botId,
@@ -91,6 +98,7 @@ public class BotController {
      * <p>204 No Content 다. 지워진 리소스를 본문에 담아 돌려줄 이유가 없다.
      * 삭제는 되돌릴 수 없으므로 프론트에서 확인 절차를 둘 것.
      */
+    @Operation(summary = "봇 삭제")
     @DeleteMapping("/{botId}")
     public ResponseEntity<Void> deleteBot(@AuthenticationPrincipal UUID userId,
                                           @PathVariable UUID botId) {

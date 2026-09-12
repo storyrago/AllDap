@@ -16,12 +16,15 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 
 import java.time.Duration;
 
 /**
  * 인증 API (PRD §10.1). SecurityConfig 에서 공개 경로로 열려 있다.
  */
+@Tag(name = "인증", description = "가입·로그인. 토큰 없이 호출되는 공개 경로다.")
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
@@ -40,6 +43,7 @@ public class AuthController {
      */
     // 전역 JWT 요구를 해제한다. 이 애노테이션의 <유무>가 공통 401 을 붙일지 판정하는 신호이기도 하다
     // (OpenApiConfig 참고). 보안 표기와 401 표기가 자동으로 맞는다.
+    @Operation(summary = "가입")
     @SecurityRequirements
     @PostMapping("/signup")
     public ResponseEntity<AuthResponse> signup(@Valid @RequestBody SignupRequest request) {
@@ -67,6 +71,7 @@ public class AuthController {
     // 전역 JWT 요구를 해제한다. 로그인 자체가 토큰을 <발급받는> 요청이다.
     // ⚠️ 이 경로의 401(INVALID_CREDENTIALS)은 "토큰이 없어서" 가 아니라 "비밀번호가 틀려서" 다.
     //    별개 사실이므로 공통 401 이 아니라 엔드포인트별 @ApiResponse 로 단다(PR 2).
+    @Operation(summary = "로그인")
     @SecurityRequirements
     @PostMapping("/login")
     public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request,
