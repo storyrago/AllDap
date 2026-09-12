@@ -123,6 +123,22 @@ app:
     # 스킴·호스트·포트가 정확히 일치해야 한다. 여러 개면 쉼표로 구분한다.
     allowed-origins: ${CORS_ALLOWED_ORIGINS}
 
+# 🔴 운영에서는 API 문서를 내보내지 않는다. 이것이 노출 방어 두 겹 중 <①> 이다.
+#    ② 는 SecurityConfig 가 문서 경로에 permitAll 을 걸지 않는 것(프로파일 분기).
+#    한 겹만 두면 우회 경로가 생겨 규칙이 없는 것과 같아진다:
+#      · ① 만 두면 나중에 누가 이 설정을 되돌리는 순간 전부 열린다.
+#      · ② 만 두면 문서는 계속 생성되면서 401 뒤에 숨어 있을 뿐이라 계정 하나만 있으면 읽힌다.
+#    두 겹이 각각 동작하는 것은 OpenApiProdExposureIntegrationTest 가 CI 에서 확인한다
+#    (토큰 없이 401 = ②, 토큰 붙여 404 = ①).
+#
+# ⚠️ 문서는 로컬에서만 본다. 전시가 목적인데 운영에서 못 보는 것은 목적과 일부 상충하지만,
+#    노출 판단을 나중에 되돌리는 쪽이 그 반대보다 안전하다.
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+
 logging:
   level:
     com.alldap.api: INFO
