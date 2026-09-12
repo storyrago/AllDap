@@ -12,6 +12,8 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 
 import java.util.UUID;
 
@@ -21,6 +23,7 @@ import java.util.UUID;
  * <p>위젯용 공개 채팅({@code POST /api/w/{publicKey}/chat})은
  * 인증 규칙이 완전히 다르므로 {@code WidgetController} 에 따로 둔다.
  */
+@Tag(name = "채팅", description = "관리자 테스트 채팅과 답변 피드백.")
 @RestController
 @RequiredArgsConstructor
 public class ChatController {
@@ -33,6 +36,7 @@ public class ChatController {
      * <p>이 호출은 Python 을 거치므로 수십 초 걸릴 수 있다.
      * 프론트에서 로딩 상태와 타임아웃 안내를 반드시 붙일 것.
      */
+    @Operation(summary = "관리자 테스트 채팅")
     @PostMapping("/api/bots/{botId}/chat")
     public ResponseEntity<ChatResponse> chat(@AuthenticationPrincipal UUID userId,
                                              @PathVariable UUID botId,
@@ -41,6 +45,7 @@ public class ChatController {
     }
 
     /** POST /api/messages/{msgId}/feedback — 답변에 👍/👎 */
+    @Operation(summary = "답변 피드백 등록")
     @PostMapping("/api/messages/{msgId}/feedback")
     public ResponseEntity<Void> feedback(@AuthenticationPrincipal UUID userId,
                                          @PathVariable UUID msgId,

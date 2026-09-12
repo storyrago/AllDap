@@ -3,6 +3,8 @@ package com.alldap.api.domain.plan.controller;
 import com.alldap.api.domain.plan.dto.ChangePlanRequest;
 import com.alldap.api.domain.plan.dto.PlanResponse;
 import com.alldap.api.domain.plan.service.PlanService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -24,6 +26,7 @@ import java.util.UUID;
  *
  * <p>{@code SecurityConfig} 를 고칠 필요가 없다 — {@code /api/**} 는 이미 인증을 요구한다.
  */
+@Tag(name = "요금제", description = "무료·Pro 선택. 무엇을 골랐는지만 기억하고 청구는 하지 않는다.")
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/plan")
@@ -32,6 +35,7 @@ public class PlanController {
     private final PlanService planService;
 
     /** GET /api/plan — 지금 요금제. 새 계정은 {@code free} 다(V8 의 DEFAULT). */
+    @Operation(summary = "현재 요금제 조회")
     @GetMapping
     public ResponseEntity<PlanResponse> get(@AuthenticationPrincipal UUID userId) {
         return ResponseEntity.ok(planService.find(userId));
@@ -48,6 +52,7 @@ public class PlanController {
      *
      * <p>🔴 <b>이 호출로 돈이 나가지 않는다.</b> 청구는 4번 조각이고 아직 없다.
      */
+    @Operation(summary = "요금제 변경")
     @PutMapping
     public ResponseEntity<PlanResponse> change(@AuthenticationPrincipal UUID userId,
                                                @Valid @RequestBody ChangePlanRequest request) {

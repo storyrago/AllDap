@@ -26,6 +26,20 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-security'
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
 	implementation 'org.springframework.boot:spring-boot-starter-webmvc'
+
+	// ── API 문서 (Swagger UI / OpenAPI) ──────────────────────────────────
+	// 🔴 버전을 직접 적는다. Boot 의 dependency-management 가 관리하지 않는 서드파티다.
+	//
+	// 🔴 이 버전은 <Boot 3 계열(3.4.4)을 부모로 삼아> 빌드됐다. springdoc 3.x 는 존재하지 않는다
+	//    (2026-09-12 Maven Central 확인 결과 2.8.6 이 최신). 즉 Boot 4 호환이 <보장된 것이 아니라
+	//    우연히 맞는 것>이고, Boot 를 올릴 때 깨질 수 있으며 그때 후퇴할 곳이 없다. 알고 택했다.
+	//    근거와 실측 결과: docs/superpowers/specs/2026-09-12-swagger-design.md
+	//
+	// ⚠️ 운영에서는 문서를 내보내지 않는다. 막는 곳이 두 군데다:
+	//      ① application-prod.yaml 의 springdoc.*.enabled: false   (문서 생성 자체를 끈다)
+	//      ② SecurityConfig 의 프로파일 분기                        (경로를 인증 뒤에 둔다)
+	//    한쪽만 두면 우회 경로가 생겨 규칙이 없는 것과 같아진다.
+	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.6'
 	compileOnly 'org.projectlombok:lombok'
 	developmentOnly 'org.springframework.boot:spring-boot-devtools'
 	runtimeOnly 'org.postgresql:postgresql'

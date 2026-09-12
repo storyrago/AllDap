@@ -2,6 +2,8 @@ package com.alldap.api.domain.usage.controller;
 
 import com.alldap.api.domain.usage.dto.UsageResponse;
 import com.alldap.api.domain.usage.service.UsageService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -23,6 +25,7 @@ import java.util.UUID;
  * 뿐이고, 나머지 {@code /api/**}(이 컨트롤러 포함)는 {@code anyRequest().authenticated()} 로
  * 이미 인증을 요구한다.
  */
+@Tag(name = "사용량", description = "과금 원장(usage_events) 집계. 아직 실제로 청구하지는 않는다.")
 @RestController
 @RequiredArgsConstructor
 public class UsageController {
@@ -30,6 +33,7 @@ public class UsageController {
     private final UsageService usageService;
 
     /** GET /api/usage?month=YYYY-MM — 생략하면 이번 달(한국 시간 기준) */
+    @Operation(summary = "사용량 집계 조회")
     @GetMapping("/api/usage")
     public ResponseEntity<UsageResponse> getUsage(@AuthenticationPrincipal UUID userId,
                                                   @RequestParam(required = false) String month) {

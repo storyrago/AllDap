@@ -9,6 +9,8 @@ import com.alldap.api.domain.eval.dto.UpdateEvalQuestionRequest;
 import com.alldap.api.domain.eval.service.EvalService;
 import com.alldap.api.global.exception.ApiException;
 import com.alldap.api.global.exception.ErrorCode;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -35,6 +37,7 @@ import java.util.UUID;
  * 남의 id 를 적어 보내는 것만으로 격리가 무너진다. 소유권 확인은 전부 서비스가 하고,
  * <b>Python 을 부르기 전에</b> 끝난다 — Python 의 {@code /internal/*} 에는 인증이 없기 때문이다.
  */
+@Tag(name = "품질 평가", description = "테스트 질문을 자동 생성해 답변 품질을 채점한다. 이 제품의 핵심 기능이다.")
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/bots/{botId}/eval")
@@ -48,6 +51,7 @@ public class EvalController {
      * <p>Python 을 부르지 않고 DB 를 직접 읽는다. {@code eval_questions} 는
      * "쓰기 = Python / 읽기 = Spring 도 허용" 테이블이다(AGENTS.md 테이블 소유권).
      */
+    @Operation(summary = "테스트 질문 목록 조회")
     @GetMapping("/questions")
     public ResponseEntity<List<EvalQuestionResponse>> getQuestions(@AuthenticationPrincipal UUID userId,
                                                                    @PathVariable UUID botId) {
@@ -64,6 +68,7 @@ public class EvalController {
      * <p>200 이다. 202 가 아닌 이유는 <b>동기 호출</b>이기 때문이다 —
      * {@code eval_questions} 에는 상태 컬럼이 없어 202 를 줘도 폴링할 대상이 없다.
      */
+    @Operation(summary = "테스트 질문 자동 생성")
     @PostMapping("/questions/generate")
     public ResponseEntity<List<EvalQuestionResponse>> generateQuestions(
             @AuthenticationPrincipal UUID userId,
@@ -83,6 +88,7 @@ public class EvalController {
      * 200 으로 답하면 프론트가 "다 됐다"고 읽고 상태 폴링을 하지 않는다(업로드와 같은 이유).
      * {@code eval_runs.status} 가 {@code running → completed|failed} 로 바뀌는 것을 폴링해야 한다.
      */
+    @Operation(summary = "평가 실행 시작 (비동기)")
     @PostMapping("/runs")
     public ResponseEntity<EvalRunResponse> startRun(@AuthenticationPrincipal UUID userId,
                                                     @PathVariable UUID botId) {
@@ -95,6 +101,7 @@ public class EvalController {
      * <p>프론트가 이 목록을 폴링해 실행이 끝나는 것을 본다.
      * W4 의 before/after 비교표도 여기서 두 실행을 골라 만든다 — {@code config} 가 그 축이다.
      */
+    @Operation(summary = "평가 실행 이력 조회")
     @GetMapping("/runs")
     public ResponseEntity<List<EvalRunResponse>> getRuns(@AuthenticationPrincipal UUID userId,
                                                          @PathVariable UUID botId) {
@@ -111,6 +118,7 @@ public class EvalController {
      * 화면이 "점수 낮은 순 / 미채점 먼저" 처럼 목적에 맞게 정렬한다 —
      * 정렬 기준이 화면마다 다를 수 있어 서버에 못박지 않는다.
      */
+    @Operation(summary = "평가 실행의 질문별 채점 결과 조회")
     @GetMapping("/runs/{runId}/results")
     public ResponseEntity<List<EvalResultResponse>> getResults(@AuthenticationPrincipal UUID userId,
                                                                @PathVariable UUID botId,
@@ -128,6 +136,7 @@ public class EvalController {
      * <p>🔴 {@code groundTruth} 를 고치면 <b>과거 실행과 비교할 수 없게 된다</b>
      * (UpdateEvalQuestionRequest 주석 참고). 문항을 빼려면 {@code isActive=false} 가 안전하다.
      */
+    @Operation(summary = "테스트 질문 수정")
     @PatchMapping("/questions/{questionId}")
     public ResponseEntity<EvalQuestionResponse> updateQuestion(
             @AuthenticationPrincipal UUID userId,
@@ -174,6 +183,7 @@ public class EvalController {
      * @param limit 상한. 미답변이 수백 건이어도 관리자가 위에서부터 처리하므로
      *              전부 내려줄 이유가 없다. 응답 크기와 화면 렌더링을 함께 묶어둔다.
      */
+    @Operation(summary = "미답변 질문 집계 조회")
     @GetMapping("/unanswered")
     public ResponseEntity<UnansweredSummaryResponse> getUnanswered(
             @AuthenticationPrincipal UUID userId,
