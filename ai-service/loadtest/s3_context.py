@@ -93,9 +93,18 @@ FAKE_PUBLIC_KEY_2 = "pk_s3loadtestFAKEkeyBBBBB"
 
 WINDOW_MS = 60_000
 
+# 제한기 지표 이름. 🔴 상수로 뺀 이유는 <부재를 정상으로 읽는 축>이 생겼기 때문이다.
+# 이름에 오타가 나면 시계열이 "없는" 것으로 보이고, 그 부재가 통과 사유인 자리에서는
+# 오타가 곧 거짓 통과가 된다. 한 곳에만 적어두면 적어도 셋이 함께 틀린다.
+M_REJECTED = "alldap_ratelimit_rejected_total"
+M_RECORDED = "alldap_ratelimit_recorded_total"
+BUCKET_WIDGET = {"bucket": "widget-chat"}
+
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 순수 함수: 서버도 시계도 안 탄다. s3_check.py 가 이 둘만 시험한다.
+# 순수 함수: 서버도 시계도 안 탄다. s3_check.py 가 이것들을 시험한다.
+# (지표 본문을 읽는 ratelimit_readings 도 순수 함수인데, _actuator_text 바로 아래에
+#  두어야 읽는 경로가 한눈에 보이므로 아래쪽에 있다)
 # ─────────────────────────────────────────────────────────────────────────────
 
 def next_window_start(now_ms: int, min_headroom_ms: int) -> int:
@@ -204,6 +213,89 @@ def judge_round(round_name: str, counts: dict[int, int | None], limit: int) -> t
     )
 
 
+def judge_ratelimit_axis(
+    counts: dict[int, int | None],
+    before: dict[str, float | None],
+    after: dict[str, float | None],
+) -> list[tuple[bool, str]]:
+    """k6 가 받은 429 와 <제한기가 센 거절>을 대조한다. (성패, 사유) 목록을 돌려준다.
+
+    judge_round 는 k6 가 센 것만 본다. "k6 가 429 를 80건 받았다" 와 "제한기가 80건을
+    거절했다" 는 <다른 사실>이다. 앞단에 429 를 내는 다른 무엇이 끼면 히스토그램만으로는
+    구별할 수 없어서, 서버 쪽 지표를 두 번째 축으로 둔다.
+
+    🔴 2026-09-12: 이 축을 <원리적으로 생길 수 없는 시계열>에서 옮겨왔다.
+       옛 축은 alldap_ratelimit_recorded_total{bucket="widget-chat"} 의 증가분이었다.
+       그런데 그 카운터를 올리는 곳은 RateLimiter.record() 하나이고, 그 호출자는
+       AuthService 의 login-failure 버킷뿐이다. 위젯 채팅은 check() 를 지나므로
+       그 시계열은 <만들어질 수가 없다>. 그래서 S3 네 판이 전부 멀쩡한 측정을 해놓고도
+       valid:false + 종료코드 1 로 끝났다. 이 저장소가 이미 두 번 기각한
+       "정상을 실패로 부르는 검사" 부류의 세 번째였다
+       (decisions.md 2026-09-09 의 provenance 거짓 경보 · AGENTS.md 의 Forwarded 점검 명령).
+
+    🔴 그래서 옛 축을 지우는 것으로 끝내지 않고 <없는 것이 정상>임을 검사로 남긴다.
+       지우기만 하면 다음 사람이 "이 시계열이 왜 안 보이지" 하며 같은 축을 되살린다.
+    """
+    out: list[tuple[bool, str]] = []
+
+    # ① recorded: 없어야 정상이다. 있으면 S3 의 전제가 깨진 것이다.
+    recorded = after["recorded"]
+    if recorded is None:
+        out.append((True,
+            f'OK   {M_RECORDED}{{bucket=widget-chat}} 시계열이 없다. <이것이 정상이다.> '
+            f'그 카운터는 RateLimiter.record() 만 올리고 호출자는 login-failure 버킷뿐이며, '
+            f'위젯 채팅은 check() 를 지난다. 이 부재를 "제한기를 한 번도 안 지났다" 로 읽지 말 것.'))
+    else:
+        out.append((False,
+            f'무효: {M_RECORDED}{{bucket=widget-chat}} 이 {recorded:.0f} 로 <있다>. '
+            f'생길 수 없는 시계열이 생겼다는 뜻이므로 위젯 채팅 경로가 record() 를 부르도록 '
+            f'바뀐 것이다. 그러면 아래 429 대조의 전제도 다시 봐야 한다. '
+            f'RateLimiter.record() 의 호출자를 먼저 확인할 것.'))
+
+    # ② 거절 모드. 아래 대조는 mode="check" 만 세므로, blocked 가 생기면 그만큼 덜 센다.
+    blocked = after["rejected_blocked"]
+    if blocked is None:
+        out.append((True,
+            f'OK   {M_REJECTED}{{bucket=widget-chat,mode=blocked}} 가 없다. 위젯 채팅의 거절은 '
+            f'전부 mode="check" 여야 한다(isBlocked() 호출자는 AuthService.login 하나다).'))
+    else:
+        out.append((False,
+            f'무효: {M_REJECTED}{{bucket=widget-chat,mode=blocked}} 가 {blocked:.0f} 로 있다. '
+            f'아래 대조는 mode="check" 만 세기 때문에 그만큼 덜 센다. '
+            f'WidgetController 가 isBlocked() 를 쓰기 시작했는지 확인할 것.'))
+
+    # ③ 본 대조: k6 가 받은 429 == 제한기가 센 거절 증가분.
+    expected = counts.get(429)
+    if expected is None:
+        out.append((False,
+            "무효: k6 요약에 429 시계열이 없다. 0건이라서가 아니라 <세지 않은> 것이라, "
+            "제한기 거절 수와 대조할 상대가 아예 없다. s3_ratelimit.js 의 thresholds 를 확인할 것."))
+        return out
+
+    b, a = before["rejected_check"], after["rejected_check"]
+    # 🔴 여기서 None 을 0 으로 읽어도 되는 이유는 하나뿐이다: cmd_before 가 keys 게이지로
+    #    <지표 내보내기 자체가 살아 있다>를 이미 확인하고 나서야 이 판이 시작된다.
+    #    그래서 이 자리의 부재는 "계측이 안 붙었다" 가 아니라 "그 태그 조합이 아직 한 번도
+    #    안 쓰였다" = 거절 0건이다. 그 가드가 없어지면 이 줄의 근거도 같이 없어진다.
+    delta = (a or 0.0) - (b or 0.0)
+    if delta < 0:
+        out.append((False,
+            f"무효: 거절 카운터가 {b} → {a} 로 <줄었다>. 단조 증가해야 하는 값이 줄었다는 것은 "
+            f"측정 중에 Spring 이 재기동됐다는 뜻이다. 이 판을 처음부터 다시 돌릴 것."))
+        return out
+    if abs(delta - expected) < 1e-9:
+        out.append((True,
+            f"OK   제한기가 센 거절 {delta:.0f}건 = k6 가 받은 429 {expected}건 (정확히 일치). "
+            f"사전 확인 요청은 404 로 끝나 거절을 만들지 않으므로 여기에 여유를 두지 않는다."))
+    else:
+        out.append((False,
+            f"무효: 제한기가 센 거절은 {delta:.0f}건인데 k6 는 429 를 {expected}건 받았다. "
+            f"둘이 다르면 429 를 낸 주체가 제한기가 아닌 것(앞단 프록시 등)이거나, "
+            f"거절이 났는데 k6 가 그 응답을 못 받은 것이다. 어느 쪽이든 이 판의 숫자를 "
+            f"제한기 정확성의 근거로 쓸 수 없다."))
+    return out
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # k6 요약 읽기
 # ─────────────────────────────────────────────────────────────────────────────
@@ -248,11 +340,23 @@ def _actuator_text(actuator: str) -> str:
     return resp.text
 
 
-def _ratelimit_recorded(actuator: str) -> float | None:
-    """제한기가 <실제로 몇 건을 셌는가>. 한도 값을 못 물어보는 것을 이것으로 갈음한다."""
-    return parse_prom_counter(
-        _actuator_text(actuator), "alldap_ratelimit_recorded_total", {"bucket": "widget-chat"}
-    )
+def ratelimit_readings(text: str) -> dict[str, float | None]:
+    """제한기 쪽 시계열 셋을 한 <번의 노출>에서 함께 읽는다. before 와 after 가 같은 함수를 쓴다.
+
+    셋을 함께 읽는 이유: 하나(거절 증가분)를 믿으려면 나머지 둘이 <없어야> 한다.
+    근거는 judge_ratelimit_axis 주석에 있다.
+
+    노출 본문을 인자로 받는 이유: 같은 스냅샷에서 셋을 읽어야 한다. 시계열마다 따로
+    긁으면 그 사이에 요청이 들어와 셋이 서로 다른 시점을 가리킬 수 있다.
+    """
+    return {
+        # 본 축. mode="check" 는 카운터를 올린 뒤 난 거절이고, 위젯 채팅이 낼 수 있는 유일한 모드다.
+        "rejected_check": parse_prom_counter(text, M_REJECTED, {**BUCKET_WIDGET, "mode": "check"}),
+        # 있으면 본 축이 덜 센다. 위젯 채팅에는 없어야 한다.
+        "rejected_blocked": parse_prom_counter(text, M_REJECTED, {**BUCKET_WIDGET, "mode": "blocked"}),
+        # 원리적으로 생길 수 없는 시계열. <없음>을 확인하는 데 쓴다.
+        "recorded": parse_prom_counter(text, M_RECORDED, BUCKET_WIDGET),
+    }
 
 
 def _assert_key_is_fake(api: str, public_key: str) -> None:
@@ -304,9 +408,7 @@ def cmd_before(args) -> int:
             "지표 내보내기가 꺼져 있다. 이 게이지가 없으면 '거절 0' 과 '계측이 안 붙었다' 를 "
             "구별할 방법이 사라진다(핸드오프 §6-ⓓ)."
         )
-    recorded_before = parse_prom_counter(
-        text, "alldap_ratelimit_recorded_total", {"bucket": "widget-chat"}
-    )
+    readings_before = ratelimit_readings(text)
 
     # ③ 분 경계 정렬. 이 판의 요청이 전부 같은 윈도우 안에서 끝나야 한다.
     #    🔴 사전 확인 요청(위 ①)도 카운터를 <이미 하나 올렸다.> 그래서 경계를 넘겨
@@ -346,8 +448,8 @@ def cmd_before(args) -> int:
         #    그리고 열지 않는다. 한도 숫자 하나를 읽으려고 DB 접속 문자열·JWT 시크릿이
         #    같은 응답에 실리는 경로를 만드는 셈이다. 설계서 §5-② 가 근거다.
         "widget_chat_per_minute": {"value": args.limit, "source": "driver"},
-        # 한도를 못 물어보는 대신, 제한기가 <실제로 몇 건을 셌는가>를 다른 축에서 본다.
-        "ratelimit_recorded_before": recorded_before,
+        # 한도를 못 물어보는 대신, 제한기가 <실제로 몇 건을 거절했는가>를 다른 축에서 본다.
+        "ratelimit_readings_before": readings_before,
         "ratelimit_keys_gauge_before": keys_gauge,
         "expected_total": spec["expected_total"],
         "expected_pass": (None if spec["expect_all_pass"]
@@ -376,33 +478,21 @@ def cmd_after(args) -> int:
     counts = extract_counts(summary, context["round"])
     ok, reason = judge_round(context["round"], counts, context["widget_chat_per_minute"]["value"])
 
-    recorded_after = _ratelimit_recorded(context["actuator_base"])
-    recorded_before = context["ratelimit_recorded_before"]
     verdicts = [("OK   " if ok else "") + reason]
 
-    # 다른 축에서의 대조. 제한기가 센 건수가 k6 가 보낸 건수와 맞는가.
-    #
-    # 🔴 None 을 0 으로 바꾸지 않는다. "거절 0" 과 "계측이 안 붙었다" 를 가르는 것이
-    #    이 지표를 쓰는 이유다. before 가 None 이었다면 그건 이 판이 <그 버킷의 첫 사용>
-    #    이었다는 뜻이라 정상이고, after 까지 None 이면 계측이 안 붙은 것이다.
-    if recorded_after is None:
-        verdicts.append(
-            "무효: alldap_ratelimit_recorded_total{bucket=widget-chat} 시계열이 실행 뒤에도 없다. "
-            "제한기를 한 번도 안 지났다는 뜻이다."
-        )
-        ok = False
-    else:
-        delta = recorded_after - (recorded_before or 0.0)
-        total = sum(n for n in counts.values() if n is not None)
-        # 사전 확인 요청 1건(C 판은 2건)이 before 를 찍기 전에 이미 세어졌다.
-        precheck = 2 if context["round"] == "C" else 1
-        if abs(delta - total) <= precheck:
-            verdicts.append(f"OK   제한기가 센 건수 {delta:.0f} ≈ k6 가 보낸 {total}건")
-        else:
-            verdicts.append(
-                f"무효: 제한기가 센 건수는 {delta:.0f} 인데 k6 는 {total}건을 보냈다. "
-                f"둘이 다르면 그 차이만큼 요청이 제한기를 <거치지 않고> 끝난 것이다."
-            )
+    # 🔴 옛 컨텍스트 파일과 <시계열이 없었다>를 뭉개지 않는다. 필드가 통째로 없는 것은
+    #    "그때는 안 읽었다" 이고, 읽어서 None 인 것은 "그 시계열이 없었다" 다. 손쓸 곳이 다르다.
+    readings_before = context.get("ratelimit_readings_before")
+    if readings_before is None:
+        print("중단: 이 컨텍스트 파일에는 ratelimit_readings_before 가 없다. 2026-09-12 이전 "
+              "드라이버가 만든 파일이라 제한기 쪽 전값을 아예 안 읽었다. "
+              "같은 run-id 로 before 를 다시 돌려 컨텍스트를 새로 만든 뒤 이 판을 다시 측정할 것.")
+        return 1
+
+    readings_after = ratelimit_readings(_actuator_text(context["actuator_base"]))
+    for axis_ok, axis_why in judge_ratelimit_axis(counts, readings_before, readings_after):
+        verdicts.append(axis_why)
+        if not axis_ok:
             ok = False
 
     result = {
@@ -413,8 +503,8 @@ def cmd_after(args) -> int:
         "counts": {str(k): v for k, v in counts.items()},
         "expected_total": context["expected_total"],
         "expected_pass": context["expected_pass"],
-        "ratelimit_recorded_before": recorded_before,
-        "ratelimit_recorded_after": recorded_after,
+        "ratelimit_readings_before": readings_before,
+        "ratelimit_readings_after": readings_after,
         "verdicts": verdicts,
         "valid": ok,
         # 🔴 "valid" 는 <그 판이 기대대로 나왔다> 는 뜻이다. 결과가 좋다는 뜻이 아니다.
@@ -430,7 +520,14 @@ def cmd_after(args) -> int:
     return 0 if ok else 1
 
 
-def main() -> int:
+def build_parser() -> argparse.ArgumentParser:
+    """인자 정의를 main 에서 떼어낸다. s3_check.py 가 <기본값>을 단언할 수 있게 하려는 것이다.
+
+    🔴 왜 기본값이 검사 대상인가: --headroom-ms 는 기본값 20000 으로 두고 실사용은 전부
+       60000 이었다(A·B·C 판 전부). 기본값과 실사용이 다르면 그 기본값은 거짓말이고,
+       다음 사람은 거짓말을 쓴다. 코드 안에 있는 값을 고쳐놓기만 하면 누가 되돌려도
+       아무 일이 안 나므로, 검사로 못박는다.
+    """
     parser = argparse.ArgumentParser(description="S3 시작 조건 · 판정")
     parser.add_argument("phase", choices=["before", "after"])
     parser.add_argument("--run-id", required=True)
@@ -443,9 +540,23 @@ def main() -> int:
     #    --limit 100000 을 <반드시> 함께 준다. 안 주면 판정이 조용히 틀린다.
     parser.add_argument("--limit", type=int, default=20,
                         help="WIDGET_CHAT_PER_MINUTE 로 띄운 값. 드라이버 값이라 직접 적어야 한다")
-    parser.add_argument("--headroom-ms", type=int, default=20_000)
+    # 🔴 기본값 60000 = 윈도우 하나를 통째로 비우는 값이다. A·B·C 판을 실제로 전부
+    #    이 값으로 돌렸다(핸드오프 2026-09-11-3 §3-④). 20000 이던 옛 기본값은
+    #    <아무도 쓰지 않는 값>이었고, 기본값과 실사용이 다르면 그 기본값은 거짓말이다.
+    #
+    #    위험은 "시간이 모자란다" 쪽이 아니다. 100건이 329ms 에 끝나므로 60배 여유다.
+    #    반대편이 진짜 위험이었다: cmd_before 는 가짜 키 사전 확인 요청 1건을 <먼저>
+    #    보내고 나서 경계 정렬을 한다. 여유가 20초면 그 1건과 같은 윈도우에서 k6 가
+    #    시작할 수 있고, 그러면 그 1건이 한도 20 중 하나를 먹어 통과분이 19건이 된다
+    #    = 제한기가 정확한데도 판정이 실패한다(거짓 실패).
+    #    60000 을 주면 항상 새 윈도우에서 시작하므로 그 1건이 카운터에서 빠진다.
+    parser.add_argument("--headroom-ms", type=int, default=60_000)
     parser.add_argument("--k6-summary")
-    args = parser.parse_args()
+    return parser
+
+
+def main() -> int:
+    args = build_parser().parse_args()
 
     if args.phase == "before":
         return cmd_before(args)
