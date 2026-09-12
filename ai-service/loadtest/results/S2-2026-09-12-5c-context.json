@@ -1,0 +1,90 @@
+{
+  "run_id": "2026-09-12-5c",
+  "commit": "b346c5cee9752a0bd3ff94ccbe5fb451ccf35684",
+  "started_at": "2026-09-12T15:49:26",
+  "api_base": "http://localhost:8080",
+  "ai_base": "http://localhost:8001",
+  "bot": {
+    "id": "628d2785-a128-486c-a1ac-556f19f06de3",
+    "name": "W2 검증 봇",
+    "document_count": 50
+  },
+  "corpus": {
+    "documents_ready": 50,
+    "chunks": 306
+  },
+  "settings": {
+    "reranker_enabled": true,
+    "hybrid_enabled": true,
+    "answerable_max_distance": 0.44,
+    "max_distance": 0.55,
+    "top_k": 5,
+    "chat_model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+    "embedding_model": "@cf/baai/bge-m3",
+    "reranker_model": "@cf/baai/bge-reranker-base",
+    "anyio_max_threads": 80,
+    "cf_base_url": "https://api.cloudflare.com/client/v4"
+  },
+  "fake_cf": {
+    "base_url": "http://127.0.0.1:9001",
+    "latency_ms": {
+      "embed": 235,
+      "rerank": 414,
+      "generate": 937
+    },
+    "vector_mode": "db",
+    "vector_bot_id": "628d2785-a128-486c-a1ac-556f19f06de3"
+  },
+  "warmup_models_called": {
+    "@cf/baai/bge-reranker-base": 1,
+    "@cf/meta/llama-3.3-70b-instruct-fp8-fast": 1,
+    "@cf/baai/bge-m3": 1
+  },
+  "expected_cf_calls_per_request": 3,
+  "cf_stats_before": {
+    "@cf/baai/bge-m3": 1,
+    "@cf/baai/bge-reranker-base": 1,
+    "@cf/meta/llama-3.3-70b-instruct-fp8-fast": 1
+  },
+  "runtime": {
+    "python": {
+      "metrics_url": "http://localhost:8001/internal/metrics",
+      "anyio_threads_total_measured": 80.0,
+      "anyio_threads_borrowed_at_start": 0.0,
+      "db_pool_max_measured": 10.0,
+      "db_pool_open_measured": 1.0,
+      "db_pool_timeout_seconds": 30,
+      "db_pool_max_waiting": 0,
+      "db_pool_params_source": "max_size 는 app/db.py:get_pool 이 명시(10). timeout 30초와 max_waiting 0(무제한)은 psycopg_pool 기본값이며 app/db.py 가 넘기지 않는다. PR #134 가 <일부러> 안 바꿨다: 한 번에 한 변수."
+    },
+    "spring": {
+      "metrics_url": "http://localhost:8081/actuator/prometheus",
+      "heap_max_bytes": 268435456.0,
+      "process_start_time_seconds": 1789195716.5,
+      "tomcat_max_threads": 200.0,
+      "circuit_state_at_start": 0.0,
+      "jvm_args": [
+        "-XX:MaxMetaspaceSize=128m",
+        "-XX:+ExitOnOutOfMemoryError",
+        "-Xms192m",
+        "-Xmx256m",
+        "-Dfile.encoding=UTF-8",
+        "-Duser.country=KR",
+        "-Duser.language=ko",
+        "-Duser.variant"
+      ]
+    }
+  },
+  "loadtest_email": "loadtest3@example.com",
+  "stages": [
+    1,
+    5,
+    10,
+    20,
+    40,
+    80,
+    160
+  ],
+  "hold_seconds": 120,
+  "warmup_discard_seconds": 20
+}

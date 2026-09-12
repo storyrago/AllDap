@@ -63,8 +63,17 @@ from pathlib import Path
 import httpx
 
 from .account import env_email, env_password
+from .promtext import parse_prom_counter
 
 RESULTS = Path(__file__).parent / "results"
+
+# 사다리. loadtest/s2_breakpoint.js 의 STAGES·HOLD_S 와 같아야 한다.
+# 🔴 2026-09-12 에 160 을 더했다. 근거는 s2_breakpoint.js 의 STAGES 주석에 있다
+#    (새 천장 예측 47.6 req/s 에 닿으려면 동시 요청 80건이 필요한데, 옛 사다리의
+#     마지막 칸이 그 벽과 정확히 겹친다).
+STAGES = [1, 5, 10, 20, 40, 80, 160]
+HOLD_SECONDS = 120
+WARMUP_DISCARD_SECONDS = 20
 
 
 def _context_path(run_id: str) -> Path:
@@ -235,6 +244,94 @@ def _assert_fake_cf(ai_base: str, bot_id: str) -> dict[str, int]:
     return _called_models(before, after)
 
 
+def _prom(url: str, name: str, labels: dict[str, str] | None = None) -> float | None:
+    """Prometheus 노출에서 값 하나. 못 읽으면 None, 값이 NaN·Inf 면 MetricUnreadable."""
+    try:
+        resp = httpx.get(url, timeout=10.0)
+        resp.raise_for_status()
+    except httpx.HTTPError:
+        return None
+    return parse_prom_counter(resp.text, name, labels or {})
+
+
+def _runtime_snapshot(ai_base: str, spring_metrics: str) -> dict:
+    """<측정 대상 프로세스들에게 물어본> 런타임 조건.
+
+    🔴 이 블록이 있는 이유가 이 판의 전부다. 이 판이 재려는 변수는 anyio 스레드 상한
+       하나이고, 그 값이 실제로 80 인지를 <설정값>으로 확인하면 아무것도 확인한 것이
+       아니다. app/metrics_check.py ⑤ 는 로컬 TestClient 의 lifespan 을 본 것이지
+       <요청을 처리하는 uvicorn>을 본 것이 아니다. 그걸 안 가르면
+       "80 으로 올리고 쟀다" 가 <틀린 문장으로 리포트에 남는다>.
+
+    🔴 그래서 설정값과 실측값을 <따로> 적는다. 한 칸에 합치면 어긋났다는 사실 자체가
+       사라진다. 이 저장소가 여덟 번 낸 부류(원인이 다른 사실을 같은 값으로 뭉개기)를
+       미리 막는 자리다.
+
+    Spring 쪽은 힙과 기동 시각을 적는다. 힙은 설계서 §5 가 "OOM 이면 결과, 그 외 사유면
+    오염" 으로 가르기로 한 축이고, 그 판정은 <힙이 실제로 제한돼 있었는가> 를 아는
+    상태에서만 성립한다(안 씌우면 기가 단위라 "안 말랐다" 가 아무 정보도 아니다).
+    """
+    py_metrics = f"{ai_base.rstrip('/')}/internal/metrics"
+    return {
+        "python": {
+            "metrics_url": py_metrics,
+            # 🔴 이것이 이 판의 유효성 장치 1번이다. 80 이 아니면 그 판은 폐기다.
+            "anyio_threads_total_measured": _prom(py_metrics, "alldap_anyio_threads_total"),
+            "anyio_threads_borrowed_at_start": _prom(py_metrics, "alldap_anyio_threads_borrowed"),
+            # psycopg 풀. before 의 병목 판정에 이 풀은 <아예 후보로 들어 있지 않았다>
+            # (후보가 Tomcat · Hikari · anyio 셋뿐이었고, hikaricp_* 는 Spring 의 풀이다).
+            # 스레드 80개가 커넥션 10개를 두고 경쟁하므로 이번에는 후보다.
+            "db_pool_max_measured": _prom(py_metrics, "alldap_db_pool_max"),
+            "db_pool_open_measured": _prom(py_metrics, "alldap_db_pool_open"),
+            # ⚠️ timeout·max_waiting 은 지표로 안 나온다. psycopg_pool 기본값이고
+            #    app/db.py 가 넘기지 않는다. 값을 <추측해서> 적지 않고 출처를 적는다.
+            "db_pool_timeout_seconds": 30,
+            "db_pool_max_waiting": 0,
+            "db_pool_params_source": (
+                "max_size 는 app/db.py:get_pool 이 명시(10). timeout 30초와 "
+                "max_waiting 0(무제한)은 psycopg_pool 기본값이며 app/db.py 가 넘기지 않는다. "
+                "PR #134 가 <일부러> 안 바꿨다: 한 번에 한 변수."
+            ),
+        },
+        "spring": {
+            "metrics_url": spring_metrics,
+            "heap_max_bytes": _prom(spring_metrics, "jvm_memory_max_bytes",
+                                    {"area": "heap", "id": "G1 Old Gen"}),
+            "process_start_time_seconds": _prom(spring_metrics, "process_start_time_seconds"),
+            "tomcat_max_threads": _prom(spring_metrics, "tomcat_threads_config_max_threads",
+                                        {"name": "http-nio-8080"}),
+            "circuit_state_at_start": _prom(spring_metrics, "alldap_ai_circuit_state"),
+            "jvm_args": _spring_jvm_args(),
+        },
+    }
+
+
+def _spring_jvm_args() -> list[str] | None:
+    """도는 Spring 프로세스의 JVM 플래그. ps 로 실제 명령줄을 읽는다.
+
+    🔴 build.gradle 을 읽어서 적으면 안 된다. -Ploadtest 는 옵트인이라, 플래그 없이 띄운
+       프로세스를 상대로도 "붙어 있다" 고 적게 된다. 실제로 파도 2 가 그 상태였다
+       (로컬 bootRun 에 -XX:+ExitOnOutOfMemoryError 가 없었다).
+       그 플래그가 없으면 설계서 §5 의 "OOM 이면 결과, 그 외 사유면 오염" 규칙이
+       <성립하지 않는다> - 힙이 말라도 JVM 이 안 죽으니 가를 사건 자체가 안 생긴다.
+
+    None 은 "못 읽었다" 다. 빈 목록("플래그가 없다")과 다른 사실이라 섞지 않는다.
+    """
+    try:
+        out = subprocess.run(["pgrep", "-f", "com.alldap.api.ApiApplication"],
+                             capture_output=True, text=True, timeout=10)
+        pids = [x for x in out.stdout.split() if x.isdigit()]
+        if not pids:
+            return None
+        cmd = subprocess.run(["ps", "-o", "command=", "-p", pids[0]],
+                             capture_output=True, text=True, timeout=10).stdout
+    except (subprocess.SubprocessError, OSError):
+        return None
+    if not cmd.strip():
+        return None
+    return [tok for tok in cmd.split() if tok.startswith("-X") or tok.startswith("-D")]
+
+
 def _pick_bot(bots: list[dict]) -> dict:
     """봇을 <규칙으로> 고른다. 사람이 고르면 다음 실행에서 다른 봇을 고를 수 있다.
 
@@ -274,6 +371,9 @@ def _settings_snapshot() -> dict:
         "chat_model": s.chat_model,
         "embedding_model": s.embedding_model,
         "reranker_model": s.reranker_model,
+        # 🔴 <드라이버 셸이 읽은 설정값>이다. 실측값은 runtime.python 에 따로 있다.
+        #    두 칸인 것이 요점이다: 어긋나면 그 판은 80 을 잰 것이 아니다.
+        "anyio_max_threads": s.anyio_max_threads,
         # 🔴 이 값들은 <드라이버 프로세스>가 읽은 것이지 요청을 처리한 uvicorn 의 것이 아니다.
         #    둘이 다른 환경변수로 떠 있으면 이 파일은 거짓 조건을 남긴다.
         #    특히 cf_base_url: 이건 <기록용>이지 판정 근거가 아니다.
@@ -334,6 +434,31 @@ def cmd_before(args) -> int:
             f"믿을 수 없다. 같은 환경변수로 uvicorn 을 다시 띄우고 다시 실행할 것."
         )
 
+    runtime = _runtime_snapshot(args.ai, args.spring_metrics)
+    measured = runtime["python"]["anyio_threads_total_measured"]
+    configured = settings["anyio_max_threads"]
+    print(f"anyio 스레드 상한: 드라이버 설정값 {configured} / 대상 프로세스 실측값 {measured}")
+    if measured is None:
+        raise SystemExit(
+            f"중단: {runtime['python']['metrics_url']} 에서 alldap_anyio_threads_total 을 "
+            f"읽지 못했다. 이 판의 변수가 바로 그 값이라, 못 읽은 채로 도는 것은 "
+            f"<무엇을 쟀는지 모르는 측정>을 하나 남기는 것뿐이다. "
+            f"uvicorn 이 {args.ai} 에 떠 있는지 확인할 것."
+        )
+    if measured != configured:
+        print(f"경고: 드라이버 설정값({configured})과 대상 프로세스 실측값({measured})이 다르다. "
+              f"아래 기록과 판정은 <실측값>을 따른다.")
+    # 🔴 절차가 아니라 코드가 막는다. "80 으로 돌리기로 했다" 를 사람이 기억하는 것으로
+    #    지키면 빠뜨려도 아무 일이 안 일어나고, 그 판은 <다른 값을 잰 채> 80 이라고 적힌다.
+    #    봇 소유권을 findByIdAndUserId 로 못박은 것과 같은 판단이다.
+    if args.expect_anyio_threads is not None and measured != args.expect_anyio_threads:
+        raise SystemExit(
+            f"중단: alldap_anyio_threads_total 실측값이 {measured} 인데 "
+            f"--expect-anyio-threads {args.expect_anyio_threads} 로 요구했다. "
+            f"이 판은 {args.expect_anyio_threads} 를 잰 것이 아니므로 폐기 대상이다. "
+            f"ANYIO_MAX_THREADS={args.expect_anyio_threads} 로 uvicorn 을 다시 띄울 것."
+        )
+
     context = {
         "run_id": args.run_id,
         "commit": subprocess.run(["git", "rev-parse", "HEAD"],
@@ -360,9 +485,13 @@ def cmd_before(args) -> int:
         # ⚠️ 워밍업 <뒤>의 값이다. 앞에서 찍으면 워밍업 3건이 사후 대조의 배수에 섞여
         #    "경로를 더 탔다" 로 읽힌다(요청 수에는 안 잡히므로 배수가 위로 튄다).
         "cf_stats_before": _cf_counts(args.ai),
-        "stages": [1, 5, 10, 20, 40, 80],
-        "hold_seconds": 120,
-        "warmup_discard_seconds": 20,
+        # 🔴 <측정 대상 프로세스들에게 물어본> 값. settings 블록(드라이버 셸)과 따로 둔다.
+        "runtime": runtime,
+        # 측정 계정. 🔴 이메일만 적는다. 비밀번호를 적으면 그 파일이 곧 커밋된 비밀번호다.
+        "loadtest_email": args.email,
+        "stages": STAGES,
+        "hold_seconds": HOLD_SECONDS,
+        "warmup_discard_seconds": WARMUP_DISCARD_SECONDS,
     }
 
     RESULTS.mkdir(exist_ok=True)
@@ -467,6 +596,11 @@ def main() -> int:
     parser.add_argument("--email", default=env_email())
     parser.add_argument("--password", default=env_password())
     parser.add_argument("--k6-summary")
+    parser.add_argument("--spring-metrics", default="http://localhost:8081/actuator/prometheus")
+    # 🔴 기본값을 두지 않는다. 기본 80 을 박으면 다른 상한을 재려는 판이 <조용히 막히고>,
+    #    기본 None 만 두면 아무도 안 넘겨 검사가 죽은 채로 남는다. 그래서 넘기게 한다.
+    parser.add_argument("--expect-anyio-threads", type=int, default=None,
+                        help="alldap_anyio_threads_total 실측값이 이 값이 아니면 중단한다")
     args = parser.parse_args()
 
     if args.phase == "before":
