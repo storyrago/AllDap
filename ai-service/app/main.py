@@ -97,6 +97,17 @@ async def lifespan(app: FastAPI):
 #    아무도 안 쓴 영어만 나란히 선다. "빈칸이 아니라 그럴듯한 값" 이라 눈으로는
 #    못 잡는다 = 검사가 필요하다 (app/openapi_check.py).
 #
+# 🔴 각 경로의 docstring 첫 줄에 있는 `\f` 는 오타가 아니다. <지우지 말 것.>
+#    FastAPI 는 docstring 을 API 설명(description)으로 자동으로 쓰는데, `\f`(form feed)
+#    뒤는 문서에서 잘라낸다. 즉 <docstring 을 지운 것이 아니라 렌더링만 끈 것>이고
+#    내용은 코드에 그대로 남아 있다(`함수.__doc__` 로 확인된다).
+#
+#    왜 껐나: 이 저장소는 "왜 그렇게 돼 있는가" 를 코드 주석에 길게 남기는 습관이 있는데,
+#    그게 두 스택에서 <비대칭>으로 나타났다. springdoc 은 Javadoc 을 읽지 않아
+#    Spring 쪽 긴 주석이 화면에 하나도 안 나온다. FastAPI 는 읽는다.
+#    그래서 같은 습관이 한쪽에서는 안 보이고 이쪽에서만 전부 쏟아져,
+#    /docs 를 나란히 놓으면 Python 쪽만 난잡했다. 화면에 남기는 것은 `summary` 한 줄이다.
+#
 # 왜 태그를 나누는가: 태그가 없으면 /docs 에서 16개가 전부 `default` 한 덩어리로
 # 나와 `/health` 와 `/internal/chat` 이 한 줄에 나란히 선다. 즉 <어디까지가 제품
 # 기능이고 어디부터가 운영 도구인지>가 화면에서 사라진다.
@@ -126,18 +137,19 @@ OPENAPI_TAGS = [
 ]
 
 API_DESCRIPTION = """\
-🔴 **이 서비스는 내부망 전용이다. 절대 외부에 노출하지 말 것.**
+문서를 올리면 출처가 표시되는 한국어 RAG 챗봇 서비스의 AI 서비스 API.
+파싱·청킹·임베딩·검색·생성·평가를 담당합니다.
 
-`/internal/*` 에는 **인증이 없다.** 요청이 여기까지 닿았다는 것 자체가
-"앞단에서 이미 확인이 끝났다" 는 전제이고, 그 전제가 깨지면 봇 사이의
-데이터 격리가 통째로 무너진다. 실제 방어선은 두 가지뿐이다.
+이 서비스는 내부망 전용이고 /internal/* 에는 인증이 없습니다. 절대 외부에 노출하지 마세요.
+요청이 여기까지 닿았다는 것 자체가 앞단에서 확인이 끝났다는 전제이고,
+그 전제가 깨지면 봇 사이의 데이터 격리가 통째로 무너집니다.
+실제 방어선은 두 가지뿐입니다. 배포에서 이 서비스에 포트를 열지 않는 것,
+그리고 경로마다 bot_id 를 받아 조회 조건에 못박는 것입니다.
 
-- 배포에서 이 서비스에 포트를 열지 않는다 (compose 가 `ports:` 를 쓰지 않는다).
-- 경로마다 `bot_id` 를 받아 조회 조건에 못박는다 (검사가 아니라 `WHERE` 절이다).
+외부에 노출되는 API 는 Spring(:8080) 하나뿐입니다.
+인증·권한·대화 로그 저장은 Spring 이 맡고, 사용자에게 보이는 문구 치환(예: fallback 메시지)도 Spring 의 몫입니다.
 
-**외부에 노출되는 API 는 Spring(:8080) 하나뿐이다.** 인증·권한·대화 로그 저장은
-전부 Spring 이 맡고, 이 서비스는 AI 작업(파싱·임베딩·검색·생성·평가)만 한다.
-사용자에게 보이는 문구 치환(예: fallback 메시지)도 Spring 의 몫이다.
+이 문서는 로컬에서만 열립니다(운영에서는 생성 자체를 끕니다).
 """
 
 def _docs_kwargs() -> dict:
@@ -190,7 +202,8 @@ app = FastAPI(
 
 @app.get("/health", tags=["운영"], summary="헬스체크 (DB 포함)")
 def health() -> dict:
-    """이 서비스가 살아 있는지 본다. DB 까지 확인한다.
+    """\f
+    이 서비스가 살아 있는지 본다. DB 까지 확인한다.
 
     프로세스가 응답하는 것만으로는 부족해서 커넥션을 하나 빌려 `SELECT 1` 을 던진다.
     이 서비스가 하는 일이 전부 DB 를 거치므로(청크 조회·문서 상태 갱신),
@@ -208,7 +221,8 @@ def health() -> dict:
     summary="Cloudflare 호출 통계 (모델별 뉴런·지연)",
 )
 def cf_stats() -> dict:
-    """모델별 Cloudflare 호출 수·뉴런·지연 백분위. 부하테스트 S1 이 읽는다.
+    """\f
+    모델별 Cloudflare 호출 수·뉴런·지연 백분위. 부하테스트 S1 이 읽는다.
 
     🔴 이 값은 <이 프로세스가 시작된 뒤>의 누적이다. 측정 구간을 나누려면
        프로세스를 다시 띄운다. 리셋 API 를 안 두는 이유는 cf._latencies 주석에 있다.
@@ -234,7 +248,8 @@ def cf_stats() -> dict:
     summary="이 프로세스가 보는 Cloudflare 주소",
 )
 def cf_config() -> dict:
-    """이 프로세스가 <실제로 어느 Cloudflare 주소를 보고 있는지>. 부하테스트가 읽는다.
+    """\f
+    이 프로세스가 <실제로 어느 Cloudflare 주소를 보고 있는지>. 부하테스트가 읽는다.
 
     🔴 왜 필요한가: 부하테스트 드라이버는 자기 셸의 CF_BASE_URL 밖에 모른다.
        요청을 처리하는 것은 uvicorn 이고 둘은 다른 환경변수로 떠 있을 수 있다
@@ -249,7 +264,8 @@ def cf_config() -> dict:
 
 @app.get("/internal/metrics", tags=["운영"], summary="Prometheus 지표")
 async def prometheus_metrics() -> Response:
-    """Prometheus 스크레이프 엔드포인트. 부하테스트 S2 가 읽는다.
+    """\f
+    Prometheus 스크레이프 엔드포인트. 부하테스트 S2 가 읽는다.
 
     🔴 <async def 여야 한다.> metrics.render() 안의 anyio limiter 조회는 이벤트 루프
        스레드에서만 되고, `def` 로 두면 FastAPI 가 워커 스레드로 넘겨 NoEventLoopError 로
@@ -337,7 +353,8 @@ async def upload_document(
     background: BackgroundTasks,
     file: UploadFile = File(...),
 ) -> DocumentOut:
-    """문서 1건을 받아 `documents` 행만 만들고 202 로 즉시 답한다. 처리는 백그라운드다.
+    """\f
+    문서 1건을 받아 `documents` 행만 만들고 202 로 즉시 답한다. 처리는 백그라운드다.
 
     🔴 <b>왜 202 인가:</b> 파싱·청킹까지는 빠르지만 임베딩은 외부 API 호출이라
     수십 초가 걸릴 수 있다. 그 시간을 HTTP 요청 안에서 기다리면 Spring 쪽 타임아웃에
@@ -391,7 +408,8 @@ async def upload_document(
     summary="문서 목록 조회",
 )
 def list_documents(bot_id: UUID) -> list[DocumentOut]:
-    """봇 하나의 문서 목록을 최신순으로 준다. 업로드 진행 상황을 보는 창이다.
+    """\f
+    봇 하나의 문서 목록을 최신순으로 준다. 업로드 진행 상황을 보는 창이다.
 
     업로드가 202 로 끝나므로(`upload_document`) 처리 결과를 알 방법이 이것뿐이다.
     프론트가 이 목록을 폴링하다가 `ready` 나 `failed` 를 보면 멈춘다.
@@ -434,7 +452,8 @@ def list_documents(bot_id: UUID) -> list[DocumentOut]:
     summary="문서 삭제",
 )
 def delete_document(bot_id: UUID, doc_id: UUID) -> None:
-    """문서 1건을 지운다. 청크는 CASCADE 로 함께 사라진다.
+    """\f
+    문서 1건을 지운다. 청크는 CASCADE 로 함께 사라진다.
 
     🔴 <b>경로에 bot_id 가 반드시 있어야 한다.</b> `/internal/*` 에는 인증이 없어서
     doc_id 만으로 DELETE 하면 <남의 봇 문서를 통째로 지울 수 있다.> 그리고 이건
@@ -464,7 +483,8 @@ def delete_document(bot_id: UUID, doc_id: UUID) -> None:
     summary="질문에 답한다 (검색 + 생성)",
 )
 def chat(req: ChatRequest) -> ChatResponse:
-    """질문 하나를 받아 문서에서 근거를 찾고 답변을 만든다. 이 제품의 핵심 경로다.
+    """\f
+    질문 하나를 받아 문서에서 근거를 찾고 답변을 만든다. 이 제품의 핵심 경로다.
 
     흐름: 질문 임베딩 → pgvector 유사도 검색 → 근거 판정 → (근거가 있으면) LLM 호출.
 
@@ -556,7 +576,8 @@ def chat(req: ChatRequest) -> ChatResponse:
 def generate_eval_questions(
     bot_id: UUID, req: GenerateQuestionsRequest
 ) -> list[EvalQuestionOut]:
-    """문서 청크에서 테스트 질문·정답 쌍을 만들어 저장한다.
+    """\f
+    문서 청크에서 테스트 질문·정답 쌍을 만들어 저장한다.
 
     왜 <동기>인가 (업로드는 202 인데)
     ─────────────────────────────────────────────────────────────────────
@@ -636,7 +657,8 @@ def generate_eval_questions(
     summary="테스트 질문 목록 조회",
 )
 def list_eval_questions(bot_id: UUID) -> list[EvalQuestionOut]:
-    """테스트 질문 목록. 비활성(is_active=false) 도 함께 준다 — 화면에서 켜고 꺼야 하기 때문."""
+    """\f
+    테스트 질문 목록. 비활성(is_active=false) 도 함께 준다. 화면에서 켜고 꺼야 하기 때문."""
     with cursor() as cur:
         cur.execute(
             """SELECT id, question, ground_truth, source_chunk_id, is_active, created_at
@@ -662,7 +684,8 @@ def list_eval_questions(bot_id: UUID) -> list[EvalQuestionOut]:
 def update_eval_question(
     bot_id: UUID, question_id: UUID, req: UpdateEvalQuestionRequest
 ) -> EvalQuestionOut:
-    """테스트 질문 1건을 고친다. 보낸 필드만 바꾼다.
+    """\f
+    테스트 질문 1건을 고친다. 보낸 필드만 바꾼다.
 
     <b>왜 Spring 이 직접 UPDATE 하지 않고 여기로 오는가.</b>
     `eval_*` 는 <Python 소유> 테이블이다(AGENTS.md 소유권 표). 읽기는 Spring 이 직접 해도 되지만
@@ -713,7 +736,8 @@ def update_eval_question(
     summary="평가 실행 시작 (비동기)",
 )
 def start_eval_run(bot_id: UUID, background: BackgroundTasks) -> EvalRunOut:
-    """평가를 시작한다. 즉시 running 상태의 실행을 돌려주고 채점은 백그라운드에서 진행한다.
+    """\f
+    평가를 시작한다. 즉시 running 상태의 실행을 돌려주고 채점은 백그라운드에서 진행한다.
 
     왜 <비동기>인가 — 질문 생성(/eval/questions/generate)은 동기인데
     ─────────────────────────────────────────────────────────────────────
@@ -755,7 +779,8 @@ def start_eval_run(bot_id: UUID, background: BackgroundTasks) -> EvalRunOut:
     summary="평가 실행 이력 조회",
 )
 def list_eval_runs(bot_id: UUID) -> list[EvalRunOut]:
-    """실행 이력. 최신순.
+    """\f
+    실행 이력. 최신순.
 
     화면은 이 목록을 폴링해 status 가 completed 로 바뀌는 걸 본다.
     W4 의 before/after 비교표도 이 목록에서 두 실행을 골라 만든다 — config 가 그 축이다.
@@ -789,7 +814,8 @@ def list_eval_runs(bot_id: UUID) -> list[EvalRunOut]:
     summary="문서 충돌 진단 실행",
 )
 def scan_conflicts(bot_id: UUID) -> ConflictScanOut:
-    """문서끼리 어긋나는 곳을 훑는다.
+    """\f
+    문서끼리 어긋나는 곳을 훑는다.
 
     왜 <동기>인가 (평가 실행은 202 인데)
     ─────────────────────────────────────────────────────────────────────
@@ -816,7 +842,8 @@ def scan_conflicts(bot_id: UUID) -> ConflictScanOut:
     summary="문서 충돌 목록 조회",
 )
 def list_conflicts(bot_id: UUID, status: str = "open") -> list[ConflictOut]:
-    """충돌 목록. 기본은 관리자가 아직 안 본 것(open)만.
+    """\f
+    충돌 목록. 기본은 관리자가 아직 안 본 것(open)만.
 
     ⚠️ bot_id 로 반드시 좁힌다. /internal/* 에는 인증이 없어서
        이 조건 하나가 봇 간 격리의 전부다.
@@ -862,7 +889,8 @@ def list_conflicts(bot_id: UUID, status: str = "open") -> list[ConflictOut]:
 def update_conflict_status(
     bot_id: UUID, conflict_id: UUID, req: ConflictStatusRequest
 ) -> ConflictOut:
-    """충돌 1건의 상태를 바꾼다 (주로 오탐을 'ignored' 로 치우는 용도).
+    """\f
+    충돌 1건의 상태를 바꾼다 (주로 오탐을 'ignored' 로 치우는 용도).
 
     🔴 경로에 bot_id 가 <반드시> 있어야 한다.
        conflict_id 만 받으면 Spring 이 "이게 누구 봇의 것인지" 를 알 수 없어

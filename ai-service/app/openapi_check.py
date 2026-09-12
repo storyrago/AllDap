@@ -1,4 +1,4 @@
-"""생성된 OpenAPI 명세에 <빈칸>이 없는지 검사한다. DB 도 외부 API 도 없이 돈다.
+"""OpenAPI 명세와 라우트에 <빈칸>이 없는지 검사한다. DB 도 외부 API 도 없이 돈다.
 
 실행:
     cd ai-service && .venv/bin/python -m app.openapi_check
@@ -25,20 +25,48 @@ FastAPI 는 `summary` 를 <항상 자동으로 채우기> 때문이다:
 **돌기는 도는데 걸릴 수가 없는 검사**였다. 이 저장소가 이미 두 번 겪은 부류
 (오픈 리다이렉트 · 배포 rate limit 점검)에서 한 걸음 더 나간 것이다.
 
-→ 그래서 둘을 <따로> 요구한다. "둘 중 하나만 있어도 되지 않나" 로 되돌리지 말 것.
+→ 그래서 `summary` 와 설명을 <따로> 요구한다. "둘 중 하나만 있어도 되지 않나" 로
+  되돌리지 말 것.
+
+🔴 그 다음, 설명 검사의 <대상>이 명세에서 코드로 옮겨갔다 (`\f`)
+─────────────────────────────────────────────────────────────────────────────
+FastAPI 는 함수 docstring 을 <자동으로> API `description` 에 싣는다. 그래서 코드에
+남긴 긴 근거(이모지·코드 서식 포함)가 /docs 화면에 그대로 쏟아져 난잡해졌다.
+springdoc 은 Javadoc 을 읽지 않으므로 Spring 화면에는 그런 산문이 없다. 두 화면의
+결이 달라진 것이다.
+
+**docstring 을 지우는 것이 아니라 렌더링만 끈다.** FastAPI 가 공식 지원하는
+`\f`(form feed)를 docstring 맨 앞에 넣으면 그 뒤가 문서에서 잘린다:
+
+    fastapi/routing.py:531-534
+        self.description = description or cleandoc(self.endpoint.__doc__ or "")
+        self.description = self.description.split("\f")[0].strip()   # ← 앞부분만 남는다
+
+코드에는 그대로 남고 명세에서만 사라진다. 그래서 검사도 <보는 곳>을 옮겼다.
+
+    ① "명세에 description 이 있는가" → "함수에 docstring 이 있는가"(`__doc__`)
+    ② 그리고 반대로 "명세에 description 이 <없는가>" 를 새로 요구한다.
+
+②를 두는 이유는 `\f` 를 빠뜨려도 <아무 일도 안 일어나기> 때문이다. 화면은 멀쩡히
+뜨고 어떤 검사도 안 걸리며, 방금 정리한 난잡함이 조용히 되돌아온다.
+⚠️ **②는 설명이 나빠서 막는 것이 아니라 Spring 화면과 결을 맞추려는 것이다.**
+   "이 엔드포인트만은 화면에 설명을 넣고 싶다" 가 정말로 생기면, 이 문단을 근거로
+   ②를 고치면 된다. 판단이 갈릴 수 있는 자리라 근거를 여기 남긴다.
 
 무엇을 검사하나
 ─────────────────────────────────────────────────────────────────────────────
-① `description` 이 비어 있지 않다. 함수 docstring 이 이 자리로 온다.
-② `summary` 가 <자동 생성값이 아니다>. 판정은 `함수이름.replace("_", " ").title()`
+① 모든 엔드포인트 함수에 <알맹이 있는> docstring 이 있다.
+   ⚠️ `\f` 와 공백을 걷어낸 뒤 남는 것으로 판정한다. 안 그러면 `\"\"\"\f\"\"\"` 로
+      검사를 통과시킬 수 있고, 그건 위에 적은 "걸릴 수 없는 검사" 와 같은 구멍이다.
+② 명세에 `description` 이 없다(= `\f` 를 빠뜨리지 않았다).
+③ `summary` 가 <자동 생성값이 아니다>. 판정은 `함수이름.replace("_", " ").title()`
    과 같은지 보는 것이다. 같으면 아무도 손으로 쓰지 않았다는 뜻이다.
    ⚠️ 이 판정은 명세만 봐서는 할 수 없다. 명세에는 함수 이름이 없다. 그래서
-      `app.routes` 의 APIRoute 에서 (경로, 메서드) -> `route.name` 을 만들어 짝짓는다.
-      명세 쪽을 읽는 이유는 그것이 <실제로 화면에 그려지는 값>이기 때문이다.
-③ 모든 엔드포인트에 `tags` 가 있고, 그 값이 앱에 선언된 태그 이름 안에 있다.
+      `app.routes` 의 APIRoute 에서 (경로, 메서드) -> route 를 만들어 짝짓는다.
+④ 모든 엔드포인트에 `tags` 가 있고, 그 값이 앱에 선언된 태그 이름 안에 있다.
    오타로 "문서 " 처럼 적으면 Swagger 에 <새 그룹이 조용히 하나 더> 생긴다.
    화면은 멀쩡해 보이는데 분류가 깨진다.
-④ 선언해놓고 아무도 안 쓰는 태그가 없다. ③의 반대 방향이다. 엔드포인트가 하나도
+⑤ 선언해놓고 아무도 안 쓰는 태그가 없다. ④의 반대 방향이다. 엔드포인트가 하나도
    안 붙은 태그는 화면에 나오지 않으므로, 설명을 써두고도 안 보이는 상태가 된다.
 
 ⚠️ 태그 이름을 여기에 하드코딩하지 않는다. 명세의 tags 절에서 읽어와 대조한다.
@@ -71,19 +99,25 @@ def check(name: str, ok: bool, detail: str = "") -> None:
         _failures.append(name)
 
 
-def _auto_summaries() -> dict[tuple[str, str], str]:
-    """(경로, 메서드) -> FastAPI 가 <자동으로 만들> summary.
-
-    명세에 찍힌 summary 가 이 값과 같으면 아무도 손으로 쓰지 않은 것이다.
-    규칙은 fastapi/openapi/utils.py 의 generate_operation_summary 와 같다.
-    """
-    out: dict[tuple[str, str], str] = {}
+def _route_map() -> dict[tuple[str, str], APIRoute]:
+    """(경로, 메서드) -> 라우트. 명세에 없는 것(함수 이름·docstring)을 보려고 만든다."""
+    out: dict[tuple[str, str], APIRoute] = {}
     for route in app.routes:
         if not isinstance(route, APIRoute):
             continue
         for method in route.methods:
-            out[(route.path, method.upper())] = route.name.replace("_", " ").title()
+            out[(route.path, method.upper())] = route
     return out
+
+
+def _auto_summary(route: APIRoute) -> str:
+    """FastAPI 가 <자동으로 만들> summary. 규칙은 generate_operation_summary 와 같다."""
+    return route.name.replace("_", " ").title()
+
+
+def _doc_body(route: APIRoute) -> str:
+    """docstring 에서 `\\f` 와 공백을 걷어낸 알맹이."""
+    return (route.endpoint.__doc__ or "").replace("\f", "").strip()
 
 
 def main() -> int:
@@ -103,35 +137,40 @@ def main() -> int:
     print(f"  ..   엔드포인트 {len(ops)}개\n")
     check("엔드포인트가 하나 이상 있다", bool(ops))
 
-    auto = _auto_summaries()
+    routes = _route_map()
 
-    # ① description (docstring 이 오는 자리)
-    no_desc = [f"{m} {p}" for p, m, op in ops if not (op.get("description") or "").strip()]
-    check(f"description 이 전부 있다 ({len(ops) - len(no_desc)}/{len(ops)})", not no_desc)
-    for one in no_desc:
-        print(f"       description 없음(함수 docstring 을 쓸 것): {one}")
-
-    # ② summary 가 자동 생성값이 아닌가.
-    #    🔴 "비었는가" 로는 절대 잡히지 않는다. 위 docstring 의 설명 참고.
-    #    짝을 못 찾은 경우도 실패로 센다. 판정을 <하지 못한 것>이지 통과가 아니다.
-    auto_summary: list[str] = []
-    unpaired: list[str] = []
-    for p, m, op in ops:
-        expected = auto.get((p, m))
-        if expected is None:
-            unpaired.append(f"{m} {p}")
-            continue
-        if (op.get("summary") or "").strip() == expected:
-            auto_summary.append(f"{m} {p} -> {expected!r}")
-    check(f"summary 가 손으로 쓰인 것이다 ({len(ops) - len(auto_summary) - len(unpaired)}/{len(ops)})",
-          not auto_summary)
-    for one in auto_summary:
-        print(f"       summary 가 함수 이름에서 자동 생성된 값이다: {one}")
+    # 짝을 못 찾으면 ①·③ 을 <판정하지 못한 것>이다. 통과가 아니므로 먼저 갈라낸다.
+    unpaired = [f"{m} {p}" for p, m, _ in ops if (p, m) not in routes]
     check("모든 엔드포인트를 라우트와 짝지었다", not unpaired)
     for one in unpaired:
-        print(f"       라우트를 못 찾아 summary 판정을 못 했다: {one}")
+        print(f"       라우트를 못 찾아 설명·summary 판정을 못 했다: {one}")
+    paired = [(p, m, op, routes[(p, m)]) for p, m, op in ops if (p, m) in routes]
 
-    # ③ 태그. <없는 것>과 <선언 밖의 것>을 따로 센다. 원인이 다르다:
+    # ① 함수 docstring 이 있는가. <명세가 아니라 코드>를 본다(`\f` 때문. 위 설명 참고).
+    no_doc = [f"{m} {p}" for p, m, _, r in paired if not _doc_body(r)]
+    check(f"함수 docstring 이 전부 있다 ({len(paired) - len(no_doc)}/{len(paired)})", not no_doc)
+    for one in no_doc:
+        print(f"       docstring 이 없거나 알맹이가 없다: {one}")
+
+    # ② 명세에는 description 이 없어야 한다 (= docstring 맨 앞에 `\f` 를 넣었다).
+    #    ⚠️ 설명이 나빠서가 아니라 Spring 화면과 결을 맞추려는 것이다. 위 문단 참고.
+    rendered = [f"{m} {p}" for p, m, op, _ in paired if (op.get("description") or "").strip()]
+    check(f"docstring 이 화면에 안 새어나온다 (`\\f` 누락 {len(rendered)}건)", not rendered)
+    for one in rendered:
+        print(f"       docstring 맨 앞에 `\\f` 를 넣을 것(화면이 난잡해진다): {one}")
+
+    # ③ summary 가 자동 생성값이 아닌가.
+    #    🔴 "비었는가" 로는 절대 잡히지 않는다. 위 docstring 의 설명 참고.
+    auto = [
+        f"{m} {p} -> {_auto_summary(r)!r}"
+        for p, m, op, r in paired
+        if (op.get("summary") or "").strip() == _auto_summary(r)
+    ]
+    check(f"summary 가 손으로 쓰인 것이다 ({len(paired) - len(auto)}/{len(paired)})", not auto)
+    for one in auto:
+        print(f"       summary 가 함수 이름에서 자동 생성된 값이다: {one}")
+
+    # ④ 태그. <없는 것>과 <선언 밖의 것>을 따로 센다. 원인이 다르다:
     #    전자는 빠뜨린 것이고 후자는 오타이거나 선언을 안 한 것이다.
     no_tag = [f"{m} {p}" for p, m, op in ops if not op.get("tags")]
     unknown = [
@@ -145,7 +184,7 @@ def main() -> int:
     for one, tag in unknown:
         print(f"       선언에 없는 태그: {one} -> {tag!r}")
 
-    # ④ 선언만 되고 아무도 안 쓰는 태그
+    # ⑤ 선언만 되고 아무도 안 쓰는 태그
     used = {tag for _, _, op in ops for tag in op.get("tags", [])}
     unused = [t for t in declared if t not in used]
     check("선언된 태그가 전부 쓰인다", not unused)
