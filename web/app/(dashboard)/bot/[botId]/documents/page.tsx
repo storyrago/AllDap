@@ -22,24 +22,28 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { ApiError, api } from "@/lib/api";
-import type { DocumentItem, DocumentStatus } from "@/lib/types";
+import { parseId } from "@/lib/ids";
+import type { DocumentItem, DocumentStatus, Id } from "@/lib/types";
 import { PageHeader } from "@/components/PageHeader";
 
 /** 아직 처리 중인 상태들. 이 중 하나라도 있으면 폴링을 계속한다. */
 const IN_PROGRESS: DocumentStatus[] = ["pending", "processing"];
 
 export default function DocumentsPage() {
-  const { botId } = useParams<{ botId: string }>();
+  /* useParams() 가 주는 값은 URL 조각이라 언제나 <문자열>이다.
+     기본키가 BIGINT 가 된 뒤로는 숫자로 바꿔야 하고, 형식 검사도 거기서 한다. */
+  const { botId: rawBotId } = useParams<{ botId: string }>();
+  const botId = parseId(rawBotId);
 
   const [documents, setDocuments] = useState<DocumentItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   /* 삭제 확인을 기다리는 항목. window.confirm 을 대신한다(handleDelete 주석 참고). */
-  const [armedId, setArmedId] = useState<string | null>(null);
+  const [armedId, setArmedId] = useState<Id | null>(null);
   /* 지금 지우는 중인 항목. 버튼을 잠가 <같은 문서를 두 번 지우는 요청>을 막는다.
      이게 없어서 실제로 1초 간격 중복 DELETE 가 서버 로그에 찍혔다. */
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<Id | null>(null);
 
   /*
    * useRef 로 <input type="file"> 을 직접 붙잡는 이유.
@@ -133,7 +137,7 @@ export default function DocumentsPage() {
    *   1번째 → armed(이 항목만) · 버튼이 "정말 삭제"로 바뀐다
    *   2번째 → 실제 삭제 · 버튼이 "삭제 중…" 으로 잠긴다
    */
-  async function handleDelete(documentId: string) {
+  async function handleDelete(documentId: Id) {
     if (armedId !== documentId) {
       setArmedId(documentId);
       return;

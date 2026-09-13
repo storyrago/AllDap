@@ -26,6 +26,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import { parseId } from "@/lib/ids";
 import Link from "next/link";
 import { API_BASE_URL, ApiError, api } from "@/lib/api";
 import type { Bot } from "@/lib/types";
@@ -34,7 +35,10 @@ import { Section, TextArea } from "@/components/Form";
 import { Toggle } from "@/components/Toggle";
 
 export default function ExportPage() {
-  const { botId } = useParams<{ botId: string }>();
+  /* useParams() 가 주는 값은 URL 조각이라 언제나 <문자열>이다.
+     기본키가 BIGINT 가 된 뒤로는 숫자로 바꿔야 하고, 형식 검사도 거기서 한다. */
+  const { botId: rawBotId } = useParams<{ botId: string }>();
+  const botId = parseId(rawBotId);
 
   const [bot, setBot] = useState<Bot | null>(null);
   /* 문서는 "준비됐나" 판단에만 쓴다. 목록을 그리지 않으므로 개수만 들고 있는다. */

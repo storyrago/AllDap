@@ -42,8 +42,18 @@ export interface ApiErrorBody {
   };
 }
 
-/** UUID 는 문자열로 온다. 그냥 string 보다 의도가 드러나게 별칭을 둔다. */
-export type Uuid = string;
+/**
+ * 기본키는 BIGINT 순번이라 JSON 에 <숫자>로 온다 (2026-09-13 전환).
+ *
+ * 왜 `number` 인가:
+ *   Spring 의 `Long` 은 Jackson 이 JSON 숫자로 직렬화한다. 프론트가 문자열로 받아두면
+ *   `id === 1` 이 거짓이 되는 자리가 생겨, 타입은 통과하는데 화면만 조용히 틀린다.
+ *
+ * ⚠️ JS 의 number 는 2^53 까지만 정확하다. BIGINT 의 상한(2^63)보다 작지만,
+ *    9,007조 개의 행이 쌓이기 전에는 문제가 되지 않는다.
+ *    그 규모가 현실이 되면 서버가 id 를 문자열로 내려주도록 바꿔야 한다.
+ */
+export type Id = number;
 
 /** TIMESTAMPTZ → ISO-8601 문자열 (예: "2026-07-31T02:11:00Z") */
 export type IsoDateTime = string;
@@ -51,7 +61,7 @@ export type IsoDateTime = string;
 /* ───────────────────────── 인증 (F-08) ───────────────────────── */
 
 export interface User {
-  id: Uuid;
+  id: Id;
   email: string;
   name: string | null;
   createdAt: IsoDateTime;
@@ -68,7 +78,7 @@ export interface AuthResponse {
 
 /** bots 테이블(api/src/main/resources/db/migration/V1__init.sql) 과 1:1 대응 */
 export interface Bot {
-  id: Uuid;
+  id: Id;
   name: string;
   /** 위젯 공개 주소 /w/[publicKey] 에 쓰이는 키. 예: "pk_local_dev" */
   publicKey: string;
@@ -143,7 +153,7 @@ export type DocumentStatus = "pending" | "processing" | "ready" | "failed";
 
 /** Python DocumentOut 을 Spring 이 camelCase 로 바꿔 내려준 형태 */
 export interface DocumentItem {
-  id: Uuid;
+  id: Id;
   filename: string;
   /** pdf | docx | hwpx | txt | md (구버전 .hwp 는 미지원) */
   fileType: string;
@@ -166,8 +176,8 @@ export interface DocumentItem {
 
 /** 답변의 근거가 된 청크 하나 */
 export interface Source {
-  chunkId: Uuid;
-  documentId: Uuid;
+  chunkId: Id;
+  documentId: Id;
   filename: string;
   /** 0~1. 1에 가까울수록 관련성 높음 (1 - 코사인거리) */
   score: number;
@@ -191,7 +201,7 @@ export interface ChatResponse {
    * Python 은 이 값을 모르고, messages 행을 만드는 건 Spring 이므로 Spring 이 붙여준다
    * (api 의 ChatResponse 에 `UUID messageId` 가 들어 있다).
    */
-  messageId?: Uuid;
+  messageId?: Id;
 }
 
 /** POST /api/bots/{botId}/chat 요청 본문 */
@@ -211,7 +221,7 @@ export type MessageRole = "user" | "assistant";
 export type Feedback = 1 | -1 | null;
 
 export interface ChatMessage {
-  id: Uuid;
+  id: Id;
   role: MessageRole;
   content: string;
   /** role === "assistant" 일 때만 값이 있다 */
@@ -224,7 +234,7 @@ export interface ChatMessage {
 
 /** conversations 한 건. 로그 목록에서 한 줄로 보여줄 요약. */
 export interface ConversationSummary {
-  id: Uuid;
+  id: Id;
   sessionId: string;
   /** widget = 실제 엔드유저 / test = 관리자 테스트 채팅 */
   channel: "widget" | "test";
@@ -273,12 +283,12 @@ export interface Paged<T> {
 
 /** 테스트 질문 1건 (eval_questions) */
 export interface EvalQuestion {
-  id: Uuid;
+  id: Id;
   question: string;
   /** 문서 청크에서 뽑아낸 기대 답변 */
   groundTruth: string;
   /** 이 질문이 어느 청크에서 생성됐는지 */
-  sourceChunkId: Uuid | null;
+  sourceChunkId: Id | null;
   /** false 면 평가 실행에서 제외된다 (관리자가 끌 수 있음) */
   isActive: boolean;
   createdAt: IsoDateTime;
@@ -313,7 +323,7 @@ export type EvalRunStatus = "running" | "completed" | "partial" | "failed";
 
 /** 평가 실행 1회 (eval_runs) */
 export interface EvalRun {
-  id: Uuid;
+  id: Id;
   config: EvalConfig | null;
   /** 충실성: 답이 근거 문서와 일치하는가 (0~1) */
   avgFaithfulness: number | null;
@@ -351,7 +361,7 @@ export interface EvalRun {
  *    "왜 여기만 preview 가 비지?" 를 계속 묻게 된다.
  */
 export interface EvalRetrievedChunk {
-  chunkId: Uuid;
+  chunkId: Id;
   filename: string;
   /** 0~1. 1에 가까울수록 관련성 높음 */
   score: number | null;
@@ -365,8 +375,8 @@ export interface EvalRetrievedChunk {
  *    화면은 이 둘을 "—" 처럼 <점수가 아닌 표시>로 그려야 한다. 0 으로 그리면 거짓말이 된다.
  */
 export interface EvalResult {
-  id: Uuid;
-  questionId: Uuid;
+  id: Id;
+  questionId: Id;
   question: string;
   /** 질문 생성 시 함께 만든 기대 답변 */
   groundTruth: string;
@@ -448,7 +458,7 @@ export interface WidgetConfig {
  * 없어도 화면이 성립한다. 서버가 null 을 줄 수 있다.
  */
 export interface Conflict {
-  id: Uuid;
+  id: Id;
   /** 무엇에 대한 충돌인가 — 예: "노트북 교체 주기" */
   topic: string;
   /** 문서 A 의 주장 — 예: "3년" */
@@ -539,7 +549,7 @@ export interface PlanResponse {
  */
 export interface BillingCard {
   /** 삭제·기본 지정 때 경로에 싣는 식별자 (V7, 2026-09-08 부터 카드가 여러 장이라 필요해졌다) */
-  id: string;
+  id: Id;
   /**
    * 토스가 준 발급사 코드("61"). <표시용이 아니라> 카드 면 색을 고르는 키다(`lib/cardBrand.ts`).
    * 이름을 키로 쓰면 백엔드가 "현대" → "현대카드" 로 문구를 다듬는 순간 모든 현대 카드가

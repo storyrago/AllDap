@@ -19,7 +19,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { ApiError, api } from "@/lib/api";
-import type { Feedback, Source } from "@/lib/types";
+import { parseId } from "@/lib/ids";
+import type { Feedback, Id, Source } from "@/lib/types";
 import { PageHeader } from "@/components/PageHeader";
 
 /** 화면에 쌓아둘 말풍선 하나. 서버 타입과 별개로 <이 화면에 필요한 것만> 담는다. */
@@ -30,12 +31,15 @@ interface Bubble {
   isFallback?: boolean;
   latencyMs?: number | null;
   /** 피드백을 보내려면 필요하다. 서버가 답변을 저장하고 돌려주는 값이다. */
-  messageId?: string;
+  messageId?: Id;
   feedback?: Feedback;
 }
 
 export default function ChatPage() {
-  const { botId } = useParams<{ botId: string }>();
+  /* useParams() 가 주는 값은 URL 조각이라 언제나 <문자열>이다.
+     기본키가 BIGINT 가 된 뒤로는 숫자로 바꿔야 하고, 형식 검사도 거기서 한다. */
+  const { botId: rawBotId } = useParams<{ botId: string }>();
+  const botId = parseId(rawBotId);
 
   const [bubbles, setBubbles] = useState<Bubble[]>([]);
   const [input, setInput] = useState("");

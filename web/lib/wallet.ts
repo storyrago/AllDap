@@ -1,4 +1,4 @@
-import type { BillingCard } from "./types";
+import type { BillingCard, Id } from "./types";
 
 /**
  * 계정당 카드 상한. 서버(`BillingService.MAX_METHODS`)와 같은 값이다.
@@ -24,7 +24,7 @@ export interface WalletView {
   full: boolean;
 }
 
-export function walletView(methods: BillingCard[], justAddedId: string | null): WalletView {
+export function walletView(methods: BillingCard[], justAddedId: Id | null): WalletView {
   const billed = methods.find((m) => m.isDefault);
   /* 청구 카드는 서랍에 <다시> 넣지 않는다. 두 번 그리면 "왜 같은 카드가 두 개지" 가 되고,
      지갑 구조가 없애려던 혼동이 그대로 돌아온다. */

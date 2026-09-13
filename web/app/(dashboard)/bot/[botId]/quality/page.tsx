@@ -32,7 +32,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { ApiError, api } from "@/lib/api";
-import type { EvalConfig, EvalQuestion, EvalResult, EvalRun } from "@/lib/types";
+import { parseId } from "@/lib/ids";
+import type { EvalConfig, EvalQuestion, EvalResult, EvalRun, Id } from "@/lib/types";
 import { PageHeader } from "@/components/PageHeader";
 import { Toggle } from "@/components/Toggle";
 
@@ -40,7 +41,10 @@ import { Toggle } from "@/components/Toggle";
 const POLL_MS = 3000;
 
 export default function QualityPage() {
-  const { botId } = useParams<{ botId: string }>();
+  /* useParams() 가 주는 값은 URL 조각이라 언제나 <문자열>이다.
+     기본키가 BIGINT 가 된 뒤로는 숫자로 바꿔야 하고, 형식 검사도 거기서 한다. */
+  const { botId: rawBotId } = useParams<{ botId: string }>();
+  const botId = parseId(rawBotId);
 
   const [questions, setQuestions] = useState<EvalQuestion[]>([]);
   const [runs, setRuns] = useState<EvalRun[]>([]);
@@ -60,7 +64,7 @@ export default function QualityPage() {
    * 서버가 수정된 행을 그대로 돌려주므로 그 자리에 넣으면 순서가 유지된다.
    */
   const handleSaveQuestion = useCallback(
-    async (questionId: string, payload: { question?: string; groundTruth?: string; isActive?: boolean }) => {
+    async (questionId: Id, payload: { question?: string; groundTruth?: string; isActive?: boolean }) => {
       const updated = await api.evaluation.updateQuestion(botId, questionId, payload);
       setQuestions((prev) => prev.map((q) => (q.id === questionId ? updated : q)));
     },
@@ -71,9 +75,9 @@ export default function QualityPage() {
      실행마다 미리 받아두면 안 볼 데이터까지 전부 내려받게 된다. */
   /* 나란히 볼 실행 2건. 배열인 이유: 순서가 곧 <먼저 고른 것>이라
      세 번째를 고르면 가장 오래된 선택을 밀어낸다(모달 없이 계속 고를 수 있다). */
-  const [compareIds, setCompareIds] = useState<string[]>([]);
+  const [compareIds, setCompareIds] = useState<Id[]>([]);
 
-  const [openRunId, setOpenRunId] = useState<string | null>(null);
+  const [openRunId, setOpenRunId] = useState<Id | null>(null);
   const [results, setResults] = useState<EvalResult[]>([]);
   const [resultsLoading, setResultsLoading] = useState(false);
 
@@ -171,7 +175,7 @@ export default function QualityPage() {
     }
   }
 
-  async function toggleResults(runId: string) {
+  async function toggleResults(runId: Id) {
     if (openRunId === runId) {
       setOpenRunId(null);
       return;
@@ -483,7 +487,7 @@ function QuestionSection({
   generating: boolean;
   onGenerate: () => void;
   onSave: (
-    questionId: string,
+    questionId: Id,
     payload: { question?: string; groundTruth?: string; isActive?: boolean },
   ) => Promise<void>;
 }) {
@@ -540,7 +544,7 @@ function QuestionRow({
   question: EvalQuestion;
   index: number;
   onSave: (
-    questionId: string,
+    questionId: Id,
     payload: { question?: string; groundTruth?: string; isActive?: boolean },
   ) => Promise<void>;
 }) {
@@ -687,13 +691,13 @@ function RunSection({
   resultsLoading,
   onToggle,
 }: {
-  compareIds: string[];
-  onToggleCompare: (runId: string) => void;
+  compareIds: Id[];
+  onToggleCompare: (runId: Id) => void;
   runs: EvalRun[];
-  openRunId: string | null;
+  openRunId: Id | null;
   results: EvalResult[];
   resultsLoading: boolean;
-  onToggle: (runId: string) => void;
+  onToggle: (runId: Id) => void;
 }) {
   return (
     <section className="mb-8">
@@ -862,7 +866,7 @@ function ComparePanel({
   onClear,
 }: {
   runs: EvalRun[];
-  compareIds: string[];
+  compareIds: Id[];
   onClear: () => void;
 }) {
   const picked = compareIds

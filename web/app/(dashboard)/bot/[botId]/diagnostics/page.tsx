@@ -36,7 +36,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { ApiError, api } from "@/lib/api";
-import type { Conflict, ConflictScan, UnansweredSummary } from "@/lib/types";
+import { parseId } from "@/lib/ids";
+import type { Conflict, ConflictScan, Id, UnansweredSummary } from "@/lib/types";
 import { PageHeader } from "@/components/PageHeader";
 import { Section } from "@/components/Form";
 
@@ -44,14 +45,17 @@ import { Section } from "@/components/Form";
 const SCAN_LIMIT = 30;
 
 export default function DiagnosticsPage() {
-  const { botId } = useParams<{ botId: string }>();
+  /* useParams() 가 주는 값은 URL 조각이라 언제나 <문자열>이다.
+     기본키가 BIGINT 가 된 뒤로는 숫자로 바꿔야 하고, 형식 검사도 거기서 한다. */
+  const { botId: rawBotId } = useParams<{ botId: string }>();
+  const botId = parseId(rawBotId);
 
   const [conflicts, setConflicts] = useState<Conflict[] | null>(null);
   const [scanning, setScanning] = useState(false);
   const [lastScan, setLastScan] = useState<ConflictScan | null>(null);
   const [error, setError] = useState<string | null>(null);
   /* 어떤 항목이 펼쳐져 있는지. 기본은 전부 접힘 — 원문까지 펼치면 목록을 훑을 수가 없다. */
-  const [opened, setOpened] = useState<Set<string>>(new Set());
+  const [opened, setOpened] = useState<Set<Id>>(new Set());
   /* 미답변 집계. 서버가 LLM 을 안 부르므로 화면 진입 때 그냥 같이 불러온다(비용 0). */
   const [unanswered, setUnanswered] = useState<UnansweredSummary | null>(null);
 
@@ -106,7 +110,7 @@ export default function DiagnosticsPage() {
     }
   }
 
-  async function handleIgnore(id: string) {
+  async function handleIgnore(id: Id) {
     try {
       await api.conflicts.updateStatus(botId, id, "ignored");
       /* 목록을 다시 부르지 않고 그 항목만 지운다.
@@ -117,7 +121,7 @@ export default function DiagnosticsPage() {
     }
   }
 
-  function toggle(id: string) {
+  function toggle(id: Id) {
     setOpened((prev) => {
       // Set 을 그대로 mutate 하면 참조가 같아 React 가 리렌더하지 않는다. 새 Set 을 만든다.
       const next = new Set(prev);
