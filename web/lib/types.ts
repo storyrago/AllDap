@@ -199,7 +199,7 @@ export interface ChatResponse {
   /**
    * 피드백(POST /api/messages/{msgId}/feedback)을 보내려면 메시지 id 가 필요하다.
    * Python 은 이 값을 모르고, messages 행을 만드는 건 Spring 이므로 Spring 이 붙여준다
-   * (api 의 ChatResponse 에 `UUID messageId` 가 들어 있다).
+   * (api 의 ChatResponse 에 `Long messageId` 가 들어 있다).
    */
   messageId?: Id;
 }

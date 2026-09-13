@@ -53,7 +53,7 @@ export function isTokenExpired(token: string): boolean {
 
     /*
      * ⚠️ `atob` 는 바이트를 문자 하나씩 담은 문자열을 준다. 한글처럼 여러 바이트인 글자는
-     *    여기서 깨진다. 우리 페이로드는 sub(UUID)·exp·iat 뿐이라 전부 ASCII 이므로 문제없다.
+     *    여기서 깨진다. 우리 페이로드는 sub(사용자 id 숫자)·exp·iat 뿐이라 전부 ASCII 이므로 문제없다.
      *    나중에 이름 같은 것을 토큰에 담으면 TextDecoder 로 UTF-8 디코딩을 해야 한다.
      */
     const claims: unknown = JSON.parse(atob(padded));
