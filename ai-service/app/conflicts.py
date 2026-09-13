@@ -151,7 +151,7 @@ def find_candidates(bot_id: Id) -> list[Candidate]:
     s = get_settings()
     with cursor() as cur:
         cur.execute(_CANDIDATE_SQL, {
-            "bot_id": str(bot_id),
+            "bot_id": bot_id,
             "max_distance": s.conflict_max_distance,
             "limit": s.conflict_max_pairs,
         })
@@ -254,10 +254,10 @@ def scan(bot_id: Id) -> ScanResult:
         #    문서가 바뀌면 청크가 새로 생기고 이 행은 CASCADE 로 사라져 자동 재판정된다.
         if v.conflict:
             conflicts_found += 1
-            rows.append((str(bot_id), str(c.a_id), str(c.b_id), "open",
+            rows.append((bot_id, c.a_id, c.b_id, "open",
                          v.topic or "(주제 미상)", v.a_says, v.b_says, c.distance))
         else:
-            rows.append((str(bot_id), str(c.a_id), str(c.b_id), "clear",
+            rows.append((bot_id, c.a_id, c.b_id, "clear",
                          "", "", "", c.distance))
 
     if rows:
