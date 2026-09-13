@@ -39,13 +39,13 @@ PDF · DOCX · HWPX 를 올리면 파싱 → 청킹 → 임베딩이 백그라�
 `pending → processing → ready` 로 상태가 바뀝니다.
 임베딩은 수십 초가 걸릴 수 있어 업로드 응답(202)과 처리를 분리했습니다.
 
-![문서 업로드](docs/images/demo-1-upload.png)
+<img width="960" height="482" alt="파일업로드" src="https://github.com/user-attachments/assets/62ae38bd-8b68-4b9b-800c-525d671c88e6" />
 
 ### 2. 출처가 붙은 답변
 
 답변마다 **어느 문서의 어느 대목에서 나왔는지**를 함께 내려줍니다.
 
-![출처가 붙은 답변](docs/images/demo-2-answer.png)
+<img width="960" height="482" alt="출처가 붙은 답변" src="https://github.com/user-attachments/assets/135625af-607d-4383-8eec-c0c967574d5e" />
 
 ### 3. 근거가 없으면 답하지 않는다
 
@@ -60,14 +60,14 @@ PDF · DOCX · HWPX 를 올리면 파싱 → 청킹 → 임베딩이 백그라�
 문서에 없는 질문 10개로 재면 **10/10 fallback**, 대조군(문서에 답이 있는 질문) 3/3 정상 답변입니다.
 그중 **8건은 1차에서 잘려 LLM 을 부르지도 않습니다.**
 
-![근거 없을 때 fallback](docs/images/demo-3-fallback.png)
+<img width="960" height="482" alt="근거가 없으면 답하지 않음" src="https://github.com/user-attachments/assets/09e8e065-e903-4946-be6e-8fb74cdcf644" />
 
 ### 4. 품질 대시보드
 
 **이 프로젝트의 심장입니다.** 청크에서 테스트 질문을 자동 생성하고,
 답변 생성과 **계열이 다른** 모델로 채점합니다(자기 채점 방지).
 
-![품질 대시보드](docs/images/demo-4-quality.png)
+<img width="960" height="482" alt="품질 대시보드" src="https://github.com/user-attachments/assets/80b7a484-bb2d-4544-a257-adcb86d93c6d" />
 
 ### 5. 한 줄 설치 위젯
 
@@ -79,7 +79,7 @@ PDF · DOCX · HWPX 를 올리면 파싱 → 청킹 → 임베딩이 백그라�
         data-public-key="pk_xxxxxxxx"></script>
 ```
 
-![위젯 설치](docs/images/demo-5-widget.png)
+<img width="960" height="482" alt="한 줄 설치 위젯" src="https://github.com/user-attachments/assets/465338d3-e174-40e1-8632-0bb785466d19" />
 
 ---
 
@@ -98,51 +98,13 @@ PDF · DOCX · HWPX 를 올리면 파싱 → 청킹 → 임베딩이 백그라�
 **자신 있게 틀린 답이 사라집니다.** fallback 은 안전한 실패("담당자에게 문의하세요")지만
 오답은 사용자가 잘못된 정보를 신뢰하게 만듭니다.
 
-<details>
-<summary><b>수치보다 이 과정이 더 중요합니다</b></summary>
-
-<br/>
-
-측정을 믿을 수 있게 만들기까지 **뭉개진 사실**을 네 번 찾아 고쳤습니다.
-
-1. **응답률의 분모에 처리 실패가 섞여 있었다.** "답을 못 했다" 와 "물어보지도 못했다" 는 다릅니다.
-2. **`avg_faithfulness` 로 설정을 비교하고 있었다.** 답을 덜 할수록 올라가는 지표였습니다(생존 편향).
-   분모를 기록하는 컬럼을 추가하고 "전체 충실성" 을 새로 정의했습니다.
-3. **채점자와 리랭커가 청크의 앞 200자만 보고 있었다.** 생성 모델은 전체를 보는데
-   판정자는 절반만 봤습니다. **정답을 맞힌 답변이 0점**을 받고 있었습니다.
-4. **진짜 병목은 검색 알고리즘이 아니라 청킹이었다.** 478자 청크 하나에 조항 4개가 들어 있었고,
-   그 임베딩은 네 주제의 평균이라 구체적인 질문에 걸리지 않았습니다.
-   **후보에 못 들어온 문서는 리랭커가 순위를 올려줄 수도 없습니다.**
-
-그리고 `temperature=0` 을 명시한 뒤에도 **재현되지 않았습니다.**
-같은 설정 4회가 0.781 · 0.781 · 0.781 · 0.813 으로 갈렸습니다(폭 0.032).
-검색은 완전히 결정적이었고(두 실행의 top5 가 순서까지 동일) 갈린 것은 생성 모델이었습니다.
-→ **0.032 보다 작은 개선은 노이즈와 구별되지 않습니다. 설정당 3회 이상 잽니다.**
-
-</details>
-
 ---
 
 ## System Architecture
 
-<img src="docs/images/architecture.png" alt="AllDap 시스템 아키텍처" width="100%">
-
-<!--
-  🔴 이 그림은 아직 안 들어왔다. docs/images/architecture.png 로 넣으면 위 자리에 뜬다.
-     그림이 <반드시> 담아야 하는 것 (아래 표·원칙과 어긋나면 안 된다):
-
-     ① 배포 경계 4개가 상자로 갈라져 있을 것
-        Vercel / AWS EC2 / AWS RDS / 외부 API
-     ② EC2 안에 컨테이너가 <셋> 이라는 것 (caddy · api · ai-service)
-        - 한 상자로 묶으면 "한 컨테이너" 로 읽힌다. 실제로는 이미지도 셋이다
-     ③ 그 셋 중 caddy 만 호스트에 포트를 게시한다는 것
-        - 이 그림이 하려는 말의 핵심이다
-     ④ 화살표 방향: 브라우저 → Vercel → Caddy → Spring → Python
-        Spring → RDS(JPA) · Spring → Toss / Python → RDS(SQL) · Python → Cloudflare·Gemini
-     ⑤ Prometheus·Grafana·k6 를 그린다면 EC2 <밖> 에 둘 것 (운영 스택에 없다)
--->
-
-**배포 경계마다 도는 곳이 다릅니다.**
+<div align='center'>
+        <img width="643" height="662" alt="image" src="https://github.com/user-attachments/assets/654038ff-6b68-434c-8677-6fd93291d725" />
+</div>
 
 | 경계 | 무엇이 도나 | 어떻게 배포되나 |
 |---|---|---|
@@ -154,15 +116,6 @@ PDF · DOCX · HWPX 를 올리면 파싱 → 청킹 → 임베딩이 백그라�
 | **CI/CD** | GitHub Actions · GHCR | 1GB 서버에서는 Gradle 컴파일이 OOM 이라 빌드를 CI 로 뺐다 |
 | **계측 · 부하테스트** | Prometheus · Grafana · k6 | **운영 스택에 없다.** 로컬과 부하테스트에서만 띄운다 |
 
-🔴 **그 셋 중 `caddy` 만 호스트에 포트를 게시합니다.** `docker-compose.prod.yml` 에서
-**`ports:` 를 쓰는 서비스가 `caddy` 하나뿐**이고, `api` 와 `ai-service` 에는 아예 없습니다.
-그래서 Spring 의 :8080 도, Python 의 :8001 도 **호스트에 뜨지 않습니다.**
-특히 FastAPI 의 `/internal/*` 에는 인증이 없어서, 포트가 하나라도 열리면 누구나 남의 봇 문서를 읽습니다.
-**"방화벽으로 막는다" 가 아니라 애초에 호스트에 뜨지 않게** 했습니다.
-방화벽 규칙은 잊거나 실수로 지울 수 있지만, 안 열린 포트는 실수할 여지가 없습니다.
-배포 후 밖에서 Python(:8001)·Spring 직통(:8080)·RDS(5432) 셋 다 막혀 있는 것을 실측했습니다.
-
-**원칙 셋. 이걸 어기면 구조가 무너집니다.**
 
 1. **외부 트래픽은 Spring 만 받습니다.** 브라우저에서 오는 길은 Caddy → Spring 하나뿐이고,
    나머지 경로로는 밖에서 들어올 수 없습니다.
@@ -174,66 +127,11 @@ PDF · DOCX · HWPX 를 올리면 파싱 → 청킹 → 임베딩이 백그라�
 인증·트랜잭션·권한은 Spring 이 강합니다. 국내에서도 카카오페이(모델은 Python, 서빙은 Kotlin+Spring),
 쏘카가 같은 구조를 씁니다.
 
-<details>
-<summary><b>알려진 약점 (숨기지 않습니다)</b></summary>
-
-<br/>
-
-- **공유 DB 는 마이크로서비스 안티패턴입니다.** 1인 개발에서는 데이터 동기화 비용이 분리 이득보다
-  커서 택했지만, 팀·트래픽이 커지면 DB 를 나누고 API 로만 통신해야 합니다.
-- **Spring 이 Python 을 동기 호출하므로 Python 이 죽으면 채팅이 죽습니다.**
-  `AiServiceClient.call()` 안에 타임아웃·재시도·서킷브레이커를 붙였습니다.
-  **재시도는 연결 실패에만 합니다.** 5xx 는 Python 이 이미 요청을 받았다는 뜻이라,
-  재시도하면 문서 행이 중복되거나 LLM 이 두 번 과금됩니다.
-- **배포 대상이 3개입니다.** "운영할 것의 개수를 최소화한다" 는 원칙과 충돌하는 선택이며,
-  풀스택 역량 증명을 위해 알고 택했습니다.
-- **백그라운드 처리가 FastAPI `BackgroundTasks`** 라 프로세스가 죽으면 작업이 유실됩니다.
-  트래픽이 붙으면 Redis + RQ 로 교체해야 합니다.
-
-</details>
-
-<details>
-<summary><b>테이블 소유권 (두 서비스가 같은 DB 를 공유하므로 반드시 지킬 것)</b></summary>
-
-<br/>
-
-| 테이블 | 쓰기 | 읽기 | 들어온 마이그레이션 |
-|---|---|---|---|
-| `users`, `bots` | Spring | Python | V1 (`users.plan` 은 V8) |
-| `documents` | **Python** | Spring | V1 |
-| `chunks` | **Python** | — | V1 |
-| `conversations`, `messages` | Spring | — | V1 |
-| `eval_*` | **Python** | Spring | V1 (+V3 이 실행별 분모 컬럼 추가) |
-| `doc_conflicts` | **Python** | Spring (Python 경유) | V4 |
-| `usage_events` | Spring | — | V5 |
-| `billing_methods` | Spring | — | V6 (V7 에서 계정당 여러 장) |
-
-`usage_events` 는 append-only 과금 원장이고, `billing_methods.billing_key_enc` 는
-앱에서 **AES-256-GCM** 으로 암호화한 암호문이라 SQL 로 읽어도 쓸 수 없습니다.
-Python 은 이 둘을 건드리지 않습니다.
-
-스키마의 단일 진실 공급원은 `api/src/main/resources/db/migration/` 의 Flyway 마이그레이션입니다.
-마이그레이션은 **Spring 이 기동할 때** 적용되고, Spring 의 `ddl-auto` 는 반드시 `validate` 또는 `none`
-입니다. Hibernate 가 스키마를 건드리면 Python 쪽이 깨집니다.
-`V1__init.sql` 은 수정 금지입니다. 변경은 `V2__*.sql` 로만 합니다.
-
-</details>
-
 ---
 
 ## ERD
 
-<img src="docs/images/erd.png" alt="AllDap ERD" width="100%">
-
-> 각 행은 **타입 · 컬럼명 · 키(PK/FK/UK) · 한국어 이름과 NOT NULL 여부, 설명** 순입니다.
-> Flyway 마이그레이션(V1~V9)에 실제로 들어 있는 **전 컬럼**을 담았습니다.
->
-> 편집용 원본은 [`docs/images/erd.mmd`](docs/images/erd.mmd) (Mermaid) 입니다.
-> 고친 뒤 `npx -p @mermaid-js/mermaid-cli mmdc -i docs/images/erd.mmd -o docs/images/erd.png -w 2400 -s 2 -b white` 로 다시 뽑습니다.
-
-> 🔴 **`eval_runs.question_count` · `scored_count`(V3)가 이 스키마에서 가장 중요한 두 칸입니다.**
-> 이게 없으면 `avg_faithfulness` 를 해석할 수 없습니다.
-> 답을 덜 할수록 평균이 올라가는 **생존 편향**에 걸리기 때문입니다.
+<img width="3260" height="1552" alt="AllDap" src="https://github.com/user-attachments/assets/eb4a7f73-fb46-4099-9701-149befa26dd6" />
 
 ---
 
@@ -262,24 +160,27 @@ Python 은 이 둘을 건드리지 않습니다.
 Prometheus + Grafana 로 계측하고 k6 로 부하를 걸어 **처리량 천장이 어디인지, 그 벽의 정체가
 무엇인지**를 찾았습니다.
 
-![부하테스트 Grafana](docs/images/loadtest-5d-grafana.png)
+<img width="1242" height="310" alt="image" src="https://github.com/user-attachments/assets/2f9a8fcc-baf1-4110-9c56-3039681feaa0" />
 
-**병목은 Python 의 anyio 스레드풀이었습니다.** `main.chat` 이 `async def` 가 아니라 `def` 라
-워커 스레드에서 돕니다. 그 상한을 40 에서 80 으로 올리자 처리량 천장이 올라갔습니다.
+**동시 사용자를 늘릴수록 처리량이 계단처럼 오르다가, 약 47 req/s 에서 멈춥니다.**
+19:30 이후 두 계단(80 VU, 160 VU)의 높이가 같습니다. 사용자를 두 배로 늘려도 더 처리하지 못한다는 뜻입니다.
+그 순간 오른쪽 지연 그래프가 뜁니다. 160 VU 에서 p50 이 1.7초에서 3.4초로 두 배가 됐습니다.
+처리하지 못한 요청이 어딘가에서 줄을 서기 시작한 것입니다.
 
-| 동시 사용자(VU) | before (스레드 40) | after (스레드 80) | 배수 |
-|---|---|---|---|
-| 20 | 11.8 req/s | 11.8 req/s | ×1.00 |
-| 40 | **24.0 ← before 천장** | 23.7 | ×0.99 |
-| **80** | 23.9 (평평해진다) | **47.3** | **×1.98** |
-| 160 | (안 쟀다) | **48.2 ← after 천장** | |
+| Python anyio 스레드풀 | Spring Tomcat 스레드 |
+|---|---|
+| <img width="616" height="300" alt="image" src="https://github.com/user-attachments/assets/1a26dbc2-d3c6-40e1-a81a-9cbcc4d02322" /> | <img width="616" height="300" alt="image" src="https://github.com/user-attachments/assets/592bf242-85a6-4891-8a1f-fdedda7e5cad" /> |
 
-🔴 **이 표에서 가장 강한 줄은 47.3 이 아니라 40 이하가 소수점까지 같다는 것입니다.**
-그 구간은 스레드가 남아돌아 상한과 무관한데, 실제로 한 칸도 안 움직였습니다.
-**바꾼 것이 스레드 상한 하나뿐이라는 것을 측정이 스스로 증명합니다.**
-80·160 만 쟀다면 47.3 이 스레드 덕인지 다른 무엇 덕인지 말할 근거가 없었을 것입니다.
+**그 줄이 어디에 서 있는지를 두 그래프가 보여줍니다.**
 
-전체 리포트: [`docs/부하테스트-리포트.md`](docs/부하테스트-리포트.md)
+| | 왼쪽: Python anyio 스레드풀 | 오른쪽: Spring Tomcat 스레드 |
+|---|---|---|
+| 보이는 것 | 파란 선이 계단처럼 오르다 **노란 상한 80 에 붙어 평평해진다** | 초록 `busy` 는 같은 시각에도 **160 까지 계속 오른다** (상한 200) |
+| 뜻 | **벽이 여기다** | Spring 은 아직 여유가 있다 |
+
+Spring 은 요청 160건을 받았는데 Python 은 80건만 동시에 처리합니다. **나머지 80건이 Python 앞에서 기다린 시간이 위 지연 그래프의 점프입니다.**
+
+> 오른쪽에서 노란 `current` 가 200 에 닿는 것은 "꽉 찼다" 가 아닙니다. 미리 만들어둔 스레드 수이고, 실제로 일하는 스레드는 초록 `busy` 입니다.
 
 ---
 
