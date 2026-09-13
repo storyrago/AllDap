@@ -26,7 +26,6 @@ import tools.jackson.databind.ObjectMapper;
 import jakarta.persistence.EntityManagerFactory;
 
 import java.nio.charset.StandardCharsets;
-import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -50,8 +49,8 @@ class ConversationLogIntegrationTest {
 
     private static final String 정상응답 = """
             {"answer":"휴학은 개강 후 30일 이내에 신청합니다.",
-             "sources":[{"chunk_id":"22222222-2222-2222-2222-222222222222",
-                         "document_id":"33333333-3333-3333-3333-333333333333",
+             "sources":[{"chunk_id":22,
+                         "document_id":33,
                          "filename":"학사규정.pdf","score":0.9,"preview":"휴학 신청은"}],
              "is_fallback":false,"latency_ms":900}""";
 
@@ -91,7 +90,7 @@ class ConversationLogIntegrationTest {
     private RestTestClient client;
     private String ownerToken;
     private String intruderToken;
-    private UUID botId;
+    private Long botId;
 
     @BeforeEach
     void setUp() {
@@ -190,8 +189,7 @@ class ConversationLogIntegrationTest {
         chatWithSession(ownerToken, "그냥세션", 정상응답, "질문");
 
         aiService.enqueue(200, 정상응답);
-        UUID messageId = UUID.fromString(
-                chat(ownerToken, "싫어요세션", "질문").json().path("messageId").asString());
+        Long messageId = chat(ownerToken, "싫어요세션", "질문").json().path("messageId").asLong();
         jdbcTemplate.update("UPDATE messages SET feedback = -1 WHERE id = ?", messageId);
 
         JsonNode filtered = request(HttpMethod.GET,
@@ -226,9 +224,8 @@ class ConversationLogIntegrationTest {
     @DisplayName("대화 상세는 메시지를 시간순으로 주고, 근거는 파싱해서 내려준다")
     void 대화_상세() {
         chatWithSession(ownerToken, "세션-C", 정상응답, "휴학 신청은 언제?");
-        UUID conversationId = UUID.fromString(
-                request(HttpMethod.GET, "/api/bots/" + botId + "/logs", ownerToken)
-                        .json().path("items").get(0).path("id").asString());
+        Long conversationId = request(HttpMethod.GET, "/api/bots/" + botId + "/logs", ownerToken)
+                        .json().path("items").get(0).path("id").asLong();
 
         Response response = request(HttpMethod.GET,
                 "/api/bots/" + botId + "/logs/" + conversationId, ownerToken);
@@ -258,9 +255,8 @@ class ConversationLogIntegrationTest {
         jdbcTemplate.update("UPDATE messages SET sources = '{\"안맞는\":\"구조\"}'::jsonb "
                 + "WHERE role = 'assistant'");
 
-        UUID conversationId = UUID.fromString(
-                request(HttpMethod.GET, "/api/bots/" + botId + "/logs", ownerToken)
-                        .json().path("items").get(0).path("id").asString());
+        Long conversationId = request(HttpMethod.GET, "/api/bots/" + botId + "/logs", ownerToken)
+                        .json().path("items").get(0).path("id").asLong();
 
         Response response = request(HttpMethod.GET,
                 "/api/bots/" + botId + "/logs/" + conversationId, ownerToken);
@@ -289,7 +285,7 @@ class ConversationLogIntegrationTest {
     void 목록은_내_봇_대화만() {
         chatWithSession(ownerToken, "내세션", 정상응답, "내 질문");
 
-        UUID 남의봇 = createBot(intruderToken);
+        Long 남의봇 = createBot(intruderToken);
         aiService.enqueue(200, 정상응답);
         request(HttpMethod.POST, "/api/bots/" + 남의봇 + "/chat", intruderToken,
                 new ChatRequest("남의 질문", "남의세션"));
@@ -304,12 +300,12 @@ class ConversationLogIntegrationTest {
     @Test
     @DisplayName("[보안] 내 봇 id 에 남의 대화 id 를 붙여도 볼 수 없다")
     void 남의_대화_상세() {
-        UUID 남의봇 = createBot(intruderToken);
+        Long 남의봇 = createBot(intruderToken);
         aiService.enqueue(200, 정상응답);
         request(HttpMethod.POST, "/api/bots/" + 남의봇 + "/chat", intruderToken,
                 new ChatRequest("남의 질문", "남의세션"));
-        UUID 남의대화 = UUID.fromString(jdbcTemplate.queryForObject(
-                "SELECT id::text FROM conversations WHERE bot_id = ?", String.class, 남의봇));
+        Long 남의대화 = jdbcTemplate.queryForObject(
+                "SELECT id FROM conversations WHERE bot_id = ?", Long.class, 남의봇);
 
         // 봇 소유권만 확인하고 대화가 그 봇의 것인지 안 보면 여기서 남의 대화가 열린다.
         Response response = request(HttpMethod.GET,
@@ -343,9 +339,9 @@ class ConversationLogIntegrationTest {
                 new SignupRequest(email, PASSWORD, null)).json().path("token").asString();
     }
 
-    private UUID createBot(String token) {
-        return UUID.fromString(request(HttpMethod.POST, "/api/bots", token,
-                new CreateBotRequest("테스트 봇")).json().path("id").asString());
+    private Long createBot(String token) {
+        return request(HttpMethod.POST, "/api/bots", token,
+                new CreateBotRequest("테스트 봇")).json().path("id").asLong();
     }
 
     private Response request(HttpMethod method, String uri, String token) {

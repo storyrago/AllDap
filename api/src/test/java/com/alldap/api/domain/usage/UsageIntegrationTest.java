@@ -26,7 +26,6 @@ import tools.jackson.databind.ObjectMapper;
 import java.nio.charset.StandardCharsets;
 import java.sql.Timestamp;
 import java.time.Instant;
-import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -39,6 +38,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 @IntegrationTest
 @DisplayName("사용량 계량 통합 테스트")
 class UsageIntegrationTest {
+
+    /** V9 의 시드 봇(공개 데모 봇). 주인이 없어 사용량 집계에서 빠진다. */
+    private static final long DEMO_BOT_ID = 1L;
 
     private static final String PASSWORD = "correct-password-1234";
 
@@ -70,8 +72,8 @@ class UsageIntegrationTest {
 
     private RestTestClient client;
     private String ownerToken;
-    private UUID botId;
-    private UUID userId;
+    private Long botId;
+    private Long userId;
     private String publicKey;
 
     @BeforeEach
@@ -85,7 +87,7 @@ class UsageIntegrationTest {
         ownerToken = signup("owner@example.com");
         userId = userRepository.findByEmail("owner@example.com").orElseThrow().getId();
         JsonNode bot = request(HttpMethod.POST, "/api/bots", ownerToken, new CreateBotRequest("환불 봇")).json();
-        botId = UUID.fromString(bot.path("id").asString());
+        botId = bot.path("id").asLong();
         publicKey = bot.path("publicKey").asString();
     }
 
@@ -157,16 +159,16 @@ class UsageIntegrationTest {
     @Test
     @DisplayName("[과금] 주인 없는 봇(V1 시드)의 답변은 500 없이 성공하고, 다만 세지 않는다")
     void 주인_없는_봇은_과금되지_않는다() {
-        // V1__init.sql 이 심어두는 로컬 개발용 시드 봇. user_id 가 NULL 이다.
+        // V9__bigint_ids.sql 이 심어두는 공개 데모 봇(id = 1). user_id 가 NULL 이다.
         // 청구할 계정이 없는 상태에서도 채팅 자체는 정상 동작해야 한다(회귀 확인).
         aiService.enqueue(200, 정상응답);
         Response response = widgetChat("pk_local_dev", "환불 규정이 어떻게 되나요?");
 
         assertThat(response.status()).isEqualTo(200);
-        assertThat(countMessages(UUID.fromString("00000000-0000-0000-0000-000000000001"))).isEqualTo(2);
+        assertThat(countMessages(DEMO_BOT_ID)).isEqualTo(2);
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT count(*) FROM usage_events WHERE bot_id = ?",
-                Long.class, UUID.fromString("00000000-0000-0000-0000-000000000001"))).isZero();
+                Long.class, DEMO_BOT_ID)).isZero();
     }
 
     @Test
@@ -209,7 +211,7 @@ class UsageIntegrationTest {
         // 달라질 뿐 침입자가 보는 숫자는 바뀌지 않는다. 그 절을 지키는 테스트는 따로 없다.
         String 침입자 = signup("intruder@example.com");
         JsonNode 침입자봇 = request(HttpMethod.POST, "/api/bots", 침입자, new CreateBotRequest("침입자 봇")).json();
-        insertEvalRun(UUID.fromString(침입자봇.path("id").asString()), "completed");
+        insertEvalRun(침입자봇.path("id").asLong(), "completed");
 
         Response 응답 = usage(침입자, null);
         assertThat(응답.status()).isEqualTo(200);
@@ -275,26 +277,35 @@ class UsageIntegrationTest {
     // ── 테스트 보조 ──────────────────────────────────────────────────────
 
     /** eval_runs 는 Python 소유 테이블이라 테스트에서 직접 넣는다 (created_at = now()) */
-    private void insertEvalRun(UUID botId, String status) {
+    private void insertEvalRun(Long botId, String status) {
         jdbcTemplate.update(
                 "INSERT INTO eval_runs (bot_id, status, created_at) VALUES (?, ?, now())",
                 botId, status);
     }
 
     /** created_at 을 명시하는 오버로드. 기간 경계(1a)처럼 "언제 시작됐는가"를 못박아야 할 때 쓴다. */
-    private void insertEvalRun(UUID botId, String status, Timestamp createdAt) {
+    private void insertEvalRun(Long botId, String status, Timestamp createdAt) {
         jdbcTemplate.update(
                 "INSERT INTO eval_runs (bot_id, status, created_at) VALUES (?, ?, ?)",
                 botId, status, createdAt);
     }
 
-    /** 기간 경계 검증용. 사건 시각을 직접 정해야 하므로 원장에 바로 넣는다 */
-    private void insertUsageAt(UUID userId, String kind, Instant occurredAt) {
+    /**
+     * 기간 경계 검증용. 사건 시각을 직접 정해야 하므로 원장에 바로 넣는다.
+     *
+     * <p>{@code source_ref} 는 UNIQUE(kind, source_ref) 에 걸리므로 호출마다 달라야 한다.
+     * 예전에는 {@code gen_random_uuid()} 로 매번 새 값을 만들었는데, BIGINT 가 된 뒤로는
+     * 그 함수를 쓸 수 없어 테스트 안의 순번으로 바꿨다(값 자체에는 의미가 없다).
+     */
+    private void insertUsageAt(Long userId, String kind, Instant occurredAt) {
         jdbcTemplate.update("""
                 INSERT INTO usage_events (user_id, bot_id, kind, source_ref, occurred_at)
-                VALUES (?, NULL, ?, gen_random_uuid(), ?)""",
-                userId, kind, Timestamp.from(occurredAt));
+                VALUES (?, NULL, ?, ?, ?)""",
+                userId, kind, sourceRefSeq++, Timestamp.from(occurredAt));
     }
+
+    /** 원장에 직접 넣을 때 쓰는 가짜 원본 번호. 실제 messages.id 와 겹쳐도 kind 가 달라 문제없다. */
+    private long sourceRefSeq = 900_000L;
 
     private Response usage(String token, String month) {
         String uri = month == null ? "/api/usage" : "/api/usage?month=" + month;
@@ -312,14 +323,14 @@ class UsageIntegrationTest {
         return new Response(result.getStatus().value(), decode(result.getResponseBody()));
     }
 
-    private long countUsage(UUID userId, String kind) {
+    private long countUsage(Long userId, String kind) {
         Long n = jdbcTemplate.queryForObject(
                 "SELECT count(*) FROM usage_events WHERE user_id = ? AND kind = ?",
                 Long.class, userId, kind);
         return n == null ? 0 : n;
     }
 
-    private long countMessages(UUID botId) {
+    private long countMessages(Long botId) {
         Long n = jdbcTemplate.queryForObject("""
                 SELECT count(*) FROM messages m
                   JOIN conversations c ON c.id = m.conversation_id

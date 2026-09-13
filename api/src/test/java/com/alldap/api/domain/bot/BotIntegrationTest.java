@@ -20,7 +20,6 @@ import tools.jackson.databind.ObjectMapper;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
-import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -43,6 +42,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 @IntegrationTest
 @DisplayName("봇 API 통합 테스트")
 class BotIntegrationTest {
+
+    /** 존재하지 않는 id. 순번이라 이만큼 큰 값은 테스트 안에서 만들어질 수 없다. */
+    private static final long MISSING_ID = 999_999_999L;
 
     private static final String PASSWORD = "correct-password-1234";
 
@@ -126,7 +128,7 @@ class BotIntegrationTest {
     @Test
     @DisplayName("[보안] 남의 봇을 조회하면 403 이 아니라 404 BOT_NOT_FOUND 다")
     void 남의_봇_조회() {
-        UUID botId = createBot(ownerToken, "주인 봇");
+        Long botId = createBot(ownerToken, "주인 봇");
 
         Response response = request(HttpMethod.GET, "/api/bots/" + botId, intruderToken, null);
 
@@ -134,14 +136,14 @@ class BotIntegrationTest {
         assertThat(response.json().path("error").path("code").asString()).isEqualTo("BOT_NOT_FOUND");
 
         // 존재하지 않는 봇과 응답이 완전히 같아야 "그 id 의 봇이 있는지"가 새지 않는다.
-        Response 없는봇 = request(HttpMethod.GET, "/api/bots/" + UUID.randomUUID(), intruderToken, null);
+        Response 없는봇 = request(HttpMethod.GET, "/api/bots/" + MISSING_ID, intruderToken, null);
         assertThat(response.body()).isEqualTo(없는봇.body());
     }
 
     @Test
     @DisplayName("[보안] 남의 봇은 수정되지 않는다 — 404 로 막고 값도 그대로다")
     void 남의_봇_수정() {
-        UUID botId = createBot(ownerToken, "주인 봇");
+        Long botId = createBot(ownerToken, "주인 봇");
 
         Response response = request(HttpMethod.PATCH, "/api/bots/" + botId, intruderToken,
                 new UpdateBotRequest("탈취된 봇", null, null, null, null));
@@ -156,7 +158,7 @@ class BotIntegrationTest {
     @Test
     @DisplayName("[보안] 남의 봇은 삭제되지 않는다 — 404 로 막고 봇도 그대로 남는다")
     void 남의_봇_삭제() {
-        UUID botId = createBot(ownerToken, "주인 봇");
+        Long botId = createBot(ownerToken, "주인 봇");
 
         Response response = request(HttpMethod.DELETE, "/api/bots/" + botId, intruderToken, null);
 
@@ -169,7 +171,7 @@ class BotIntegrationTest {
     @Test
     @DisplayName("PATCH 는 보낸 필드만 바꾸고 나머지는 그대로 둔다")
     void 봇_부분_수정() {
-        UUID botId = createBot(ownerToken, "옛 이름");
+        Long botId = createBot(ownerToken, "옛 이름");
 
         Response response = request(HttpMethod.PATCH, "/api/bots/" + botId, ownerToken,
                 new UpdateBotRequest("새 이름", null, null, null, List.of("https://example.com")));
@@ -188,7 +190,7 @@ class BotIntegrationTest {
     @Test
     @DisplayName("내 봇을 삭제하면 204 이고 목록에서 사라진다")
     void 봇_삭제() {
-        UUID botId = createBot(ownerToken, "지울 봇");
+        Long botId = createBot(ownerToken, "지울 봇");
 
         assertThat(request(HttpMethod.DELETE, "/api/bots/" + botId, ownerToken, null).status()).isEqualTo(204);
         assertThat(request(HttpMethod.GET, "/api/bots/" + botId, ownerToken, null).status()).isEqualTo(404);
@@ -202,10 +204,9 @@ class BotIntegrationTest {
                 .json().path("token").asString();
     }
 
-    private UUID createBot(String token, String name) {
-        return UUID.fromString(
-                request(HttpMethod.POST, "/api/bots", token, new CreateBotRequest(name))
-                        .json().path("id").asString());
+    private Long createBot(String token, String name) {
+        return request(HttpMethod.POST, "/api/bots", token, new CreateBotRequest(name))
+                        .json().path("id").asLong();
     }
 
     /**

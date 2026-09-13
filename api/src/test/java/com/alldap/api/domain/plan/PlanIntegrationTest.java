@@ -65,7 +65,7 @@ class PlanIntegrationTest {
 
     private RestTestClient client;
     private String token;
-    private UUID userId;
+    private Long userId;
 
     @BeforeEach
     void setUp() {

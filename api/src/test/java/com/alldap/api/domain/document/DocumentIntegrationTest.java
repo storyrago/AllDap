@@ -25,7 +25,6 @@ import tools.jackson.databind.ObjectMapper;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -50,6 +49,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 @IntegrationTest
 @DisplayName("문서 API 통합 테스트")
 class DocumentIntegrationTest {
+
+    /** 존재하지 않는 id. 순번이라 이만큼 큰 값은 테스트 안에서 만들어질 수 없다. */
+    private static final long MISSING_ID = 999_999_999L;
 
     private static final String PASSWORD = "correct-password-1234";
 
@@ -81,7 +83,7 @@ class DocumentIntegrationTest {
     private RestTestClient client;
     private String ownerToken;
     private String intruderToken;
-    private UUID botId;
+    private Long botId;
 
     @BeforeEach
     void setUp() {
@@ -127,7 +129,7 @@ class DocumentIntegrationTest {
     void 목록은_내_봇의_문서만() {
         insertDocument(botId, "내문서.pdf", "ready");
 
-        UUID 남의봇 = createBot(intruderToken);
+        Long 남의봇 = createBot(intruderToken);
         insertDocument(남의봇, "남의문서.pdf", "ready");
 
         JsonNode documents = request(HttpMethod.GET, "/api/bots/" + botId + "/documents", ownerToken).json();
@@ -144,7 +146,7 @@ class DocumentIntegrationTest {
     @Test
     @DisplayName("[보안] 남의 문서를 삭제하면 404 이고, 삭제 요청이 Python 까지 가지 않는다")
     void 남의_문서_삭제() {
-        UUID documentId = insertDocument(botId, "규정.pdf", "ready");
+        Long documentId = insertDocument(botId, "규정.pdf", "ready");
 
         Response response = request(HttpMethod.DELETE, "/api/documents/" + documentId, intruderToken);
 
@@ -153,14 +155,14 @@ class DocumentIntegrationTest {
         assertThat(aiService.received()).isEmpty();
 
         // 없는 문서와 응답이 같아야 "그 id 의 문서가 존재하는지"가 새지 않는다.
-        Response 없는문서 = request(HttpMethod.DELETE, "/api/documents/" + UUID.randomUUID(), intruderToken);
+        Response 없는문서 = request(HttpMethod.DELETE, "/api/documents/" + MISSING_ID, intruderToken);
         assertThat(response.body()).isEqualTo(없는문서.body());
     }
 
     @Test
     @DisplayName("[보안] 삭제 요청 경로에 botId 가 실려 Python 쪽에서도 봇으로 좁혀진다")
     void 삭제_요청에_botId_가_실린다() {
-        UUID documentId = insertDocument(botId, "규정.pdf", "ready");
+        Long documentId = insertDocument(botId, "규정.pdf", "ready");
         aiService.enqueue(204, null);
 
         request(HttpMethod.DELETE, "/api/documents/" + documentId, ownerToken);
@@ -178,7 +180,7 @@ class DocumentIntegrationTest {
     @DisplayName("문서를 올리면 202 로 접수되고, Python 에 파일명이 실린 multipart 가 전달된다")
     void 업로드_성공() {
         aiService.enqueue(202, """
-                {"id":"11111111-1111-1111-1111-111111111111","filename":"규정.pdf",
+                {"id":11,"filename":"규정.pdf",
                  "file_type":"pdf","status":"pending","error_message":null,
                  "char_count":null,"chunk_count":null}""");
 
@@ -209,7 +211,7 @@ class DocumentIntegrationTest {
     @DisplayName("[회귀] Python 호출에 HTTP/2 업그레이드 헤더가 붙지 않는다")
     void h2c_업그레이드_헤더를_보내지_않는다() {
         aiService.enqueue(202, """
-                {"id":"11111111-1111-1111-1111-111111111111","filename":"규정.pdf",
+                {"id":11,"filename":"규정.pdf",
                  "file_type":"pdf","status":"pending"}""");
 
         upload(ownerToken, botId, "규정.pdf", "내용");
@@ -265,7 +267,7 @@ class DocumentIntegrationTest {
     @Test
     @DisplayName("내 문서를 삭제하면 204 이고, 실제 삭제는 Python 에 위임된다")
     void 문서_삭제() {
-        UUID documentId = insertDocument(botId, "규정.pdf", "ready");
+        Long documentId = insertDocument(botId, "규정.pdf", "ready");
         aiService.enqueue(204, null);
 
         Response response = request(HttpMethod.DELETE, "/api/documents/" + documentId, ownerToken);
@@ -377,15 +379,15 @@ class DocumentIntegrationTest {
     }
 
     @Test
-    @DisplayName("경로에 UUID 가 아닌 값이 오면 500 이 아니라 400 이다")
-    void 잘못된_경로_UUID() {
-        Response response = request(HttpMethod.GET, "/api/bots/이건UUID가아님/documents", ownerToken);
+    @DisplayName("경로에 숫자가 아닌 값이 오면 500 이 아니라 400 이다")
+    void 잘못된_경로_식별자() {
+        Response response = request(HttpMethod.GET, "/api/bots/이건숫자가아님/documents", ownerToken);
 
         // 아무 문자열이나 넣어 호출하는 것만으로 서버 로그에 ERROR 스택트레이스를 쌓을 수 있으면 안 된다.
         assertThat(response.status()).isEqualTo(400);
         assertThat(response.json().path("error").path("code").asString()).isEqualTo("INVALID_INPUT");
-        // 내부 타입명(java.util.UUID)이 응답에 새지 않아야 한다.
-        assertThat(response.body()).doesNotContain("UUID");
+        // 내부 타입명(java.lang.Long)이 응답에 새지 않아야 한다.
+        assertThat(response.body()).doesNotContain("Long");
     }
 
     @Test
@@ -405,18 +407,17 @@ class DocumentIntegrationTest {
                 new SignupRequest(email, PASSWORD, null)).json().path("token").asString();
     }
 
-    private UUID createBot(String token) {
-        return UUID.fromString(jsonRequest(HttpMethod.POST, "/api/bots", token,
-                new CreateBotRequest("테스트 봇")).json().path("id").asString());
+    private Long createBot(String token) {
+        return jsonRequest(HttpMethod.POST, "/api/bots", token,
+                new CreateBotRequest("테스트 봇")).json().path("id").asLong();
     }
 
     /** Python 이 넣어둔 문서 행을 흉내낸다. Spring 코드로는 INSERT 할 수 없다(쓰기 소유자가 Python). */
-    private UUID insertDocument(UUID botId, String filename, String status) {
-        UUID id = UUID.randomUUID();
-        jdbcTemplate.update(
-                "INSERT INTO documents (id, bot_id, filename, file_type, status) VALUES (?, ?, ?, ?, ?)",
-                id, botId, filename, filename.substring(filename.lastIndexOf('.') + 1), status);
-        return id;
+    private Long insertDocument(Long botId, String filename, String status) {
+        // id 를 우리가 만들지 않는다. IDENTITY 라 DB 가 매기고 RETURNING 으로 받아온다.
+        return jdbcTemplate.queryForObject(
+                "INSERT INTO documents (bot_id, filename, file_type, status) VALUES (?, ?, ?, ?) RETURNING id",
+                Long.class, botId, filename, filename.substring(filename.lastIndexOf('.') + 1), status);
     }
 
     /**
@@ -425,7 +426,7 @@ class DocumentIntegrationTest {
      * <p>{@code ByteArrayResource} 의 {@code getFilename()} 을 덮어쓰는 이유는 운영 코드
      * ({@code AiServiceClient.toFilePart})와 같다 — 파일명이 없으면 파트에 {@code filename=} 이 안 실린다.
      */
-    private Response upload(String token, UUID botId, String filename, String content) {
+    private Response upload(String token, Long botId, String filename, String content) {
         MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
         body.add("file", new ByteArrayResource(content.getBytes(StandardCharsets.UTF_8)) {
             @Override
