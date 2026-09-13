@@ -48,6 +48,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 @DisplayName("결제 수단 통합 테스트")
 class BillingIntegrationTest {
 
+    /** 존재하지 않는 id. 순번이라 이만큼 큰 값은 테스트 안에서 만들어질 수 없다. */
+    private static final long MISSING_ID = 999_999_999L;
+
     private static final String PASSWORD = "correct-password-1234";
     private static final String METHODS = "/api/billing/methods";
 
@@ -114,7 +117,7 @@ class BillingIntegrationTest {
 
     private RestTestClient client;
     private String ownerToken;
-    private UUID userId;
+    private Long userId;
     private String customerKey;
 
     @BeforeEach
@@ -582,7 +585,7 @@ class BillingIntegrationTest {
     @Test
     @DisplayName("[삭제] 없는 카드 id 면 404 이고 토스를 부르지 않는다")
     void 없는_카드를_지우면_404() {
-        Response 응답 = 삭제(ownerToken, UUID.randomUUID().toString());
+        Response 응답 = 삭제(ownerToken, String.valueOf(MISSING_ID));
 
         assertThat(응답.status()).isEqualTo(404);
         assertThat(응답.json().path("error").path("code").asString())
@@ -649,27 +652,27 @@ class BillingIntegrationTest {
      * 고정 글자로 덮어쓰면 원래 값과 우연히 같을 때 아무것도 손상되지 않아 테스트가 조용히 통과한다.
      */
     private void 암호문을_변조한다(String methodId) {
-        UUID id = UUID.fromString(methodId);
+        Long id = Long.parseLong(methodId);
         String 원본 = jdbcTemplate.queryForObject(
                 "SELECT billing_key_enc FROM billing_methods WHERE id = ?", String.class, id);
         String 변조 = (원본.charAt(0) == 'A' ? 'B' : 'A') + 원본.substring(1);
         jdbcTemplate.update("UPDATE billing_methods SET billing_key_enc = ? WHERE id = ?", 변조, id);
     }
 
-    private long 카드_행수(UUID userId) {
+    private long 카드_행수(Long userId) {
         Long n = jdbcTemplate.queryForObject(
                 "SELECT count(*) FROM billing_methods WHERE user_id = ?", Long.class, userId);
         return n == null ? 0 : n;
     }
 
     /** 불변식 "카드가 있으면 기본이 정확히 하나" 를 <b>DB 에서 직접</b> 센다. 응답만 보면 직렬화 버그와 구별이 안 된다. */
-    private long 기본_카드_수(UUID userId) {
+    private long 기본_카드_수(Long userId) {
         Long n = jdbcTemplate.queryForObject(
                 "SELECT count(*) FROM billing_methods WHERE user_id = ? AND is_default", Long.class, userId);
         return n == null ? 0 : n;
     }
 
-    private String customerKeyOf(UUID userId) {
+    private String customerKeyOf(Long userId) {
         return jdbcTemplate.queryForObject(
                 "SELECT billing_customer_key FROM users WHERE id = ?", String.class, userId);
     }

@@ -25,7 +25,6 @@ import tools.jackson.databind.ObjectMapper;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
-import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -51,8 +50,8 @@ class WidgetIntegrationTest {
 
     private static final String 정상응답 = """
             {"answer":"환불은 7일 이내에 가능합니다.",
-             "sources":[{"chunk_id":"22222222-2222-2222-2222-222222222222",
-                         "document_id":"33333333-3333-3333-3333-333333333333",
+             "sources":[{"chunk_id":22,
+                         "document_id":33,
                          "filename":"환불규정.pdf","score":0.9,"preview":"환불은 7일 이내"}],
              "is_fallback":false,"latency_ms":800}""";
 
@@ -83,7 +82,7 @@ class WidgetIntegrationTest {
 
     private RestTestClient client;
     private String ownerToken;
-    private UUID botId;
+    private Long botId;
     private String publicKey;
 
     @BeforeEach
@@ -97,7 +96,7 @@ class WidgetIntegrationTest {
 
         ownerToken = signup("owner@example.com");
         JsonNode bot = request(HttpMethod.POST, "/api/bots", ownerToken, new CreateBotRequest("환불 봇")).json();
-        botId = UUID.fromString(bot.path("id").asString());
+        botId = bot.path("id").asLong();
         publicKey = bot.path("publicKey").asString();
     }
 

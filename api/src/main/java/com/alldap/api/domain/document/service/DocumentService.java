@@ -15,7 +15,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
-import java.util.UUID;
 
 /**
  * 문서 서비스.
@@ -47,7 +46,7 @@ public class DocumentService {
      * 파싱·청킹·임베딩은 백그라운드에서 돌아가므로, 프론트는 목록을 폴링해 상태를 따라가야 한다.
      * (임베딩이 수십 초 걸릴 수 있어 업로드 응답과 처리를 분리한 것 — PRD 요청 흐름 ①)
      */
-    public DocumentResponse upload(UUID userId, UUID botId, MultipartFile file) {
+    public DocumentResponse upload(Long userId, Long botId, MultipartFile file) {
         requireOwnedBot(userId, botId);
 
         // 빈 파일은 Python 까지 보내지 않는다. Python 도 400 으로 막지만,
@@ -97,7 +96,7 @@ public class DocumentService {
      * {@code Document.status} 를 enum 이 아니라 String 으로 둔 것이 이 상황에 대한 대비다.
      */
     @Transactional(readOnly = true)
-    public List<DocumentResponse> findDocuments(UUID userId, UUID botId) {
+    public List<DocumentResponse> findDocuments(Long userId, Long botId) {
         requireOwnedBot(userId, botId);
         return documentRepository.findAllByBotIdOrderByCreatedAtDesc(botId).stream()
                 .map(DocumentResponse::from)
@@ -110,7 +109,7 @@ public class DocumentService {
      * <p>경로({@code DELETE /api/documents/{docId}})에 botId 가 없으므로
      * 문서 → 봇 → 소유자 순으로 거슬러 올라가 권한을 확인해야 한다.
      */
-    public void delete(UUID userId, UUID documentId) {
+    public void delete(Long userId, Long documentId) {
         // 문서 → 봇 → 소유자를 한 번의 조인 쿼리로 확인한다.
         // 없는 문서와 남의 문서를 모두 404 로 답한다 — 403 으로 구분해주면
         // 무작위 id 를 던져 "그 문서가 존재하는지"를 알아낼 수 있다(봇과 같은 규칙).
@@ -138,7 +137,7 @@ public class DocumentService {
      * 남의 봇 id 하나만 알면 그 봇에 문서를 넣거나 목록을 훔쳐볼 수 있다.
      * 반환값을 쓰지 않고 존재 확인만 하는 이유는, 필요한 게 "내 봇이 맞다"는 사실 하나뿐이기 때문이다.
      */
-    private void requireOwnedBot(UUID userId, UUID botId) {
+    private void requireOwnedBot(Long userId, Long botId) {
         botRepository.findByIdAndUserId(botId, userId)
                 .orElseThrow(() -> new ApiException(ErrorCode.BOT_NOT_FOUND));
     }

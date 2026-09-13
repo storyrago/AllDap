@@ -43,7 +43,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { loadTossPayments } from "@tosspayments/tosspayments-sdk";
 import { ApiError, api } from "@/lib/api";
-import type { BillingCard, BillingMethodsResponse, PlanId } from "@/lib/types";
+import type { BillingCard, BillingMethodsResponse, Id, PlanId } from "@/lib/types";
 import { resolvePlan } from "@/lib/plans";
 import { MAX_METHODS, walletView } from "@/lib/wallet";
 import { PageHeader } from "@/components/PageHeader";
@@ -87,13 +87,13 @@ export default function AccountPage() {
    * 카드가 여러 장이라 boolean 이 아니라 <어느 카드인지> 를 들고 있어야 한다 — boolean 이면
    * 확인 패널이 모든 카드 아래에 동시에 열린다.
    */
-  const [armedId, setArmedId] = useState<string | null>(null);
+  const [armedId, setArmedId] = useState<Id | null>(null);
   /* 요청이 나가 있는 카드의 id. 그 카드의 버튼만 잠근다 — 목록 전체를 잠그면 무관한 카드까지 멈춘다. */
-  const [busyId, setBusyId] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<Id | null>(null);
   /* 지금 지우는 중인 카드. 퇴장 애니메이션을 <요청이 나가 있는 동안> 돌리는 데만 쓴다. */
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<Id | null>(null);
   /* 방금 등록한 카드. 그 한 장에만 등장 애니메이션을 붙인다(globals.css 주석 참고). */
-  const [justAddedId, setJustAddedId] = useState<string | null>(null);
+  const [justAddedId, setJustAddedId] = useState<Id | null>(null);
 
   /*
    * 지금 요금제. 카드 목록과 <따로> 들고 있는 이유: 출처가 다른 API 이고(GET /api/plan),
@@ -321,7 +321,7 @@ export default function AccountPage() {
    *    이때는 load() 로 다시 맞추고, "삭제하지 못했습니다" 대신 <이미 지워졌다>는 걸
    *    안내한다 — 사용자에게는 오류가 아니라 "화면이 낡아 있었을 뿐"이기 때문이다.
    */
-  async function handleDelete(id: string) {
+  async function handleDelete(id: Id) {
     setBusyId(id);
     setDeletingId(id);
     setError(null);
@@ -349,7 +349,7 @@ export default function AccountPage() {
    * 기본 카드 변경. 응답이 목록 전체라 load() 를 다시 부르지 않는다.
    * 404 는 삭제와 같은 이유로 다시 맞춘다(탭 두 개로 그 카드를 지운 경우).
    */
-  async function handleSetDefault(id: string) {
+  async function handleSetDefault(id: Id) {
     setBusyId(id);
     setError(null);
     setNotice(null);

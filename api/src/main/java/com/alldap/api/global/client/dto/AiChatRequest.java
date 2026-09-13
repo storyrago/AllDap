@@ -2,7 +2,6 @@ package com.alldap.api.global.client.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-import java.util.UUID;
 
 /**
  * Python 의 {@code ChatRequest} (ai-service/app/schemas.py).
@@ -31,7 +30,7 @@ import java.util.UUID;
  * 둘이 되어 어느 쪽이 이겼는지 알 수 없어지고, 평가와 실사용이 다시 갈라진다.
  */
 public record AiChatRequest(
-        @JsonProperty("bot_id") UUID botId,
+        @JsonProperty("bot_id") Long botId,
         @JsonProperty("message") String message,
         @JsonProperty("session_id") String sessionId
 ) {

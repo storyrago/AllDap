@@ -20,7 +20,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -64,7 +63,7 @@ public class BotService {
      * 카드마다 세 번씩 세면 봇이 N개일 때 3N+1 번이 된다.
      * 대화 로그 목록이 쓰는 방식과 같다({@code ConversationLogService.findLogs}).
      */
-    public List<BotSummaryResponse> findMyBots(UUID userId) {
+    public List<BotSummaryResponse> findMyBots(Long userId) {
         List<Bot> bots = botRepository.findAllByUserIdOrderByCreatedAtDesc(userId);
         if (bots.isEmpty()) {
             return List.of();   // 집계 쿼리를 보낼 이유가 없다
@@ -72,7 +71,7 @@ public class BotService {
 
         // 집계도 userId 로 좁혀 나온다. 여기서 봇 id 로 다시 거를 필요가 없다는 뜻이 아니라,
         // 애초에 남의 봇이 결과에 들어올 수 없다는 뜻이다(BotRepository.aggregateMetrics 주석).
-        Map<UUID, BotRepository.BotMetrics> metrics =
+        Map<Long, BotRepository.BotMetrics> metrics =
                 botRepository.aggregateMetrics(userId, Instant.now().minus(WEEKLY_WINDOW)).stream()
                         .collect(Collectors.toMap(BotRepository.BotMetrics::getBotId, Function.identity()));
 
@@ -81,12 +80,12 @@ public class BotService {
                 .toList();
     }
 
-    public BotResponse findMyBot(UUID userId, UUID botId) {
+    public BotResponse findMyBot(Long userId, Long botId) {
         return BotResponse.from(findOwnedBot(userId, botId));
     }
 
     @Transactional
-    public BotResponse createBot(UUID userId, CreateBotRequest request) {
+    public BotResponse createBot(Long userId, CreateBotRequest request) {
         // getReferenceById(프록시)로 SELECT 를 아낄 수도 있지만 findById 로 실제 조회한다.
         // 토큰은 유효한데 그 사이 계정이 지워진 경우, 프록시를 쓰면 INSERT 단계의 FK 위반(500)이 되고
         // 여기서 걸러야 "다시 로그인하라"는 안내를 줄 수 있다.
@@ -103,7 +102,7 @@ public class BotService {
     }
 
     @Transactional
-    public BotResponse updateBot(UUID userId, UUID botId, UpdateBotRequest request) {
+    public BotResponse updateBot(Long userId, Long botId, UpdateBotRequest request) {
         Bot bot = findOwnedBot(userId, botId);
         // 변경 감지(dirty checking): 영속 상태의 엔티티를 고치면 트랜잭션 커밋 시
         // Hibernate 가 알아서 UPDATE 를 보낸다. botRepository.save() 를 부를 필요가 없다.
@@ -113,7 +112,7 @@ public class BotService {
     }
 
     @Transactional
-    public void deleteBot(UUID userId, UUID botId) {
+    public void deleteBot(Long userId, Long botId) {
         // ⚠️ 봇을 지우면 documents/chunks 뿐 아니라 eval_runs 도 DB 의 ON DELETE CASCADE 로
         // 함께 사라진다(V1__init.sql). usage_events 의 eval_run 항목은 "사용량 화면을 열 때"
         // 라는 조회 시점에 메꾸는 방식(UsageEventRepository.backfillEvalRuns)이라, 아무도
@@ -137,7 +136,7 @@ public class BotService {
      * "이 id 의 봇이 존재한다"는 사실이 새어나가, 무작위 id 를 던져 남의 봇 목록을 뽑아낼 수 있다.
      * (ACCESS_DENIED 코드가 ErrorCode 에 있긴 하지만 여기서는 쓰지 않는 게 맞다)
      */
-    private Bot findOwnedBot(UUID userId, UUID botId) {
+    private Bot findOwnedBot(Long userId, Long botId) {
         return botRepository.findByIdAndUserId(botId, userId)
                 .orElseThrow(() -> new ApiException(ErrorCode.BOT_NOT_FOUND));
     }

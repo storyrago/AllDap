@@ -11,7 +11,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.UUID;
 
 /**
  * 사용량 API. 인증 필요.
@@ -35,7 +34,7 @@ public class UsageController {
     /** GET /api/usage?month=YYYY-MM — 생략하면 이번 달(한국 시간 기준) */
     @Operation(summary = "사용량 집계 조회")
     @GetMapping("/api/usage")
-    public ResponseEntity<UsageResponse> getUsage(@AuthenticationPrincipal UUID userId,
+    public ResponseEntity<UsageResponse> getUsage(@AuthenticationPrincipal Long userId,
                                                   @RequestParam(required = false) String month) {
         return ResponseEntity.ok(usageService.findUsage(userId, month));
     }

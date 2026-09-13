@@ -20,12 +20,16 @@ import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { ApiError, api } from "@/lib/api";
+import { parseId } from "@/lib/ids";
 import type { Bot } from "@/lib/types";
 import { PageHeader } from "@/components/PageHeader";
 import { Section, TextArea, TextField } from "@/components/Form";
 
 export default function SettingsPage() {
-  const { botId } = useParams<{ botId: string }>();
+  /* useParams() 가 주는 값은 URL 조각이라 언제나 <문자열>이다.
+     기본키가 BIGINT 가 된 뒤로는 숫자로 바꿔야 하고, 형식 검사도 거기서 한다. */
+  const { botId: rawBotId } = useParams<{ botId: string }>();
+  const botId = parseId(rawBotId);
   const router = useRouter();
 
   const [bot, setBot] = useState<Bot | null>(null);

@@ -7,7 +7,6 @@ import tools.jackson.databind.ObjectMapper;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
-import java.util.UUID;
 
 /**
  * 평가 실행 응답. 프론트의 {@code EvalRun}({@code web/lib/types.ts})과 맞춘다.
@@ -20,7 +19,7 @@ import java.util.UUID;
  * Python 은 snake_case 로 쓰므로 여기서 camelCase 객체로 바꾼다(AGENTS.md 작업 규칙 5).
  */
 public record EvalRunResponse(
-        UUID id,
+        Long id,
         EvalConfigResponse config,
         /** 충실성 평균 (0~1). NUMERIC(4,3) 이라 BigDecimal 이다. */
         BigDecimal avgFaithfulness,

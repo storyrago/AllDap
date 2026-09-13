@@ -8,21 +8,20 @@ import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 
-public interface BillingMethodRepository extends JpaRepository<BillingMethod, UUID> {
+public interface BillingMethodRepository extends JpaRepository<BillingMethod, Long> {
 
     /** 등록 순서대로. 화면이 "먼저 등록한 카드가 위" 로 그리고, 순서가 요청마다 바뀌지 않아야 한다. */
-    List<BillingMethod> findByUserIdOrderByCreatedAtAsc(UUID userId);
+    List<BillingMethod> findByUserIdOrderByCreatedAtAsc(Long userId);
 
     /**
      * 🔴 소유권을 <b>검사하지 않고 쿼리에 못박는다</b> — {@code BotRepository.findByIdAndUserId} 와 같은 방식.
      * {@code findById} 뒤에 {@code if (남의 것) throw} 를 두면 검사를 빠뜨려도 컴파일이 통과한다.
      * 남의 카드는 "없는 카드" 와 같은 결과(404)다. 403 은 그 id 가 존재한다는 것을 알려준다.
      */
-    Optional<BillingMethod> findByIdAndUserId(UUID id, UUID userId);
+    Optional<BillingMethod> findByIdAndUserId(Long id, Long userId);
 
-    long countByUserId(UUID userId);
+    long countByUserId(Long userId);
 
     /**
      * 같은 계정의 기본 카드를 <b>해제</b>한다. 새 기본을 설정하기 <b>전에</b> 불러야 한다 —
@@ -35,5 +34,5 @@ public interface BillingMethodRepository extends JpaRepository<BillingMethod, UU
      */
     @Modifying
     @Query("UPDATE BillingMethod m SET m.isDefault = false WHERE m.userId = :userId AND m.isDefault = true")
-    int clearDefault(@Param("userId") UUID userId);
+    int clearDefault(@Param("userId") Long userId);
 }

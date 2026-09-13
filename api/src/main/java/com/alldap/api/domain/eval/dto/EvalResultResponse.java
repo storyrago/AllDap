@@ -4,7 +4,6 @@ import com.alldap.api.domain.eval.entity.EvalResult;
 
 import java.math.BigDecimal;
 import java.util.List;
-import java.util.UUID;
 
 /**
  * 질문 하나의 채점 결과. 프론트의 {@code EvalResult}({@code web/lib/types.ts})와 맞춘다.
@@ -29,8 +28,8 @@ import java.util.UUID;
  * 결과 한 건의 JSON 이 깨졌다고 리포트 전체가 500 이 되면 안 된다.
  */
 public record EvalResultResponse(
-        UUID id,
-        UUID questionId,
+        Long id,
+        Long questionId,
         String question,
         String groundTruth,
         String generatedAnswer,

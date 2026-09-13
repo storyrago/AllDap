@@ -22,8 +22,6 @@ noanswer_check 판정문구 · 이것 — AGENTS.md 의 "낸 버그" 절) 다음
 """
 from __future__ import annotations
 
-from uuid import uuid4
-
 from . import cf, generator
 from .generator import FALLBACK_TOKEN, GenerationFailed, generate
 from .schemas import Source
@@ -33,7 +31,7 @@ FALLBACK_MSG = "문서에서 답을 찾지 못했어요."
 
 def _sources() -> list[Source]:
     """근거 1건. 내용은 중요하지 않다 — 여기서 재는 것은 <응답 해석>이다."""
-    return [Source(chunk_id=uuid4(), document_id=uuid4(),
+    return [Source(chunk_id=1, document_id=2,
                    filename="취업규칙.md", score=0.9, preview="노트북 교체 주기는 3년")]
 
 

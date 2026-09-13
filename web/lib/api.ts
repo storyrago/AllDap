@@ -38,7 +38,7 @@ import type {
   UnansweredSummary,
   UpdateBotRequest,
   Usage,
-  Uuid,
+  Id,
   WidgetConfig,
 } from "./types";
 import { isTokenExpired } from "./token";
@@ -318,10 +318,10 @@ export const api = {
     list: () => request<BotSummary[]>("/api/bots"),
     create: (payload: CreateBotRequest) =>
       request<Bot>("/api/bots", { method: "POST", body: payload }),
-    get: (botId: Uuid) => request<Bot>(`/api/bots/${botId}`),
-    update: (botId: Uuid, payload: UpdateBotRequest) =>
+    get: (botId: Id) => request<Bot>(`/api/bots/${botId}`),
+    update: (botId: Id, payload: UpdateBotRequest) =>
       request<Bot>(`/api/bots/${botId}`, { method: "PATCH", body: payload }),
-    remove: (botId: Uuid) =>
+    remove: (botId: Id) =>
       request<void>(`/api/bots/${botId}`, { method: "DELETE" }),
   },
 
@@ -332,7 +332,7 @@ export const api = {
      * 그래서 업로드 직후에는 status 가 "pending" 이다. 화면은 list() 를 폴링해서 따라간다.
      * multipart 필드명은 Python 이 "file" 로 못박아뒀다 (ai-service/app/main.py).
      */
-    upload: (botId: Uuid, file: File) => {
+    upload: (botId: Id, file: File) => {
       const formData = new FormData();
       formData.append("file", file);
       return request<DocumentItem>(`/api/bots/${botId}/documents`, {
@@ -340,16 +340,16 @@ export const api = {
         formData,
       });
     },
-    list: (botId: Uuid) =>
+    list: (botId: Id) =>
       request<DocumentItem[]>(`/api/bots/${botId}/documents`),
     /** 문서를 지우면 관련 청크도 연쇄 삭제된다 (DB의 ON DELETE CASCADE) */
-    remove: (docId: Uuid) =>
+    remove: (docId: Id) =>
       request<void>(`/api/documents/${docId}`, { method: "DELETE" }),
   },
 
   /** 테스트 채팅 (F-03) — 관리자가 위젯 공개 전에 검수하는 용도 */
   chat: {
-    send: (botId: Uuid, payload: ChatRequest) =>
+    send: (botId: Id, payload: ChatRequest) =>
       request<ChatResponse>(`/api/bots/${botId}/chat`, {
         method: "POST",
         body: payload,
@@ -361,7 +361,7 @@ export const api = {
      * Spring 의 `FeedbackRequest` 는 `{ feedback }` 을 받으므로 그대로 두면 400 이 났다.
      * 서버가 실제로 생긴 뒤 대조해서 고친 것 — 뼈대의 추정값은 이렇게 어긋날 수 있다.
      */
-    feedback: (messageId: Uuid, feedback: 1 | -1) =>
+    feedback: (messageId: Id, feedback: 1 | -1) =>
       request<void>(`/api/messages/${messageId}/feedback`, {
         method: "POST",
         body: { feedback },
@@ -370,7 +370,7 @@ export const api = {
 
   /** 대화 로그 (F-07) */
   logs: {
-    list: (botId: Uuid, query: LogsQuery = {}) => {
+    list: (botId: Id, query: LogsQuery = {}) => {
       const params = new URLSearchParams();
       if (query.onlyFallback) params.set("onlyFallback", "true");
       if (query.onlyThumbsDown) params.set("onlyThumbsDown", "true");
@@ -388,7 +388,7 @@ export const api = {
      * PRD §10.1 표에는 없던 경로이고, Spring 설계 때 이 주소로 확정해 구현했다.
      * (ConversationLogController 의 GET /api/bots/{botId}/logs/{conversationId})
      */
-    messages: (botId: Uuid, conversationId: Uuid) =>
+    messages: (botId: Id, conversationId: Id) =>
       request<ChatMessage[]>(`/api/bots/${botId}/logs/${conversationId}`),
   },
 
@@ -401,10 +401,10 @@ export const api = {
    */
   evaluation: {
     /** 테스트 질문 목록 */
-    listQuestions: (botId: Uuid) =>
+    listQuestions: (botId: Id) =>
       request<EvalQuestion[]>(`/api/bots/${botId}/eval/questions`),
     /** 문서 청크에서 질문·정답 쌍을 자동 생성 (LLM 이 만든다) */
-    generateQuestions: (botId: Uuid, count: number) =>
+    generateQuestions: (botId: Id, count: number) =>
       request<EvalQuestion[]>(`/api/bots/${botId}/eval/questions/generate`, {
         method: "POST",
         body: { count },
@@ -416,8 +416,8 @@ export const api = {
      * 🔴 groundTruth 를 고치면 과거 실행과 비교할 수 없게 된다. 문항을 빼려면 isActive=false.
      */
     updateQuestion: (
-      botId: Uuid,
-      questionId: Uuid,
+      botId: Id,
+      questionId: Id,
       payload: { question?: string; groundTruth?: string; isActive?: boolean },
     ) =>
       request<EvalQuestion>(
@@ -425,13 +425,13 @@ export const api = {
         { method: "PATCH", body: payload },
       ),
     /** 평가 실행 시작. 즉시 running 상태의 run 을 돌려주고 채점은 백그라운드. */
-    startRun: (botId: Uuid) =>
+    startRun: (botId: Id) =>
       request<EvalRun>(`/api/bots/${botId}/eval/runs`, { method: "POST" }),
     /** 실행 이력 (설정별 비교의 재료) */
-    listRuns: (botId: Uuid) =>
+    listRuns: (botId: Id) =>
       request<EvalRun[]>(`/api/bots/${botId}/eval/runs`),
     /** 실행 1건의 질문별 상세 채점 결과 */
-    getRunResults: (botId: Uuid, runId: Uuid) =>
+    getRunResults: (botId: Id, runId: Id) =>
       request<EvalResult[]>(`/api/bots/${botId}/eval/runs/${runId}/results`),
     /**
      * 봇이 근거를 못 찾아 거절한 질문 모음 (자주 물어본 순).
@@ -439,7 +439,7 @@ export const api = {
      * LLM 을 부르지 않고 messages 집계만 하므로 <비용이 0>이다 — 마음껏 다시 불러도 된다.
      * 응답이 배열이 아니라 객체인 이유는 UnansweredSummary 주석 참고.
      */
-    listUnanswered: (botId: Uuid, limit = 50) =>
+    listUnanswered: (botId: Id, limit = 50) =>
       request<UnansweredSummary>(`/api/bots/${botId}/eval/unanswered?limit=${limit}`),
   },
 
@@ -502,12 +502,12 @@ export const api = {
      * ⚠️ 기본 카드는 다른 카드가 남아 있으면 409(BILLING_DEFAULT_METHOD_IN_USE)다.
      *    화면은 그 버튼을 미리 비활성화하지만 판단은 서버가 한다.
      */
-    deleteBillingMethod: (id: string) =>
+    deleteBillingMethod: (id: Id) =>
       request<void>(`/api/billing/methods/${id}`, { method: "DELETE" }),
     /**
      * 그 카드를 기본(청구에 쓸 카드)으로. <목록 전체>를 돌려준다. PUT 이라 연타해도 결과가 같다.
      */
-    setDefaultBillingMethod: (id: string) =>
+    setDefaultBillingMethod: (id: Id) =>
       request<BillingMethodsResponse>(`/api/billing/methods/${id}/default`, { method: "PUT" }),
   },
 
@@ -540,16 +540,16 @@ export const api = {
    */
   conflicts: {
     /** 목록. 기본은 아직 안 본 것(open)만 — ignored·clear 까지 섞으면 노이즈로 덮인다. */
-    list: (botId: Uuid, status: "open" | "ignored" | "resolved" | "clear" = "open") =>
+    list: (botId: Id, status: "open" | "ignored" | "resolved" | "clear" = "open") =>
       request<Conflict[]>(`/api/bots/${botId}/conflicts?status=${status}`),
     /**
      * 스캔. 동기라 수십 초 걸린다(판정 1건에 1~2초).
      * 서버가 판정 쌍 수를 상한으로 묶으므로, candidates 가 상한과 같으면 다시 눌러야 한다.
      */
-    scan: (botId: Uuid) =>
+    scan: (botId: Id) =>
       request<ConflictScan>(`/api/bots/${botId}/conflicts/scan`, { method: "POST" }),
     /** 오탐을 치운다. 이게 없으면 헛짚은 항목이 영원히 남아 화면 자체를 안 보게 된다. */
-    updateStatus: (botId: Uuid, conflictId: Uuid, status: "open" | "ignored" | "resolved") =>
+    updateStatus: (botId: Id, conflictId: Id, status: "open" | "ignored" | "resolved") =>
       request<Conflict>(`/api/bots/${botId}/conflicts/${conflictId}`, {
         method: "PATCH",
         body: { status },

@@ -30,11 +30,11 @@ W1 완료 조건 3번이 통과했다고 기록돼 있는데 그 질문 10개가
 from __future__ import annotations
 
 import sys
-from uuid import UUID
 
 from .db import close_pool, cursor
 from .fallback_e2e_check import BOT_ID, UNGROUNDED, guard
 from .retriever import embed_one
+from .schemas import Id
 
 # ── 홀드아웃: 임계값을 고른 <뒤에만> 보는 근거없음 질문 ────────────────
 #
@@ -130,7 +130,7 @@ def _self_check() -> None:
     print("OK — 트레이드오프 계산 6가지 통과")
 
 
-def d1(bot_id: UUID, question: str) -> float | None:
+def d1(bot_id: Id, question: str) -> float | None:
     """질문의 <벡터 최근접 거리>. 근거가 하나도 없으면 None.
 
     ⚠️ `retriever.search()` 의 첫 SQL 과 <같은 거리>를 재야 한다.

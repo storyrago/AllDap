@@ -141,13 +141,13 @@ public class GlobalExceptionHandler {
 
     /**
      * 경로 변수·쿼리 파라미터의 타입이 맞지 않는 경우 → 400.
-     * 예: {@code GET /api/bots/hello/documents} (UUID 자리에 문자열).
+     * 예: {@code GET /api/bots/hello/documents} (숫자 id 자리에 문자열).
      *
      * <p>이것도 없으면 500 + ERROR 스택트레이스가 남는다. 주소를 잘못 친 것은 클라이언트 잘못이고,
      * 무엇보다 <b>로그를 오염시킬 수 있다</b> — 아무 문자열이나 URL 에 넣어 호출하는 것만으로
      * 서버 로그에 ERROR 스택트레이스를 무제한으로 쌓을 수 있게 된다.
      *
-     * <p>기대 타입을 응답에 적지 않는 이유: 내부 클래스명({@code java.util.UUID})이 그대로 노출된다.
+     * <p>기대 타입을 응답에 적지 않는 이유: 내부 클래스명({@code java.lang.Long})이 그대로 노출된다.
      * 사용자에게는 "주소가 올바른지 확인하라"로 충분하고, 정확한 원인은 로그에 남긴다.
      */
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
@@ -262,7 +262,7 @@ public class GlobalExceptionHandler {
                 .body(ErrorResponse.of(ErrorCode.INTERNAL_ERROR));
     }
 
-    // MethodArgumentTypeMismatchException 은 위에 추가했다(문서 API 가 UUID 경로 변수를 쓰기 시작해서).
+    // MethodArgumentTypeMismatchException 은 위에 추가했다(문서 API 가 숫자 경로 변수를 쓰기 시작해서).
     // TODO(W2): ConstraintViolationException(@RequestParam/@PathVariable 에 붙인 검증 애너테이션)은
     //   아직 그런 검증을 쓰는 엔드포인트가 없어 남겨둔다. 처음 쓰는 슬라이스에서 함께 추가할 것.
 }

@@ -1,7 +1,6 @@
 package com.alldap.api.domain.chat.dto;
 
 import java.time.Instant;
-import java.util.UUID;
 
 /**
  * 대화 로그 목록의 한 줄. 프론트의 {@code ConversationSummary}({@code web/lib/types.ts})와 맞춘다.
@@ -12,7 +11,7 @@ import java.util.UUID;
  * ({@code MessageRepository.aggregateByConversationIds}, 목록 집계는 쿼리 2번 고정).
  */
 public record ConversationSummaryResponse(
-        UUID id,
+        Long id,
         String sessionId,
         /** widget = 실제 엔드유저 / test = 관리자 테스트 채팅 */
         String channel,

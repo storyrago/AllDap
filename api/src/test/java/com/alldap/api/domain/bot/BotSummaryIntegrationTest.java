@@ -21,7 +21,6 @@ import tools.jackson.databind.ObjectMapper;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -43,6 +42,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 @IntegrationTest
 @DisplayName("봇 카드 집계 통합 테스트")
 class BotSummaryIntegrationTest {
+
+    /** 대화 세션 id 를 겹치지 않게 만드는 순번. 값 자체에는 의미가 없다. */
+    private int sessionSeq = 0;
 
     private static final String PASSWORD = "correct-password-1234";
     private static final ObjectMapper JSON = new ObjectMapper();
@@ -74,7 +76,7 @@ class BotSummaryIntegrationTest {
     @Test
     @DisplayName("카드에 문서 수·주간 대화 수·최근 평가 점수가 실린다")
     void 집계가_실린다() {
-        UUID botId = createBot(ownerToken, "집계 봇");
+        Long botId = createBot(ownerToken, "집계 봇");
 
         insertDocument(botId, "규정.pdf", "ready");
         insertDocument(botId, "처리중.pdf", "pending");   // 처리 중인 문서도 문서 목록에 보이므로 함께 센다
@@ -105,7 +107,7 @@ class BotSummaryIntegrationTest {
     @Test
     @DisplayName("분모를 모르거나 아직 안 끝난 실행은 건너뛰고 계산 가능한 최신 실행을 고른다")
     void 계산할_수_없는_실행은_건너뛴다() {
-        UUID botId = createBot(ownerToken, "이력 있는 봇");
+        Long botId = createBot(ownerToken, "이력 있는 봇");
 
         insertEvalRun(botId, "completed", "0.800", 10, 10, Instant.now().minus(Duration.ofDays(3)));
         // 옛 실행이라 분모 미기록(V3 이전). 이걸 고르면 점수를 지어내야 한다.
@@ -119,8 +121,8 @@ class BotSummaryIntegrationTest {
     @Test
     @DisplayName("[보안] 남의 봇 문서·대화·평가가 내 카드 숫자에 섞이지 않는다")
     void 집계도_소유자로_격리된다() {
-        UUID myBot = createBot(ownerToken, "내 봇");
-        UUID theirBot = createBot(intruderToken, "남의 봇");
+        Long myBot = createBot(ownerToken, "내 봇");
+        Long theirBot = createBot(intruderToken, "남의 봇");
 
         insertDocument(theirBot, "남의문서.pdf", "ready");
         insertConversation(theirBot, Instant.now());
@@ -142,7 +144,7 @@ class BotSummaryIntegrationTest {
 
         long withTwo = countQueries(() -> request("/api/bots", ownerToken));
 
-        UUID third = createBot(ownerToken, "봇 3");
+        Long third = createBot(ownerToken, "봇 3");
         insertDocument(third, "b.pdf", "ready");
         insertConversation(third, Instant.now());
         insertEvalRun(third, "completed", "0.900", 10, 9, Instant.now());
@@ -178,20 +180,20 @@ class BotSummaryIntegrationTest {
         return request("/api/bots", token).get(0);
     }
 
-    private void insertDocument(UUID botId, String filename, String status) {
+    private void insertDocument(Long botId, String filename, String status) {
         jdbc.sql("INSERT INTO documents (bot_id, filename, file_type, status) VALUES (?, ?, 'pdf', ?)")
                 .params(botId, filename, status)
                 .update();
     }
 
-    private void insertConversation(UUID botId, Instant createdAt) {
+    private void insertConversation(Long botId, Instant createdAt) {
         jdbc.sql("INSERT INTO conversations (bot_id, session_id, channel, created_at) VALUES (?, ?, 'widget', ?)")
-                .params(botId, UUID.randomUUID().toString(), java.sql.Timestamp.from(createdAt))
+                .params(botId, "session-" + (sessionSeq++), java.sql.Timestamp.from(createdAt))
                 .update();
     }
 
     /** {@code avgFaithfulness} 는 NUMERIC(4,3) 이라 문자열로 넘겨 부동소수점 오차를 피한다. */
-    private void insertEvalRun(UUID botId, String status, String avgFaithfulness,
+    private void insertEvalRun(Long botId, String status, String avgFaithfulness,
                                Integer questionCount, Integer scoredCount, Instant createdAt) {
         jdbc.sql("""
                         INSERT INTO eval_runs (bot_id, status, avg_faithfulness, question_count, scored_count, created_at)
@@ -207,8 +209,8 @@ class BotSummaryIntegrationTest {
                 .path("token").asString();
     }
 
-    private UUID createBot(String token, String name) {
-        return UUID.fromString(post("/api/bots", token, new CreateBotRequest(name)).path("id").asString());
+    private Long createBot(String token, String name) {
+        return post("/api/bots", token, new CreateBotRequest(name)).path("id").asLong();
     }
 
     private JsonNode request(String uri, String token) {

@@ -21,7 +21,6 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.Locale;
 import java.util.Set;
-import java.util.UUID;
 
 /**
  * JWT 발급·검증.
@@ -185,7 +184,7 @@ public class JwtService {
      * 돌아다니는 것을 감안하면 개인정보를 실어 보낼 이유가 없다.
      * 사용자 정보가 필요하면 {@code sub} 로 DB 를 조회하면 된다.
      */
-    public String issueAccessToken(UUID userId) {
+    public String issueAccessToken(Long userId) {
         Instant now = Instant.now();
         Instant expiresAt = now.plus(jwtProperties.accessTokenTtl());
 
@@ -213,7 +212,7 @@ public class JwtService {
      * 공격자에게 "서명은 맞는데 만료됐다" 같은 힌트를 줄 이유가 없고,
      * 프론트가 할 일은 어느 쪽이든 "토큰 버리고 다시 로그인"으로 동일하다.
      */
-    public UUID parseUserId(String token) {
+    public Long parseUserId(String token) {
         try {
             Jws<Claims> jws = jwtParser.parseSignedClaims(token);
 
@@ -243,8 +242,9 @@ public class JwtService {
                 // 아래 catch 가 함께 잡도록 IllegalArgumentException 으로 던진다.
                 throw new IllegalArgumentException("sub 클레임이 없는 토큰");
             }
-            // sub 가 UUID 형식이 아니면 여기서 IllegalArgumentException 이 난다.
-            return UUID.fromString(subject);
+            // sub 가 숫자가 아니면 여기서 NumberFormatException(IllegalArgumentException 의 하위)이 난다.
+            // 아래 catch 가 그대로 잡는다.
+            return Long.parseLong(subject);
 
         } catch (JwtException | IllegalArgumentException e) {
             // ⚠️ 토큰 문자열 자체를 로그에 남기지 않는다. 로그를 볼 수 있는 사람이

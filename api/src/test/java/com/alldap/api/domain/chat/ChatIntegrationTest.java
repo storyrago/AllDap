@@ -26,7 +26,6 @@ import tools.jackson.databind.ObjectMapper;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.List;
-import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -48,14 +47,17 @@ import static org.assertj.core.api.Assertions.assertThat;
 @DisplayName("채팅 API 통합 테스트")
 class ChatIntegrationTest {
 
+    /** 존재하지 않는 id. 순번이라 이만큼 큰 값은 테스트 안에서 만들어질 수 없다. */
+    private static final long MISSING_ID = 999_999_999L;
+
     private static final String PASSWORD = "correct-password-1234";
     private static final String SESSION = "sess-test-0001";
 
     /** Python 이 근거를 찾아 정상 답변한 경우. */
     private static final String 정상응답 = """
             {"answer":"휴학은 매 학기 개강 후 30일 이내에 신청합니다.",
-             "sources":[{"chunk_id":"22222222-2222-2222-2222-222222222222",
-                         "document_id":"33333333-3333-3333-3333-333333333333",
+             "sources":[{"chunk_id":22,
+                         "document_id":33,
                          "filename":"학사규정.pdf","score":0.87,"preview":"휴학 신청은 개강 후 30일 이내"}],
              "is_fallback":false,"latency_ms":1234}""";
 
@@ -99,7 +101,7 @@ class ChatIntegrationTest {
     private RestTestClient client;
     private String ownerToken;
     private String intruderToken;
-    private UUID botId;
+    private Long botId;
 
     @BeforeEach
     void setUp() {
@@ -234,8 +236,8 @@ class ChatIntegrationTest {
         // "무엇을 근거로 봤는데도 답을 못 했나" 가 남아야 W3 미답변 분석에 쓸 수 있다.
         aiService.enqueue(200, """
                 {"answer":"문서에서 관련 내용을 찾지 못했습니다.",
-                 "sources":[{"chunk_id":"22222222-2222-2222-2222-222222222222",
-                             "document_id":"33333333-3333-3333-3333-333333333333",
+                 "sources":[{"chunk_id":22,
+                             "document_id":33,
                              "filename":"학사규정.pdf","score":0.58,"preview":"휴학 신청은"}],
                  "is_fallback":true,"latency_ms":300}""");
 
@@ -420,7 +422,7 @@ class ChatIntegrationTest {
     @DisplayName("답변에 👍 를 남기면 204 이고 DB 에 기록된다")
     void 피드백_성공() {
         aiService.enqueue(200, 정상응답);
-        UUID messageId = UUID.fromString(chat(ownerToken, botId, "질문").json().path("messageId").asString());
+        Long messageId = chat(ownerToken, botId, "질문").json().path("messageId").asLong();
 
         Response response = request(HttpMethod.POST, "/api/messages/" + messageId + "/feedback",
                 ownerToken, new FeedbackRequest((short) 1));
@@ -435,7 +437,7 @@ class ChatIntegrationTest {
     @DisplayName("[보안] 남의 메시지에 피드백을 남기면 404 다")
     void 남의_메시지에_피드백() {
         aiService.enqueue(200, 정상응답);
-        UUID messageId = UUID.fromString(chat(ownerToken, botId, "질문").json().path("messageId").asString());
+        Long messageId = chat(ownerToken, botId, "질문").json().path("messageId").asLong();
 
         Response response = request(HttpMethod.POST, "/api/messages/" + messageId + "/feedback",
                 intruderToken, new FeedbackRequest((short) -1));
@@ -444,7 +446,7 @@ class ChatIntegrationTest {
         assertThat(response.json().path("error").path("code").asString()).isEqualTo("MESSAGE_NOT_FOUND");
 
         // 없는 메시지와 응답이 같아야 "그 id 의 메시지가 존재하는지"가 새지 않는다.
-        Response 없는메시지 = request(HttpMethod.POST, "/api/messages/" + UUID.randomUUID() + "/feedback",
+        Response 없는메시지 = request(HttpMethod.POST, "/api/messages/" + MISSING_ID + "/feedback",
                 intruderToken, new FeedbackRequest((short) -1));
         assertThat(response.body()).isEqualTo(없는메시지.body());
     }
@@ -454,8 +456,8 @@ class ChatIntegrationTest {
     void 질문에는_피드백_불가() {
         aiService.enqueue(200, 정상응답);
         chat(ownerToken, botId, "질문");
-        UUID userMessageId = UUID.fromString(jdbcTemplate.queryForObject(
-                "SELECT id::text FROM messages WHERE role = 'user'", String.class));
+        Long userMessageId = jdbcTemplate.queryForObject(
+                "SELECT id FROM messages WHERE role = 'user'", Long.class);
 
         Response response = request(HttpMethod.POST, "/api/messages/" + userMessageId + "/feedback",
                 ownerToken, new FeedbackRequest((short) 1));
@@ -469,7 +471,7 @@ class ChatIntegrationTest {
     @DisplayName("피드백 값 0 은 거절한다 (@Min/@Max 만으로는 통과하는 값)")
     void 피드백_0은_거절() {
         aiService.enqueue(200, 정상응답);
-        UUID messageId = UUID.fromString(chat(ownerToken, botId, "질문").json().path("messageId").asString());
+        Long messageId = chat(ownerToken, botId, "질문").json().path("messageId").asLong();
 
         Response response = request(HttpMethod.POST, "/api/messages/" + messageId + "/feedback",
                 ownerToken, new FeedbackRequest((short) 0));
@@ -511,7 +513,7 @@ class ChatIntegrationTest {
 
     // ── 테스트 보조 ──────────────────────────────────────────────────────
 
-    private Response chat(String token, UUID botId, String message) {
+    private Response chat(String token, Long botId, String message) {
         return request(HttpMethod.POST, "/api/bots/" + botId + "/chat", token,
                 new ChatRequest(message, SESSION));
     }
@@ -521,9 +523,9 @@ class ChatIntegrationTest {
                 new SignupRequest(email, PASSWORD, null)).json().path("token").asString();
     }
 
-    private UUID createBot(String token) {
-        return UUID.fromString(request(HttpMethod.POST, "/api/bots", token,
-                new CreateBotRequest("테스트 봇")).json().path("id").asString());
+    private Long createBot(String token) {
+        return request(HttpMethod.POST, "/api/bots", token,
+                new CreateBotRequest("테스트 봇")).json().path("id").asLong();
     }
 
     private int countMessages() {

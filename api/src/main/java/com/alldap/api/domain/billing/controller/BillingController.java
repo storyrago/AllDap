@@ -18,7 +18,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.UUID;
 
 /**
  * 결제 수단 API. 인증 필요. V7(2026-09-08) 부터 <b>여러 장</b> — 경로가 {@code /method} 에서
@@ -43,7 +42,7 @@ public class BillingController {
     /** GET /api/billing/methods — 카드가 없으면 {@code methods: []}, customerKey 는 항상 온다 */
     @Operation(summary = "등록된 카드 목록 조회")
     @GetMapping
-    public ResponseEntity<BillingMethodsResponse> list(@AuthenticationPrincipal UUID userId) {
+    public ResponseEntity<BillingMethodsResponse> list(@AuthenticationPrincipal Long userId) {
         return ResponseEntity.ok(billingService.find(userId));
     }
 
@@ -57,7 +56,7 @@ public class BillingController {
     @Operation(summary = "카드 등록 (토스 빌링키 발급)")
     @PostMapping
     public ResponseEntity<BillingMethodsResponse> register(
-            @AuthenticationPrincipal UUID userId,
+            @AuthenticationPrincipal Long userId,
             @Valid @RequestBody RegisterBillingMethodRequest request) {
         return ResponseEntity.ok(billingService.register(userId, request));
     }
@@ -71,7 +70,7 @@ public class BillingController {
      */
     @Operation(summary = "카드 삭제")
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@AuthenticationPrincipal UUID userId, @PathVariable UUID id) {
+    public ResponseEntity<Void> delete(@AuthenticationPrincipal Long userId, @PathVariable Long id) {
         billingService.delete(userId, id);
         return ResponseEntity.noContent().build();
     }
@@ -85,7 +84,7 @@ public class BillingController {
     @Operation(summary = "기본 카드 지정")
     @PutMapping("/{id}/default")
     public ResponseEntity<BillingMethodsResponse> setDefault(
-            @AuthenticationPrincipal UUID userId, @PathVariable UUID id) {
+            @AuthenticationPrincipal Long userId, @PathVariable Long id) {
         return ResponseEntity.ok(billingService.setDefault(userId, id));
     }
 }

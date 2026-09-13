@@ -2,7 +2,6 @@ package com.alldap.api.domain.chat.dto;
 
 import java.time.Instant;
 import java.util.List;
-import java.util.UUID;
 
 /**
  * 대화 상세의 메시지 한 건. 프론트의 {@code ChatMessage}({@code web/lib/types.ts})와 맞춘다.
@@ -12,7 +11,7 @@ import java.util.UUID;
  * 과거 로그 한 건의 JSON 이 깨졌다고 대화 전체가 500 이 되면 안 된다(Message.sources 주석).
  */
 public record MessageResponse(
-        UUID id,
+        Long id,
         /** user | assistant */
         String role,
         String content,

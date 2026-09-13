@@ -38,15 +38,23 @@ AGENTS.md 의 경고: "코퍼스를 바꾸면 질문 목록도 반드시 함께 
 """
 from __future__ import annotations
 
+import os
 import sys
-from uuid import UUID
 
 from .db import close_pool, cursor
 from .generator import build_system_prompt, fetch_bot_prompt, generate
 from .retriever import search
+from .schemas import Id
 
 # 평가에 쓰는 봇. 코퍼스 50문서 · 306청크.
-BOT_ID = UUID("628d2785-a128-486c-a1ac-556f19f06de3")
+#
+# 🔴 V9(2026-09-13, 기본키 BIGINT 전환)가 기존 데이터를 전부 비웠다. 전에는
+#    UUID("628d2785-a128-486c-a1ac-556f19f06de3") 로 못박아 둘 수 있었지만,
+#    이제 봇은 <만들어진 순서대로> 번호를 받으므로 환경마다 값이 다르다.
+#    그래서 기본값을 두되 환경변수로 덮어쓸 수 있게 한다. 번호가 안 맞으면
+#    코퍼스가 없는 봇을 보게 되어 <전부 fallback> 이 나고, 그것은 10/10 으로
+#    통과한다 — 대조군 3건이 있는 이유가 정확히 이것이다(아래 참고).
+BOT_ID: Id = int(os.environ.get("EVAL_BOT_ID", "2"))
 
 # ── 근거가 <없어야> 하는 질문 10개 ──────────────────────────────────────
 #

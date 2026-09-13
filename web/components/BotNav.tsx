@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import type { Id } from "@/lib/types";
 
 /**
  * 봇 상세 화면(/bot/[botId]/*)의 좌측 네비게이션.
@@ -38,7 +39,7 @@ const NAV_ITEMS = [
   { slug: "settings", label: "설정" },
 ] as const;
 
-export function BotNav({ botId }: { botId: string }) {
+export function BotNav({ botId }: { botId: Id }) {
   const pathname = usePathname();
 
   return (

@@ -17,8 +17,8 @@ from app import cf, conflicts
 from app.conflicts import Candidate
 
 _C = Candidate(
-    a_id="00000000-0000-0000-0000-000000000001",
-    b_id="00000000-0000-0000-0000-000000000002",
+    a_id=1,
+    b_id=2,
     distance=0.1,
     a_content="노트북 교체 주기는 3년이다.", a_filename="A.md",
     b_content="노트북 교체 주기는 4년이다.", b_filename="B.md",

@@ -32,7 +32,6 @@ RAG 는 <문서가 진리>라고 가정한다. 그런데 실제 사내 문서는
 from __future__ import annotations
 
 import logging
-from uuid import UUID
 
 from pydantic import BaseModel
 
@@ -40,15 +39,16 @@ from . import cf
 from .config import get_settings
 from .db import cursor
 from .judge import _extract_json   # 모델이 코드펜스·잡소리를 섞는 버릇은 여기서도 같다
+from .schemas import Id
 
 _log = logging.getLogger(__name__)
 
 
 class Candidate(BaseModel):
-    """판정 대상 한 쌍. a 가 항상 <작은 UUID> 다 (아래 SQL 의 LEAST/GREATEST)."""
+    """판정 대상 한 쌍. a 가 항상 <번호가 작은 쪽> 이다 (아래 SQL 의 LEAST/GREATEST)."""
 
-    a_id: UUID
-    b_id: UUID
+    a_id: Id
+    b_id: Id
     distance: float
     a_content: str
     a_filename: str
@@ -117,7 +117,7 @@ WITH nearest AS (
        AND a.embedding IS NOT NULL
 ),
 deduped AS (
-    -- (a,b) 와 (b,a) 는 같은 쌍이다. UUID 크기로 정렬해 하나로 접는다.
+    -- (a,b) 와 (b,a) 는 같은 쌍이다. id 크기로 정렬해 하나로 접는다.
     -- 이 정렬이 V4 의 유니크 인덱스가 기대하는 순서이기도 하다.
     SELECT LEAST(a_id, b_id) AS lo_id,
            GREATEST(a_id, b_id) AS hi_id,
@@ -146,12 +146,12 @@ SELECT d.lo_id, d.hi_id, d.distance,
 """
 
 
-def find_candidates(bot_id: UUID) -> list[Candidate]:
+def find_candidates(bot_id: Id) -> list[Candidate]:
     """판정할 쌍을 고른다. 여기까지는 LLM 을 부르지 않으므로 공짜다."""
     s = get_settings()
     with cursor() as cur:
         cur.execute(_CANDIDATE_SQL, {
-            "bot_id": str(bot_id),
+            "bot_id": bot_id,
             "max_distance": s.conflict_max_distance,
             "limit": s.conflict_max_pairs,
         })
@@ -231,7 +231,7 @@ class ScanResult(BaseModel):
     failed: int       # 판정하지 못한 쌍 (호출 실패·파싱 실패)
 
 
-def scan(bot_id: UUID) -> ScanResult:
+def scan(bot_id: Id) -> ScanResult:
     """봇 하나의 문서 모순을 훑어 `doc_conflicts` 에 기록한다."""
     candidates = find_candidates(bot_id)
     if not candidates:
@@ -254,10 +254,10 @@ def scan(bot_id: UUID) -> ScanResult:
         #    문서가 바뀌면 청크가 새로 생기고 이 행은 CASCADE 로 사라져 자동 재판정된다.
         if v.conflict:
             conflicts_found += 1
-            rows.append((str(bot_id), str(c.a_id), str(c.b_id), "open",
+            rows.append((bot_id, c.a_id, c.b_id, "open",
                          v.topic or "(주제 미상)", v.a_says, v.b_says, c.distance))
         else:
-            rows.append((str(bot_id), str(c.a_id), str(c.b_id), "clear",
+            rows.append((bot_id, c.a_id, c.b_id, "clear",
                          "", "", "", c.distance))
 
     if rows:

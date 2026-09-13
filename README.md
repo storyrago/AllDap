@@ -226,7 +226,7 @@ Python 은 이 둘을 건드리지 않습니다.
 <img src="docs/images/erd.png" alt="AllDap ERD" width="100%">
 
 > 각 행은 **타입 · 컬럼명 · 키(PK/FK/UK) · 한국어 이름과 NOT NULL 여부, 설명** 순입니다.
-> Flyway 마이그레이션(V1~V8)에 실제로 들어 있는 **전 컬럼**을 담았습니다.
+> Flyway 마이그레이션(V1~V9)에 실제로 들어 있는 **전 컬럼**을 담았습니다.
 >
 > 편집용 원본은 [`docs/images/erd.mmd`](docs/images/erd.mmd) (Mermaid) 입니다.
 > 고친 뒤 `npx -p @mermaid-js/mermaid-cli mmdc -i docs/images/erd.mmd -o docs/images/erd.png -w 2400 -s 2 -b white` 로 다시 뽑습니다.

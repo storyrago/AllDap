@@ -4,7 +4,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.time.Instant;
 import java.util.Map;
-import java.util.UUID;
 
 /**
  * Python 의 {@code EvalRunOut} (ai-service/app/schemas.py).
@@ -25,7 +24,7 @@ import java.util.UUID;
  * 여기서는 원본을 그대로 들고, 프론트에 줄 때 {@code EvalConfigResponse} 로 정리한다.
  */
 public record AiEvalRunResponse(
-        @JsonProperty("id") UUID id,
+        @JsonProperty("id") Long id,
         @JsonProperty("status") String status,
         @JsonProperty("config") Map<String, Object> config,
         @JsonProperty("avg_faithfulness") Double avgFaithfulness,

@@ -2,7 +2,6 @@ package com.alldap.api.domain.eval.dto;
 
 import com.fasterxml.jackson.annotation.JsonAlias;
 
-import java.util.UUID;
 
 /**
  * 평가 실행 중 검색된 청크 하나 (스냅샷).
@@ -29,7 +28,7 @@ import java.util.UUID;
  * ({@code chunkId})이 그대로 나간다. 읽기·쓰기가 갈리는 지점이라 이게 맞다.
  */
 public record EvalRetrievedChunkResponse(
-        @JsonAlias("chunk_id") UUID chunkId,
+        @JsonAlias("chunk_id") Long chunkId,
         String filename,
         /** 0~1. 1에 가까울수록 관련성 높음 (1 - 코사인거리) */
         Double score

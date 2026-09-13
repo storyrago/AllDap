@@ -15,7 +15,6 @@ import org.springframework.web.bind.annotation.RestController;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
-import java.util.UUID;
 
 /**
  * 채팅·피드백 API (PRD §10.1). 인증 필요.
@@ -38,8 +37,8 @@ public class ChatController {
      */
     @Operation(summary = "관리자 테스트 채팅")
     @PostMapping("/api/bots/{botId}/chat")
-    public ResponseEntity<ChatResponse> chat(@AuthenticationPrincipal UUID userId,
-                                             @PathVariable UUID botId,
+    public ResponseEntity<ChatResponse> chat(@AuthenticationPrincipal Long userId,
+                                             @PathVariable Long botId,
                                              @Valid @RequestBody ChatRequest request) {
         return ResponseEntity.ok(chatService.chatAsOwner(userId, botId, request));
     }
@@ -47,8 +46,8 @@ public class ChatController {
     /** POST /api/messages/{msgId}/feedback — 답변에 👍/👎 */
     @Operation(summary = "답변 피드백 등록")
     @PostMapping("/api/messages/{msgId}/feedback")
-    public ResponseEntity<Void> feedback(@AuthenticationPrincipal UUID userId,
-                                         @PathVariable UUID msgId,
+    public ResponseEntity<Void> feedback(@AuthenticationPrincipal Long userId,
+                                         @PathVariable Long msgId,
                                          @Valid @RequestBody FeedbackRequest request) {
         chatService.applyFeedback(userId, msgId, request.feedback());
         // 204. 피드백은 서버에 새 리소스를 만드는 게 아니라 기존 메시지의 값을 바꾸는 것이고,

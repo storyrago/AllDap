@@ -10,7 +10,6 @@ from __future__ import annotations
 import logging
 import time
 from contextlib import asynccontextmanager
-from uuid import UUID
 
 import anyio.to_thread
 from fastapi import BackgroundTasks, FastAPI, File, HTTPException, Response, UploadFile
@@ -31,6 +30,7 @@ from .schemas import (
     EvalQuestionOut,
     EvalRunOut,
     GenerateQuestionsRequest,
+    Id,
     UpdateEvalQuestionRequest,
 )
 
@@ -311,7 +311,7 @@ async def prometheus_metrics() -> Response:
 
 # ── 문서 처리 ────────────────────────────────────────────────────────
 
-def _process_document(doc_id: UUID, bot_id: UUID, filename: str, data: bytes) -> None:
+def _process_document(doc_id: Id, bot_id: Id, filename: str, data: bytes) -> None:
     """업로드 응답과 분리해 백그라운드에서 실행.
 
     ※ MVP 한정. 프로세스가 죽으면 작업이 유실되므로,
@@ -376,7 +376,7 @@ def _process_document(doc_id: UUID, bot_id: UUID, filename: str, data: bytes) ->
     description=_NO_DESCRIPTION,
 )
 async def upload_document(
-    bot_id: UUID,
+    bot_id: Id,
     background: BackgroundTasks,
     file: UploadFile = File(...),
 ) -> DocumentOut:
@@ -435,7 +435,7 @@ async def upload_document(
     summary="문서 목록 조회",
     description=_NO_DESCRIPTION,
 )
-def list_documents(bot_id: UUID) -> list[DocumentOut]:
+def list_documents(bot_id: Id) -> list[DocumentOut]:
     """
     봇 하나의 문서 목록을 최신순으로 준다. 업로드 진행 상황을 보는 창이다.
 
@@ -480,7 +480,7 @@ def list_documents(bot_id: UUID) -> list[DocumentOut]:
     summary="문서 삭제",
     description=_NO_DESCRIPTION,
 )
-def delete_document(bot_id: UUID, doc_id: UUID) -> None:
+def delete_document(bot_id: Id, doc_id: Id) -> None:
     """
     문서 1건을 지운다. 청크는 CASCADE 로 함께 사라진다.
 
@@ -605,7 +605,7 @@ def chat(req: ChatRequest) -> ChatResponse:
     description=_NO_DESCRIPTION,
 )
 def generate_eval_questions(
-    bot_id: UUID, req: GenerateQuestionsRequest
+    bot_id: Id, req: GenerateQuestionsRequest
 ) -> list[EvalQuestionOut]:
     """
     문서 청크에서 테스트 질문·정답 쌍을 만들어 저장한다.
@@ -688,7 +688,7 @@ def generate_eval_questions(
     summary="테스트 질문 목록 조회",
     description=_NO_DESCRIPTION,
 )
-def list_eval_questions(bot_id: UUID) -> list[EvalQuestionOut]:
+def list_eval_questions(bot_id: Id) -> list[EvalQuestionOut]:
     """
     테스트 질문 목록. 비활성(is_active=false) 도 함께 준다. 화면에서 켜고 꺼야 하기 때문."""
     with cursor() as cur:
@@ -715,7 +715,7 @@ def list_eval_questions(bot_id: UUID) -> list[EvalQuestionOut]:
     description=_NO_DESCRIPTION,
 )
 def update_eval_question(
-    bot_id: UUID, question_id: UUID, req: UpdateEvalQuestionRequest
+    bot_id: Id, question_id: Id, req: UpdateEvalQuestionRequest
 ) -> EvalQuestionOut:
     """
     테스트 질문 1건을 고친다. 보낸 필드만 바꾼다.
@@ -769,7 +769,7 @@ def update_eval_question(
     summary="평가 실행 시작 (비동기)",
     description=_NO_DESCRIPTION,
 )
-def start_eval_run(bot_id: UUID, background: BackgroundTasks) -> EvalRunOut:
+def start_eval_run(bot_id: Id, background: BackgroundTasks) -> EvalRunOut:
     """
     평가를 시작한다. 즉시 running 상태의 실행을 돌려주고 채점은 백그라운드에서 진행한다.
 
@@ -813,7 +813,7 @@ def start_eval_run(bot_id: UUID, background: BackgroundTasks) -> EvalRunOut:
     summary="평가 실행 이력 조회",
     description=_NO_DESCRIPTION,
 )
-def list_eval_runs(bot_id: UUID) -> list[EvalRunOut]:
+def list_eval_runs(bot_id: Id) -> list[EvalRunOut]:
     """
     실행 이력. 최신순.
 
@@ -849,7 +849,7 @@ def list_eval_runs(bot_id: UUID) -> list[EvalRunOut]:
     summary="문서 충돌 진단 실행",
     description=_NO_DESCRIPTION,
 )
-def scan_conflicts(bot_id: UUID) -> ConflictScanOut:
+def scan_conflicts(bot_id: Id) -> ConflictScanOut:
     """
     문서끼리 어긋나는 곳을 훑는다.
 
@@ -878,7 +878,7 @@ def scan_conflicts(bot_id: UUID) -> ConflictScanOut:
     summary="문서 충돌 목록 조회",
     description=_NO_DESCRIPTION,
 )
-def list_conflicts(bot_id: UUID, status: str = "open") -> list[ConflictOut]:
+def list_conflicts(bot_id: Id, status: str = "open") -> list[ConflictOut]:
     """
     충돌 목록. 기본은 관리자가 아직 안 본 것(open)만.
 
@@ -925,7 +925,7 @@ def list_conflicts(bot_id: UUID, status: str = "open") -> list[ConflictOut]:
     description=_NO_DESCRIPTION,
 )
 def update_conflict_status(
-    bot_id: UUID, conflict_id: UUID, req: ConflictStatusRequest
+    bot_id: Id, conflict_id: Id, req: ConflictStatusRequest
 ) -> ConflictOut:
     """
     충돌 1건의 상태를 바꾼다 (주로 오탐을 'ignored' 로 치우는 용도).

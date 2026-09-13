@@ -28,7 +28,6 @@ import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
-import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -54,6 +53,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 @IntegrationTest
 @DisplayName("품질 평가 API 통합 테스트")
 class EvalIntegrationTest {
+
+    /** 존재하지 않는 id. 순번이라 이만큼 큰 값은 테스트 안에서 만들어질 수 없다. */
+    private static final long MISSING_ID = 999_999_999L;
 
     private static final String PASSWORD = "correct-password-1234";
 
@@ -89,7 +91,7 @@ class EvalIntegrationTest {
     private RestTestClient client;
     private String ownerToken;
     private String intruderToken;
-    private UUID botId;
+    private Long botId;
 
     @BeforeEach
     void setUp() {
@@ -149,21 +151,21 @@ class EvalIntegrationTest {
     @Test
     @DisplayName("[보안] 실행 id 를 알아도 남의 봇 경로로는 결과를 못 본다 — 403 이 아니라 404")
     void 남의_봇_실행결과() {
-        UUID runId = insertRun(botId, "completed");
+        Long runId = insertRun(botId, "completed");
 
         Response response = request(HttpMethod.GET,
                 "/api/bots/" + botId + "/eval/runs/" + runId + "/results", intruderToken);
 
         // 403 으로 답하면 "그 실행은 존재한다"를 알려주는 셈이라
-        // 무작위 UUID 를 던져 남의 데이터 존재 여부를 훑을 수 있다.
+        // 아무 번호나 던져 남의 데이터 존재 여부를 훑을 수 있다.
         assertThat(response.status()).isEqualTo(404);
     }
 
     @Test
     @DisplayName("[보안] 내 봇이어도 다른 봇의 실행 결과는 못 본다")
     void 다른_봇의_실행결과() {
-        UUID otherBotId = createBot(ownerToken);          // 같은 사람의 <다른> 봇
-        UUID runId = insertRun(otherBotId, "completed");
+        Long otherBotId = createBot(ownerToken);          // 같은 사람의 <다른> 봇
+        Long runId = insertRun(otherBotId, "completed");
 
         Response response = request(HttpMethod.GET,
                 "/api/bots/" + botId + "/eval/runs/" + runId + "/results", ownerToken);
@@ -259,11 +261,12 @@ class EvalIntegrationTest {
     @Test
     @DisplayName("질문 생성은 200 이고, Python 응답을 camelCase 로 바꿔 내려준다")
     void 질문생성_정상() {
-        UUID questionId = UUID.randomUUID();
-        UUID chunkId = UUID.randomUUID();
+        long questionId = 101L;
+        long chunkId = 202L;
+        // 🔴 따옴표가 없다. id 가 BIGINT 가 되면서 Python 이 <숫자>로 내려준다.
         aiService.enqueue(200, """
-                [{"id":"%s","question":"연차는 며칠인가요?","ground_truth":"15일입니다.",
-                  "source_chunk_id":"%s","is_active":true,"created_at":"2026-08-02T00:00:00Z"}]
+                [{"id":%s,"question":"연차는 며칠인가요?","ground_truth":"15일입니다.",
+                  "source_chunk_id":%s,"is_active":true,"created_at":"2026-08-02T00:00:00Z"}]
                 """.formatted(questionId, chunkId));
 
         Response response = jsonRequest(HttpMethod.POST,
@@ -273,7 +276,7 @@ class EvalIntegrationTest {
         JsonNode first = response.json().get(0);
         // snake_case → camelCase 변환이 이 경계에서 일어난다(AGENTS.md 작업 규칙 5).
         assertThat(first.path("groundTruth").asString()).isEqualTo("15일입니다.");
-        assertThat(first.path("sourceChunkId").asString()).isEqualTo(chunkId.toString());
+        assertThat(first.path("sourceChunkId").asLong()).isEqualTo(chunkId);
         assertThat(first.path("isActive").asBoolean()).isTrue();
         // snake_case 가 새어 나가면 프론트 타입이 전부 거짓이 된다.
         assertThat(response.body()).doesNotContain("ground_truth").doesNotContain("is_active");
@@ -310,9 +313,9 @@ class EvalIntegrationTest {
     @Test
     @DisplayName("평가 실행은 202 이고 config 를 camelCase 객체로 바꿔 내려준다")
     void 평가실행_정상() {
-        UUID runId = UUID.randomUUID();
+        long runId = 301L;
         aiService.enqueue(202, """
-                {"id":"%s","status":"running",
+                {"id":%s,"status":"running",
                  "config":{"top_k":5,"max_distance":0.55,"chat_model":"gemini-3.5-flash-lite",
                            "embedding_model":"@cf/baai/bge-m3","judge_model":"@cf/mistralai/x",
                            "hybrid":false,"reranker":false},
@@ -337,10 +340,10 @@ class EvalIntegrationTest {
     @DisplayName("[중요] 점수가 없으면 0 이 아니라 null 로 내려간다")
     void 점수_null_은_0_이_아니다() {
         aiService.enqueue(202, """
-                {"id":"%s","status":"running","config":null,
+                {"id":%s,"status":"running","config":null,
                  "avg_faithfulness":null,"avg_relevancy":null,"answered_rate":null,
                  "created_at":"2026-08-02T00:00:00Z"}
-                """.formatted(UUID.randomUUID()));
+                """.formatted(302L));
 
         Response response = request(HttpMethod.POST, "/api/bots/" + botId + "/eval/runs", ownerToken);
 
@@ -366,10 +369,9 @@ class EvalIntegrationTest {
     @Test
     @DisplayName("config JSON 이 깨져 있어도 이력 조회가 500 이 되지 않는다")
     void 깨진_config() {
-        UUID runId = UUID.randomUUID();
         jdbcTemplate.update(
-                "INSERT INTO eval_runs (id, bot_id, config, status) VALUES (?, ?, ?::jsonb, 'completed')",
-                runId, botId, "\"이건 객체가 아니라 문자열이다\"");
+                "INSERT INTO eval_runs (bot_id, config, status) VALUES (?, ?::jsonb, 'completed')",
+                botId, "\"이건 객체가 아니라 문자열이다\"");
 
         Response response = request(HttpMethod.GET, "/api/bots/" + botId + "/eval/runs", ownerToken);
 
@@ -381,15 +383,15 @@ class EvalIntegrationTest {
     @Test
     @DisplayName("질문별 결과에서 retrievedChunks 가 파싱된 목록으로 나온다")
     void 결과_조회() {
-        UUID runId = insertRun(botId, "completed");
-        UUID questionId = insertQuestion(botId, "연차는 며칠인가요?", "15일입니다.");
-        UUID chunkId = UUID.randomUUID();
+        Long runId = insertRun(botId, "completed");
+        Long questionId = insertQuestion(botId, "연차는 며칠인가요?", "15일입니다.");
+        long chunkId = 401L;
         jdbcTemplate.update("""
                 INSERT INTO eval_results
                     (run_id, question_id, generated_answer, retrieved_chunks, faithfulness, relevancy)
                 VALUES (?, ?, ?, ?::jsonb, ?, ?)""",
                 runId, questionId, "연차는 15일입니다.",
-                "[{\"chunk_id\":\"" + chunkId + "\",\"filename\":\"규정.md\",\"score\":0.87}]",
+                "[{\"chunk_id\":" + chunkId + ",\"filename\":\"규정.md\",\"score\":0.87}]",
                 0.9, 1.0);
 
         Response response = request(HttpMethod.GET,
@@ -409,8 +411,8 @@ class EvalIntegrationTest {
     @Test
     @DisplayName("retrieved_chunks JSON 이 깨져 있어도 결과 조회가 500 이 되지 않는다")
     void 깨진_retrieved_chunks() {
-        UUID runId = insertRun(botId, "completed");
-        UUID questionId = insertQuestion(botId, "질문", "정답");
+        Long runId = insertRun(botId, "completed");
+        Long questionId = insertQuestion(botId, "질문", "정답");
         jdbcTemplate.update("""
                 INSERT INTO eval_results (run_id, question_id, generated_answer, retrieved_chunks)
                 VALUES (?, ?, ?, ?::jsonb)""",
@@ -429,8 +431,8 @@ class EvalIntegrationTest {
     @Test
     @DisplayName("[중요] 채점 안 된 결과는 0 이 아니라 null 로 내려간다")
     void 미채점_결과는_null() {
-        UUID runId = insertRun(botId, "completed");
-        UUID questionId = insertQuestion(botId, "질문", "정답");
+        Long runId = insertRun(botId, "completed");
+        Long questionId = insertQuestion(botId, "질문", "정답");
         jdbcTemplate.update("""
                 INSERT INTO eval_results (run_id, question_id, generated_answer, faithfulness, relevancy)
                 VALUES (?, ?, ?, NULL, NULL)""",
@@ -450,7 +452,7 @@ class EvalIntegrationTest {
     @DisplayName("질문 목록에는 비활성 질문도 함께 나온다 — 껐다 켜야 하기 때문")
     void 질문목록_비활성_포함() {
         insertQuestion(botId, "활성 질문", "정답1");
-        UUID inactive = insertQuestion(botId, "비활성 질문", "정답2");
+        Long inactive = insertQuestion(botId, "비활성 질문", "정답2");
         jdbcTemplate.update("UPDATE eval_questions SET is_active = false WHERE id = ?", inactive);
 
         Response response = request(HttpMethod.GET, "/api/bots/" + botId + "/eval/questions", ownerToken);
@@ -464,7 +466,7 @@ class EvalIntegrationTest {
     @Test
     @DisplayName("질문 목록에 남의 봇 질문이 섞이지 않는다")
     void 질문목록은_내_봇만() {
-        UUID otherBotId = createBot(ownerToken);
+        Long otherBotId = createBot(ownerToken);
         insertQuestion(botId, "내 봇 질문", "정답");
         insertQuestion(otherBotId, "다른 봇 질문", "정답");
 
@@ -481,26 +483,23 @@ class EvalIntegrationTest {
                 new SignupRequest(email, PASSWORD, null)).json().path("token").asString();
     }
 
-    private UUID createBot(String token) {
-        return UUID.fromString(jsonRequest(HttpMethod.POST, "/api/bots", token,
-                new CreateBotRequest("테스트 봇")).json().path("id").asString());
+    private Long createBot(String token) {
+        return jsonRequest(HttpMethod.POST, "/api/bots", token,
+                new CreateBotRequest("테스트 봇")).json().path("id").asLong();
     }
 
     /** Python 이 넣어둔 실행을 흉내낸다. Spring 코드로는 INSERT 할 수 없다(쓰기 소유자가 Python). */
-    private UUID insertRun(UUID botId, String status) {
-        UUID id = UUID.randomUUID();
-        jdbcTemplate.update(
-                "INSERT INTO eval_runs (id, bot_id, config, status) VALUES (?, ?, ?::jsonb, ?)",
-                id, botId, "{\"top_k\":5,\"max_distance\":0.55}", status);
-        return id;
+    private Long insertRun(Long botId, String status) {
+        // id 를 우리가 만들지 않는다. IDENTITY 라 DB 가 매기고 RETURNING 으로 받아온다.
+        return jdbcTemplate.queryForObject(
+                "INSERT INTO eval_runs (bot_id, config, status) VALUES (?, ?::jsonb, ?) RETURNING id",
+                Long.class, botId, "{\"top_k\":5,\"max_distance\":0.55}", status);
     }
 
-    private UUID insertQuestion(UUID botId, String question, String groundTruth) {
-        UUID id = UUID.randomUUID();
-        jdbcTemplate.update(
-                "INSERT INTO eval_questions (id, bot_id, question, ground_truth) VALUES (?, ?, ?, ?)",
-                id, botId, question, groundTruth);
-        return id;
+    private Long insertQuestion(Long botId, String question, String groundTruth) {
+        return jdbcTemplate.queryForObject(
+                "INSERT INTO eval_questions (bot_id, question, ground_truth) VALUES (?, ?, ?) RETURNING id",
+                Long.class, botId, question, groundTruth);
     }
 
     // ── 질문 수정 (PATCH) ────────────────────────────────────────────────
@@ -508,9 +507,9 @@ class EvalIntegrationTest {
     @Test
     @DisplayName("[질문수정] 보낸 필드만 바뀐다 — 안 보낸 정답은 그대로다")
     void 질문수정_부분수정() {
-        UUID questionId = UUID.randomUUID();
+        long questionId = 501L;
         aiService.enqueue(200, """
-                {"id":"%s","question":"고친 질문","ground_truth":"원래 정답",
+                {"id":%s,"question":"고친 질문","ground_truth":"원래 정답",
                  "source_chunk_id":null,"is_active":true,"created_at":"2026-08-17T00:00:00Z"}
                 """.formatted(questionId));
 
@@ -530,9 +529,9 @@ class EvalIntegrationTest {
     @Test
     @DisplayName("[질문수정] 🔴 isActive=false 는 <안 보냄>과 구분되어 전달된다")
     void 질문수정_false를_보낸다() {
-        UUID questionId = UUID.randomUUID();
+        long questionId = 502L;
         aiService.enqueue(200, """
-                {"id":"%s","question":"q","ground_truth":"a",
+                {"id":%s,"question":"q","ground_truth":"a",
                  "source_chunk_id":null,"is_active":false,"created_at":"2026-08-17T00:00:00Z"}
                 """.formatted(questionId));
 
@@ -548,7 +547,7 @@ class EvalIntegrationTest {
     @DisplayName("[질문수정] 빈 요청은 400 — 아무것도 안 고쳤는데 200 을 주면 오해한다")
     void 질문수정_빈요청은_400() {
         Response response = jsonRequest(HttpMethod.PATCH,
-                "/api/bots/" + botId + "/eval/questions/" + UUID.randomUUID(), ownerToken,
+                "/api/bots/" + botId + "/eval/questions/" + MISSING_ID, ownerToken,
                 Map.of());
 
         assertThat(response.status()).isEqualTo(400);
@@ -560,7 +559,7 @@ class EvalIntegrationTest {
     @DisplayName("[질문수정] 🔴 남의 봇 질문은 404 이고, 요청이 Python 까지 가지 않는다")
     void 질문수정_남의봇은_404() {
         Response response = jsonRequest(HttpMethod.PATCH,
-                "/api/bots/" + botId + "/eval/questions/" + UUID.randomUUID(), intruderToken,
+                "/api/bots/" + botId + "/eval/questions/" + MISSING_ID, intruderToken,
                 Map.of("question", "남의 질문을 고쳐본다"));
 
         assertThat(response.status()).isEqualTo(404);
@@ -580,7 +579,7 @@ class EvalIntegrationTest {
     @Test
     @DisplayName("[성능] 문항이 16건이어도 결과 조회 쿼리는 늘지 않는다 (N+1 없음)")
     void 결과조회는_N플러스1이_없다() {
-        UUID runId = insertRun(botId, "completed");
+        Long runId = insertRun(botId, "completed");
         for (int i = 0; i < 16; i++) {
             insertResult(runId, insertQuestion(botId, "질문 " + i, "정답 " + i));
         }
@@ -616,7 +615,7 @@ class EvalIntegrationTest {
     @Test
     @DisplayName("[미답변] fallback 만 목록에 세고, 답변 행이 없는 질문은 failedTurns 로 따로 센다")
     void 미답변은_fallback과_처리실패를_가른다() {
-        UUID conversationId = insertConversation(botId);
+        Long conversationId = insertConversation(botId);
         insertTurn(conversationId, "연차는 며칠인가요?", true);     // fallback → 목록
         insertTurn(conversationId, "연차는 며칠인가요?", true);     // 같은 문장 → count 2
         insertTurn(conversationId, "사무실 위치는요?", false);      // 정상 답변 → 어느 쪽도 아니다
@@ -648,20 +647,21 @@ class EvalIntegrationTest {
     }
 
     /** Python 이 넣어둔 채점 결과를 흉내낸다. */
-    private void insertResult(UUID runId, UUID questionId) {
+    private void insertResult(Long runId, Long questionId) {
         jdbcTemplate.update("""
-                INSERT INTO eval_results (id, run_id, question_id, generated_answer, faithfulness, relevancy)
-                VALUES (?, ?, ?, ?, 1.000, 1.000)
-                """, UUID.randomUUID(), runId, questionId, "답변");
+                INSERT INTO eval_results (run_id, question_id, generated_answer, faithfulness, relevancy)
+                VALUES (?, ?, ?, 1.000, 1.000)
+                """, runId, questionId, "답변");
     }
 
-    private UUID insertConversation(UUID botId) {
-        UUID id = UUID.randomUUID();
-        jdbcTemplate.update(
-                "INSERT INTO conversations (id, bot_id, session_id, channel) VALUES (?, ?, ?, 'test')",
-                id, botId, "session-" + id);
-        return id;
+    private Long insertConversation(Long botId) {
+        return jdbcTemplate.queryForObject(
+                "INSERT INTO conversations (bot_id, session_id, channel) VALUES (?, ?, 'test') RETURNING id",
+                Long.class, botId, "session-" + botId + "-" + (sessionSeq++));
     }
+
+    /** 세션 id 를 테스트 안에서 겹치지 않게 만드는 순번. */
+    private int sessionSeq = 0;
 
     /**
      * 질문 1회 + 그 답변 1회.
@@ -670,7 +670,7 @@ class EvalIntegrationTest {
      * "이 질문 다음에 온 첫 assistant 메시지"를 시간으로 찾기 때문이다.
      * {@code now()} 에 맡기면 같은 순간에 들어가 순서가 무작위로 갈린다.
      */
-    private void insertTurn(UUID conversationId, String question, boolean fallback) {
+    private void insertTurn(Long conversationId, String question, boolean fallback) {
         insertMessage(conversationId, "user", question, false);
         insertMessage(conversationId, "assistant", fallback ? "문서에서 찾지 못했습니다." : "답변입니다.", fallback);
     }
@@ -678,11 +678,11 @@ class EvalIntegrationTest {
     /** 메시지 순서를 고정하기 위한 논리 시계(초 단위). 테스트마다 0 에서 시작한다. */
     private int clock = 0;
 
-    private void insertMessage(UUID conversationId, String role, String content, boolean fallback) {
+    private void insertMessage(Long conversationId, String role, String content, boolean fallback) {
         jdbcTemplate.update("""
-                INSERT INTO messages (id, conversation_id, role, content, is_fallback, created_at)
-                VALUES (?, ?, ?, ?, ?, ?)
-                """, UUID.randomUUID(), conversationId, role, content, fallback,
+                INSERT INTO messages (conversation_id, role, content, is_fallback, created_at)
+                VALUES (?, ?, ?, ?, ?)
+                """, conversationId, role, content, fallback,
                 Timestamp.from(Instant.parse("2026-09-09T00:00:00Z").plusSeconds(clock++)));
     }
 

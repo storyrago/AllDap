@@ -22,8 +22,9 @@
 import { useEffect, useState } from "react";
 import { notFound } from "next/navigation";
 import { ApiError, api } from "@/lib/api";
+import type { Id } from "@/lib/types";
 
-export function BotName({ botId }: { botId: string }) {
+export function BotName({ botId }: { botId: Id }) {
   const [name, setName] = useState<string | null>(null);
 
   /*
@@ -34,7 +35,7 @@ export function BotName({ botId }: { botId: string }) {
    * react-hooks/set-state-in-effect 가 막는 모양이고 리셋 타이밍도 한 박자 늦는다.
    * botId 를 함께 담아두면 <값이 스스로 낡는다> — 아래 비교 한 줄이면 끝난다.
    */
-  const [goneFor, setGoneFor] = useState<string | null>(null);
+  const [goneFor, setGoneFor] = useState<Id | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -78,9 +79,11 @@ export function BotName({ botId }: { botId: string }) {
   return (
     <p
       className="mb-2 truncate px-3 text-xs font-medium text-muted"
-      title={name ?? botId}
+      title={name ?? `봇 ${botId}`}
     >
-      {name ?? `봇 ${botId.slice(0, 8)}…`}
+      {/* 이름을 아직 못 가져왔으면 번호로 대신한다. 기본키가 BIGINT 가 된 뒤로는
+          앞 8글자를 자를 이유가 없다 — UUID 와 달리 번호는 원래 짧다. */}
+      {name ?? `봇 ${botId}`}
     </p>
   );
 }

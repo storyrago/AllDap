@@ -2,7 +2,6 @@ package com.alldap.api.global.client.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-import java.util.UUID;
 
 /**
  * Python 의 {@code DocumentOut} (ai-service/app/schemas.py).
@@ -21,7 +20,7 @@ import java.util.UUID;
  * Spring 이 documents 테이블에서 직접 읽어 채워야 한다(TODO 는 {@code DocumentResponse.from} 참고).
  */
 public record AiDocumentResponse(
-        @JsonProperty("id") UUID id,
+        @JsonProperty("id") Long id,
         @JsonProperty("filename") String filename,
         @JsonProperty("file_type") String fileType,
         @JsonProperty("status") String status,

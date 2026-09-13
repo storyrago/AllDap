@@ -4,7 +4,6 @@ import com.alldap.api.domain.document.entity.Document;
 import com.alldap.api.global.client.dto.AiDocumentResponse;
 
 import java.time.Instant;
-import java.util.UUID;
 
 /**
  * 문서 응답. 프론트의 {@code DocumentItem}({@code web/lib/types.ts})과 필드명을 맞춘다.
@@ -15,7 +14,7 @@ import java.util.UUID;
  * Python 응답을 그대로 흘려보내면 프론트 타입이 전부 거짓이 된다(PRD §10.3).
  */
 public record DocumentResponse(
-        UUID id,
+        Long id,
         String filename,
         String fileType,
         String status,

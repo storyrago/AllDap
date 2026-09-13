@@ -15,7 +15,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { ApiError, api } from "@/lib/api";
-import type { ChatMessage, ConversationSummary, Paged } from "@/lib/types";
+import { parseId } from "@/lib/ids";
+import type { ChatMessage, ConversationSummary, Id, Paged } from "@/lib/types";
 import { PageHeader } from "@/components/PageHeader";
 
 const PAGE_SIZE = 20;
@@ -32,7 +33,10 @@ const FILTERS = [
 ];
 
 export default function LogsPage() {
-  const { botId } = useParams<{ botId: string }>();
+  /* useParams() 가 주는 값은 URL 조각이라 언제나 <문자열>이다.
+     기본키가 BIGINT 가 된 뒤로는 숫자로 바꿔야 하고, 형식 검사도 거기서 한다. */
+  const { botId: rawBotId } = useParams<{ botId: string }>();
+  const botId = parseId(rawBotId);
 
   const [page, setPage] = useState(0);
   const [onlyFallback, setOnlyFallback] = useState(false);
@@ -43,7 +47,7 @@ export default function LogsPage() {
   const [error, setError] = useState<string | null>(null);
 
   /** 펼쳐 놓은 대화. null 이면 아무것도 안 펼친 상태. */
-  const [openId, setOpenId] = useState<string | null>(null);
+  const [openId, setOpenId] = useState<Id | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [messagesLoading, setMessagesLoading] = useState(false);
 
@@ -95,7 +99,7 @@ export default function LogsPage() {
     setOpenId(null);
   }
 
-  async function toggleConversation(conversationId: string) {
+  async function toggleConversation(conversationId: Id) {
     // 같은 것을 다시 누르면 접는다.
     if (openId === conversationId) {
       setOpenId(null);

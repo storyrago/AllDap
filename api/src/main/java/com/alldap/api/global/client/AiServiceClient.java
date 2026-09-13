@@ -38,7 +38,6 @@ import java.time.Duration;
 import java.net.http.HttpConnectTimeoutException;
 import java.net.http.HttpTimeoutException;
 import java.util.List;
-import java.util.UUID;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -102,7 +101,7 @@ public class AiServiceClient {
      * @param botId 문서를 붙일 봇. 호출 전에 <b>반드시 소유권을 검증</b>해야 한다
      *              (Python 에는 인증이 없어 여기서 막지 않으면 남의 봇에 문서를 넣을 수 있다).
      */
-    public AiDocumentResponse uploadDocument(UUID botId, MultipartFile file) {
+    public AiDocumentResponse uploadDocument(Long botId, MultipartFile file) {
         MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
         body.add("file", toFilePart(file));
 
@@ -163,7 +162,7 @@ public class AiServiceClient {
      * 다만 <b>지금은 죽은 코드이므로 구현하지 않는다</b> — 호출자 없는 코드를 미리 만들면
      * 검증되지 않은 채 "동작한다"는 인상만 남는다.
      */
-    public List<AiDocumentResponse> listDocuments(UUID botId) {
+    public List<AiDocumentResponse> listDocuments(Long botId) {
         throw new UnsupportedOperationException(
                 "AiServiceClient.listDocuments 는 의도적으로 미구현이다 — 문서 목록은 DocumentService 가 DB 에서 읽는다");
     }
@@ -178,7 +177,7 @@ public class AiServiceClient {
      * 그쪽 SQL 의 {@code WHERE ... AND bot_id = %s} 가 봇 간 격리의 마지막 그물이다.
      * Spring 이 이미 소유권을 확인했지만, 격리를 <b>한 겹으로 두지 않는다.</b>
      */
-    public void deleteDocument(UUID botId, UUID documentId) {
+    public void deleteDocument(Long botId, Long documentId) {
         call(AiOperation.DOCUMENT_DELETE, () -> aiServiceRestClient.delete()
                 .uri("/internal/bots/{botId}/documents/{documentId}", botId, documentId)
                 .retrieve()
@@ -528,7 +527,7 @@ public class AiServiceClient {
      *
      * @param botId 호출 전에 <b>반드시 소유권을 검증</b>할 것. Python 에는 인증이 없다.
      */
-    public List<AiEvalQuestionResponse> generateEvalQuestions(UUID botId, int count) {
+    public List<AiEvalQuestionResponse> generateEvalQuestions(Long botId, int count) {
         return call(AiOperation.EVAL_QUESTIONS_GENERATE, () -> aiServiceRestClient.post()
                         .uri("/internal/bots/{botId}/eval/questions/generate", botId)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -543,7 +542,7 @@ public class AiServiceClient {
      * UPDATE 하지 않고 여기로 위임한다 — 양쪽에서 쓰면 Python 이 스키마를 바꿀 때 조용히 깨진다.
      * (읽기는 Spring 이 직접 한다. 소유권 표에서 읽기는 허용돼 있다)
      */
-    public AiEvalQuestionResponse updateEvalQuestion(UUID botId, UUID questionId,
+    public AiEvalQuestionResponse updateEvalQuestion(Long botId, Long questionId,
                                                      AiUpdateEvalQuestionRequest request) {
         return call(AiOperation.EVAL_QUESTION_UPDATE,
                 () -> aiServiceRestClient.patch()
@@ -561,7 +560,7 @@ public class AiServiceClient {
      * <p>여기는 202 가 성립한다 — {@code eval_runs.status} 라는 <b>폴링할 대상</b>이 있기 때문이다.
      * 질문 수만큼 (검색 + 생성 + 채점)이 돌아 반드시 수십 초를 넘기므로 동기로 둘 수 없다.
      */
-    public AiEvalRunResponse startEvalRun(UUID botId) {
+    public AiEvalRunResponse startEvalRun(Long botId) {
         return call(AiOperation.EVAL_RUN_START, () -> aiServiceRestClient.post()
                         .uri("/internal/bots/{botId}/eval/runs", botId)
                         .retrieve()
@@ -584,7 +583,7 @@ public class AiServiceClient {
      *
      * @param botId 호출 전에 <b>반드시 소유권을 검증</b>할 것. Python 에는 인증이 없다.
      */
-    public AiConflictScanResponse scanConflicts(UUID botId) {
+    public AiConflictScanResponse scanConflicts(Long botId) {
         return call(AiOperation.CONFLICT_SCAN, () -> aiServiceRestClient.post()
                         .uri("/internal/bots/{botId}/conflicts/scan", botId)
                         .retrieve()
@@ -600,7 +599,7 @@ public class AiServiceClient {
      * AGENTS.md 테이블 소유권상 <b>Spring 이 아예 건드리지 않는</b> 테이블이라,
      * 여기서 조인하면 그 규칙이 무너진다.
      */
-    public List<AiConflictResponse> listConflicts(UUID botId, String status) {
+    public List<AiConflictResponse> listConflicts(Long botId, String status) {
         return call(AiOperation.CONFLICT_LIST, () -> aiServiceRestClient.get()
                         .uri(uriBuilder -> uriBuilder
                                 .path("/internal/bots/{botId}/conflicts")
@@ -618,7 +617,7 @@ public class AiServiceClient {
      * 봇으로 좁혀지지 않아, id 만 알아내면 남의 봇 충돌을 치울 수 있다.
      * Python 쪽도 {@code WHERE id=? AND bot_id=?} 로 함께 좁힌다 — 두 겹이다.
      */
-    public AiConflictResponse updateConflictStatus(UUID botId, UUID conflictId, String status) {
+    public AiConflictResponse updateConflictStatus(Long botId, Long conflictId, String status) {
         return call(AiOperation.CONFLICT_STATUS_UPDATE, () -> aiServiceRestClient.patch()
                         .uri("/internal/bots/{botId}/conflicts/{conflictId}", botId, conflictId)
                         .contentType(MediaType.APPLICATION_JSON)
