@@ -17,7 +17,6 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.util.List;
-import java.util.UUID;
 
 /**
  * {@code Authorization: Bearer <token>} 을 읽어 SecurityContext 에 인증 정보를 넣는 필터.
@@ -84,7 +83,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         try {
-            UUID userId = jwtService.parseUserId(token);
+            Long userId = jwtService.parseUserId(token);
             authenticate(request, userId);
 
         } catch (ApiException e) {
@@ -112,10 +111,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     /**
      * SecurityContext 에 인증 객체를 넣는다.
      *
-     * <p><b>principal 에 {@code UUID}(사용자 id)를 넣는 이유.</b>
+     * <p><b>principal 에 {@code Long}(사용자 id)를 넣는 이유.</b>
      * 뒤에 올 봇 소유권 검사가 필요로 하는 값이 정확히 이것 하나다
      * ({@code botService.findMyBot(userId, botId)}).
-     * 컨트롤러에서 {@code @AuthenticationPrincipal UUID userId} 로 바로 꺼내 쓸 수 있어
+     * 컨트롤러에서 {@code @AuthenticationPrincipal Long userId} 로 바로 꺼내 쓸 수 있어
      * 중간 타입을 하나 더 만들 이유가 없다.
      *
      * <p>흔한 대안인 {@code UserDetails} 구현체를 쓰지 않은 이유:
@@ -127,10 +126,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
      * ({@code users} 테이블에 role 컬럼이 없다) 인가는 전부 "내 것인가"로 판단한다.
      *
      * <p>TODO(W2 이후): 역할이나 이메일이 인가 판단에 필요해지면
-     *   {@code record AuthPrincipal(UUID userId, ...)} 로 승격할 것.
+     *   {@code record AuthPrincipal(Long userId, ...)} 로 승격할 것.
      *   그때 컨트롤러 시그니처가 함께 바뀐다.
      */
-    private void authenticate(HttpServletRequest request, UUID userId) {
+    private void authenticate(HttpServletRequest request, Long userId) {
         UsernamePasswordAuthenticationToken authentication = UsernamePasswordAuthenticationToken.authenticated(
                 userId,       // principal
                 null,         // credentials — 검증이 끝난 토큰을 메모리에 계속 들고 있을 이유가 없다

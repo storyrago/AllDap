@@ -3,7 +3,6 @@ package com.alldap.api.domain.conflict.dto;
 import com.alldap.api.global.client.dto.AiConflictResponse;
 
 import java.time.Instant;
-import java.util.UUID;
 
 /**
  * 문서 간 사실 충돌 1건 (프론트 응답).
@@ -19,7 +18,7 @@ import java.util.UUID;
  * @param distance 후보 선별에 쓴 임베딩 거리. 판정 근거가 아니라 튜닝용 기록이라 null 가능
  */
 public record ConflictResponse(
-        UUID id,
+        Long id,
         String topic,
         String aSays,
         String bSays,

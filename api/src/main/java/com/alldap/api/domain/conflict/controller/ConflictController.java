@@ -20,7 +20,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
 import java.util.List;
-import java.util.UUID;
 
 /**
  * 문서 간 사실 충돌 진단 API. 인증 필요.
@@ -47,8 +46,8 @@ public class ConflictController {
     @Operation(summary = "충돌 목록 조회")
     @GetMapping
     public ResponseEntity<List<ConflictResponse>> getConflicts(
-            @AuthenticationPrincipal UUID userId,
-            @PathVariable UUID botId,
+            @AuthenticationPrincipal Long userId,
+            @PathVariable Long botId,
             @RequestParam(defaultValue = "open") String status) {
         return ResponseEntity.ok(conflictService.findAll(userId, botId, status));
     }
@@ -65,8 +64,8 @@ public class ConflictController {
      */
     @Operation(summary = "충돌 진단 실행")
     @PostMapping("/scan")
-    public ResponseEntity<ConflictScanResponse> scan(@AuthenticationPrincipal UUID userId,
-                                                     @PathVariable UUID botId) {
+    public ResponseEntity<ConflictScanResponse> scan(@AuthenticationPrincipal Long userId,
+                                                     @PathVariable Long botId) {
         return ResponseEntity.ok(conflictService.scan(userId, botId));
     }
 
@@ -79,9 +78,9 @@ public class ConflictController {
     @Operation(summary = "충돌 처리 상태 변경")
     @PatchMapping("/{conflictId}")
     public ResponseEntity<ConflictResponse> updateStatus(
-            @AuthenticationPrincipal UUID userId,
-            @PathVariable UUID botId,
-            @PathVariable UUID conflictId,
+            @AuthenticationPrincipal Long userId,
+            @PathVariable Long botId,
+            @PathVariable Long conflictId,
             @Valid @RequestBody UpdateConflictStatusRequest request) {
         return ResponseEntity.ok(
                 conflictService.updateStatus(userId, botId, conflictId, request.status()));

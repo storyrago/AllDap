@@ -20,7 +20,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.ZoneId;
 import java.util.List;
-import java.util.UUID;
 
 /**
  * 결제 수단 목록·추가·삭제·기본 지정. <b>계정 단위</b>다 — 봇이 아니라 봇의 주인이 카드를 등록한다.
@@ -61,11 +60,11 @@ public class BillingService {
     private final BillingCrypto billingCrypto;
 
     /** 카드가 없어도 {@code customerKey} 는 내려간다 — 결제창을 열려면 그게 먼저 필요하다. */
-    public BillingMethodsResponse find(UUID userId) {
+    public BillingMethodsResponse find(Long userId) {
         return new BillingMethodsResponse(billingCustomerKey(userId), cards(userId));
     }
 
-    public BillingMethodsResponse register(UUID userId, RegisterBillingMethodRequest request) {
+    public BillingMethodsResponse register(Long userId, RegisterBillingMethodRequest request) {
         String customerKey = billingCustomerKey(userId);
 
         // 🔴 ① 쿼리로 돌아온 customerKey 를 신뢰하지 않는다. 대조만 하고, 토스에는 DB 의 값을 넘긴다.
@@ -133,7 +132,7 @@ public class BillingService {
      * "행이 남아 사용자가 버튼을 다시 누른다" 뿐이다. 자기 치유는 토스가 404 를 줄 때만 성립한다
      * ({@link TossClient#deleteBillingKey}).
      */
-    public void delete(UUID userId, UUID methodId) {
+    public void delete(Long userId, Long methodId) {
         // 소유권은 쿼리에 못박혀 있다 — 남의 카드는 "없는 카드" 와 같은 404 다.
         BillingMethod method = billingMethodRepository.findByIdAndUserId(methodId, userId)
                 .orElseThrow(() -> new ApiException(ErrorCode.BILLING_METHOD_NOT_FOUND));
@@ -175,7 +174,7 @@ public class BillingService {
      * 결과: DB 에서는 해제됐는데 되돌리는 UPDATE 가 안 나가 <b>기본 카드가 0장</b>이 된다. 그래서 먼저 돌려보낸다.
      */
     @Transactional
-    public BillingMethodsResponse setDefault(UUID userId, UUID methodId) {
+    public BillingMethodsResponse setDefault(Long userId, Long methodId) {
         BillingMethod method = billingMethodRepository.findByIdAndUserId(methodId, userId)
                 .orElseThrow(() -> new ApiException(ErrorCode.BILLING_METHOD_NOT_FOUND));
 
@@ -187,7 +186,7 @@ public class BillingService {
         return new BillingMethodsResponse(billingCustomerKey(userId), cards(userId));
     }
 
-    private List<BillingMethodsResponse.Card> cards(UUID userId) {
+    private List<BillingMethodsResponse.Card> cards(Long userId) {
         return billingMethodRepository.findByUserIdOrderByCreatedAtAsc(userId).stream()
                 .map(this::toCard)
                 .toList();
@@ -210,11 +209,11 @@ public class BillingService {
      * 여기서 예외를 던지면 "카드를 지우려 했더니 토큰이 이상하다" 는 엉뚱한 안내가 나가고,
      * 어차피 바로 아래에서 토스 호출과 행 삭제가 이어져 계정 유무는 그 경로가 판단한다.
      */
-    private Plan planOf(UUID userId) {
+    private Plan planOf(Long userId) {
         return userRepository.findById(userId).map(User::getPlan).orElse(Plan.FREE);
     }
 
-    private String billingCustomerKey(UUID userId) {
+    private String billingCustomerKey(Long userId) {
         // 토큰은 유효한데 그 사이 계정이 지워진 경우를 여기서 거른다 —
         // BotService.createBot 이 getReferenceById 대신 findById 를 쓰는 것과 같은 이유다.
         return userRepository.findById(userId)

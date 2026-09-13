@@ -13,7 +13,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.UUID;
 
 /**
  * 채팅 한 턴의 <b>DB 작업만</b> 담당한다. Python 호출은 여기 들어오지 않는다.
@@ -59,7 +58,7 @@ public class ChatTurnStore {
      * @param channel {@link Conversation#CHANNEL_TEST} 또는 {@link Conversation#CHANNEL_WIDGET}
      */
     @Transactional
-    public Turn openTurn(UUID userId, UUID botId, String message, String sessionId, String channel) {
+    public Turn openTurn(Long userId, Long botId, String message, String sessionId, String channel) {
         Bot bot = botRepository.findByIdAndUserId(botId, userId)
                 .orElseThrow(() -> new ApiException(ErrorCode.BOT_NOT_FOUND));
         return open(bot, message, sessionId, channel);
@@ -73,7 +72,7 @@ public class ChatTurnStore {
      * <b>이 메서드를 관리자 경로에서 쓰면 소유권 검사가 통째로 빠지므로 절대 그러지 말 것.</b>
      */
     @Transactional
-    public Turn openWidgetTurn(UUID botId, String message, String sessionId) {
+    public Turn openWidgetTurn(Long botId, String message, String sessionId) {
         Bot bot = botRepository.findById(botId)
                 .orElseThrow(() -> new ApiException(ErrorCode.BOT_NOT_FOUND));
         return open(bot, message, sessionId, Conversation.CHANNEL_WIDGET);
@@ -105,7 +104,7 @@ public class ChatTurnStore {
      * 거기서는 "존재하지 않으면 사용자에게 안내"가 필요했고 여기는 방금 ①에서 만든 행이라 존재가 보장된다)
      */
     @Transactional
-    public UUID saveAnswer(UUID conversationId, String content, String sourcesJson,
+    public Long saveAnswer(Long conversationId, String content, String sourcesJson,
                            boolean isFallback, Integer latencyMs) {
         Conversation conversation = conversationRepository.getReferenceById(conversationId);
         Message answer = messageRepository.save(
@@ -133,7 +132,7 @@ public class ChatTurnStore {
      * 없는 메시지와 남의 메시지를 모두 404 로 답하는 것도 봇·문서와 같은 규칙이다.
      */
     @Transactional
-    public void applyFeedback(UUID userId, UUID messageId, Short feedback) {
+    public void applyFeedback(Long userId, Long messageId, Short feedback) {
         Message message = messageRepository.findByIdAndConversationBotUserId(messageId, userId)
                 .orElseThrow(() -> new ApiException(ErrorCode.MESSAGE_NOT_FOUND));
         // 변경 감지(dirty checking)로 UPDATE 가 나간다. save() 를 부를 필요가 없다.
@@ -146,6 +145,6 @@ public class ChatTurnStore {
      * @param conversationId  답변을 붙일 대화
      * @param fallbackMessage 이 봇의 거절 문구. Python 은 이 값을 모르므로 Spring 이 치환에 쓴다
      */
-    public record Turn(UUID conversationId, String fallbackMessage) {
+    public record Turn(Long conversationId, String fallbackMessage) {
     }
 }

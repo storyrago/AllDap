@@ -5,12 +5,11 @@ import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
-import java.util.UUID;
 
 /**
  * eval_results 조회. 쓰기 소유자는 Python 이므로 save/delete 를 호출하지 말 것.
  */
-public interface EvalResultRepository extends JpaRepository<EvalResult, UUID> {
+public interface EvalResultRepository extends JpaRepository<EvalResult, Long> {
 
     /**
      * 실행 1회의 문항별 채점 결과.
@@ -33,5 +32,5 @@ public interface EvalResultRepository extends JpaRepository<EvalResult, UUID> {
      * (그래서 {@code distinct} 도, {@code Pageable} 주의사항도 필요 없다).
      */
     @EntityGraph(attributePaths = "question")
-    List<EvalResult> findAllByRunIdOrderByCreatedAtAsc(UUID runId);
+    List<EvalResult> findAllByRunIdOrderByCreatedAtAsc(Long runId);
 }

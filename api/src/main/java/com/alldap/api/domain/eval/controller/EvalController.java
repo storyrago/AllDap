@@ -25,7 +25,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
-import java.util.UUID;
 
 /**
  * 품질 평가 API (PRD §10.1 {@code /api/bots/{botId}/eval/*}). 인증 필요.
@@ -53,8 +52,8 @@ public class EvalController {
      */
     @Operation(summary = "테스트 질문 목록 조회")
     @GetMapping("/questions")
-    public ResponseEntity<List<EvalQuestionResponse>> getQuestions(@AuthenticationPrincipal UUID userId,
-                                                                   @PathVariable UUID botId) {
+    public ResponseEntity<List<EvalQuestionResponse>> getQuestions(@AuthenticationPrincipal Long userId,
+                                                                   @PathVariable Long botId) {
         return ResponseEntity.ok(evalService.findQuestions(userId, botId));
     }
 
@@ -71,8 +70,8 @@ public class EvalController {
     @Operation(summary = "테스트 질문 자동 생성")
     @PostMapping("/questions/generate")
     public ResponseEntity<List<EvalQuestionResponse>> generateQuestions(
-            @AuthenticationPrincipal UUID userId,
-            @PathVariable UUID botId,
+            @AuthenticationPrincipal Long userId,
+            @PathVariable Long botId,
             @Valid @RequestBody(required = false) GenerateQuestionsRequest request) {
 
         // 본문 없이 부를 수 있게 둔다. 화면에서 개수를 고르지 않고 "생성" 만 누르는 흐름이 기본이다.
@@ -90,8 +89,8 @@ public class EvalController {
      */
     @Operation(summary = "평가 실행 시작 (비동기)")
     @PostMapping("/runs")
-    public ResponseEntity<EvalRunResponse> startRun(@AuthenticationPrincipal UUID userId,
-                                                    @PathVariable UUID botId) {
+    public ResponseEntity<EvalRunResponse> startRun(@AuthenticationPrincipal Long userId,
+                                                    @PathVariable Long botId) {
         return ResponseEntity.accepted().body(evalService.startRun(userId, botId));
     }
 
@@ -103,8 +102,8 @@ public class EvalController {
      */
     @Operation(summary = "평가 실행 이력 조회")
     @GetMapping("/runs")
-    public ResponseEntity<List<EvalRunResponse>> getRuns(@AuthenticationPrincipal UUID userId,
-                                                         @PathVariable UUID botId) {
+    public ResponseEntity<List<EvalRunResponse>> getRuns(@AuthenticationPrincipal Long userId,
+                                                         @PathVariable Long botId) {
         return ResponseEntity.ok(evalService.findRuns(userId, botId));
     }
 
@@ -120,9 +119,9 @@ public class EvalController {
      */
     @Operation(summary = "평가 실행의 질문별 채점 결과 조회")
     @GetMapping("/runs/{runId}/results")
-    public ResponseEntity<List<EvalResultResponse>> getResults(@AuthenticationPrincipal UUID userId,
-                                                               @PathVariable UUID botId,
-                                                               @PathVariable UUID runId) {
+    public ResponseEntity<List<EvalResultResponse>> getResults(@AuthenticationPrincipal Long userId,
+                                                               @PathVariable Long botId,
+                                                               @PathVariable Long runId) {
         return ResponseEntity.ok(evalService.findResults(userId, botId, runId));
     }
 
@@ -139,9 +138,9 @@ public class EvalController {
     @Operation(summary = "테스트 질문 수정")
     @PatchMapping("/questions/{questionId}")
     public ResponseEntity<EvalQuestionResponse> updateQuestion(
-            @AuthenticationPrincipal UUID userId,
-            @PathVariable UUID botId,
-            @PathVariable UUID questionId,
+            @AuthenticationPrincipal Long userId,
+            @PathVariable Long botId,
+            @PathVariable Long questionId,
             @Valid @RequestBody UpdateEvalQuestionRequest request) {
         if (request.isEmpty()) {
             // 빈 요청을 200 으로 답하면 "고쳤다"는 오해를 준다.
@@ -186,8 +185,8 @@ public class EvalController {
     @Operation(summary = "미답변 질문 집계 조회")
     @GetMapping("/unanswered")
     public ResponseEntity<UnansweredSummaryResponse> getUnanswered(
-            @AuthenticationPrincipal UUID userId,
-            @PathVariable UUID botId,
+            @AuthenticationPrincipal Long userId,
+            @PathVariable Long botId,
             @RequestParam(defaultValue = "50") int limit) {
         return ResponseEntity.ok(evalService.findUnanswered(userId, botId, Math.clamp(limit, 1, 200)));
     }

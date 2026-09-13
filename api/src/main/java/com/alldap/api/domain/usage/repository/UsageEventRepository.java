@@ -7,9 +7,8 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.Instant;
-import java.util.UUID;
 
-public interface UsageEventRepository extends JpaRepository<UsageEvent, UUID> {
+public interface UsageEventRepository extends JpaRepository<UsageEvent, Long> {
 
     /**
      * 위젯 답변 하나를 계량한다. <b>과금 정책 전체가 이 한 문장 안에 있다.</b>
@@ -55,8 +54,8 @@ public interface UsageEventRepository extends JpaRepository<UsageEvent, UUID> {
                AND :isFallback = false
             ON CONFLICT (kind, source_ref) DO NOTHING
             """, nativeQuery = true)
-    int recordChatAnswer(@Param("messageId") UUID messageId,
-                         @Param("conversationId") UUID conversationId,
+    int recordChatAnswer(@Param("messageId") Long messageId,
+                         @Param("conversationId") Long conversationId,
                          @Param("isFallback") boolean isFallback);
 
     /**
@@ -94,7 +93,7 @@ public interface UsageEventRepository extends JpaRepository<UsageEvent, UUID> {
                AND r.status = 'completed'
             ON CONFLICT (kind, source_ref) DO NOTHING
             """, nativeQuery = true)
-    int backfillEvalRuns(@Param("userId") UUID userId);
+    int backfillEvalRuns(@Param("userId") Long userId);
 
     /**
      * 기간 안의 사건 수. <b>경계는 왼쪽 포함 · 오른쪽 제외</b>({@code >= from}, {@code < to})다.
@@ -107,7 +106,7 @@ public interface UsageEventRepository extends JpaRepository<UsageEvent, UUID> {
                AND e.occurredAt >= :from
                AND e.occurredAt < :to
             """)
-    long countInPeriod(@Param("userId") UUID userId,
+    long countInPeriod(@Param("userId") Long userId,
                        @Param("kind") String kind,
                        @Param("from") Instant from,
                        @Param("to") Instant to);

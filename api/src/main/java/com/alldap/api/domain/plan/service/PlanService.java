@@ -12,7 +12,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.UUID;
 
 /**
  * 계정의 요금제 조회·변경. 요금제 연동 4조각 중 <b>2번</b>이다.
@@ -45,7 +44,7 @@ public class PlanService {
     private final BillingMethodRepository billingMethodRepository;
 
     @Transactional(readOnly = true)
-    public PlanResponse find(UUID userId) {
+    public PlanResponse find(Long userId) {
         return new PlanResponse(user(userId).getPlan());
     }
 
@@ -54,7 +53,7 @@ public class PlanService {
      * 사용자가 "Pro" 를 두 번 눌렀다고 오류를 보여줄 이유가 없다.
      */
     @Transactional
-    public PlanResponse changePlan(UUID userId, Plan plan) {
+    public PlanResponse changePlan(Long userId, Plan plan) {
         User user = user(userId);
 
         // 🔴 카드 검사는 <바꾸기 전에>. 순서를 바꾸면 "요금제는 유료가 됐는데 카드가 없다" 는
@@ -69,7 +68,7 @@ public class PlanService {
         return new PlanResponse(plan);
     }
 
-    private User user(UUID userId) {
+    private User user(Long userId) {
         // 토큰은 유효한데 그 사이 계정이 지워진 경우를 여기서 거른다 —
         // BillingService.billingCustomerKey 와 같은 이유다.
         return userRepository.findById(userId)

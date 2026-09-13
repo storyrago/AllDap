@@ -8,12 +8,11 @@ import org.springframework.data.repository.query.Param;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 
-public interface MessageRepository extends JpaRepository<Message, UUID> {
+public interface MessageRepository extends JpaRepository<Message, Long> {
 
     /** 대화 상세 화면. 시간순으로 펼친다. */
-    List<Message> findAllByConversationIdOrderByCreatedAtAsc(UUID conversationId);
+    List<Message> findAllByConversationIdOrderByCreatedAtAsc(Long conversationId);
 
     /**
      * 메시지 → 대화 → 봇 → 소유자까지 <b>한 번의 쿼리로</b> 거슬러 올라간다.
@@ -23,7 +22,7 @@ public interface MessageRepository extends JpaRepository<Message, UUID> {
      * 해석해 조인 세 번을 만들어준다. 봇·문서와 같은 규칙이다 —
      * <b>소유권을 검사하지 않고 조회 쿼리에 못박는다.</b>
      */
-    Optional<Message> findByIdAndConversationBotUserId(UUID id, UUID userId);
+    Optional<Message> findByIdAndConversationBotUserId(Long id, Long userId);
 
     /**
      * 로그 목록 한 줄에 필요한 집계를 <b>대화 여러 건에 대해 한 번의 쿼리로</b> 가져온다.
@@ -56,7 +55,7 @@ public interface MessageRepository extends JpaRepository<Message, UUID> {
             GROUP BY m.conversation_id
             """, nativeQuery = true)
     List<ConversationAggregate> aggregateByConversationIds(
-            @Param("conversationIds") Collection<UUID> conversationIds);
+            @Param("conversationIds") Collection<Long> conversationIds);
 
     /**
      * <b>미답변 질문 집계</b> — 사용자가 물었는데 봇이 근거를 못 찾아 거절한 질문들.
@@ -112,7 +111,7 @@ public interface MessageRepository extends JpaRepository<Message, UUID> {
              ORDER BY count(*) DESC, max(created_at) DESC
              LIMIT :limit
             """, nativeQuery = true)
-    List<UnansweredAggregate> aggregateUnanswered(@Param("botId") UUID botId,
+    List<UnansweredAggregate> aggregateUnanswered(@Param("botId") Long botId,
                                                   @Param("limit") int limit);
 
     /** {@link #aggregateUnanswered} 의 결과 한 줄. */
@@ -142,7 +141,7 @@ public interface MessageRepository extends JpaRepository<Message, UUID> {
                       AND a.created_at > m.created_at
                )
             """, nativeQuery = true)
-    long countFailedTurns(@Param("botId") UUID botId);
+    long countFailedTurns(@Param("botId") Long botId);
 
     /**
      * 위 집계 쿼리의 결과 한 줄.
@@ -151,7 +150,7 @@ public interface MessageRepository extends JpaRepository<Message, UUID> {
      * 별도 클래스를 만들 필요도, {@code Object[]} 를 인덱스로 꺼내 쓸 필요도 없다.
      */
     interface ConversationAggregate {
-        UUID getConversationId();
+        Long getConversationId();
 
         long getMessageCount();
 

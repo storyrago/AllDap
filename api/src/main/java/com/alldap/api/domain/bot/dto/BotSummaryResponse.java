@@ -7,7 +7,6 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
-import java.util.UUID;
 
 /**
  * 봇 <b>목록</b> 응답 (PRD §8 봇 카드). 프론트의 {@code BotSummary}({@code web/lib/types.ts})와 맞춘다.
@@ -20,7 +19,7 @@ import java.util.UUID;
  * 필드 여덟 개를 한 번 더 적는 대가로 그 혼동을 없앤다.
  */
 public record BotSummaryResponse(
-        UUID id,
+        Long id,
         String name,
         String publicKey,
         String systemPrompt,

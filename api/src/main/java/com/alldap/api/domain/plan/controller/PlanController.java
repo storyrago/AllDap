@@ -15,7 +15,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.UUID;
 
 /**
  * 요금제 API. 인증 필요.
@@ -37,7 +36,7 @@ public class PlanController {
     /** GET /api/plan — 지금 요금제. 새 계정은 {@code free} 다(V8 의 DEFAULT). */
     @Operation(summary = "현재 요금제 조회")
     @GetMapping
-    public ResponseEntity<PlanResponse> get(@AuthenticationPrincipal UUID userId) {
+    public ResponseEntity<PlanResponse> get(@AuthenticationPrincipal Long userId) {
         return ResponseEntity.ok(planService.find(userId));
     }
 
@@ -54,7 +53,7 @@ public class PlanController {
      */
     @Operation(summary = "요금제 변경")
     @PutMapping
-    public ResponseEntity<PlanResponse> change(@AuthenticationPrincipal UUID userId,
+    public ResponseEntity<PlanResponse> change(@AuthenticationPrincipal Long userId,
                                                @Valid @RequestBody ChangePlanRequest request) {
         return ResponseEntity.ok(planService.changePlan(userId, request.plan()));
     }

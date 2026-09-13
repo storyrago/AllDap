@@ -25,7 +25,6 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -73,7 +72,7 @@ public class ConversationLogService {
      * @param to   <b>이 날짜까지 포함</b>한다. 사용자가 기대하는 "8/1 ~ 8/3" 은 3일치이므로
      *             내부적으로는 8/4 00:00 <b>미만</b>으로 바꿔 비교한다
      */
-    public PageResponse<ConversationSummaryResponse> findLogs(UUID userId, UUID botId,
+    public PageResponse<ConversationSummaryResponse> findLogs(Long userId, Long botId,
                                                               boolean onlyFallback, boolean onlyThumbsDown,
                                                               LocalDate from, LocalDate to,
                                                               Pageable pageable) {
@@ -82,7 +81,7 @@ public class ConversationLogService {
         Page<Conversation> conversations = conversationRepository.findLogs(
                 botId, onlyFallback, onlyThumbsDown, startOfDay(from), startOfNextDay(to), pageable);
 
-        Map<UUID, MessageRepository.ConversationAggregate> aggregates = loadAggregates(conversations);
+        Map<Long, MessageRepository.ConversationAggregate> aggregates = loadAggregates(conversations);
 
         return PageResponse.of(conversations, conversation -> toSummary(conversation, aggregates));
     }
@@ -94,7 +93,7 @@ public class ConversationLogService {
      * 목록 → 상세로 이어지는 화면 흐름과 주소가 일치한다.
      * PRD §10.1 표에는 이 경로가 없다 — 이 슬라이스에서 정한 것이므로 PRD 도 함께 갱신할 것.
      */
-    public List<MessageResponse> findMessages(UUID userId, UUID botId, UUID conversationId) {
+    public List<MessageResponse> findMessages(Long userId, Long botId, Long conversationId) {
         requireOwnedBot(userId, botId);
 
         // 대화가 <이 봇의 것인지>까지 확인한다. 봇 소유권만 보고 통과시키면
@@ -112,18 +111,18 @@ public class ConversationLogService {
     // ── 내부 ─────────────────────────────────────────────────────────────
 
     /** 페이지가 비어 있으면 쿼리를 아예 보내지 않는다 ({@code IN ()} 은 문법 오류다). */
-    private Map<UUID, MessageRepository.ConversationAggregate> loadAggregates(Page<Conversation> conversations) {
+    private Map<Long, MessageRepository.ConversationAggregate> loadAggregates(Page<Conversation> conversations) {
         if (conversations.isEmpty()) {
             return Map.of();
         }
-        List<UUID> ids = conversations.getContent().stream().map(Conversation::getId).toList();
+        List<Long> ids = conversations.getContent().stream().map(Conversation::getId).toList();
         return messageRepository.aggregateByConversationIds(ids).stream()
                 .collect(Collectors.toMap(
                         MessageRepository.ConversationAggregate::getConversationId, Function.identity()));
     }
 
     private ConversationSummaryResponse toSummary(Conversation conversation,
-                                                  Map<UUID, MessageRepository.ConversationAggregate> aggregates) {
+                                                  Map<Long, MessageRepository.ConversationAggregate> aggregates) {
         // 메시지가 한 건도 없는 대화는 GROUP BY 결과에 아예 나오지 않는다.
         // 그런 대화가 생길 수 있으므로(대화만 만들어지고 메시지 저장이 실패하는 경로) null 로 터지지 않게 한다.
         MessageRepository.ConversationAggregate aggregate = aggregates.get(conversation.getId());
@@ -196,7 +195,7 @@ public class ConversationLogService {
         return date == null ? NO_UPPER_BOUND : date.plusDays(1).atStartOfDay(LOG_ZONE).toInstant();
     }
 
-    private void requireOwnedBot(UUID userId, UUID botId) {
+    private void requireOwnedBot(Long userId, Long botId) {
         botRepository.findByIdAndUserId(botId, userId)
                 .orElseThrow(() -> new ApiException(ErrorCode.BOT_NOT_FOUND));
     }

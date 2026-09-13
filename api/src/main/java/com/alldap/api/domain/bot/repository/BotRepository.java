@@ -9,15 +9,14 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 
-public interface BotRepository extends JpaRepository<Bot, UUID> {
+public interface BotRepository extends JpaRepository<Bot, Long> {
 
     /** 위젯 공개 API 진입점. publicKey 하나로 봇을 찾는다. */
     Optional<Bot> findByPublicKey(String publicKey);
 
     /** 대시보드 봇 목록. */
-    List<Bot> findAllByUserIdOrderByCreatedAtDesc(UUID userId);
+    List<Bot> findAllByUserIdOrderByCreatedAtDesc(Long userId);
 
     /**
      * 소유권까지 함께 검사하는 조회.
@@ -26,7 +25,7 @@ public interface BotRepository extends JpaRepository<Bot, UUID> {
      * 검사를 빠뜨리기 쉽다. 조회 자체를 소유자로 좁히면 봇 간 데이터 유출
      * (CLAUDE.md "bot_id 스코프 격리")을 구조적으로 막을 수 있다.
      */
-    Optional<Bot> findByIdAndUserId(UUID id, UUID userId);
+    Optional<Bot> findByIdAndUserId(Long id, Long userId);
 
     /**
      * 봇 카드(PRD §8)에 얹을 집계를 <b>내 봇 전부에 대해 한 번의 쿼리로</b> 가져온다.
@@ -76,13 +75,13 @@ public interface BotRepository extends JpaRepository<Bot, UUID> {
               FROM bots b
              WHERE b.user_id = :userId
             """, nativeQuery = true)
-    List<BotMetrics> aggregateMetrics(@Param("userId") UUID userId, @Param("since") Instant since);
+    List<BotMetrics> aggregateMetrics(@Param("userId") Long userId, @Param("since") Instant since);
 
     /**
      * {@link #aggregateMetrics} 결과 한 줄. 인터페이스로 두면 Spring Data 가 구현체를 만들어준다.
      */
     interface BotMetrics {
-        UUID getBotId();
+        Long getBotId();
 
         long getDocumentCount();
 

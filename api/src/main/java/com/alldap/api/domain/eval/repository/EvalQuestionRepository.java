@@ -6,14 +6,13 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
-import java.util.UUID;
 
 /**
  * eval_questions 조회. 쓰기 소유자는 Python 이므로 save/delete 를 호출하지 말 것.
  */
-public interface EvalQuestionRepository extends JpaRepository<EvalQuestion, UUID> {
+public interface EvalQuestionRepository extends JpaRepository<EvalQuestion, Long> {
 
-    List<EvalQuestion> findAllByBotIdOrderByCreatedAtDesc(UUID botId);
+    List<EvalQuestion> findAllByBotIdOrderByCreatedAtDesc(Long botId);
 
     /**
      * 활성 질문만.
@@ -23,5 +22,5 @@ public interface EvalQuestionRepository extends JpaRepository<EvalQuestion, UUID
      * 프로퍼티 이름의 일부로 볼지 애매해진다. 애매한 규칙보다 명시적인 쿼리가 낫다.
      */
     @Query("select q from EvalQuestion q where q.bot.id = :botId and q.isActive = true order by q.createdAt desc")
-    List<EvalQuestion> findActiveByBotId(@Param("botId") UUID botId);
+    List<EvalQuestion> findActiveByBotId(@Param("botId") Long botId);
 }

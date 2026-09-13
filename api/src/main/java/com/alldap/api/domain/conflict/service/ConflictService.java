@@ -11,7 +11,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.UUID;
 
 /**
  * 문서 간 사실 충돌 진단 서비스.
@@ -45,7 +44,7 @@ public class ConflictService {
     private final AiServiceClient aiServiceClient;
 
     /** 문서끼리 어긋나는 곳을 훑는다. 동기이며 Python 이 판정 쌍 수를 상한으로 묶어 시간을 통제한다. */
-    public ConflictScanResponse scan(UUID userId, UUID botId) {
+    public ConflictScanResponse scan(Long userId, Long botId) {
         requireOwnedBot(userId, botId);
         ConflictScanResponse result = ConflictScanResponse.from(aiServiceClient.scanConflicts(botId));
         log.info("[scanConflicts] botId={} 후보={} 판정={} 모순={} 실패={}",
@@ -54,7 +53,7 @@ public class ConflictService {
     }
 
     /** 충돌 목록. 기본은 관리자가 아직 안 본 것({@code open})만. */
-    public List<ConflictResponse> findAll(UUID userId, UUID botId, String status) {
+    public List<ConflictResponse> findAll(Long userId, Long botId, String status) {
         requireOwnedBot(userId, botId);
         return aiServiceClient.listConflicts(botId, status).stream()
                 .map(ConflictResponse::from)
@@ -67,7 +66,7 @@ public class ConflictService {
      * <p>이 기능이 없으면 헛짚은 항목이 목록에 영원히 남고, 관리자는 화면 자체를 안 보게 된다 —
      * <b>기능이 없는 것과 같아진다.</b> 그래서 탐지와 함께 만들었다.
      */
-    public ConflictResponse updateStatus(UUID userId, UUID botId, UUID conflictId, String status) {
+    public ConflictResponse updateStatus(Long userId, Long botId, Long conflictId, String status) {
         requireOwnedBot(userId, botId);
         return ConflictResponse.from(aiServiceClient.updateConflictStatus(botId, conflictId, status));
     }
@@ -79,7 +78,7 @@ public class ConflictService {
      * 없는 봇과 남의 봇을 <b>모두 404</b> 로 답한다 — 403 으로 구분해주면 무작위 id 를 던져
      * 남의 봇 존재 여부를 훑을 수 있다.
      */
-    private void requireOwnedBot(UUID userId, UUID botId) {
+    private void requireOwnedBot(Long userId, Long botId) {
         botRepository.findByIdAndUserId(botId, userId)
                 .orElseThrow(() -> new ApiException(ErrorCode.BOT_NOT_FOUND));
     }

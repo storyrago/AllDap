@@ -13,7 +13,6 @@ import java.time.DateTimeException;
 import java.time.Instant;
 import java.time.YearMonth;
 import java.time.ZoneId;
-import java.util.UUID;
 
 /**
  * 사용량 조회. <b>계정 단위</b>다 — 봇이 아니라 봇의 주인이 청구 대상이다.
@@ -41,7 +40,7 @@ public class UsageService {
      * @param month {@code "YYYY-MM"} 또는 null(이번 달)
      */
     @Transactional
-    public UsageResponse findUsage(UUID userId, String month) {
+    public UsageResponse findUsage(Long userId, String month) {
         MonthRange range = parseMonth(month);
 
         // 🔴 세기 <전에> 메꾼다. 순서가 반대면 방금 끝난 평가 실행이 다음 조회까지 안 보인다.

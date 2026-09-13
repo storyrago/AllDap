@@ -1,7 +1,6 @@
 package com.alldap.api.domain.chat.dto;
 
 import java.util.List;
-import java.util.UUID;
 
 /**
  * 채팅 응답. 프론트의 {@code ChatResponse}({@code web/lib/types.ts})와 필드명을 맞춘다.
@@ -23,6 +22,6 @@ public record ChatResponse(
         List<SourceResponse> sources,
         boolean isFallback,
         Integer latencyMs,
-        UUID messageId
+        Long messageId
 ) {
 }

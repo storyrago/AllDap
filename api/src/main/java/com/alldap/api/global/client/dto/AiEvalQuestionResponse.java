@@ -3,7 +3,6 @@ package com.alldap.api.global.client.dto;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.time.Instant;
-import java.util.UUID;
 
 /**
  * Python 의 {@code EvalQuestionOut} (ai-service/app/schemas.py).
@@ -20,10 +19,10 @@ import java.util.UUID;
  * 즉 "출처 없는 정답"이 정상적으로 존재한다. 화면에서 null 분기를 잊지 말 것.
  */
 public record AiEvalQuestionResponse(
-        @JsonProperty("id") UUID id,
+        @JsonProperty("id") Long id,
         @JsonProperty("question") String question,
         @JsonProperty("ground_truth") String groundTruth,
-        @JsonProperty("source_chunk_id") UUID sourceChunkId,
+        @JsonProperty("source_chunk_id") Long sourceChunkId,
         @JsonProperty("is_active") boolean isActive,
         @JsonProperty("created_at") Instant createdAt
 ) {

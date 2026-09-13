@@ -15,7 +15,6 @@ import org.springframework.stereotype.Service;
 import tools.jackson.databind.ObjectMapper;
 
 import java.util.List;
-import java.util.UUID;
 
 /**
  * 채팅 서비스. 이 프로젝트에서 가장 중요한 흐름이다.
@@ -54,7 +53,7 @@ public class ChatService {
      * <p>테스트 대화를 따로 표시하는 이유: 품질 지표(응답률·미답변 목록)를 낼 때
      * 관리자가 직접 돌려본 대화가 섞이면 실사용 수치가 왜곡된다.
      */
-    public ChatResponse chatAsOwner(UUID userId, UUID botId, ChatRequest request) {
+    public ChatResponse chatAsOwner(Long userId, Long botId, ChatRequest request) {
         ChatTurnStore.Turn turn = turnStore.openTurn(
                 userId, botId, request.message(), request.sessionId(), Conversation.CHANNEL_TEST);
 
@@ -70,7 +69,7 @@ public class ChatService {
         String answer = resolveAnswer(turn.fallbackMessage(), ai);
         List<SourceResponse> sources = toSources(ai);
 
-        UUID messageId = turnStore.saveAnswer(
+        Long messageId = turnStore.saveAnswer(
                 turn.conversationId(), answer, toSourcesJson(sources), ai.isFallback(), ai.latencyMs());
 
         log.info("[chat] botId={} conversationId={} messageId={} isFallback={} sources={} latencyMs={}",
@@ -106,7 +105,7 @@ public class ChatService {
         String answer = resolveAnswer(turn.fallbackMessage(), ai);
         List<SourceResponse> sources = toSources(ai);
 
-        UUID messageId = turnStore.saveAnswer(
+        Long messageId = turnStore.saveAnswer(
                 turn.conversationId(), answer, toSourcesJson(sources), ai.isFallback(), ai.latencyMs());
 
         log.info("[widget-chat] botId={} conversationId={} isFallback={} latencyMs={}",
@@ -116,7 +115,7 @@ public class ChatService {
     }
 
     /** 피드백 기록 (👍/👎). 값 규칙과 소유권 확인은 {@link ChatTurnStore} 와 엔티티가 맡는다. */
-    public void applyFeedback(UUID userId, UUID messageId, Short feedback) {
+    public void applyFeedback(Long userId, Long messageId, Short feedback) {
         turnStore.applyFeedback(userId, messageId, feedback);
     }
 

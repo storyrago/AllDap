@@ -5,7 +5,6 @@ import com.alldap.api.domain.bot.entity.Bot;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
-import java.util.UUID;
 
 /**
  * 봇 응답. 프론트의 {@code Bot}({@code web/lib/types.ts})과 필드명을 맞춘다.
@@ -16,7 +15,7 @@ import java.util.UUID;
  * ③ 내부에만 있어야 할 값(예: 소유자 정보)이 새어나갈 수 있다.
  */
 public record BotResponse(
-        UUID id,
+        Long id,
         String name,
         String publicKey,
         String systemPrompt,

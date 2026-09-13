@@ -9,9 +9,8 @@ import org.springframework.data.repository.query.Param;
 
 import java.time.Instant;
 import java.util.Optional;
-import java.util.UUID;
 
-public interface ConversationRepository extends JpaRepository<Conversation, UUID> {
+public interface ConversationRepository extends JpaRepository<Conversation, Long> {
 
     /**
      * 이어지는 대화를 찾기 위한 조회.
@@ -19,7 +18,7 @@ public interface ConversationRepository extends JpaRepository<Conversation, UUID
      * <p>{@code (bot_id, session_id)} 인덱스가 이 조회를 위해 존재한다.
      * 같은 세션 키로 여러 행이 생길 수 있으므로(예: 오래된 세션 재사용) 최신 것을 쓴다.
      */
-    Optional<Conversation> findFirstByBotIdAndSessionIdOrderByCreatedAtDesc(UUID botId, String sessionId);
+    Optional<Conversation> findFirstByBotIdAndSessionIdOrderByCreatedAtDesc(Long botId, String sessionId);
 
     /**
      * 위와 같지만 <b>channel 까지 맞춰</b> 찾는다. 실제 대화 이어붙이기는 이쪽을 쓴다.
@@ -30,7 +29,7 @@ public interface ConversationRepository extends JpaRepository<Conversation, UUID
      * 품질 지표에서 테스트 대화를 제외하려고 channel 컬럼을 둔 것인데 그 구분이 무너진다.
      */
     Optional<Conversation> findFirstByBotIdAndSessionIdAndChannelOrderByCreatedAtDesc(
-            UUID botId, String sessionId, String channel);
+            Long botId, String sessionId, String channel);
 
     /**
      * 대화 로그 목록 ({@code GET /api/bots/{botId}/logs}). 필터는 전부 선택이다.
@@ -67,7 +66,7 @@ public interface ConversationRepository extends JpaRepository<Conversation, UUID
               AND c.createdAt >= :from
               AND c.createdAt < :to
             """)
-    Page<Conversation> findLogs(@Param("botId") UUID botId,
+    Page<Conversation> findLogs(@Param("botId") Long botId,
                                 @Param("onlyFallback") boolean onlyFallback,
                                 @Param("onlyThumbsDown") boolean onlyThumbsDown,
                                 @Param("from") Instant from,

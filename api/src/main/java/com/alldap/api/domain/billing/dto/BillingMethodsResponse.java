@@ -5,7 +5,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.time.OffsetDateTime;
 import java.util.List;
-import java.util.UUID;
 
 /**
  * 결제 수단 목록 응답. 조회·추가·기본 지정이 <b>전부 이 모양</b>을 돌려준다 —
@@ -39,7 +38,7 @@ public record BillingMethodsResponse(String customerKey, List<Card> methods) {
      *                         {@code isDefault()} 라 Jackson 의 빈 규칙으로는 "default" 라는 이름이 될 수 있다.
      *                         프론트 {@code types.ts} 가 {@code isDefault} 를 전제하므로 이름을 못박는다.
      */
-    public record Card(UUID id,
+    public record Card(Long id,
                        String issuerCode,
                        String issuerName,
                        String cardNumberMasked,

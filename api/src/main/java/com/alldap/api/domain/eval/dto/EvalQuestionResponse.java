@@ -4,18 +4,17 @@ import com.alldap.api.domain.eval.entity.EvalQuestion;
 import com.alldap.api.global.client.dto.AiEvalQuestionResponse;
 
 import java.time.Instant;
-import java.util.UUID;
 
 /**
  * 평가 질문 응답. 프론트의 {@code EvalQuestion}({@code web/lib/types.ts})과 맞춘다.
  */
 public record EvalQuestionResponse(
-        UUID id,
+        Long id,
         String question,
         /** 문서 청크에서 뽑아낸 기대 답변 */
         String groundTruth,
-        /** 이 질문이 어느 청크에서 생성됐는지 (chunks 엔티티가 없으므로 UUID 값만 전달) */
-        UUID sourceChunkId,
+        /** 이 질문이 어느 청크에서 생성됐는지 (chunks 엔티티가 없으므로 id 값만 전달) */
+        Long sourceChunkId,
         boolean isActive,
         Instant createdAt
 ) {

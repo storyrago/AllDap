@@ -21,7 +21,6 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 
 import java.time.LocalDate;
 import java.util.List;
-import java.util.UUID;
 
 /**
  * 대화 로그 API (PRD §10.1 {@code GET /api/bots/{botId}/logs}). 인증 필요.
@@ -53,8 +52,8 @@ public class ConversationLogController {
     @Operation(summary = "대화 목록 조회")
     @GetMapping
     public ResponseEntity<PageResponse<ConversationSummaryResponse>> getLogs(
-            @AuthenticationPrincipal UUID userId,
-            @PathVariable UUID botId,
+            @AuthenticationPrincipal Long userId,
+            @PathVariable Long botId,
             @RequestParam(defaultValue = "false") boolean onlyFallback,
             @RequestParam(defaultValue = "false") boolean onlyThumbsDown,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
@@ -76,9 +75,9 @@ public class ConversationLogController {
      */
     @Operation(summary = "대화 상세(메시지 목록) 조회")
     @GetMapping("/{conversationId}")
-    public ResponseEntity<List<MessageResponse>> getMessages(@AuthenticationPrincipal UUID userId,
-                                                             @PathVariable UUID botId,
-                                                             @PathVariable UUID conversationId) {
+    public ResponseEntity<List<MessageResponse>> getMessages(@AuthenticationPrincipal Long userId,
+                                                             @PathVariable Long botId,
+                                                             @PathVariable Long conversationId) {
         return ResponseEntity.ok(conversationLogService.findMessages(userId, botId, conversationId));
     }
 }

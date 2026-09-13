@@ -26,7 +26,6 @@ import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.ObjectMapper;
 
 import java.util.List;
-import java.util.UUID;
 
 /**
  * 품질 평가 서비스 (W3).
@@ -70,7 +69,7 @@ public class EvalService {
      * 관리자가 화면에서 껐다 켜야 하므로 꺼진 질문이 안 보이면 다시 켤 방법이 없다.
      */
     @Transactional(readOnly = true)
-    public List<EvalQuestionResponse> findQuestions(UUID userId, UUID botId) {
+    public List<EvalQuestionResponse> findQuestions(Long userId, Long botId) {
         requireOwnedBot(userId, botId);
         return evalQuestionRepository.findAllByBotIdOrderByCreatedAtDesc(botId).stream()
                 .map(EvalQuestionResponse::from)
@@ -86,7 +85,7 @@ public class EvalService {
      * <p>재호출하면 <b>기존 질문은 그대로 두고 새 것만 더한다.</b> 관리자가 고쳐둔 질문을
      * 날리지 않기 위해서다. 중복 방지는 Python 의 표본 SQL 이 한다.
      */
-    public List<EvalQuestionResponse> generateQuestions(UUID userId, UUID botId, int count) {
+    public List<EvalQuestionResponse> generateQuestions(Long userId, Long botId, int count) {
         requireOwnedBot(userId, botId);
 
         List<EvalQuestionResponse> created = aiServiceClient.generateEvalQuestions(botId, count).stream()
@@ -106,7 +105,7 @@ public class EvalService {
      * {@code eval_runs.status} 가 있어서 이 구조가 성립한다 —
      * 질문 생성이 동기인 것도 같은 이유(거긴 상태 컬럼이 없다)의 뒷면이다.
      */
-    public EvalRunResponse startRun(UUID userId, UUID botId) {
+    public EvalRunResponse startRun(Long userId, Long botId) {
         requireOwnedBot(userId, botId);
 
         AiEvalRunResponse run = aiServiceClient.startEvalRun(botId);
@@ -120,7 +119,7 @@ public class EvalService {
      * 두 실행을 골라 나란히 놓을 수 있는 건 각 실행이 {@code config} 를 함께 들고 있기 때문이다.
      */
     @Transactional(readOnly = true)
-    public List<EvalRunResponse> findRuns(UUID userId, UUID botId) {
+    public List<EvalRunResponse> findRuns(Long userId, Long botId) {
         requireOwnedBot(userId, botId);
         return evalRunRepository.findAllByBotIdOrderByCreatedAtDesc(botId).stream()
                 .map(run -> EvalRunResponse.from(run, objectMapper))
@@ -136,10 +135,10 @@ public class EvalService {
      * (봇 조회의 {@code findByIdAndUserId} 와 같은 방식).
      *
      * <p>남의 실행은 403 이 아니라 <b>404</b> 다. 403 은 "그 실행은 존재한다"를 알려주는 셈이라
-     * 무작위 UUID 를 던져 남의 데이터 존재 여부를 훑을 수 있다.
+     * 아무 번호나 던져 남의 데이터 존재 여부를 훑을 수 있다.
      */
     @Transactional(readOnly = true)
-    public List<EvalResultResponse> findResults(UUID userId, UUID botId, UUID runId) {
+    public List<EvalResultResponse> findResults(Long userId, Long botId, Long runId) {
         requireOwnedBot(userId, botId);
 
         evalRunRepository.findByIdAndBotId(runId, botId)
@@ -181,7 +180,7 @@ public class EvalService {
      * 소유권 확인은 <b>Python 을 부르기 전에</b> 한다. {@code /internal/*} 에는 인증이 없어서,
      * 요청이 거기 도달한 시점에 이미 샌 것이다.
      */
-    public EvalQuestionResponse updateQuestion(UUID userId, UUID botId, UUID questionId,
+    public EvalQuestionResponse updateQuestion(Long userId, Long botId, Long questionId,
                                                UpdateEvalQuestionRequest request) {
         requireOwnedBot(userId, botId);
 
@@ -212,7 +211,7 @@ public class EvalService {
      * <p>LLM 을 부르지 않으므로 <b>비용이 0</b> 이다. 목록을 여는 것만으로 돈이 나가면 안 된다.
      * ({@code suggestion} 이 항상 null 인 이유이기도 하다)
      */
-    public UnansweredSummaryResponse findUnanswered(UUID userId, UUID botId, int limit) {
+    public UnansweredSummaryResponse findUnanswered(Long userId, Long botId, int limit) {
         requireOwnedBot(userId, botId);
         List<UnansweredQuestionResponse> items = messageRepository.aggregateUnanswered(botId, limit)
                 .stream()
@@ -230,7 +229,7 @@ public class EvalService {
      * <p>없는 봇과 남의 봇을 <b>모두 404</b> 로 답한다. 403 으로 구분해주면
      * 무작위 id 를 던져 남의 봇 존재 여부를 알아낼 수 있다.
      */
-    private void requireOwnedBot(UUID userId, UUID botId) {
+    private void requireOwnedBot(Long userId, Long botId) {
         botRepository.findByIdAndUserId(botId, userId)
                 .orElseThrow(() -> new ApiException(ErrorCode.BOT_NOT_FOUND));
     }

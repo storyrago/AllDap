@@ -3,7 +3,6 @@ package com.alldap.api.global.client.dto;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.time.Instant;
-import java.util.UUID;
 
 /**
  * Python 의 {@code ConflictOut} (ai-service/app/schemas.py).
@@ -22,7 +21,7 @@ import java.util.UUID;
  * 판정 근거가 아니라 <b>임계값 튜닝용 기록</b>이라 없어도 화면은 성립한다.
  */
 public record AiConflictResponse(
-        @JsonProperty("id") UUID id,
+        @JsonProperty("id") Long id,
         @JsonProperty("topic") String topic,
         @JsonProperty("a_says") String aSays,
         @JsonProperty("b_says") String bSays,

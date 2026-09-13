@@ -22,16 +22,15 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.net.URI;
 import java.util.List;
-import java.util.UUID;
 
 /**
  * 봇 관리 API (PRD §10.1). 인증 필요.
  *
  * <p>컨트롤러는 얇게 유지한다 — 리포지토리를 직접 참조하지 않고 서비스에만 의존한다.
  *
- * <h2>로그인한 사용자를 {@code @AuthenticationPrincipal UUID userId} 로 받는 이유</h2>
+ * <h2>로그인한 사용자를 {@code @AuthenticationPrincipal Long userId} 로 받는 이유</h2>
  * {@link com.alldap.api.domain.auth.filter.JwtAuthenticationFilter} 가 SecurityContext 의
- * principal 에 사용자 id(UUID) 자체를 넣는다. 이 애너테이션은 그 principal 을 꺼내
+ * principal 에 사용자 id(순번) 자체를 넣는다. 이 애너테이션은 그 principal 을 꺼내
  * 파라미터 타입으로 캐스팅해줄 뿐이라 중간 타입이 필요 없다.
  *
  * <p>대신 <b>클라이언트가 보낸 값에서는 절대 userId 를 받지 않는다.</b>
@@ -57,7 +56,7 @@ public class BotController {
      */
     @Operation(summary = "내 봇 목록 조회")
     @GetMapping
-    public ResponseEntity<List<BotSummaryResponse>> getMyBots(@AuthenticationPrincipal UUID userId) {
+    public ResponseEntity<List<BotSummaryResponse>> getMyBots(@AuthenticationPrincipal Long userId) {
         return ResponseEntity.ok(botService.findMyBots(userId));
     }
 
@@ -69,7 +68,7 @@ public class BotController {
      */
     @Operation(summary = "봇 생성")
     @PostMapping
-    public ResponseEntity<BotResponse> createBot(@AuthenticationPrincipal UUID userId,
+    public ResponseEntity<BotResponse> createBot(@AuthenticationPrincipal Long userId,
                                                  @Valid @RequestBody CreateBotRequest request) {
         BotResponse bot = botService.createBot(userId, request);
         return ResponseEntity.created(URI.create("/api/bots/" + bot.id())).body(bot);
@@ -78,16 +77,16 @@ public class BotController {
     /** GET /api/bots/{botId} — 봇 상세 */
     @Operation(summary = "봇 단건 조회")
     @GetMapping("/{botId}")
-    public ResponseEntity<BotResponse> getBot(@AuthenticationPrincipal UUID userId,
-                                              @PathVariable UUID botId) {
+    public ResponseEntity<BotResponse> getBot(@AuthenticationPrincipal Long userId,
+                                              @PathVariable Long botId) {
         return ResponseEntity.ok(botService.findMyBot(userId, botId));
     }
 
     /** PATCH /api/bots/{botId} — 봇 설정 부분 수정 */
     @Operation(summary = "봇 설정 수정")
     @PatchMapping("/{botId}")
-    public ResponseEntity<BotResponse> updateBot(@AuthenticationPrincipal UUID userId,
-                                                 @PathVariable UUID botId,
+    public ResponseEntity<BotResponse> updateBot(@AuthenticationPrincipal Long userId,
+                                                 @PathVariable Long botId,
                                                  @Valid @RequestBody UpdateBotRequest request) {
         return ResponseEntity.ok(botService.updateBot(userId, botId, request));
     }
@@ -100,8 +99,8 @@ public class BotController {
      */
     @Operation(summary = "봇 삭제")
     @DeleteMapping("/{botId}")
-    public ResponseEntity<Void> deleteBot(@AuthenticationPrincipal UUID userId,
-                                          @PathVariable UUID botId) {
+    public ResponseEntity<Void> deleteBot(@AuthenticationPrincipal Long userId,
+                                          @PathVariable Long botId) {
         botService.deleteBot(userId, botId);
         return ResponseEntity.noContent().build();
     }
