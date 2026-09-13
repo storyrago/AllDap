@@ -1,105 +1,138 @@
 erDiagram
-    users ||--o{ bots : "소유"
-    users ||--o{ usage_events : "사용량 원장"
-    users ||--o{ billing_methods : "결제 수단 (최대 5장)"
-    bots ||--o{ documents : ""
-    bots ||--o{ chunks : ""
-    bots ||--o{ conversations : ""
-    bots ||--o{ eval_questions : ""
-    bots ||--o{ eval_runs : ""
-    bots ||--o{ doc_conflicts : ""
-    documents ||--o{ chunks : "파싱 · 청킹 결과"
-    conversations ||--o{ messages : ""
-    chunks ||--o{ eval_questions : "출처 청크"
-    chunks ||--o{ doc_conflicts : "충돌한 청크 쌍"
-    eval_runs ||--o{ eval_results : ""
-    eval_questions ||--o{ eval_results : ""
+    "users · 사용자" ||--o{ "bots · 봇" : "소유"
+    "users · 사용자" ||--o{ "usage_events · 사용량 원장" : "계정이 낸다"
+    "users · 사용자" ||--o{ "billing_methods · 결제 수단" : "최대 5장"
+    "bots · 봇" ||--o{ "documents · 문서" : ""
+    "bots · 봇" ||--o{ "chunks · 청크" : ""
+    "bots · 봇" ||--o{ "conversations · 대화" : ""
+    "bots · 봇" ||--o{ "eval_questions · 평가 질문" : ""
+    "bots · 봇" ||--o{ "eval_runs · 평가 실행" : ""
+    "bots · 봇" ||--o{ "doc_conflicts · 문서 충돌" : ""
+    "documents · 문서" ||--o{ "chunks · 청크" : "파싱 · 청킹 결과"
+    "conversations · 대화" ||--o{ "messages · 메시지" : ""
+    "chunks · 청크" ||--o{ "eval_questions · 평가 질문" : "출처 청크"
+    "chunks · 청크" ||--o{ "doc_conflicts · 문서 충돌" : "충돌한 청크 쌍"
+    "eval_runs · 평가 실행" ||--o{ "eval_results · 평가 결과" : ""
+    "eval_questions · 평가 질문" ||--o{ "eval_results · 평가 결과" : ""
 
-    users {
-        uuid id PK
-        varchar email UK
-        varchar password_hash
-        varchar plan "free | pro (V8)"
-        varchar billing_customer_key UK "V6"
+    "users · 사용자" {
+        uuid id PK "사용자 ID · NOT NULL · gen_random_uuid()"
+        varchar(255) email UK "이메일 · NOT NULL · 로그인 ID"
+        varchar(255) password_hash "비밀번호 해시 · NOT NULL · BCrypt"
+        varchar(50) name "이름 · NULL 허용"
+        varchar(16) plan "요금제 · NOT NULL · free | pro · CHECK 제약 (V8)"
+        varchar(50) billing_customer_key UK "결제 고객키 · NOT NULL · bcus_ + 32hex (V6)"
+        timestamptz created_at "가입 시각 · NOT NULL · now()"
     }
-    bots {
-        uuid id PK
-        uuid user_id FK
-        varchar public_key UK "위젯 설치 코드에 노출된다"
-        text system_prompt "Python 이 직접 읽는다"
-        text fallback_message "Spring 이 치환한다"
-        text_array allowed_origins "비어 있으면 전부 차단"
+    "bots · 봇" {
+        uuid id PK "봇 ID · NOT NULL · gen_random_uuid()"
+        uuid user_id FK "소유자 · NULL 허용 · 데모 봇(pk_local_dev)은 주인이 없다"
+        varchar(100) name "봇 이름 · NOT NULL"
+        varchar(32) public_key UK "공개키 · NOT NULL · 위젯 설치 코드에 노출된다"
+        text system_prompt "봇 지침 · NULL 허용 · Python 이 직접 읽는다"
+        text welcome_message "인사말 · NOT NULL · 기본 '무엇을 도와드릴까요?'"
+        text fallback_message "미답변 문구 · NOT NULL · Spring 이 치환한다"
+        text[] allowed_origins "허용 도메인 · NULL 허용 · 비어 있으면 전부 차단"
+        timestamptz created_at "생성 시각 · NOT NULL · now()"
     }
-    documents {
-        uuid id PK
-        uuid bot_id FK
-        varchar file_type "pdf | docx | hwpx | txt | md"
-        varchar status "pending | processing | ready | failed"
-        int chunk_count
+    "documents · 문서" {
+        uuid id PK "문서 ID · NOT NULL · gen_random_uuid()"
+        uuid bot_id FK "봇 · NOT NULL · ON DELETE CASCADE"
+        varchar(255) filename "파일명 · NOT NULL"
+        varchar(10) file_type "파일 형식 · NOT NULL · pdf | docx | hwpx | txt | md"
+        varchar(20) status "처리 상태 · NOT NULL · pending | processing | ready | failed"
+        text error_message "실패 사유 · NULL 허용 · status=failed 일 때만 채워진다"
+        int char_count "글자 수 · NULL 허용 · 파싱 전에는 모른다"
+        int chunk_count "청크 수 · NULL 허용 · 청킹 전에는 모른다"
+        timestamptz created_at "업로드 시각 · NOT NULL · now()"
     }
-    chunks {
-        uuid id PK
-        uuid document_id FK
-        uuid bot_id FK
-        text content
-        vector embedding "1024 (bge-m3), HNSW 코사인"
-        text tokens "키워드 검색용"
+    "chunks · 청크" {
+        uuid id PK "청크 ID · NOT NULL · gen_random_uuid()"
+        uuid document_id FK "원본 문서 · NOT NULL · ON DELETE CASCADE"
+        uuid bot_id FK "봇 · NOT NULL · 모든 조회의 격리 기준"
+        int chunk_index "순번 · NOT NULL · 문서 안에서의 순서"
+        text content "본문 · NOT NULL"
+        vector(1024) embedding "임베딩 벡터 · NULL 허용 · bge-m3 (V2) · HNSW 코사인"
+        text tokens "키워드 토큰 · NULL 허용 · 하이브리드 검색용"
+        jsonb meta "메타데이터 · NOT NULL · 기본 {}"
+        timestamptz created_at "생성 시각 · NOT NULL · now()"
     }
-    conversations {
-        uuid id PK
-        uuid bot_id FK
-        varchar session_id
-        varchar channel "widget | test"
+    "conversations · 대화" {
+        uuid id PK "대화 ID · NOT NULL · gen_random_uuid()"
+        uuid bot_id FK "봇 · NOT NULL · ON DELETE CASCADE"
+        varchar(64) session_id "세션 ID · NOT NULL · 브라우저가 만든 식별자"
+        varchar(10) channel "유입 경로 · NOT NULL · widget | test"
+        timestamptz created_at "시작 시각 · NOT NULL · now()"
     }
-    messages {
-        uuid id PK
-        uuid conversation_id FK
-        varchar role "user | assistant"
-        jsonb sources
-        boolean is_fallback
-        smallint feedback
+    "messages · 메시지" {
+        uuid id PK "메시지 ID · NOT NULL · gen_random_uuid()"
+        uuid conversation_id FK "대화 · NOT NULL · ON DELETE CASCADE"
+        varchar(10) role "화자 · NOT NULL · user | assistant"
+        text content "내용 · NOT NULL"
+        jsonb sources "근거 출처 · NULL 허용 · assistant 메시지에만 있다"
+        boolean is_fallback "미답변 여부 · NOT NULL · 기본 false · 근거 없이 답하지 않았다는 표시"
+        smallint feedback "사용자 평가 · NULL 허용 · 1 좋아요 | -1 싫어요"
+        int latency_ms "응답 시간 · NULL 허용"
+        timestamptz created_at "작성 시각 · NOT NULL · now()"
     }
-    eval_questions {
-        uuid id PK
-        uuid bot_id FK
-        text question
-        text ground_truth
-        uuid source_chunk_id FK
+    "eval_questions · 평가 질문" {
+        uuid id PK "질문 ID · NOT NULL · gen_random_uuid()"
+        uuid bot_id FK "봇 · NOT NULL · ON DELETE CASCADE"
+        text question "질문 · NOT NULL · LLM 이 청크에서 생성"
+        text ground_truth "정답 · NOT NULL · 채점 기준"
+        uuid source_chunk_id FK "출처 청크 · NULL 허용 · ON DELETE SET NULL"
+        boolean is_active "사용 여부 · NOT NULL · 기본 true · 실행 대상"
+        timestamptz created_at "생성 시각 · NOT NULL · now()"
     }
-    eval_runs {
-        uuid id PK
-        uuid bot_id FK
-        jsonb config "top_k, hybrid, reranker, model"
-        numeric avg_faithfulness
-        numeric answered_rate
-        int question_count "V3: 전체 충실성의 분모"
-        int scored_count "V3: 실제로 채점된 수"
+    "eval_runs · 평가 실행" {
+        uuid id PK "실행 ID · NOT NULL · gen_random_uuid()"
+        uuid bot_id FK "봇 · NOT NULL · ON DELETE CASCADE"
+        jsonb config "실행 설정 · NULL 허용 · top_k, hybrid, reranker, model"
+        numeric(4,3) avg_faithfulness "평균 충실성 · NULL 허용 · 채점된 것만의 평균"
+        numeric(4,3) avg_relevancy "평균 관련성 · NULL 허용"
+        numeric(4,3) answered_rate "응답률 · NULL 허용"
+        varchar(20) status "실행 상태 · NOT NULL · running | completed | failed"
+        int question_count "대상 질문 수 · NULL 허용 · V3 · 전체 충실성의 분모"
+        int scored_count "채점된 수 · NULL 허용 · V3 · avg_* 의 진짜 분모"
+        timestamptz created_at "실행 시각 · NOT NULL · now()"
     }
-    eval_results {
-        uuid id PK
-        uuid run_id FK
-        uuid question_id FK
-        numeric faithfulness
-        numeric relevancy
+    "eval_results · 평가 결과" {
+        uuid id PK "결과 ID · NOT NULL · gen_random_uuid()"
+        uuid run_id FK "실행 · NOT NULL · ON DELETE CASCADE"
+        uuid question_id FK "질문 · NOT NULL · ON DELETE CASCADE"
+        text generated_answer "생성된 답변 · NULL 허용 · NULL 이면 처리 실패 (fallback 과 다르다)"
+        jsonb retrieved_chunks "검색된 근거 · NULL 허용 · 이 답변이 본 청크"
+        numeric(4,3) faithfulness "충실성 · NULL 허용 · NULL 이면 채점 실패"
+        numeric(4,3) relevancy "관련성 · NULL 허용"
+        timestamptz created_at "채점 시각 · NOT NULL · now()"
     }
-    doc_conflicts {
-        uuid id PK
-        uuid bot_id FK
-        text topic "무엇에 대한 충돌인가"
-        text a_says
-        text b_says
-        varchar status "open | ignored | resolved | clear"
+    "doc_conflicts · 문서 충돌" {
+        uuid id PK "충돌 ID · NOT NULL · gen_random_uuid()"
+        uuid bot_id FK "봇 · NOT NULL · ON DELETE CASCADE"
+        uuid chunk_a_id FK "청크 A · NOT NULL · 작은 UUID 를 a 로 정렬해 넣는다"
+        uuid chunk_b_id FK "청크 B · NOT NULL · (bot_id, a, b) UNIQUE"
+        text topic "충돌 주제 · NOT NULL · 무엇에 대한 충돌인가"
+        text a_says "A 주장 · NOT NULL"
+        text b_says "B 주장 · NOT NULL"
+        real distance "임베딩 거리 · NULL 허용 · 임계값 튜닝용 기록"
+        varchar(10) status "처리 상태 · NOT NULL · open | ignored | resolved | clear"
+        timestamptz created_at "판정 시각 · NOT NULL · now()"
     }
-    usage_events {
-        uuid id PK
-        uuid user_id FK
-        varchar kind "chat_answer | eval_run"
-        uuid source_ref "kind 와 묶어 UNIQUE = 멱등"
+    "usage_events · 사용량 원장" {
+        uuid id PK "사건 ID · NOT NULL · gen_random_uuid()"
+        uuid user_id FK "청구 대상 · NOT NULL · 봇이 아니라 계정"
+        uuid bot_id "봇 · NULL 허용 · FK 가 아니다 · 봇을 지워도 남아야 한다"
+        varchar(20) kind "사건 종류 · NOT NULL · chat_answer | eval_run"
+        uuid source_ref UK "원본 행 · NOT NULL · kind 와 묶어 UNIQUE = 멱등"
+        timestamptz occurred_at "발생 시각 · NOT NULL · 기록한 때가 아니라 일어난 때"
+        timestamptz created_at "기록 시각 · NOT NULL · now()"
     }
-    billing_methods {
-        uuid id PK
-        uuid user_id FK
-        varchar billing_key_enc "AES-256-GCM 암호문"
-        varchar card_number_masked
-        boolean is_default "부분 유니크 인덱스로 1장 보장"
+    "billing_methods · 결제 수단" {
+        uuid id PK "카드 ID · NOT NULL · gen_random_uuid()"
+        uuid user_id FK "소유자 · NOT NULL · ON DELETE CASCADE · 계정당 최대 5장 (V7)"
+        varchar(512) billing_key_enc "빌링키 암호문 · NOT NULL · AES-256-GCM (IV ‖ 암호문 ‖ 태그)"
+        varchar(4) issuer_code "발급사 코드 · NOT NULL · 이름은 우리가 매핑한다"
+        varchar(20) card_number_masked "마스킹 카드번호 · NOT NULL · 토스가 마스킹해서 준다"
+        boolean is_default "기본 카드 · NOT NULL · 기본 false · 부분 유니크 인덱스로 1장 보장 (V7)"
+        timestamptz created_at "등록 시각 · NOT NULL · now()"
     }
