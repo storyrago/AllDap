@@ -153,7 +153,7 @@ def run_one(client: httpx.Client, bot_id: Id, name: str, verbose: bool) -> None:
     while time.monotonic() < deadline:
         lr = client.get(f"/internal/bots/{bot_id}/documents")
         assert lr.status_code == 200, (lr.status_code, lr.text)
-        row = next((d for d in lr.json() if d["id"] == str(doc_id)), None)
+        row = next((d for d in lr.json() if d["id"] == doc_id), None)
         assert row is not None, f"{name}: 업로드한 문서가 목록에 없다"
         status = row["status"]
         if status in ("ready", "failed"):
