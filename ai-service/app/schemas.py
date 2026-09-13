@@ -3,13 +3,18 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import Literal
-from uuid import UUID
 
 from pydantic import BaseModel, Field
 
+# 기본키가 BIGINT 라 식별자는 정수다 (2026-09-13 전환).
+# 파이썬의 int 는 크기 제한이 없어 BIGINT 를 그대로 담는다.
+# 별도 별칭을 두는 이유는 "그냥 숫자"(char_count 같은 것)와 <식별자>를 구분하려는 것이다.
+# 타입 별칭이라 런타임 동작은 int 와 완전히 같고, pydantic 도 int 로 검증한다.
+Id = int
+
 
 class DocumentOut(BaseModel):
-    id: UUID
+    id: Id
     filename: str
     file_type: str
     status: str
@@ -19,15 +24,15 @@ class DocumentOut(BaseModel):
 
 
 class Source(BaseModel):
-    chunk_id: UUID
-    document_id: UUID
+    chunk_id: Id
+    document_id: Id
     filename: str
     score: float = Field(description="0~1, 높을수록 관련성 높음")
     preview: str
 
 
 class ChatRequest(BaseModel):
-    bot_id: UUID
+    bot_id: Id
     message: str = Field(min_length=1, max_length=2000)
     session_id: str = Field(default="local-test", max_length=64)
 
@@ -86,10 +91,10 @@ class EvalQuestionOut(BaseModel):
     프론트의 EvalQuestion(web/lib/types.ts)과 필드가 1:1 로 대응한다.
     """
 
-    id: UUID
+    id: Id
     question: str
     ground_truth: str
-    source_chunk_id: UUID | None = None
+    source_chunk_id: Id | None = None
     is_active: bool
     created_at: datetime
 
@@ -103,7 +108,7 @@ class EvalRunOut(BaseModel):
     0.0 으로 채우면 "점수가 0점"과 "아직 없음"이 구분되지 않는다.
     """
 
-    id: UUID
+    id: Id
     status: str
     config: dict | None = None
     avg_faithfulness: float | None = None
@@ -120,7 +125,7 @@ class ConflictOut(BaseModel):
     요약만 주면 관리자가 판정을 검증할 수 없고, 원문만 주면 매번 다 읽어야 한다.
     """
 
-    id: UUID
+    id: Id
     topic: str
     a_says: str
     b_says: str

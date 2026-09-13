@@ -3,7 +3,7 @@
 실행:
     cd ai-service && .venv/bin/python -m app.bot_prompt_check                # 내장 케이스
     cd ai-service && .venv/bin/python -m app.bot_prompt_check "실제 봇 지침"   # 특정 문구 검사
-    cd ai-service && .venv/bin/python -m app.bot_prompt_check --bot <uuid>    # DB 의 봇 설정 검사
+    cd ai-service && .venv/bin/python -m app.bot_prompt_check --bot <봇번호>  # DB 의 봇 설정 검사
 
 왜 이 도구가 필요한가
 ─────────────────────────────────────────────────────────────────────────────
@@ -37,17 +37,16 @@
 from __future__ import annotations
 
 import sys
-from uuid import UUID
 
 from .db import close_pool
 from .generator import build_system_prompt, fetch_bot_prompt, generate
-from .schemas import Source
+from .schemas import Id, Source
 
 # 근거를 코드에 박는다 — 검색과 분리해 <프롬프트만> 본다 (noanswer_check 와 같은 원칙).
 SRC = [
     Source(
-        chunk_id=UUID("00000000-0000-0000-0000-000000000001"),
-        document_id=UUID("00000000-0000-0000-0000-000000000002"),
+        chunk_id=1,
+        document_id=2,
         filename="취업규칙.md",
         score=0.7,
         preview="## 제6조 장비 지원\n노트북 교체 주기는 3년이며, 파손 시 자기부담금 20만원이 발생한다.",
@@ -89,7 +88,7 @@ def main() -> None:
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
 
     if "--bot" in sys.argv:
-        bot_id = UUID(args[0])
+        bot_id = int(args[0])
         prompt = fetch_bot_prompt(bot_id)
         print(f"봇 {bot_id} 의 지침: {prompt!r}\n")
         cases = [("이 봇의 설정", prompt)]

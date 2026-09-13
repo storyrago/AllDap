@@ -46,17 +46,17 @@ from __future__ import annotations
 
 import json
 import logging
-from uuid import UUID
 
 from . import cf, judge, retriever
 from .config import get_settings
 from .db import cursor
 from .generator import build_system_prompt, fetch_bot_prompt, generate
+from .schemas import Id
 
 _log = logging.getLogger(__name__)
 
 
-def create_run(bot_id: UUID) -> tuple[UUID, int]:
+def create_run(bot_id: Id) -> tuple[Id, int]:
     """실행 행을 만들고 (run_id, 대상 질문 수) 를 돌려준다.
 
     질문 수를 함께 세는 이유: 0건이면 실행을 시작할 필요가 없고,
@@ -145,7 +145,7 @@ def _run_status(processed: int, total: int, judge_failed: int) -> str:
     return "completed"
 
 
-def execute(run_id: UUID, bot_id: UUID) -> None:
+def execute(run_id: Id, bot_id: Id) -> None:
     """실제 채점. 백그라운드에서 실행된다.
 
     ⚠️ 이 함수는 <절대 예외를 밖으로 내보내면 안 된다>.
@@ -162,7 +162,7 @@ def execute(run_id: UUID, bot_id: UUID) -> None:
         _ = e
 
 
-def _execute(run_id: UUID, bot_id: UUID) -> None:
+def _execute(run_id: Id, bot_id: Id) -> None:
     # 💰 이 실행이 쓴 뉴런을 센다. 응답이 호출당 정확한 값을 주므로 추정할 필요가 없다.
     #    ⚠️ 전역 누적이라 평가를 <동시에> 두 개 돌리면 섞인다. 보통 하나씩 돈다.
     cf.reset_neurons()

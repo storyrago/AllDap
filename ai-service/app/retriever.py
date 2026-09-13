@@ -12,12 +12,11 @@ from __future__ import annotations
 
 import logging
 import re
-from uuid import UUID
 
 from . import cf
 from .config import get_settings
 from .db import cursor
-from .schemas import Source
+from .schemas import Id, Source
 
 _log = logging.getLogger(__name__)
 
@@ -66,7 +65,7 @@ def embed_one(text: str) -> list[float]:
 
 
 def search(
-    bot_id: UUID,
+    bot_id: Id,
     query: str,
     *,
     top_k: int | None = None,
@@ -196,7 +195,7 @@ def _keywords(query: str) -> list[str]:
     return list(dict.fromkeys(out))  # 중복 제거 + 등장 순서 유지
 
 
-def _keyword_rows(bot_id: UUID, query: str, qvec: list[float], limit: int) -> list[tuple]:
+def _keyword_rows(bot_id: Id, query: str, qvec: list[float], limit: int) -> list[tuple]:
     """질문의 낱말을 <많이 담고 있는> 청크 순으로 가져온다.
 
     벡터 거리도 함께 뽑는 이유: 키워드로만 올라온 청크에도 `max_distance` 컷을
@@ -321,7 +320,7 @@ def _rerank(query: str, sources: list[Source]) -> list[Source]:
     )
 
 
-def fetch_contents(chunk_ids: list[UUID]) -> dict[UUID, str]:
+def fetch_contents(chunk_ids: list[Id]) -> dict[Id, str]:
     """근거 청크의 전체 본문을 가져온다 (preview는 잘려 있으므로)."""
     if not chunk_ids:
         return {}

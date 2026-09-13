@@ -57,18 +57,19 @@ import argparse
 import sys
 import time
 from pathlib import Path
-from uuid import UUID
 
 import httpx
 
 from .config import get_settings
 from .db import cursor
+from .schemas import Id
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from testdata.make_fixtures import FIXTURES, NAMES  # noqa: E402
 
-# V1__init.sql 의 시드 봇. 주인이 없는 공개 데모 봇이라 사람의 데이터가 아니다.
-SEED_BOT = UUID("00000000-0000-0000-0000-000000000001")
+# V9__bigint_ids.sql 의 시드 봇. 주인이 없는 공개 데모 봇이라 사람의 데이터가 아니다.
+# 전에는 UUID("00000000-0000-0000-0000-000000000001") 이었다.
+SEED_BOT: Id = 1
 
 MIME = {
     "pdf": "application/pdf",
@@ -96,10 +97,10 @@ def _client(base_url: str | None) -> httpx.Client:
     return TestClient(app)
 
 
-def _purge(bot_id: UUID, names: list[str]) -> int:
+def _purge(bot_id: Id, names: list[str]) -> int:
     """같은 이름의 잔재를 지운다(중간에 죽은 앞 실행 대비).
 
-    chunks 는 documents 에 ON DELETE CASCADE 로 딸려 있다(V1__init.sql).
+    chunks 는 documents 에 ON DELETE CASCADE 로 딸려 있다(V9__bigint_ids.sql).
     """
     with cursor(commit=True) as cur:
         cur.execute(
@@ -109,7 +110,7 @@ def _purge(bot_id: UUID, names: list[str]) -> int:
         return len(cur.fetchall())
 
 
-def _chunk_stats(doc_id: UUID) -> tuple[int, int, int]:
+def _chunk_stats(doc_id: Id) -> tuple[int, int, int]:
     """(청크 수, 임베딩이 있는 청크 수, 벡터 차원).
 
     🔴 chunk_count 컬럼만 보면 안 된다. 그 값은 <INSERT 하려던 개수>고,
@@ -126,7 +127,7 @@ def _chunk_stats(doc_id: UUID) -> tuple[int, int, int]:
         return cur.fetchone()
 
 
-def run_one(client: httpx.Client, bot_id: UUID, name: str, verbose: bool) -> None:
+def run_one(client: httpx.Client, bot_id: Id, name: str, verbose: bool) -> None:
     path = FIXTURES / name
     ftype = path.suffix.lstrip(".")
     data = path.read_bytes()
@@ -143,7 +144,8 @@ def run_one(client: httpx.Client, bot_id: UUID, name: str, verbose: bool) -> Non
     # 한글 파일명이 multipart 를 건너 그대로 살아 있어야 한다.
     # 깨지면 목록 화면에서 사용자가 자기 파일을 못 알아본다.
     assert doc["filename"] == name, doc
-    doc_id = UUID(doc["id"])
+    # 기본키가 BIGINT 라 JSON 에 <숫자>로 온다. 파싱할 문자열이 아니다.
+    doc_id = doc["id"]
 
     # ── 폴링: ready 로 <전이하는 것>을 본다 ─────────────────────────
     deadline = time.monotonic() + READY_TIMEOUT_S
@@ -201,11 +203,11 @@ def main() -> None:
         default=None,
         help="비우면 인프로세스 ASGI. 예: http://localhost:8001 (진짜 HTTP)",
     )
-    ap.add_argument("--bot-id", default=str(SEED_BOT))
+    ap.add_argument("--bot-id", type=int, default=SEED_BOT)
     ap.add_argument("--only", default=None, help="pdf | docx | hwpx")
     args = ap.parse_args()
 
-    bot_id = UUID(args.bot_id)
+    bot_id = args.bot_id
     names = [n for n in NAMES if args.only is None or n.endswith(f".{args.only}")]
     assert names, f"--only {args.only} 에 해당하는 fixture 가 없다"
 

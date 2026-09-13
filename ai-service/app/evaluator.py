@@ -29,7 +29,6 @@ from __future__ import annotations
 
 import json
 import logging
-from uuid import UUID
 
 from google import genai
 from google.genai import types
@@ -37,6 +36,7 @@ from pydantic import BaseModel, Field
 
 from .config import get_settings
 from .db import cursor
+from .schemas import Id
 
 # ⚠️ 이 파일이 <이 프로젝트에서 유일하게 남은 Gemini 사용처>다.
 #    임베딩은 Cloudflare(retriever), 채점도 Cloudflare(judge), 답변 생성도 Cloudflare(generator)로
@@ -217,7 +217,7 @@ def make_question(content: str) -> QuestionPair | None:
 # 2. 표본 뽑기 (SQL)
 # ─────────────────────────────────────────────────────────────────────────────
 
-def sample_chunks(bot_id: UUID, count: int) -> list[tuple[UUID, str]]:
+def sample_chunks(bot_id: Id, count: int) -> list[tuple[Id, str]]:
     """질문을 만들 청크를 무작위로 뽑는다. [(chunk_id, content), ...]
 
     조건이 네 개 붙는다. 하나씩 이유가 있다.
@@ -266,7 +266,7 @@ def sample_chunks(bot_id: UUID, count: int) -> list[tuple[UUID, str]]:
         return cur.fetchall()
 
 
-def count_ready_chunks(bot_id: UUID) -> int:
+def count_ready_chunks(bot_id: Id) -> int:
     """이 봇에 <쓸 수 있는> 청크가 몇 개나 있는지.
 
     표본이 0건일 때 이유를 갈라 말하려고 부른다.
@@ -291,8 +291,8 @@ def count_ready_chunks(bot_id: UUID) -> int:
 # ─────────────────────────────────────────────────────────────────────────────
 
 def save_questions(
-    bot_id: UUID, pairs: list[tuple[UUID, QuestionPair]]
-) -> list[tuple[UUID, str, str, UUID, bool, object]]:
+    bot_id: Id, pairs: list[tuple[Id, QuestionPair]]
+) -> list[tuple[Id, str, str, Id, bool, object]]:
     """만들어진 질문들을 한 트랜잭션에 저장하고, 저장된 행을 그대로 돌려준다.
 
     왜 executemany 가 아니라 for 문인가:

@@ -10,13 +10,12 @@ Gemini 무료는 모델당 하루 20회라 평가를 하루 한 번밖에 못 �
 from __future__ import annotations
 
 import logging
-from uuid import UUID
 
 from . import cf
 from .config import get_settings
 from .db import cursor
 from .retriever import fetch_contents
-from .schemas import Source
+from .schemas import Id, Source
 
 _log = logging.getLogger(__name__)
 
@@ -32,7 +31,7 @@ SYSTEM_PROMPT = """당신은 조직의 내부 문서를 근거로 질문에 답�
 FALLBACK_TOKEN = "NO_ANSWER"
 
 
-def fetch_bot_prompt(bot_id: UUID) -> str | None:
+def fetch_bot_prompt(bot_id: Id) -> str | None:
     """봇에 설정된 `system_prompt` 를 읽는다. 없으면 None.
 
     ⚠️ 왜 Spring 이 요청에 실어 보내지 않고 <Python 이 직접 읽는가.>
