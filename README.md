@@ -25,6 +25,7 @@ site: **https://all-dap.vercel.app**
 - [핵심 지표](#핵심-지표)
 - [System Architecture](#system-architecture)
 - [ERD](#erd)
+- [API](#api)
 - [Tech Stack](#tech-stack)
 - [Monitoring](#monitoring)
 - [Documentation](#documentation)
@@ -135,6 +136,15 @@ PDF · DOCX · HWPX 를 올리면 파싱 → 청킹 → 임베딩이 백그라�
 
 ---
 
+## API
+
+외부에 열린 API 는 **Spring Boot 하나뿐**입니다. Python AI 서비스의 `/internal/*` 는 호스트에 포트가 뜨지 않아 밖에서 부를 수 없습니다.
+
+| SPRING | FastAPI |
+|---|---|
+| <img width="1471" height="2644" alt="localhost-swagger-ui-index html" src="https://github.com/user-attachments/assets/e92a5824-ca23-467a-8bb0-e8366dbf3f60" />|<img width="1474" height="1267" alt="localhost-docs" src="https://github.com/user-attachments/assets/c62f72ea-a668-4a1b-8d25-075edbf52df7" />|
+
+---
 ## Tech Stack
 
 | Field | Stack |
