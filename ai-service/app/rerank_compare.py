@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import argparse
 
-from .db import cursor
+from .db import close_pool, cursor
 
 _RUNS_SQL = """
 SELECT r.id,
@@ -138,4 +138,10 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    finally:
+        # 풀을 안 닫으면 psycopg_pool 의 워커 스레드가 종료를 기다리다
+        # "couldn't stop thread" 경고를 여러 줄 뱉는다. 읽기 전용 스크립트라
+        # 결과에는 영향이 없지만, 경고가 섞이면 <출력이 실패한 것처럼> 보인다.
+        close_pool()
