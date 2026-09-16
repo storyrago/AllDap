@@ -503,6 +503,31 @@ cd ai-service && .venv/bin/uvicorn app.main:app --port 8001
 curl -X POST localhost:8001/internal/bots/1/eval/runs
 ```
 
+**리랭커를 로컬에서 돌리려면** (2026-09-16 슬라이스)
+
+```
+cd ai-service && .venv/bin/pip install -r requirements-lab.txt
+.venv/bin/python -m app.export_reranker          # 한 번만. 산출물은 models/ (git 제외)
+.venv/bin/python -m app.local_reranker_e2e_check # 진짜 모델로 계약·크기·지연·RSS 확인
+RERANKER_PROVIDER=local_int8 .venv/bin/uvicorn app.main:app --port 8001
+```
+
+🔴 기본값은 `cloudflare` 다. 운영 이미지에는 `onnxruntime` 이 없어 로컬 제공자가 기동하지
+않는다(의도한 것이다). 모델이나 의존성이 없으면 조용히 Cloudflare 로 떨어지지 않고
+한국어 오류를 낸다. 채팅은 그때도 벡터 순서로 살아남지만, **평가는 시작조차 하지 않는다.**
+리랭커 없이 돈 결과가 "로컬 리랭커 측정치" 로 표에 실리면 안 되기 때문이다.
+
+⚠️ **실측 2건(2026-09-16, Apple M4 Pro / macOS arm64).** ① 완료 조건 3개는 전부 확인됐다
+(로컬 제공자로 채팅 동작 · 모델을 숨기면 평가가 `eval_runs` 행조차 안 만듦 · 그 상태에서
+채팅은 벡터 순서로 살아남고 로그에 `리랭킹 실패 ... provider=local_int8` 이 남음).
+② 다만 **평가 거절이 밖으로 나갈 때는 맨 500 `Internal Server Error` 평문이다** —
+한국어 안내는 서버 로그에만 있다(`ModelUnavailable` 을 HTTP 계층에서 잡는 곳이 없다).
+거절 자체는 동작하지만 이 저장소의 오류 응답 포맷과 어긋난다.
+
+⚠️ **`local` 과 `local_int8` 이 같은 순서를 낸다고 가정하지 말 것.** 점검 입력 3건에서
+fp32 는 `[1, 2, 0]`(정답 1위), INT8 은 `[2, 1, 0]` 으로 **갈렸다.** 양자화가 순위를
+바꾼다는 것이 실측됐으므로, A·B·C 비교표에서 B 와 C 를 한 칸으로 묶지 말 것.
+
 **✅ 밀렸던 측정 2건은 2026-08-13 에 둘 다 끝났다.**
 W1 fallback 종단(10/10) · 리랭커 융합 재측정(설정당 3~4회). 각각 아래 해당 절 참고.
 한도 리셋은 **소진 시각으로부터 약 33시간 뒤**에 확인됐다(문서의 00:00 UTC 와 무관하다는 것이 또 확인됐다).
