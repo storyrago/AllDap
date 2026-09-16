@@ -158,6 +158,23 @@ class Settings(BaseSettings):
     #    되돌리려면 이 두 줄을 False 로 바꾸면 된다.
     reranker_enabled: bool = True
     reranker_model: str = "@cf/baai/bge-reranker-base"
+    # 리랭커를 <어디서> 돌릴 것인가. 2026-09-16 에 붙였다.
+    #
+    #   "cloudflare"  @cf/baai/bge-reranker-base 를 API 로 부른다 (기본값 · 지금까지의 전부)
+    #   "local"       내려받아 ONNX 로 바꾼 원본을 이 컴퓨터에서 돌린다 (fp32)
+    #   "local_int8"  그것을 동적 INT8 로 양자화한 것
+    #
+    # 🔴 기본값을 "cloudflare" 로 두는 이유: 리랭커는 <이미 기본값으로 켜져 있는> 경로다.
+    #    이 실험은 꺼진 기능을 켜는 것이 아니라 켜져 있는 경로를 갈아 끼우는 것이고,
+    #    잘못되면 지금 지키고 있는 <회당 오답 0건>이 깨진다. 측정할 때만 환경변수로 바꾼다.
+    #
+    # 🔴 "local" 계열은 운영 이미지에서 <기동하지 않는다.> onnxruntime 이
+    #    requirements-lab.txt 에만 있기 때문이고, 의도한 것이다. 모델이나 의존성이 없으면
+    #    조용히 cloudflare 로 떨어지지 않고 한국어 오류를 낸다(local_reranker.ModelUnavailable).
+    #    조용히 떨어지면 <무엇을 쟀는지> 를 잃는다. friendli.py 가 토큰 없을 때 하는 것과 같다.
+    #
+    # ⚠️ 이 값을 바꾸면 그 실행은 <다른 실험>이다. evalrun 의 config 박제에 함께 들어간다.
+    reranker_provider: str = "cloudflare"
     # 리랭커는 벡터가 <가져온 것 안에서> 순서만 바꾼다. 후보에 없으면 살릴 수 없다.
     # 그래서 top_k 보다 넉넉히 뽑아 재정렬한 뒤 top_k 만 남긴다.
     rerank_candidates: int = 20

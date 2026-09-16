@@ -290,23 +290,21 @@ def _rerank(query: str, sources: list[Source]) -> list[Source]:
     # 교훈: <판단하는 쪽은 판단 대상이 본 것과 같은 것을 봐야 한다.>
     #       덜 보여주고 "못 맞힌다"고 판정하면 그건 모델이 아니라 우리 잘못이다.
     contents = fetch_contents([src.chunk_id for src in sources])
+    texts = [contents.get(src.chunk_id, src.preview) for src in sources]
     try:
-        result = cf.run(s.reranker_model, {
-            "query": query,
-            "contexts": [
-                {"text": contents.get(src.chunk_id, src.preview)} for src in sources
-            ],
-        })
-        order = [item["id"] for item in result["response"]]
+        order = _rerank_order(query, texts)
     except Exception as e:  # noqa: BLE001 - 순서 개선 실패가 검색 실패가 되면 안 된다
-        _log.warning("리랭킹 실패(원래 순서 유지): %s: %s", type(e).__name__, e)
+        # ⚠️ 로컬 제공자는 Cloudflare 에 없던 실패 모드를 들고 온다
+        #    (모델 파일 없음 · 의존성 없음 · 메모리 부족 · 스레드 고갈).
+        #    그래서 예외 종류를 좁히지 않는다. 다만 <어느 제공자에서> 떨어졌는지는 남긴다.
+        #    조용히 벡터 순서로 도는 것과, 그 사실을 아는 것은 다르다.
+        _log.warning(
+            "리랭킹 실패(원래 순서 유지) provider=%s: %s: %s",
+            s.reranker_provider, type(e).__name__, e,
+        )
         return sources
 
-    # 응답에 빠진 인덱스가 있어도 잃지 않도록, 재정렬된 것 뒤에 나머지를 붙인다.
-    seen = set(order)
-    reranked = [sources[i] for i in order if 0 <= i < len(sources)] + [
-        src for i, src in enumerate(sources) if i not in seen
-    ]
+    reranked = _apply_order(sources, order)
     if not s.rerank_fusion:
         return reranked
 
@@ -318,6 +316,40 @@ def _rerank(query: str, sources: list[Source]) -> list[Source]:
         s.rerank_fusion_k,
         key=lambda src: src.chunk_id,
     )
+
+
+def _rerank_order(query: str, texts: list[str]) -> list[int]:
+    """제공자를 골라 <입력 인덱스의 새 순서>를 받아온다.
+
+    제공자마다 파일이 하나씩 있고 여기가 고르는 자리다(friendli.py 주석의 규칙).
+    어느 제공자든 응답 계약은 같다:
+        {"response": [{"id": <입력 인덱스>, "score": float}, ...]}   점수 내림차순
+    계약이 같으므로 이 아래 로직은 제공자를 몰라도 된다.
+    """
+    s = get_settings()
+    if s.reranker_provider == "cloudflare":
+        result = cf.run(s.reranker_model, {
+            "query": query,
+            "contexts": [{"text": text} for text in texts],
+        })
+    else:
+        # 여기서 import 하는 이유: local_reranker 자체는 가볍지만(무거운 것은 그 안에서
+        # 다시 늦게 import 한다), 제공자 파일을 고르는 자리가 여기임을 코드로 보이려는 것이다.
+        from . import local_reranker
+        result = local_reranker.rerank(query, texts, variant=s.reranker_provider)
+    return [item["id"] for item in result["response"]]
+
+
+def _apply_order(sources: list[Source], order: list[int]) -> list[Source]:
+    """새 순서를 적용하되 <아무 청크도 잃지 않는다.>
+
+    응답에 빠진 인덱스가 있어도 뒤에 붙인다. 잃으면 "리랭커가 아래로 내렸다" 와
+    "제공자가 빠뜨렸다" 가 같은 결과로 보여 구분할 수 없게 된다.
+    """
+    seen = {i for i in order if 0 <= i < len(sources)}
+    return [sources[i] for i in order if 0 <= i < len(sources)] + [
+        src for i, src in enumerate(sources) if i not in seen
+    ]
 
 
 def fetch_contents(chunk_ids: list[Id]) -> dict[Id, str]:
