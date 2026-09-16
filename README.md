@@ -77,8 +77,13 @@ PDF · DOCX · HWPX 를 올리면 파싱 → 청킹 → 임베딩이 백그라�
 
 ```html
 <script src="https://alldap.duckdns.org/widget/alldap-widget.js"
-        data-public-key="pk_xxxxxxxx"></script>
+        data-public-key="pk_xxxxxxxx"
+        data-app-base="https://all-dap.vercel.app"></script>
 ```
+
+> `data-app-base` 는 **영구히 필요합니다.** 위젯 JS 는 Spring 이 주는데 채팅 화면은 Vercel 에 있어
+> 두 origin 이 다릅니다. 빠지면 iframe 이 Spring 을 가리켜 `X-Frame-Options` 로 막힙니다.
+> 봇의 [내보내기] 화면이 이 값을 항상 넣어주므로, 그 화면에서 복사하면 신경 쓸 일이 없습니다.
 
 <img width="960" height="482" alt="한 줄 설치 위젯" src="https://github.com/user-attachments/assets/465338d3-e174-40e1-8632-0bb785466d19" />
 
