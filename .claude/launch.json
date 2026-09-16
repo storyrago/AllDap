@@ -11,6 +11,14 @@
       "cwd": "web",
       "port": 3000,
       "autoPort": false
+    },
+    {
+      "name": "widget-demo",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "5500"],
+      "cwd": "widget",
+      "port": 5500,
+      "autoPort": false
     }
   ]
 }
