@@ -160,9 +160,13 @@ class Settings(BaseSettings):
     reranker_model: str = "@cf/baai/bge-reranker-base"
     # 리랭커를 <어디서> 돌릴 것인가. 2026-09-16 에 붙였다.
     #
-    #   "cloudflare"  @cf/baai/bge-reranker-base 를 API 로 부른다 (기본값 · 지금까지의 전부)
-    #   "local"       내려받아 ONNX 로 바꾼 원본을 이 컴퓨터에서 돌린다 (fp32)
-    #   "local_int8"  그것을 동적 INT8 로 양자화한 것
+    #   "cloudflare"     @cf/baai/bge-reranker-base 를 API 로 부른다 (기본값 · 지금까지의 전부)
+    #   "local"          내려받아 ONNX 로 바꾼 원본을 이 컴퓨터에서 돌린다 (fp32)
+    #   "local_int8"     그것을 동적 INT8 로 양자화한 것 (per_channel=False)
+    #   "local_int8_pc"  같은 동적 INT8 인데 출력 채널마다 스케일을 따로 잡은 것
+    #                    (per_channel=True). 2026-09-17 에 더했다 - local_int8 이 잃은
+    #                    문항 하나가 채널별 스케일로 돌아오는지 재려는 것이다.
+    #                    근거는 export_reranker.QUANT_PER_CHANNEL 주석.
     #
     # 🔴 기본값을 "cloudflare" 로 두는 이유: 리랭커는 <이미 기본값으로 켜져 있는> 경로다.
     #    이 실험은 꺼진 기능을 켜는 것이 아니라 켜져 있는 경로를 갈아 끼우는 것이고,

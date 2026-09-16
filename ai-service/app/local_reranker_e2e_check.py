@@ -17,7 +17,7 @@ CI 에 못 태우는 이유: 모델이 1.1GB 고 requirements-lab.txt 가 필요
 from __future__ import annotations
 
 from . import local_reranker
-from .export_reranker import ONNX_FILENAME, artifact_status, variant_dir
+from .export_reranker import ONNX_FILENAME, VARIANT_DIRS, artifact_status, variant_dir
 
 # 실제 코퍼스와 같은 모양의 (질문, 후보) 다. 정답이 <두 번째> 라
 # 순서가 제대로 뒤바뀌는지 눈으로 확인할 수 있다.
@@ -38,7 +38,9 @@ def main() -> None:
         )
 
     orders: dict[str, list[int]] = {}
-    for variant in ("local", "local_int8"):
+    # 🔴 VARIANT_DIRS 를 그대로 돈다. 목록을 여기에 손으로 적어두면 변형을 더했을 때
+    #    점검이 <새 변형을 모른 채> 초록불을 낸다. 그게 곧 회귀다.
+    for variant in VARIANT_DIRS:
         # 첫 호출은 세션 로딩이 섞이므로 두 번 부르고 두 번째를 지연으로 본다.
         local_reranker.rerank(QUERY, TEXTS, variant=variant)
         result = local_reranker.rerank(QUERY, TEXTS, variant=variant)
@@ -59,11 +61,16 @@ def main() -> None:
     print("\n지연(ms):", local_reranker.latency_percentiles())
     print(f"최대 RSS: {local_reranker.max_rss_mb():.0f} MB")
 
-    if orders["local"] != orders["local_int8"]:
-        # 🔴 실패가 아니라 <결과>다. 양자화가 순서를 바꾼다는 사실 자체를 기록한다.
-        print("\n⚠️ fp32 와 INT8 의 순서가 다르다. 이 사실을 표에 그대로 적을 것.")
-    else:
-        print("\n✅ fp32 와 INT8 이 같은 순서를 냈다(이 입력에서는).")
+    # 🔴 실패가 아니라 <결과>다. 양자화가 순서를 바꾼다는 사실 자체를 기록한다.
+    #    변형이 셋으로 늘어 "fp32 와 다른가" 만으로는 부족하다. INT8 끼리도 갈릴 수 있고,
+    #    그 갈림이 바로 per_channel 이 무엇을 바꿨는지다. 전부 fp32 와 대조해 나란히 찍는다.
+    base = orders["local"]
+    for variant, order in orders.items():
+        if variant == "local":
+            continue
+        same = "같다" if order == base else "🔴 다르다"
+        print(f"fp32 대비 {variant}: {same}  {base} -> {order}")
+    print("\n⚠️ 순서가 갈린 것은 실패가 아니라 결과다. 표에 그대로 적을 것.")
 
 
 if __name__ == "__main__":
