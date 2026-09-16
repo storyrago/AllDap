@@ -1,9 +1,8 @@
 <div align="center">
 
-# AllDap
+<img width="2560" height="800" alt="로고배너-밝은배경" src="https://github.com/user-attachments/assets/808db43b-6a64-4feb-a7d7-a7d50dd1f9a5" />
 
-**문서를 올리면 출처가 표시되는 한국어 RAG 챗봇**을 만들어주고,
-그 챗봇이 얼마나 정확한지 **자동 평가 리포트로 증명**하는 서비스.
+문서를 올리면 출처가 표시되는 한국어 RAG 챗봇을 만들어주고, 그 챗봇이 얼마나 정확한지 자동 평가 리포트로 증명하는 서비스.
 
 site: **https://all-dap.vercel.app**
 
