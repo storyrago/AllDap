@@ -63,8 +63,44 @@ def create_run(bot_id: Id) -> tuple[Id, int]:
     호출한 쪽이 "질문부터 만드세요"라고 안내해야 하기 때문이다.
     """
     s = get_settings()
-    # 실행 시점의 설정을 통째로 박제한다. 나중에 이 실행이 어떤 조건이었는지 아는 유일한 단서다.
-    config = {
+    # 🔴 로컬 제공자를 골랐으면 <시작하기 전에> 모델이 있는지 확인하고, 없으면 거절한다.
+    #
+    #    채팅(운영 경로)은 리랭커가 실패해도 벡터 순서로 살아남는다. 그게 옳다.
+    #    그런데 <평가>에서 같은 일이 벌어지면 리랭커 없이 돈 결과가
+    #    "로컬 리랭커 측정치" 로 표에 실린다. 원인이 다른 두 사실을 같은 값으로 뭉개는 것이고,
+    #    이 저장소가 여덟 번 낸 버그가 전부 그 부류였다.
+    #    실행을 <시작도 하지 않는> 것이 유일하게 안전한 처리다.
+    if s.reranker_enabled and s.reranker_provider != "cloudflare":
+        from . import local_reranker  # noqa: PLC0415 - 늦은 import 가 의도다
+
+        local_reranker.preflight(s.reranker_provider)
+
+    config = _run_config(s)
+
+    with cursor(commit=True) as cur:
+        cur.execute(
+            "SELECT count(*) FROM eval_questions WHERE bot_id=%s AND is_active",
+            (bot_id,),
+        )
+        total = cur.fetchone()[0]
+
+        cur.execute(
+            """INSERT INTO eval_runs (bot_id, config, status)
+               VALUES (%s, %s, 'running') RETURNING id""",
+            (bot_id, json.dumps(config)),
+        )
+        run_id = cur.fetchone()[0]
+
+    return run_id, total
+
+
+def _run_config(s) -> dict:
+    """실행 시점의 설정을 박제한다. 나중에 이 실행이 어떤 조건이었는지 아는 유일한 단서다.
+
+    순수 함수로 갈라둔 이유: DB 없이 <무엇이 박제되는가> 를 점검할 수 있어야 하기 때문이다.
+    박제 누락은 실행을 돌려보기 전에는 안 보이고, 돌려본 뒤에는 이미 늦는다.
+    """
+    return {
         "top_k": s.top_k,
         "max_distance": s.max_distance,
         # 🔴 판정 게이트도 박제한다. None(꺼짐)과 값이 있는 것은 <다른 실험>이고,
@@ -78,6 +114,10 @@ def create_run(bot_id: Id) -> tuple[Id, int]:
         # W4 에서 켜고 끄는 것들. 이 값이 before/after 비교의 <축>이다.
         "reranker": s.reranker_enabled,
         "reranker_model": s.reranker_model if s.reranker_enabled else None,
+        # 🔴 제공자도 박제한다. cloudflare · local · local_int8 은 <다른 실험>이고,
+        #    안 적으면 셋의 config 가 완전히 같아져 구분할 방법이 없다
+        #    (answerable_max_distance · rerank_fusion 을 박제한 것과 같은 이유).
+        "reranker_provider": s.reranker_provider if s.reranker_enabled else None,
         "rerank_candidates": s.rerank_candidates if s.reranker_enabled else None,
         # 🔴 융합 여부도 박제한다. 이 값이 다르면 <같은 reranker=true 라도 다른 실험>이다.
         #    안 적으면 "0.844 는 어느 방식이었지?" 를 나중에 알 수 없다.
@@ -97,22 +137,6 @@ def create_run(bot_id: Id) -> tuple[Id, int]:
         "chat_temperature": s.chat_temperature,
         "judge_temperature": s.judge_temperature,
     }
-
-    with cursor(commit=True) as cur:
-        cur.execute(
-            "SELECT count(*) FROM eval_questions WHERE bot_id=%s AND is_active",
-            (bot_id,),
-        )
-        total = cur.fetchone()[0]
-
-        cur.execute(
-            """INSERT INTO eval_runs (bot_id, config, status)
-               VALUES (%s, %s, 'running') RETURNING id""",
-            (bot_id, json.dumps(config)),
-        )
-        run_id = cur.fetchone()[0]
-
-    return run_id, total
 
 
 def _run_status(processed: int, total: int, judge_failed: int) -> str:
