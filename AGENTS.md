@@ -520,9 +520,25 @@ RERANKER_PROVIDER=local_int8 .venv/bin/uvicorn app.main:app --port 8001
 ⚠️ **실측 2건(2026-09-16, Apple M4 Pro / macOS arm64).** ① 완료 조건 3개는 전부 확인됐다
 (로컬 제공자로 채팅 동작 · 모델을 숨기면 평가가 `eval_runs` 행조차 안 만듦 · 그 상태에서
 채팅은 벡터 순서로 살아남고 로그에 `리랭킹 실패 ... provider=local_int8` 이 남음).
-② 다만 **평가 거절이 밖으로 나갈 때는 맨 500 `Internal Server Error` 평문이다** —
-한국어 안내는 서버 로그에만 있다(`ModelUnavailable` 을 HTTP 계층에서 잡는 곳이 없다).
-거절 자체는 동작하지만 이 저장소의 오류 응답 포맷과 어긋난다.
+✅ ② **평가 거절이 맨 500 평문으로 나가던 것은 2026-09-16 에 고쳤다.** 그전에는
+한국어 안내가 서버 로그에만 있었다(`ModelUnavailable` 을 HTTP 계층에서 잡는 곳이 없었다).
+이제 `main.start_eval_run` 이 그 예외를 잡아 **503 + `detail.code = RERANKER_MODEL_UNAVAILABLE`**
+로 바꾸고, 본문 문구는 `export_reranker.missing_message()` 를 그대로 쓴다(설치·생성 명령까지 담고 있다).
+503 인 이유: 사용자 입력 문제가 아니라 이 서비스가 그 요청을 수행할 수 없는 상태이고
+(4xx 면 Spring 이 "우리가 잘못 호출했다" 로 읽어 502 를 낸다), 원인을 알고 거절한 것이라
+500("예상 못 한 고장")도 아니다. 회귀 검사는 `app.local_reranker_check` 에 있다
+(CI 에서 돈다. `create_run` 을 가짜로 바꿔 모델도 DB 도 없이 HTTP 응답 모양만 본다).
+🔴 **남은 구멍 둘 (알고 남긴다).**
+- **Spring 은 이 code 를 아직 모른다.** `AiServiceClient` 가 Python 5xx 를 전부
+  `AI_SERVICE_UNAVAILABLE`("잠시 후 다시 시도")로 바꾸고 **서킷 실패로도 센다.**
+  그런데 모델이 없는 것은 재시도로 절대 안 풀리고 Python 은 멀쩡하다. 즉 `GENERATION_INCOMPLETE`
+  와 같은 분기(`ANSWER_INCOMPLETE` 처럼 별도 `ErrorCode` + 서킷 실패 제외)가 하나 더 필요하다.
+  지금 안 한 이유는 이 슬라이스가 ai-service 안의 수정이었고, `api` 테스트를 돌리면
+  같은 시각에 도는 리랭커 지연 측정을 흔들기 때문이다.
+- **Python 의 오류 본문 키는 `error` 가 아니라 FastAPI 기본값인 `detail` 이다.** 작업 규칙 4번의
+  `{"error": {...}}` 는 **사용자에게 닿는 계층(Spring·Next.js)의 포맷**이고, `/internal/*` 은
+  이 저장소에서 처음부터 `detail` 이었다(`GENERATION_INCOMPLETE` 도 같다). 이 라우트 하나만
+  다른 모양으로 내보내는 것이 더 나쁘다고 봤다.
 
 ⚠️ **`local` 과 `local_int8` 이 같은 순서를 낸다고 가정하지 말 것.** 점검 입력 3건에서
 fp32 는 `[1, 2, 0]`(정답 1위), INT8 은 `[2, 1, 0]` 으로 **갈렸다.** 양자화가 순위를

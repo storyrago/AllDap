@@ -3,11 +3,12 @@
 CI 에서 도는 점검이다. 그래서 진짜 추론은 여기서 하지 않는다
 (진짜 모델로 돌리는 것은 app/local_reranker_e2e_check.py 이고 사람이 손으로 돌린다).
 
-여기서 보는 것은 넷이다.
+여기서 보는 것은 다섯이다.
   ① 출력이 Cloudflare 와 <같은 모양> 인가. 다르면 retriever._rerank 가 조용히 망가진다
   ② 점수 내림차순이고 입력 인덱스를 하나도 잃지 않는가
   ③ 모델이 없을 때 <조용히 넘어가지 않고> 한국어 오류를 내는가
   ④ 모듈 최상단에서 onnxruntime 을 import 하지 않는가 (하면 운영 이미지와 CI 가 죽는다)
+  ⑤ 그 오류가 <HTTP 응답으로도> 한국어 안내와 code 를 싣고 나가는가
 """
 from __future__ import annotations
 
@@ -90,6 +91,50 @@ def check_rerank_without_model_raises_too() -> None:
         raise AssertionError("모델이 없는데 rerank 가 통과했다")
 
 
+def check_eval_run_rejection_reaches_http_as_korean_error() -> None:
+    """🔴 거절이 <밖으로 나갈 때도> 한국어 안내여야 한다.
+
+    2026-09-16 실측에서 여기가 뚫려 있었다: create_run 은 제대로 거절하는데
+    ModelUnavailable 을 HTTP 계층에서 잡는 곳이 없어 맨 500 평문이 나갔고,
+    "무엇을 어떻게" 는 서버 로그에만 남았다. 즉 <거절한다> 와 <거절을 설명한다> 가
+    서로 다른 사실인데 앞쪽만 검사가 있었다.
+
+    왜 create_run 을 가짜로 바꾸는가
+    ─────────────────────────────────────────────────────────────────────────
+    진짜 경로를 태우려면 로컬 제공자 설정 + 산출물 없는 models 디렉터리가 필요한데,
+    models 디렉터리 위치를 이 경로로는 주입할 수 없고(설정이 아니라 모듈 상수다)
+    이 컴퓨터에 진짜 산출물이 있으면 거절이 아예 안 난다. 여기서 못박는 계약은
+    "ModelUnavailable 이 올라오면 main 이 어떤 응답으로 바꾸는가" 하나다.
+    DB 도 모델도 onnxruntime 도 필요 없다.
+    """
+    from fastapi.testclient import TestClient  # noqa: PLC0415 - 점검 안에서만 필요하다
+
+    from . import evalrun, main  # noqa: PLC0415
+    from .export_reranker import missing_message  # noqa: PLC0415
+
+    def boom(_bot_id):
+        raise ModelUnavailable(missing_message("local_int8"))
+
+    original = evalrun.create_run
+    evalrun.create_run = boom
+    try:
+        # ⚠️ with 로 감싸지 않는다. TestClient 의 컨텍스트 진입이 lifespan 을 돌려
+        #    DB 풀을 여는데, 이 점검은 DB 없이 돌아야 한다.
+        res = TestClient(main.app).post("/internal/bots/1/eval/runs")
+    finally:
+        evalrun.create_run = original
+
+    assert res.status_code == 503, res.status_code
+    detail = res.json()["detail"]
+    assert detail["code"] == "RERANKER_MODEL_UNAVAILABLE", detail
+    # 맨 500 평문이었을 때 빠져 있던 바로 그것: <무엇을 어떻게 하면 되는지>.
+    assert "requirements-lab.txt" in detail["message"], detail
+    assert "app.export_reranker" in detail["message"], detail
+    # 🔴 재시도로 안 풀리는 실패에 "잠시 후 다시 시도" 라고 안내하지 않는다
+    #    (ANSWER_INCOMPLETE · BILLING_METHOD_UNREADABLE 이 세운 원칙이다).
+    assert "잠시 후" not in detail["message"], detail
+
+
 def check_latency_percentiles_shape_matches_cf() -> None:
     """🔴 cf.latency_percentiles() 와 <키가 같아야> 비교가 성립한다.
 
@@ -144,6 +189,7 @@ def main() -> None:
         check_empty_input_is_empty_response,
         check_missing_model_raises_korean_error,
         check_rerank_without_model_raises_too,
+        check_eval_run_rejection_reaches_http_as_korean_error,
         check_latency_percentiles_shape_matches_cf,
         check_max_rss_is_plausible,
     ]

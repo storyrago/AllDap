@@ -785,7 +785,32 @@ def start_eval_run(bot_id: Id, background: BackgroundTasks) -> EvalRunOut:
        다만 여기는 유실돼도 status 가 'running' 으로 남아 <흔적이 보인다>.
        TODO(W4): 오래 running 인 실행을 failed 로 정리하는 절차가 필요하다.
     """
-    run_id, total = evalrun.create_run(bot_id)
+    # 🔴 로컬 리랭커 모델이 없으면 create_run 이 ModelUnavailable 로 거절한다(evalrun 주석 참고).
+    #    그 예외를 여기서 잡지 않으면 <거절은 하는데 밖으로는 맨 500 평문>이 나가고,
+    #    "무엇을 어떻게 하면 되는지" 는 서버 로그에만 남는다(2026-09-16 실측).
+    #    설계문서의 완료 조건이 "조용히 떨어지지 않는다" 가 아니라 "명확한 한국어 오류를 낸다" 라
+    #    로그까지만으로는 절반만 지킨 것이다.
+    from .local_reranker import ModelUnavailable  # noqa: PLC0415 - 늦은 import 가 의도다
+
+    try:
+        run_id, total = evalrun.create_run(bot_id)
+    except ModelUnavailable as e:
+        # 🔴 detail 을 <문자열이 아니라 객체>로 준다 (GENERATION_INCOMPLETE 와 같은 이유다).
+        #    Spring 이 이 실패를 "Python 이 아프다"(재시도하면 된다)와 갈라야 하는데
+        #    상태코드만으로는 못 가른다. ⚠️ 값을 바꾸면 AiServiceClient 도 함께 고칠 것.
+        #
+        #    왜 503 인가: 사용자 입력 문제가 아니라 <이 서비스가 그 요청을 수행할 수 없는>
+        #    상태다(4xx 로 두면 "우리가 Python 을 잘못 호출했다" 로 읽혀 502 가 나간다).
+        #    500("예상 못 한 고장")도 아니다: 원인을 알고 거절한 것이고, 운영자가 모델을
+        #    준비하면 그대로 성공한다.
+        #    🔴 다만 <재시도로는 절대 안 풀린다>. 모델 파일이 없는 것이라 다시 눌러도 영원히 없다.
+        #    그래서 안내 문구(missing_message)가 "잠시 후 다시 시도" 가 아니라
+        #    무엇을 설치하고 무엇을 돌리면 되는지를 말한다.
+        _log.error("평가 실행을 거절했다 bot_id=%s: %s", bot_id, e)
+        raise HTTPException(
+            503,
+            {"code": "RERANKER_MODEL_UNAVAILABLE", "message": str(e)},
+        ) from e
 
     if total == 0:
         # 질문이 없으면 돌릴 게 없다. 만들어둔 실행 행은 지워서 빈 실행이 목록에 쌓이지 않게 한다.
