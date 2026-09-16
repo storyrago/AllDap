@@ -1,0 +1,36 @@
+# 실험(lab) 전용 의존성. <운영 이미지에 싣지 않는다.>
+#
+# 🔴 requirements.txt 와 갈라둔 이유는 하나다: ai-service/Dockerfile 이 requirements.txt 를
+#    읽고, 그 이미지를 1GB 짜리 t3.micro 가 받는다. torch 를 넣으면 이미지가 수 GB 늘어
+#    <실험이 운영 배포를 무겁게 만든다.> prometheus-fastapi-instrumentator 를 기각한 것과
+#    같은 계열의 판단이다.
+#
+# ⚠️ 그 결과 reranker_provider="local" 은 운영 이미지에서 <기동하지 않는다.> 의도한 것이다.
+#    기본값은 "cloudflare" 이고, 로컬을 골랐는데 모델이 없으면 조용히 떨어지지 않고
+#    한국어 오류를 낸다(app/local_reranker.py).
+#
+# 설치:  cd ai-service && .venv/bin/pip install -r requirements-lab.txt
+#
+# 🔴 torch 는 <내보낼 때만> 필요하고 돌릴 때는 필요 없다. 이 분리가 이 슬라이스의 핵심이다.
+#    ONNX 로 내보내는 것은 한 번이고, 그 산출물을 돌리는 데는 onnxruntime 하나면 된다.
+#
+# 🔴 아래 버전은 <계획서에 적힌 값이 아니라 이 환경에서 실제로 resolve 된 값>이다
+#    (Python 3.13.9 / macOS arm64, 2026-09-16 에 설치해 pip freeze 로 확인).
+#    계획서는 torch==2.5.1 · transformers==4.48.0 을 적었는데 둘 다 못 쓴다:
+#    torch 의 Python 3.13 휠은 2.6 부터 나온다. requirements.txt 의 pydantic 주석이
+#    남긴 교훈이 정확히 이것이다 - 파일에 적힌 버전과 실제 깔리는 버전이 다르면
+#    깨끗한 환경에서 resolve 가 안 된다.
+#
+# 🔴 optimum[exporters] 가 아니라 optimum-onnx[onnxruntime] 이다.
+#    optimum 2.x 가 ONNX Runtime 지원(ORTModel* · ORTQuantizer)을 별도 패키지
+#    optimum-onnx 로 떼어냈다. optimum 만 깔면 `optimum.onnxruntime` 이 없어
+#    ModuleNotFoundError 가 난다(실제로 한 번 겪었다).
+#    optimum-onnx 를 깔면 그것이 요구하는 상한에 맞춰 optimum 2.1.0 · transformers 4.57.6
+#    으로 <내려간다.> 그래서 위쪽 두 줄은 처음 설치했을 때의 최신값(2.3.0 · 5.17.0)이 아니다.
+onnxruntime==1.30.0
+optimum==2.1.0
+optimum-onnx[onnxruntime]==0.1.0
+transformers==4.57.6
+torch==2.14.0
+# onnx 는 optimum-onnx 가 끌어오지만, quant_pre_process(양자화 전처리)가 직접 쓰므로 못박는다.
+onnx==1.22.0
