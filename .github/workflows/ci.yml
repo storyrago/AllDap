@@ -204,7 +204,7 @@ jobs:
       #    GitHub Actions 의 기본 셸이 `bash -e` 라 첫 실패에서 잡이 빨간불이 된다.
       #    한 줄에 하나씩 적은 이유는 로그에서 <어느 점검이> 깨졌는지 바로 보이게 하려는 것이다.
       #
-      #    🔴 여기 없는 점검 5개는 <못 태우는 것>이지 잊은 것이 아니다.
+      #    🔴 여기 없는 점검 6개는 <못 태우는 것>이지 잊은 것이 아니다.
       #       전부 실행 시점에 진짜 Cloudflare/Gemini 를 부르고 DB 에 붙는다.
       #       CI 에 태우면 PR 하나 열 때마다 하루 API 한도를 태우고,
       #       한도가 마르면 정작 사람이 측정을 못 돌린다.
@@ -213,7 +213,8 @@ jobs:
       #         · app.bot_prompt_check     DB(fetch_bot_prompt) + 실제 생성 모델
       #         · app.noanswer_check       실제 생성 모델(모델별 비교 실험용)
       #         · app.upload_e2e_check     DB(cursor) + 실제 임베딩 호출
-      #       이 다섯은 사람이 손으로 돌린다(AGENTS.md 의 해당 절에 실행 방법이 있다).
+      #         · app.local_reranker_e2e_check  진짜 모델 1.1GB + requirements-lab.txt
+      #       이 여섯은 사람이 손으로 돌린다(AGENTS.md 의 해당 절에 실행 방법이 있다).
       #       ⚠️ 개수를 늘리거나 줄일 때는 위 문장의 수도 함께 고칠 것.
       #
       #    ⚠️ Postgres 서비스 컨테이너는 <일부러> 띄우지 않았다.
@@ -226,6 +227,10 @@ jobs:
       #    ✅ app.openapi_check 는 app.main 을 import 해 <생성된 명세>만 들여다본다.
       #       앱 객체를 만드는 것뿐이라 lifespan 이 돌지 않아 DB 풀이 열리지 않고,
       #       요청을 하나도 보내지 않으므로 외부 API 도 안 부른다. 그래서 여기서 돈다.
+      #    ✅ app.local_reranker_check · app.export_reranker_check 는 <계약과 순수 로직>만 본다.
+      #       onnxruntime · transformers · torch 를 import 하지 않고(늦은 import) 모델 파일도
+      #       안 읽는다. 🔴 이 둘이 여기서 도는 것 자체가 그 <늦은 import> 의 검사다 -
+      #       실수로 모듈 최상단에 올리면 requirements.txt 만 깔린 이 잡이 그 자리에서 죽는다.
       - name: 자체 점검 (DB·외부 API 없이 도는 것만)
         run: |
           python -m app.parsers_check
@@ -237,6 +242,8 @@ jobs:
           python -m app.conflicts_check
           python -m app.metrics_check
           python -m app.openapi_check
+          python -m app.export_reranker_check
+          python -m app.local_reranker_check
           python -m loadtest.fake_cf_check
           python -m loadtest.s3_check
           python -m loadtest.s4_check
