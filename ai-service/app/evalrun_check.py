@@ -13,7 +13,8 @@
 """
 from __future__ import annotations
 
-from .evalrun import _run_status
+from .config import Settings
+from .evalrun import _run_config, _run_status
 
 
 def check_all_processed_and_scored_is_completed() -> None:
@@ -53,6 +54,27 @@ def check_judge_failure_does_not_mask_failed() -> None:
     assert _run_status(processed=0, total=16, judge_failed=0) == "failed"
 
 
+def check_config_records_reranker_provider() -> None:
+    """🔴 A(Cloudflare) · B(로컬) · C(로컬 INT8)는 <다른 실험>이다.
+
+    이 값이 config 에 없으면 세 실행의 박제가 완전히 같아져,
+    나중에 "이 0.875 는 어느 제공자였지?" 를 알 방법이 없다.
+    answerable_max_distance 와 rerank_fusion 을 박제한 것과 같은 이유다.
+    """
+    cfg = _run_config(Settings(reranker_enabled=True, reranker_provider="local_int8"))
+    assert cfg["reranker_provider"] == "local_int8", cfg
+
+
+def check_config_omits_provider_when_reranker_is_off() -> None:
+    """리랭커가 꺼져 있으면 제공자는 의미가 없다. None 으로 남긴다.
+
+    다른 리랭커 설정들(rerank_candidates · rerank_fusion)이 이미 그렇게 한다.
+    끈 실행에 제공자가 적혀 있으면 "껐는데 로컬로 돌았나?" 라는 없는 질문이 생긴다.
+    """
+    cfg = _run_config(Settings(reranker_enabled=False, reranker_provider="local"))
+    assert cfg["reranker_provider"] is None, cfg
+
+
 def main() -> None:
     checks = [
         check_all_processed_and_scored_is_completed,
@@ -60,6 +82,8 @@ def main() -> None:
         check_partial_processing_is_partial,
         check_judge_failure_is_partial,
         check_judge_failure_does_not_mask_failed,
+        check_config_records_reranker_provider,
+        check_config_omits_provider_when_reranker_is_off,
     ]
     for fn in checks:
         fn()

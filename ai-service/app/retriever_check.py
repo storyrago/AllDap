@@ -6,7 +6,9 @@ DB 도 외부 API 도 부르지 않는다 — 순수 함수(_keywords, _rrf_reor
 """
 from __future__ import annotations
 
+from . import retriever
 from .retriever import _keywords, _rrf_reorder
+from .schemas import Source
 
 
 def _check_keywords() -> None:
@@ -90,11 +92,59 @@ def _check_rerank_fusion() -> None:
     assert same == ids, same
 
 
+def _sources(*chunk_ids: int) -> list[Source]:
+    return [
+        Source(chunk_id=i, document_id=1, filename=f"{i}.pdf", score=0.9, preview=f"p{i}")
+        for i in chunk_ids
+    ]
+
+
+def _check_rerank_survives_provider_failure() -> None:
+    """🔴 리랭커가 죽어도 채팅은 살아야 한다. 원래 순서를 그대로 돌려준다.
+
+    로컬 제공자는 Cloudflare 에 없던 실패 모드를 들고 온다(모델 파일 없음 · 의존성 없음 ·
+    메모리 부족 · 스레드 고갈). 그래서 <제공자가 무엇이든> 실패가 검색 실패가 되지 않는 것을
+    여기서 못박는다. 이건 기존 성질이고, 이 슬라이스가 그것을 깨뜨리지 않았다는 회귀 검사다.
+    """
+    sources = _sources(1, 2, 3)
+
+    def boom(query: str, texts: list[str]) -> list[int]:
+        raise RuntimeError("모델 파일이 없다")
+
+    original_order, original_fetch = retriever._rerank_order, retriever.fetch_contents
+    retriever._rerank_order = boom
+    retriever.fetch_contents = lambda ids: {}
+    try:
+        out = retriever._rerank("질문", sources)
+    finally:
+        retriever._rerank_order = original_order
+        retriever.fetch_contents = original_fetch
+
+    assert [s.chunk_id for s in out] == [1, 2, 3], [s.chunk_id for s in out]
+
+
+def _check_apply_order_keeps_missing_indexes() -> None:
+    """응답에 빠진 인덱스가 있어도 청크를 잃지 않는다(기존 성질).
+
+    잃으면 "리랭커가 아래로 내렸다" 와 "제공자가 빠뜨렸다" 가 뭉개진다.
+    """
+    sources = _sources(1, 2, 3)
+
+    out = retriever._apply_order(sources, [2, 0])  # 인덱스 1 이 응답에서 빠졌다
+    assert [s.chunk_id for s in out] == [3, 1, 2], [s.chunk_id for s in out]
+
+    # 범위 밖 인덱스가 와도 터지지 않는다(제공자가 거짓말을 해도 채팅이 죽으면 안 된다).
+    out = retriever._apply_order(sources, [9, 1])
+    assert [s.chunk_id for s in out] == [2, 1, 3], [s.chunk_id for s in out]
+
+
 def main() -> None:
     _check_keywords()
     _check_rrf()
     _check_rerank_fusion()
-    print("OK — 낱말 추출 8가지 · RRF 4가지 · 리랭커 융합 3가지 통과")
+    _check_rerank_survives_provider_failure()
+    _check_apply_order_keeps_missing_indexes()
+    print("OK — 낱말 추출 8가지 · RRF 4가지 · 리랭커 융합 3가지 · 제공자 실패 2가지 통과")
 
 
 if __name__ == "__main__":
