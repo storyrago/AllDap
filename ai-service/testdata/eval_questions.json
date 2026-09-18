@@ -16,6 +16,11 @@
       "review": {
         "verdict": "defective",
         "note": "질문은 '수습' 을 묻는데 정답 청크는 '인턴' 운영지침이다. 이 코퍼스에서 수습은 별도 규정이고(11_채용_절차 등 7개 문서에 14회) 인턴과 대상이 다르다. 봇이 거절하는 것이 옳은 동작인데 지표는 fallback 으로 센다."
+      },
+      "difficulty": {
+        "rule": "",
+        "words": [],
+        "note": ""
       }
     },
     {
@@ -27,6 +32,11 @@
       "active": true,
       "review": {
         "verdict": "",
+        "note": ""
+      },
+      "difficulty": {
+        "rule": "",
+        "words": [],
         "note": ""
       }
     },
@@ -40,6 +50,11 @@
       "review": {
         "verdict": "",
         "note": ""
+      },
+      "difficulty": {
+        "rule": "",
+        "words": [],
+        "note": ""
       }
     },
     {
@@ -51,6 +66,11 @@
       "active": true,
       "review": {
         "verdict": "",
+        "note": ""
+      },
+      "difficulty": {
+        "rule": "",
+        "words": [],
         "note": ""
       }
     },
@@ -64,6 +84,11 @@
       "review": {
         "verdict": "",
         "note": ""
+      },
+      "difficulty": {
+        "rule": "",
+        "words": [],
+        "note": ""
       }
     },
     {
@@ -75,6 +100,11 @@
       "active": true,
       "review": {
         "verdict": "",
+        "note": ""
+      },
+      "difficulty": {
+        "rule": "",
+        "words": [],
         "note": ""
       }
     },
@@ -88,6 +118,11 @@
       "review": {
         "verdict": "",
         "note": ""
+      },
+      "difficulty": {
+        "rule": "",
+        "words": [],
+        "note": ""
       }
     },
     {
@@ -99,6 +134,11 @@
       "active": true,
       "review": {
         "verdict": "",
+        "note": ""
+      },
+      "difficulty": {
+        "rule": "",
+        "words": [],
         "note": ""
       }
     },
@@ -112,6 +152,11 @@
       "review": {
         "verdict": "",
         "note": ""
+      },
+      "difficulty": {
+        "rule": "",
+        "words": [],
+        "note": ""
       }
     },
     {
@@ -123,6 +168,11 @@
       "active": true,
       "review": {
         "verdict": "",
+        "note": ""
+      },
+      "difficulty": {
+        "rule": "",
+        "words": [],
         "note": ""
       }
     },
@@ -136,6 +186,11 @@
       "review": {
         "verdict": "",
         "note": ""
+      },
+      "difficulty": {
+        "rule": "",
+        "words": [],
+        "note": ""
       }
     },
     {
@@ -147,6 +202,11 @@
       "active": true,
       "review": {
         "verdict": "",
+        "note": ""
+      },
+      "difficulty": {
+        "rule": "",
+        "words": [],
         "note": ""
       }
     },
@@ -160,6 +220,11 @@
       "review": {
         "verdict": "",
         "note": ""
+      },
+      "difficulty": {
+        "rule": "",
+        "words": [],
+        "note": ""
       }
     },
     {
@@ -171,6 +236,11 @@
       "active": true,
       "review": {
         "verdict": "",
+        "note": ""
+      },
+      "difficulty": {
+        "rule": "",
+        "words": [],
         "note": ""
       }
     },
@@ -184,6 +254,11 @@
       "review": {
         "verdict": "",
         "note": ""
+      },
+      "difficulty": {
+        "rule": "",
+        "words": [],
+        "note": ""
       }
     },
     {
@@ -196,6 +271,11 @@
       "review": {
         "verdict": "defective",
         "note": "질문은 '업무용'(회사 지급) 컴퓨터를 묻는데 정답 청크는 '개인 노트북' 규정이라 대상이 반대다. 업무용은 48_모바일기기_및_계정관리에 따로 있다. 봇이 거절하는 것이 옳은 동작인데 지표는 fallback 으로 센다."
+      },
+      "difficulty": {
+        "rule": "",
+        "words": [],
+        "note": ""
       }
     },
     {
@@ -208,6 +288,11 @@
       "review": {
         "verdict": "defective",
         "note": "질문은 '수습 직원' 의 정직원 전환 평가를 묻는데 정답 청크는 '인턴' 의 정규직 전환 심사다. q1 과 같은 부류이고, 이 코퍼스에서 수습은 별도 규정이다(7개 문서에 14회)."
+      },
+      "difficulty": {
+        "rule": "",
+        "words": [],
+        "note": ""
       }
     },
     {
@@ -219,6 +304,11 @@
       "active": true,
       "review": {
         "verdict": "",
+        "note": ""
+      },
+      "difficulty": {
+        "rule": "",
+        "words": [],
         "note": ""
       }
     },
@@ -232,6 +322,11 @@
       "review": {
         "verdict": "",
         "note": ""
+      },
+      "difficulty": {
+        "rule": "",
+        "words": [],
+        "note": ""
       }
     },
     {
@@ -244,6 +339,11 @@
       "review": {
         "verdict": "defective",
         "note": "질문은 '수습사원' 의 식대를 묻는데 정답 청크는 '인턴' 복리후생 적용 범위다. q1 과 같은 부류다. 검수 도구는 이 문항에 표시를 붙이지 못했다. '수습사원' 이 한 덩어리 낱말이라 코퍼스에 0회로 잡히기 때문이다. 사람이 읽어야 잡히는 자리다."
+      },
+      "difficulty": {
+        "rule": "",
+        "words": [],
+        "note": ""
       }
     }
   ]

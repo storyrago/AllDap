@@ -95,6 +95,25 @@ def load_corpus(corpus_dir: Path) -> dict[str, str]:
     return {p.name: p.read_text(encoding="utf-8") for p in files}
 
 
+def count_in_corpus(word: str, corpus: dict[str, str]) -> list[tuple[str, int]]:
+    """그 낱말이 코퍼스의 어느 문서에 몇 번 나오는가. [(문서명, 횟수)] 등장 횟수 내림차순.
+
+    `str.count` 는 겹치지 않는 부분 문자열의 개수를 센다. 하이브리드 검색도 LIKE
+    부분 문자열 매칭이라 기준이 같다 - 검색이 보는 것과 검수가 보는 것을 일부러 맞춘 것이다.
+
+    빈 목록이면 코퍼스 전체에 0회라는 뜻이고, 그것이 <정당한 난이도>의 판정 기준이다
+    (설계 §변형 규칙 1: 다른 문서에 있으면 결함, 아무 데도 없으면 난이도).
+
+    🔴 `eval_set_check` 가 CI 에서 이 함수를 그대로 쓴다. 검수와 CI 가 같은 기준으로
+       세야 "검수에서 0회였던 낱말이 CI 에서 1회" 같은 일이 안 생긴다.
+    """
+    hits = [(name, text.count(word)) for name, text in corpus.items()]
+    hits = [h for h in hits if h[1] > 0]
+    # 등장 횟수 내림차순, 같으면 파일명 순. 어느 문서가 이 낱말의 '본거지' 인지 먼저 보인다.
+    hits.sort(key=lambda h: (-h[1], h[0]))
+    return hits
+
+
 class WordStat:
     """낱말 하나에 대한 검수 재료.
 
@@ -138,12 +157,7 @@ def word_stats(question: str, source_text: str, corpus: dict[str, str],
     doc_text = corpus.get(source_doc, "")
     stats = []
     for word in _keywords(question):
-        # str.count 는 겹치지 않는 부분 문자열의 개수를 센다.
-        # 하이브리드 검색도 LIKE 부분 문자열 매칭이라 기준이 같다.
-        hits = [(name, text.count(word)) for name, text in corpus.items()]
-        hits = [h for h in hits if h[1] > 0]
-        # 등장 횟수 내림차순, 같으면 파일명 순. 어느 문서가 이 낱말의 '본거지' 인지 먼저 보여준다.
-        hits.sort(key=lambda h: (-h[1], h[0]))
+        hits = count_in_corpus(word, corpus)
         stats.append(WordStat(word, word in source_text, word in doc_text, hits))
     return stats
 
@@ -202,6 +216,15 @@ def print_question(item: dict, corpus: dict[str, str]) -> list[str]:
         print("        source_text 가 그 문서에서 나온 것이 맞는지 확인해주세요.")
     if review.get("note"):
         print(f"     기록된 사유: {review['note']}")
+
+    # 난이도 변형은 <사람이 일부러 어렵게 만든 것>이라, 검수자가 그 의도를 낱말 표와
+    # 나란히 봐야 한다. rule 이 비어 있으면 생성기 원본이므로 아무것도 찍지 않는다.
+    difficulty = item.get("difficulty") or {}
+    if difficulty.get("rule"):
+        words = ", ".join(difficulty.get("words") or []) or "(없음)"
+        print(f"     난이도   규칙={difficulty['rule']} · 낱말={words}")
+        if difficulty.get("note"):
+            print(f"              {difficulty['note']}")
 
     if not stats:
         print("     (질문에서 뽑아낸 낱말이 없습니다)")

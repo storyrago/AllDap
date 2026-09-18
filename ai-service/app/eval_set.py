@@ -83,19 +83,33 @@ def _empty_review() -> dict:
     return {"verdict": "", "note": ""}
 
 
-def previous_reviews() -> dict[str, dict]:
-    """기존 파일에서 <질문 본문 → 검수 내용> 표를 만든다. 파일이 없으면 빈 표.
+def _empty_difficulty() -> dict:
+    """난이도 칸의 빈 모양. `review` 와 같은 이유로 한 군데서만 만든다.
+
+    `rule` 이 빈 문자열이면 <생성기가 준 것을 손대지 않았다>는 뜻이다.
+    "칸이 없다" 와 "손대지 않았다" 를 같은 값으로 뭉개지 않으려고 빈 칸도 미리 만든다.
+    """
+    return {"rule": "", "words": [], "note": ""}
+
+
+# 파일에만 있고 DB 에는 없는 칸들. 이 목록에 있는 것은 dump 가 <기존 파일에서> 이어받는다.
+# 여기 빠뜨리면 dump 한 번으로 사람이 적은 것이 지워진다(설계 §7-2 의 왕복 검증이 그 지뢰다).
+_FILE_ONLY_KEYS = {"review": _empty_review, "difficulty": _empty_difficulty}
+
+
+def previous_annotations() -> dict[str, dict]:
+    """기존 파일에서 <질문 본문 → 사람이 적은 칸들> 표를 만든다. 파일이 없으면 빈 표.
 
     왜 DB 가 아니라 파일에서 이어받는가
-      `review.verdict`/`note` 는 사람이 적는 값이고 `eval_questions` 에 그 칸이 없다.
-      즉 DB 를 아무리 읽어도 검수 결과는 나오지 않는다. 유일한 사본이 이 파일이라,
+      `review` 도 `difficulty` 도 사람이 적는 값이고 `eval_questions` 에 그 칸이 없다.
+      즉 DB 를 아무리 읽어도 나오지 않는다. 유일한 사본이 이 파일이라,
       dump 가 기존 파일을 안 읽으면 <사람이 적은 것을 dump 가 지운다.>
       설계 §7-2 의 왕복 검증(load → dump)이 §4 ②(검수 기입) 다음이라,
       순서대로 밟으면 반드시 밟게 되는 지뢰였다.
 
     왜 `id` 가 아니라 질문 본문으로 맞추는가
       `id` 는 파일 안에서만 쓰는 <순번>이다. 문항이 하나 추가되거나 빠지면 뒤가 전부
-      밀려서, q5 의 검수 사유가 엉뚱한 질문에 붙는다. 그러면 "왜 뺐는지" 를 남기려던
+      밀려서, q5 의 사유가 엉뚱한 질문에 붙는다. 그러면 "왜 뺐는지" 를 남기려던
       파일이 오히려 거짓말을 하게 된다. 질문 본문은 그 문항의 정체 자체라 안 밀린다.
 
     ⚠️ `active` 는 여기서 이어받지 않는다. DB 의 `is_active` 를 그대로 쓴다.
@@ -110,7 +124,7 @@ def previous_reviews() -> dict[str, dict]:
     except json.JSONDecodeError:
         # 여기서 죽이지 않는다. 깨진 파일 때문에 dump 자체가 막히면 DB 의 질문을
         # 건져낼 방법이 없어진다. 대신 이어받기를 포기했다는 사실은 반드시 찍는다.
-        print("⚠️  기존 평가셋 파일이 올바른 JSON 이 아니라 검수 내용을 이어받지 못했습니다.")
+        print("⚠️  기존 평가셋 파일이 올바른 JSON 이 아니라 사람이 적은 칸을 이어받지 못했습니다.")
         return {}
 
     table: dict[str, dict] = {}
@@ -119,20 +133,20 @@ def previous_reviews() -> dict[str, dict]:
         question = q.get("question")
         if not question:
             continue
-        review = q.get("review") or _empty_review()
-        if question in table and table[question] != review:
-            # 같은 질문이 두 번 있는데 검수 내용이 다르면 어느 쪽인지 고를 수 없다.
+        ann = {key: (q.get(key) or empty()) for key, empty in _FILE_ONLY_KEYS.items()}
+        if question in table and table[question] != ann:
+            # 같은 질문이 두 번 있는데 적힌 내용이 다르면 어느 쪽인지 고를 수 없다.
             # 조용히 하나를 고르는 것이 이 저장소가 반복해 낸 실수라, 둘 다 버린다.
             duplicated.add(question)
-        table[question] = review
+        table[question] = ann
     for question in duplicated:
         table.pop(question, None)
-        print(f"⚠️  기존 파일에 같은 질문이 두 번 있고 검수 내용이 달라 이어받지 않았습니다: "
+        print(f"⚠️  기존 파일에 같은 질문이 두 번 있고 적힌 내용이 달라 이어받지 않았습니다: "
               f"{question[:40]}...")
     return table
 
 
-def build_payload(rows: list[tuple], reviews: dict[str, dict] | None = None) -> dict:
+def build_payload(rows: list[tuple], annotations: dict[str, dict] | None = None) -> dict:
     """DB 행들 → 파일에 쓸 dict.
 
     `id` 를 DB 의 번호가 아니라 순번("q1", "q2" ...)으로 매긴다.
@@ -144,13 +158,13 @@ def build_payload(rows: list[tuple], reviews: dict[str, dict] | None = None) -> 
     "자르는 규칙이 바뀐 것"을 가르는 유일한 단서다. 안 적으면 둘 다 "못 찾음"으로 뭉개진다.
     """
     s = get_settings()
-    # None 을 그대로 두면 아래에서 `reviews.get(...)` 이 터진다. 기본값을 인자 자리에
+    # None 을 그대로 두면 아래에서 `annotations.get(...)` 이 터진다. 기본값을 인자 자리에
     # `{}` 로 쓰지 않는 이유는 파이썬의 <가변 기본값> 함정 때문이다: 기본값 객체는
     # 함수 정의 때 한 번만 만들어져 호출들 사이에 공유된다.
-    reviews = reviews or {}
+    annotations = annotations or {}
     questions = []
     for n, (_db_id, question, ground_truth, is_active, filename, content) in enumerate(rows, 1):
-        review = reviews.get(question)
+        ann = annotations.get(question) or {}
         questions.append({
             "id": f"q{n}",
             "question": question,
@@ -160,11 +174,12 @@ def build_payload(rows: list[tuple], reviews: dict[str, dict] | None = None) -> 
             "source_doc": filename,
             "source_text": content,
             # DB 의 is_active 를 그대로 쓴다(파일에서 이어받지 않는다). 근거는
-            # previous_reviews 의 주석 마지막 문단에 있다.
+            # previous_annotations 의 주석 마지막 문단에 있다.
             "active": bool(is_active),
-            # 검수는 사람이 나중에 한다. 빈 칸을 <미리 만들어 두는> 이유는,
-            # 칸이 아예 없으면 검수하는 사람이 무엇을 적어야 하는지 모르기 때문이다.
-            "review": review if review is not None else _empty_review(),
+            # 검수와 난이도는 사람이 적는다. 빈 칸을 <미리 만들어 두는> 이유는,
+            # 칸이 아예 없으면 적는 사람이 무엇을 적어야 하는지 모르기 때문이다.
+            "review": ann.get("review") or _empty_review(),
+            "difficulty": ann.get("difficulty") or _empty_difficulty(),
         })
     return {
         "corpus": CORPUS_DIR,
@@ -184,20 +199,20 @@ def dump(bot_id: Id) -> int:
         print(f"봇 {bot_id} 에 평가 질문이 없습니다. 먼저 질문을 생성하거나 load 로 넣어주세요.")
         return 1
 
-    # 🔴 기존 파일을 <쓰기 전에> 읽는다. 사람이 적어둔 검수 내용을 이어받기 위해서다.
-    #    이 한 줄이 없으면 설계 §7-2 의 왕복 검증(load → dump)이 검수 결과를 지운다.
-    reviews = previous_reviews()
-    payload = build_payload(rows, reviews)
+    # 🔴 기존 파일을 <쓰기 전에> 읽는다. 사람이 적어둔 칸(검수·난이도)을 이어받기 위해서다.
+    #    이 한 줄이 없으면 설계 §7-2 의 왕복 검증(load → dump)이 그것을 지운다.
+    annotations = previous_annotations()
+    payload = build_payload(rows, annotations)
 
     # 이어받은 것과 원래 빈 칸이었던 것을 <구분해서> 찍는다. 조용히 넘어가면
-    # "검수를 안 한 문항" 과 "검수 내용이 날아간 문항" 이 화면에서 같은 모습이 된다.
-    carried = sum(1 for _db_id, question, *_ in rows if question in reviews)
+    # "아직 안 적은 문항" 과 "적은 것이 날아간 문항" 이 화면에서 같은 모습이 된다.
+    carried = sum(1 for _db_id, question, *_ in rows if question in annotations)
     new = len(rows) - carried
-    if reviews:
-        print(f"기존 파일에서 검수 내용 {carried}건을 이어받았습니다 "
+    if annotations:
+        print(f"기존 파일에서 사람이 적은 칸 {carried}건을 이어받았습니다 "
               f"(파일에 없던 새 질문 {new}건은 빈 칸으로 둡니다).")
     elif EVAL_SET_PATH.exists():
-        print("기존 파일에서 이어받을 검수 내용이 없어 전 문항을 빈 칸으로 씁니다.")
+        print("기존 파일에서 이어받을 내용이 없어 전 문항을 빈 칸으로 씁니다.")
 
     # 정답 청크가 끊긴 질문은 load 로 되돌릴 수 없다. 파일은 쓰되 <반드시 드러낸다> -
     # 여기서 조용히 넘어가면 "되돌릴 수 있는 파일"이라고 착각한 채 볼륨을 날리게 된다.
