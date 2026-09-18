@@ -14,7 +14,7 @@ chunker_check · parsers_check 와 같은 방식이다(`python -m` 으로 돌고
   ✅ 파일이 자기 자신에 대해 거짓말하지 않는가 (id 중복 · 빈 칸 · 문항 수)
   ✅ `source_doc` 이 코퍼스에 실재하는가
   ✅ 🔴 `source_text` 가 <실제 청크>인가 - 같은 코퍼스를 같은 설정으로 다시 잘라서 대조
-  ✅ `difficulty` 가 규칙 셋 중 하나인가 · lexical 낱말이 코퍼스에 0회인가
+  ✅ `difficulty` 가 규칙 셋 중 하나인가 · lexical 낱말이 <검색이 보는 토큰 단위로> 코퍼스에 0회인가
   ❌ 질문이 좋은 질문인가 · 대상이 맞는가  →  사람 검수(`app/eval_set_review.py`)의 몫
 
 🔴 왜 원문 부분 문자열 비교로는 안 되는가 (설계문서 §6.3)
@@ -37,6 +37,7 @@ from pathlib import Path
 
 from .chunker import chunk_text
 from .eval_set_review import count_in_corpus, load_corpus
+from .retriever import _keywords
 from .parsers import ParseError, extract_text
 
 # ai-service/ 디렉터리. `__file__` 은 app/eval_set_check.py 이므로 두 번 올라간다.
@@ -59,6 +60,8 @@ REQUIRED_CHUNKING = ("chunk_size", "chunk_overlap", "chunk_split_headings")
 
 # 난이도 변형 규칙 셋. 설계문서(2026-09-18-eval-set-difficulty-design.md §1단계)가 정한 것이다.
 #   lexical  어휘 치환   - 코퍼스 전체에 0회인 동의어로 바꾼다
+#            🔴 `words` 에는 <검색이 보는 단위>인 낱말 하나만 적는다. 아래 검사가
+#               `_keywords()` 로 쪼개 토큰마다 세기 때문이다(2026-09-18 에 뚫렸다).
 #   target   대상 구분   - distractor 와 갈리게 대상을 명시한다(그 말이 정답 문서에 있어야 한다)
 #   clause   조항 지목   - 한 청크의 여러 조항 중 예외 조항 하나를 콕 집어 묻는다
 # 빈 문자열("")은 <생성기가 준 것을 손대지 않았다>는 뜻이라 규칙이 아니지만 허용한다.
@@ -373,14 +376,24 @@ def _check_difficulty(questions: list[dict], corpus_dir: Path, report: _Report) 
                 continue
             violated = False
             for word in words:
-                hits = count_in_corpus(word, corpus)
-                if hits:
+                # 🔴 구(phrase) 그대로 세면 안 된다. 하이브리드 검색(`_keyword_rows`)은
+                #    `_keywords()` 가 <공백에서 쪼갠> 토큰마다 LIKE 를 건다. 그래서
+                #    "직위 등급" 을 한 덩어리로 세면 0회라 통과하는데, 검색은 "등급"
+                #    (코퍼스 27회 · 8문서)을 보고 distractor 를 끌어온다.
+                #    검사가 재는 단위와 검색이 보는 단위가 갈리면 이 검사는 아무것도
+                #    보증하지 못한다 - `eval_set_review` 가 `_keywords` 를 일부러
+                #    그대로 재사용하는 것과 같은 이유다. 2026-09-18 에 실제로 뚫렸다.
+                for token in _keywords(word) or [word]:
+                    hits = count_in_corpus(token, corpus)
+                    if not hits:
+                        continue
                     violated = True
                     where = ", ".join(f"{n}({c}회)" for n, c in hits[:3])
+                    same = "" if token == word else f"('{word}' 를 쪼갠 토큰) "
                     report.fail(
-                        f"[{qid}] 'lexical' 낱말 '{word}' 이 코퍼스에 {len(hits)}개 문서에 있습니다: {where}\n"
-                        "   → 다른 문서에 있는 말로 물으면 난이도가 아니라 <결함>입니다. "
-                        "코퍼스 전체에 0회인 말로 바꾸세요."
+                        f"[{qid}] 'lexical' 낱말 '{token}' {same}이 코퍼스에 {len(hits)}개 문서에 있습니다: {where}\n"
+                        "   → 다른 문서에 있는 말로 물으면 난이도가 아니라 <결함>입니다.\n"
+                        "   → `words` 에는 띄어쓴 구가 아니라 <검색이 보는 단위>인 낱말 하나만 적으세요."
                     )
             # 🔴 걸린 문항은 세지 않는다. 아래 ✅ 줄이 "규칙을 지킨 문항 수" 를 말하는데,
             #    실패한 것까지 세면 같은 화면에서 ❌ 로 찍힌 문항을 ✅ 가 "지킨다" 고 센다.
