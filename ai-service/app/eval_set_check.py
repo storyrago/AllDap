@@ -14,6 +14,7 @@ chunker_check · parsers_check 와 같은 방식이다(`python -m` 으로 돌고
   ✅ 파일이 자기 자신에 대해 거짓말하지 않는가 (id 중복 · 빈 칸 · 문항 수)
   ✅ `source_doc` 이 코퍼스에 실재하는가
   ✅ 🔴 `source_text` 가 <실제 청크>인가 - 같은 코퍼스를 같은 설정으로 다시 잘라서 대조
+  ✅ `difficulty` 가 규칙 셋 중 하나인가 · lexical 낱말이 코퍼스에 0회인가
   ❌ 질문이 좋은 질문인가 · 대상이 맞는가  →  사람 검수(`app/eval_set_review.py`)의 몫
 
 🔴 왜 원문 부분 문자열 비교로는 안 되는가 (설계문서 §6.3)
@@ -35,6 +36,7 @@ import json
 from pathlib import Path
 
 from .chunker import chunk_text
+from .eval_set_review import count_in_corpus, load_corpus
 from .parsers import ParseError, extract_text
 
 # ai-service/ 디렉터리. `__file__` 은 app/eval_set_check.py 이므로 두 번 올라간다.
@@ -52,6 +54,13 @@ REQUIRED_FIELDS = ("id", "question", "ground_truth", "source_doc", "source_text"
 # 청킹 설정에 반드시 있어야 하는 칸. 설계문서 §3.2 - 이게 없으면 나중에 대조가 깨졌을 때
 # "코퍼스가 바뀐 것" 과 "자르는 규칙이 바뀐 것" 이 그냥 "못 찾음" 으로 뭉개진다.
 REQUIRED_CHUNKING = ("chunk_size", "chunk_overlap", "chunk_split_headings")
+
+# 난이도 변형 규칙 셋. 설계문서(2026-09-18-eval-set-difficulty-design.md §1단계)가 정한 것이다.
+#   lexical  어휘 치환   - 코퍼스 전체에 0회인 동의어로 바꾼다
+#   target   대상 구분   - distractor 와 갈리게 대상을 명시한다(그 말이 정답 문서에 있어야 한다)
+#   clause   조항 지목   - 한 청크의 여러 조항 중 예외 조항 하나를 콕 집어 묻는다
+# 빈 문자열("")은 <생성기가 준 것을 손대지 않았다>는 뜻이라 규칙이 아니지만 허용한다.
+DIFFICULTY_RULES = ("lexical", "target", "clause")
 
 
 class _Report:
@@ -283,6 +292,125 @@ def _check_source_texts(questions: list[dict], corpus: Path, chunking: dict, rep
         report.ok(f"꼬리표 {checked}개가 실제 청크와 글자까지 일치 (문서 {len(cache)}개를 다시 잘라 대조)")
 
 
+def _check_difficulty(questions: list[dict], corpus_dir: Path, report: _Report) -> None:
+    """`difficulty` 칸이 규칙을 지키는지 본다.
+
+    🔴 여기서 잡는 것은 <난이도인가 결함인가>의 기계적 부분뿐이다.
+       2026-09-18 에 세운 기준을 그대로 코드로 옮긴 것이다.
+         lexical  그 낱말이 코퍼스 <어디에도> 없어야 한다. 다른 문서에 있으면 질문이
+                  그 문서를 겨냥하는 것이므로 난이도가 아니라 결함이다.
+         target   그 낱말이 <정답 문서 안에> 실제로 있어야 한다. 2026-08-11 교훈이다 -
+                  정답 문서에 없는 말("본사" 같은)로 물으면 정답 문서가 오히려 불리해진다.
+       질문이 좋은 질문인가는 여전히 사람 검수(`eval_set_review`)의 몫이다.
+
+    DB 도 외부 API 도 쓰지 않는다. 코퍼스 파일만 읽으므로 CI 에서 돈다.
+    """
+    if not corpus_dir.is_dir():
+        # `_check_source_texts` 가 이미 같은 실패를 보고했다. 두 번 찍지 않는다.
+        return
+
+    try:
+        corpus = load_corpus(corpus_dir)
+    except SystemExit as e:
+        # load_corpus 는 .md 가 하나도 없으면 SystemExit 을 던진다(사람이 직접 돌리는
+        # 검수 도구라 그 자리에서 죽는 것이 맞다). 여기서는 그대로 두면 <점검이 중간에
+        # 끊겨> 나머지 실패가 화면에 안 나온다. 보고서 한 줄로 바꿔 담는다.
+        report.fail(f"코퍼스를 읽지 못해 난이도 검사를 건너뜁니다: {e}")
+        return
+
+    checked = 0
+
+    for q in questions:
+        qid = q["id"]
+        difficulty = q.get("difficulty")
+        if not isinstance(difficulty, dict):
+            report.fail(
+                f"[{qid}] `difficulty` 칸이 없거나 객체가 아닙니다. "
+                '손대지 않은 문항도 {"rule": "", "words": [], "note": ""} 로 명시하세요.'
+            )
+            continue
+
+        rule = difficulty.get("rule")
+        words = difficulty.get("words")
+        note = difficulty.get("note")
+
+        if not isinstance(rule, str) or not isinstance(words, list) or not isinstance(note, str):
+            report.fail(f"[{qid}] `difficulty` 는 rule(문자열) · words(배열) · note(문자열) 이어야 합니다.")
+            continue
+        if any(not isinstance(w, str) or not w.strip() for w in words):
+            report.fail(f"[{qid}] `difficulty.words` 에 빈 값이나 문자열이 아닌 값이 있습니다.")
+            continue
+
+        if rule == "":
+            # 생성기가 준 것을 손대지 않은 문항. words 나 note 가 채워져 있으면
+            # "규칙을 적는 것을 잊었다" 일 가능성이 높으므로 드러낸다.
+            if words or note.strip():
+                report.fail(
+                    f"[{qid}] `rule` 이 비어 있는데 words/note 가 채워져 있습니다. "
+                    f"어떤 규칙으로 어렵게 했는지 적어주세요: {', '.join(DIFFICULTY_RULES)}"
+                )
+            continue
+
+        if rule not in DIFFICULTY_RULES:
+            report.fail(
+                f"[{qid}] 모르는 난이도 규칙 '{rule}' 입니다. "
+                f"셋 중 하나여야 합니다: {', '.join(DIFFICULTY_RULES)}"
+            )
+            continue
+        if not note.strip():
+            report.fail(
+                f"[{qid}] 규칙이 '{rule}' 인데 `note` 가 비어 있습니다. "
+                "왜 그 변형이 어렵게 만드는지 한 줄 적어야 나중에 규칙별로 셀 수 있습니다."
+            )
+            continue
+
+        if rule == "lexical":
+            if not words:
+                report.fail(f"[{qid}] 규칙이 'lexical' 인데 `words` 가 비어 있습니다. "
+                            "코퍼스에 0회여야 하는 낱말을 적어주세요.")
+                continue
+            violated = False
+            for word in words:
+                hits = count_in_corpus(word, corpus)
+                if hits:
+                    violated = True
+                    where = ", ".join(f"{n}({c}회)" for n, c in hits[:3])
+                    report.fail(
+                        f"[{qid}] 'lexical' 낱말 '{word}' 이 코퍼스에 {len(hits)}개 문서에 있습니다: {where}\n"
+                        "   → 다른 문서에 있는 말로 물으면 난이도가 아니라 <결함>입니다. "
+                        "코퍼스 전체에 0회인 말로 바꾸세요."
+                    )
+            # 🔴 걸린 문항은 세지 않는다. 아래 ✅ 줄이 "규칙을 지킨 문항 수" 를 말하는데,
+            #    실패한 것까지 세면 같은 화면에서 ❌ 로 찍힌 문항을 ✅ 가 "지킨다" 고 센다.
+            #    "검사했다" 와 "지켰다" 를 한 값으로 뭉개는 것이고, 이 저장소가 여덟 번 낸
+            #    부류다(실측으로 봤다: 셋 다 실패한 가짜 파일이 "2개가 규칙을 지킵니다" 를 찍었다).
+            checked += 0 if violated else 1
+
+        elif rule == "target":
+            if not words:
+                report.fail(f"[{qid}] 규칙이 'target' 인데 `words` 가 비어 있습니다. "
+                            "정답 문서에 실제로 있는 대상 낱말을 적어주세요.")
+                continue
+            doc_text = corpus.get(q["source_doc"], "")
+            violated = False
+            for word in words:
+                if word not in doc_text:
+                    violated = True
+                    report.fail(
+                        f"[{qid}] 'target' 낱말 '{word}' 이 정답 문서({q['source_doc']})에 없습니다.\n"
+                        "   → 정답 문서에 없는 말로 물으면 정답 문서가 오히려 불리해집니다"
+                        "(2026-08-11 교훈). 그 문서가 실제로 쓰는 말로 바꾸세요."
+                    )
+            checked += 0 if violated else 1
+
+        else:  # clause
+            checked += 1
+
+    if checked:
+        report.ok(f"난이도 규칙이 적힌 문항 {checked}개가 규칙을 지킵니다 "
+                  f"(lexical 은 코퍼스 0회 · target 은 정답 문서에 있음)")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="평가셋 파일이 거짓말하지 않는지 검사한다.")
     parser.add_argument(
@@ -303,6 +431,7 @@ def main() -> int:
             # `corpus` 는 ai-service/ 기준 상대 경로다(예: "testdata/corpus").
             corpus = ROOT / str(raw.get("corpus", "testdata/corpus"))
             _check_source_texts(questions, corpus, chunking, report)
+            _check_difficulty(questions, corpus, report)
 
     if report.failures:
         print(f"\n❌ {len(report.failures)}건 실패. 위 내용을 고친 뒤 다시 돌리세요.")
