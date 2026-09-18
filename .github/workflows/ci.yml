@@ -227,6 +227,11 @@ jobs:
       #    ✅ app.openapi_check 는 app.main 을 import 해 <생성된 명세>만 들여다본다.
       #       앱 객체를 만드는 것뿐이라 lifespan 이 돌지 않아 DB 풀이 열리지 않고,
       #       요청을 하나도 보내지 않으므로 외부 API 도 안 부른다. 그래서 여기서 돈다.
+      #    ✅ app.eval_set_check 는 평가셋 파일(testdata/eval_questions.json)이 거짓말하지
+      #       않는지만 본다. 코퍼스도 저장소 안(testdata/corpus/)에 있고 청커는 순수 함수라
+      #       DB 도 외부 API 도 안 쓴다. 🔴 이 점검의 핵심은 꼬리표(source_text)를 실제로
+      #       <다시 잘라> 대조하는 것이라, 코퍼스나 청킹 설정이 바뀌면 여기서 빨간불이 난다.
+      #       파일이 없으면 통과가 아니라 실패다 - 점검 대상이 없는 것과 통과한 것은 다르다.
       #    ✅ app.local_reranker_check · app.export_reranker_check 는 <계약과 순수 로직>만 본다.
       #       onnxruntime · transformers · torch 를 import 하지 않고(늦은 import) 모델 파일도
       #       안 읽는다. 🔴 이 둘이 여기서 도는 것 자체가 그 <늦은 import> 의 검사다 -
@@ -235,6 +240,7 @@ jobs:
         run: |
           python -m app.parsers_check
           python -m app.chunker_check
+          python -m app.eval_set_check
           python -m app.retriever_check
           python -m app.evalrun_check
           python -m app.evaluator_check
