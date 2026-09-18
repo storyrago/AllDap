@@ -32,7 +32,7 @@ from __future__ import annotations
 import sys
 
 from .db import close_pool, cursor
-from .fallback_e2e_check import BOT_ID, UNGROUNDED, guard
+from .fallback_e2e_check import UNGROUNDED, guard, resolve_bot_id
 from .retriever import embed_one
 from .schemas import Id
 
@@ -153,50 +153,72 @@ def d1(bot_id: Id, question: str) -> float | None:
     return float(row[0]) if row else None
 
 
-def _measure(label: str, questions: list[str]) -> list[float]:
-    """질문 목록의 d1 을 재서 출력하고 돌려준다."""
+def _measure(label: str, questions: list[str], bot_id: Id) -> list[float]:
+    """질문 목록의 d1 을 재서 출력하고 돌려준다.
+
+    🔴 <한 문항도 재지 못한 것>은 측정이 아니다. 빈 목록으로 돌아가면 아래 표가
+       `0/0` 으로 그려지는데, 그것이 "임계값이 아무것도 안 자른다" 와 같은 모양이라
+       구분되지 않는다. 그래서 여기서 멈춘다 (2026-09-18).
+    """
     print(f"── {label} ({len(questions)}문항) ──")
+    if not questions:
+        print(f"  🔴 잴 질문이 0개입니다. 측정이 아니라 <측정 실패>이므로 멈춥니다.")
+        print(f"     봇 {bot_id} 에 활성 평가 질문이 있는지 보세요:")
+        print("     cd ai-service && .venv/bin/python -m app.eval_set load --bot-id <번호>")
+        sys.exit(1)
     out: list[float] = []
     for q in questions:
-        d = d1(BOT_ID, q)
+        d = d1(bot_id, q)
         if d is None:
             print(f"  ⚠️  근거 청크가 하나도 없습니다: {q}")
             continue
         out.append(d)
         print(f"  {d:.4f}  {q[:44]}")
-    if out:
-        print(f"  → 최소 {min(out):.4f} · 중앙 {sorted(out)[len(out) // 2]:.4f} · 최대 {max(out):.4f}\n")
+    if not out:
+        print(f"\n  🔴 {len(questions)}문항 전부 근거 청크가 없었습니다. 한 건도 재지 못했으므로 멈춥니다.")
+        print(f"     봇 {bot_id} 에 코퍼스가 올라가 있는지 보세요 (청크 0건이면 잴 것이 없습니다).")
+        sys.exit(1)
+    print(f"  → 최소 {min(out):.4f} · 중앙 {sorted(out)[len(out) // 2]:.4f} · 최대 {max(out):.4f}\n")
     return out
 
 
-def _eval_questions() -> list[str]:
+def _eval_questions(bot_id: Id) -> list[str]:
     """평가 테스트셋(16문항). evalrun._execute 와 <같은 조건>으로 읽는다."""
     with cursor() as cur:
         cur.execute(
             """SELECT question FROM eval_questions
                 WHERE bot_id=%s AND is_active
                 ORDER BY created_at""",
-            (BOT_ID,),
+            (bot_id,),
         )
         return [r[0] for r in cur.fetchall()]
 
 
 def main() -> None:
+    # 🔴 자체 점검과 실측을 화면에서 가른다 (2026-09-18).
+    #    전에는 "OK — 트레이드오프 계산 6가지 통과" 가 실측 결과 바로 옆에 붙어 있어서,
+    #    <합성 데이터로 계산식만 검증한 것>이 <실제 봇에서 쟀다>처럼 읽혔다.
+    #    없는 봇을 보느라 전 문항이 0/0 으로 나온 판에서도 이 OK 가 같이 찍혔다.
+    #    두 사실은 다르므로 제목을 달아 갈라 놓는다.
+    print("── 자체 점검 (합성 데이터 · DB 를 보지 않는다) ──")
+    _self_check()
+    print()
     if "--self" in sys.argv:
-        _self_check()
         return
 
-    _self_check()  # 측정 전에 계산 로직부터 검증한다
+    print("── 측정 대상 확인 ──")
+    bot_id = resolve_bot_id()
+    print()
 
     if "--holdout" in sys.argv:
         # 🔴 홀드아웃 모드 — 임계값을 <이미 고른 뒤에> 돌린다.
         print("── 홀드아웃 질문 점검 (감시 낱말이 코퍼스에 없는가) ──")
-        if not guard(HOLDOUT):
+        if not guard(HOLDOUT, bot_id=bot_id):
             print("\n🔴 중단합니다. 답이 있을 수 있는 질문으로 재면 <거짓 차단률>이 나옵니다.")
             sys.exit(1)
         print(f"OK — 홀드아웃 {len(HOLDOUT)}개 전부 코퍼스에 흔적 없음\n")
 
-        held = _measure("홀드아웃 · 근거없음", [q for q, _ in HOLDOUT])
+        held = _measure("홀드아웃 · 근거없음", [q for q, _ in HOLDOUT], bot_id)
         print("── 임계값별 홀드아웃 차단률 ──")
         for t, _, blocked in _tradeoff_table([], held):
             print(f"  {t:.2f}  차단 {blocked:2d}/{len(held)}")
@@ -205,13 +227,14 @@ def main() -> None:
     # ── 기본 모드: 임계값을 고르기 위한 표 ──
     # 🔴 홀드아웃은 <읽지도 않는다.> 보면서 고르면 홀드아웃이 아니게 된다.
     print("── 근거없음 질문 점검 (감시 낱말이 코퍼스에 없는가) ──")
-    if not guard():
+    if not guard(bot_id=bot_id):
         print("\n🔴 중단합니다.")
         sys.exit(1)
     print(f"OK — 근거없음 {len(UNGROUNDED)}개 전부 코퍼스에 흔적 없음\n")
 
-    grounded = _measure("평가 테스트셋 · 근거있음", _eval_questions())
-    ungrounded = _measure("근거없음", [q for q, _ in UNGROUNDED])
+    print(f"── 실제 봇 측정 (봇 {bot_id}) ──")
+    grounded = _measure("평가 테스트셋 · 근거있음", _eval_questions(bot_id), bot_id)
+    ungrounded = _measure("근거없음", [q for q, _ in UNGROUNDED], bot_id)
 
     print("── 임계값 트레이드오프 (결과가 바뀌는 지점만) ──")
     print(f"  {'임계':>6}  {'정답유지':>8}  {'근거없음차단':>12}")

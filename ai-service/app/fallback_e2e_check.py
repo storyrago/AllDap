@@ -40,13 +40,14 @@ from __future__ import annotations
 
 import os
 import sys
+from pathlib import Path
 
 from .db import close_pool, cursor
 from .generator import build_system_prompt, fetch_bot_prompt, generate
 from .retriever import search
 from .schemas import Id
 
-# 평가에 쓰는 봇. 코퍼스 50문서 · 306청크.
+# 평가에 쓰는 봇을 <고른다>. 박아두지 않는다 — 아래 함수의 주석 참고.
 #
 # 🔴 V9(2026-09-13, 기본키 BIGINT 전환)가 기존 데이터를 전부 비웠다. 전에는
 #    UUID("628d2785-a128-486c-a1ac-556f19f06de3") 로 못박아 둘 수 있었지만,
@@ -54,7 +55,81 @@ from .schemas import Id
 #    그래서 기본값을 두되 환경변수로 덮어쓸 수 있게 한다. 번호가 안 맞으면
 #    코퍼스가 없는 봇을 보게 되어 <전부 fallback> 이 나고, 그것은 10/10 으로
 #    통과한다 — 대조군 3건이 있는 이유가 정확히 이것이다(아래 참고).
-BOT_ID: Id = int(os.environ.get("EVAL_BOT_ID", "2"))
+def resolve_bot_id() -> Id:
+    """측정 대상 봇을 정한다. <정하지 못하면 통과가 아니라 실패로 끝낸다.>
+
+    🔴 왜 기본값 상수를 없앴는가 (2026-09-18)
+       전에는 `int(os.environ.get("EVAL_BOT_ID", "2"))` 였다. 봇 2 는 이 환경에
+       없는 봇이라, 그냥 돌리면 <청크가 0건인 봇>을 보게 된다. 그런데 그때 나오던
+       출력이 "임계 0.30 · 정답유지 0/0 · 근거없음차단 0/0 · OK" 였다 —
+       **"재봤더니 0/0" 과 "아무것도 재지 못했다" 가 같은 화면이었다.**
+       이 저장소가 여덟 번 낸 뭉개기 부류이고, 여덟 번째(`parse_prom_counter` 가
+       "읽지 못했다" 와 "읽어서 이 값이었다" 를 뭉갠 것)와 축이 같다.
+
+       기본값을 2 에서 1 로 바꾸는 것으로는 닫히지 않는다. V9(BIGINT 전환) 이후
+       봇 번호는 <만들어진 순서>라 환경마다 다르고, 다음에 번호가 또 밀리면 같은
+       자리에서 똑같이 뚫린다. 그래서 <박아둔 값>을 지우고 DB 에 실제로 무엇이
+       있는지 보고 정한다. 정할 수 없으면 멈춘다.
+
+    규칙
+      EVAL_BOT_ID 가 있으면   그 봇이 실재하고 청크가 있는지 확인한다. 아니면 종료코드 1.
+      없으면                  청크가 있는 봇이 <정확히 하나>일 때만 그것을 쓴다.
+                              0개나 2개 이상이면 사람이 고르라고 하고 종료코드 1.
+    """
+    env = os.environ.get("EVAL_BOT_ID")
+    with cursor() as cur:
+        cur.execute(
+            """SELECT b.id, b.name, count(c.id)
+                 FROM bots b LEFT JOIN chunks c ON c.bot_id = b.id
+                GROUP BY b.id, b.name
+                ORDER BY b.id"""
+        )
+        rows = cur.fetchall()
+
+    def _bail(reason: str) -> None:
+        print(f"🔴 {reason}")
+        if rows:
+            print("   이 DB 에 있는 봇:")
+            for bot_id, name, n in rows:
+                mark = "" if n else "   ← 청크가 없어 측정할 수 없습니다"
+                print(f"     id={bot_id}  {name or '(이름 없음)'}  청크 {n}건{mark}")
+        else:
+            print("   이 DB 에는 봇이 하나도 없습니다.")
+            print("   → docker compose up -d 로 DB 를 띄우고 api 를 기동해 스키마를 만든 뒤,")
+            print("     코퍼스를 올리세요: AGENTS.md 의 '로컬 실행 순서' 참고")
+        # 안내에 <지금 돌린 그 명령>을 되비춘다. 여기에 모듈 이름을 박아두면
+        # answerable_check 로 돌린 사람에게 엉뚱한 명령을 알려주게 된다.
+        module = Path(sys.argv[0]).stem or "fallback_e2e_check"
+        print("   → 잴 봇을 직접 지정하려면:")
+        print(f"     cd ai-service && EVAL_BOT_ID=<번호> .venv/bin/python -m app.{module}")
+        sys.exit(1)
+
+    if env is not None:
+        try:
+            wanted = int(env)
+        except ValueError:
+            _bail(f"EVAL_BOT_ID 가 숫자가 아닙니다: {env!r}")
+        found = [r for r in rows if r[0] == wanted]
+        if not found:
+            _bail(f"EVAL_BOT_ID={wanted} 인 봇이 이 DB 에 없습니다.")
+        if not found[0][2]:
+            _bail(f"봇 {wanted} 에는 청크가 0건이라 잴 것이 없습니다.")
+        # 자동 선택과 <같은 줄>을 찍는다. 한쪽만 조용하면 화면에 빈 절이 남아
+        # "무엇을 재고 있는지" 가 출력에서 사라진다.
+        print(f"측정 대상: 봇 {wanted} ({found[0][1] or '이름 없음'}) · 청크 {found[0][2]}건"
+              f"  [EVAL_BOT_ID 로 지정됨]")
+        return Id(wanted)
+
+    usable = [r for r in rows if r[2]]
+    if len(usable) != 1:
+        _bail(
+            "청크가 있는 봇이 하나가 아니라 어느 봇을 재야 할지 정할 수 없습니다"
+            f" (후보 {len(usable)}개)."
+        )
+    bot_id, name, n = usable[0]
+    print(f"측정 대상: 봇 {bot_id} ({name or '이름 없음'}) · 청크 {n}건"
+          f"  [EVAL_BOT_ID 로 바꿀 수 있습니다]")
+    return Id(bot_id)
 
 # ── 근거가 <없어야> 하는 질문 10개 ──────────────────────────────────────
 #
@@ -109,12 +184,18 @@ KNOWN_RETRIEVAL_GAP: list[tuple[str, str]] = [
 PASS_THRESHOLD = 8  # W1 완료 조건 (10개 중 8개 이상)
 
 
-def guard(questions: list[tuple[str, tuple[str, ...]]] | None = None) -> bool:
+def guard(questions: list[tuple[str, tuple[str, ...]]] | None = None,
+          *, bot_id: Id) -> bool:
     """감시 낱말이 코퍼스에 나타났는지 본다. 하나라도 나오면 측정을 막는다.
 
     questions 를 받는 이유: 같은 가드를 <홀드아웃 질문 목록>에도 써야 하는데
     (`answerable_check`), 로직을 복사하면 한쪽만 고쳐지는 사고가 구조적으로 가능해진다.
     기본값이 UNGROUNDED 라 기존 호출부는 그대로 둔다.
+
+    ⚠️ `bot_id` 는 키워드 전용이고 기본값이 없다. 전에는 모듈 상수를 직접 읽었는데,
+       그 상수에 기본값이 있어서 <아무 봇도 정해지지 않은 채로> 가드가 돌 수 있었다.
+       가드가 "0건이라 깨끗하다" 고 말하는 것과 "그 봇에 청크가 아예 없다" 는
+       다른 사실이다.
     """
     questions = UNGROUNDED if questions is None else questions
     ok = True
@@ -125,7 +206,7 @@ def guard(questions: list[tuple[str, tuple[str, ...]]] | None = None) -> bool:
                     """SELECT count(*), min(d.filename)
                          FROM chunks c JOIN documents d ON d.id = c.document_id
                         WHERE c.bot_id = %s AND c.content LIKE %s""",
-                    (BOT_ID, f"%{word}%"),
+                    (bot_id, f"%{word}%"),
                 )
                 n, filename = cur.fetchone()
                 if n:
@@ -138,8 +219,12 @@ def guard(questions: list[tuple[str, tuple[str, ...]]] | None = None) -> bool:
 def main() -> None:
     guard_only = "--guard-only" in sys.argv
 
+    print("── 측정 대상 확인 ──")
+    bot_id = resolve_bot_id()
+    print()
+
     print("── 질문 점검 (감시 낱말이 코퍼스에 없는가) ──")
-    if not guard():
+    if not guard(bot_id=bot_id):
         print("\n🔴 중단합니다. 이 상태로 재면 <거짓 미달>이 나옵니다.")
         print("   (실제로 2026-08-02 에 같은 일로 7/10 이 나왔습니다)")
         sys.exit(1)
@@ -162,7 +247,7 @@ def main() -> None:
     #
     #    ⚠️ 루프 밖에서 한 번만 읽는다. 질문마다 읽으면 도중에 설정이 바뀔 때
     #       앞뒤 질문이 다른 프롬프트로 판정돼 측정이 섞인다(evalrun 과 같은 이유).
-    bot_prompt = fetch_bot_prompt(BOT_ID)
+    bot_prompt = fetch_bot_prompt(bot_id)
     system_prompt = build_system_prompt(bot_prompt)
     print(f"봇 지침: {'있음 (프로덕션과 동일하게 결합해 태운다)' if bot_prompt else '없음 (기본 규칙만)'}\n")
 
@@ -170,7 +255,7 @@ def main() -> None:
     fallbacks = 0
     cut_by_search = 0
     for question, _ in UNGROUNDED:
-        sources = search(BOT_ID, question)
+        sources = search(bot_id, question)
         answer, is_fallback = generate(question, sources, system_prompt=system_prompt)
         fallbacks += is_fallback
         # 근거가 0건이면 1차 방어선(max_distance)이 잡은 것 = LLM 을 아예 안 불렀다.
@@ -184,7 +269,7 @@ def main() -> None:
     print("\n── 대조군 (답해야 한다) ──")
     answered = 0
     for question, expect in GROUNDED:
-        sources = search(BOT_ID, question)
+        sources = search(bot_id, question)
         answer, is_fallback = generate(question, sources, system_prompt=system_prompt)
         hit = (not is_fallback) and (expect in answer)
         answered += hit
@@ -194,7 +279,7 @@ def main() -> None:
     print("\n── 알려진 검색 한계 (기본 설정이 못 찾는다 · 실패로 세지 않음) ──")
     recovered = 0
     for question, expect in KNOWN_RETRIEVAL_GAP:
-        sources = search(BOT_ID, question)
+        sources = search(bot_id, question)
         answer, is_fallback = generate(question, sources, system_prompt=system_prompt)
         hit = (not is_fallback) and (expect in answer)
         recovered += hit
