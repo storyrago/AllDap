@@ -3,7 +3,12 @@
 실행:
     cd ai-service && RERANKER_PROVIDER=local .venv/bin/python -m app.rank_trace --bot-id 1
     cd ai-service && RERANKER_PROVIDER=local .venv/bin/python -m app.rank_trace --bot-id 1 --qid 7
+    cd ai-service && RERANKER_PROVIDER=local .venv/bin/python -m app.rank_trace --bot-id 1 --all
     cd ai-service && .venv/bin/python -m app.rank_trace --bot-id 1 --scores 7   # 제공자별 점수 비교
+
+🔴 기본은 <활성 문항만>(`is_active=true`) 추적한다. 평가(`evalrun`)가 보는 것과 같은 집합이다.
+   `--all` 을 붙이면 비활성까지 찍되 표에 상태 칸이 붙고, 판정 개수는 그래도 활성만 센다.
+   근거는 `_questions` 주석에 있다(비활성 문항이 판정 ① 개수에 섞이면 BACKLOG §5 를 오독한다).
 
 🔴 평가 실행(eval run)을 돌리지 않는다. 임베딩(질문당 약 0.025 뉴런)과 리랭커 호출만 쓴다.
    `RERANKER_PROVIDER=local` 로 돌리면 Cloudflare 뉴런은 임베딩분 말고 한 푼도 안 든다
@@ -65,11 +70,25 @@ from .db import close_pool, cursor
 from .schemas import Id, Source
 
 
-def _questions(bot_id: Id, qid: int | None) -> list[tuple]:
-    sql = ("SELECT id, question, source_chunk_id FROM eval_questions "
-           "WHERE bot_id = %s AND (%s::bigint IS NULL OR id = %s) ORDER BY id")
+def _questions(bot_id: Id, qid: int | None, include_inactive: bool = False) -> list[tuple]:
+    """추적할 문항을 고른다. 기본은 <활성 문항만>이다.
+
+    🔴 기본값이 활성만인 이유는 오독을 막기 위해서다. 평가(`evalrun`)는
+    `WHERE is_active` 로 걸러 돌리는데(`evalrun.py` 의 질문 조회 두 곳) 이 도구가 안 걸러
+    찍으면, <평가에 들어가지도 않는 문항>이 판정 ①("후보 안인데 순위가 낮다") 개수에 섞인다.
+    그 개수가 곧 `docs/BACKLOG.md` §5 가 "리랭커 파인튜닝을 할 값어치가 있는가" 를
+    판단하는 바로 그 숫자라, 섞이면 "회복 여지가 생겼다" 는 <틀린 결론>이 나온다.
+    이 저장소가 여덟 번 낸 <원인이 다른 사실들을 한 값으로 뭉개는> 부류다.
+    (2026-09-18 에 실제로 오독할 뻔했다 - 비활성 문항 하나가 ① 로 찍혔다)
+
+    ⚠️ `--qid` 로 문항 하나를 콕 집어 부를 때는 거르지 않는다. 그건 "이 문항을 보겠다" 는
+       명시적 지시이고, 한 줄짜리 표라 개수에 섞일 것이 없다. 대신 비활성 표시는 붙는다.
+    """
+    sql = ("SELECT id, question, source_chunk_id, is_active FROM eval_questions "
+           "WHERE bot_id = %s AND (%s::bigint IS NULL OR id = %s) "
+           "AND (%s OR is_active) ORDER BY id")
     with cursor() as cur:
-        cur.execute(sql, (bot_id, qid, qid))
+        cur.execute(sql, (bot_id, qid, qid, include_inactive))
         return list(cur.fetchall())
 
 
@@ -138,12 +157,16 @@ def _cut(rows: list[tuple]) -> list[Source]:
     ]
 
 
-def trace(bot_id: Id, qid: int, question: str, gold: Id | None) -> dict:
-    """한 문항에 대해 search() 를 재현하며 단계별 순위를 기록한다."""
+def trace(bot_id: Id, qid: int, question: str, gold: Id | None,
+          active: bool = True) -> dict:
+    """한 문항에 대해 search() 를 재현하며 단계별 순위를 기록한다.
+
+    `active` 는 추적에 영향을 주지 않는다. 표와 요약이 <두 부류를 갈라 보여주기> 위해서만 쓴다.
+    """
     from . import retriever  # 늦은 import
 
     s = get_settings()
-    out: dict = {"qid": qid, "question": question, "gold": gold}
+    out: dict = {"qid": qid, "question": question, "gold": gold, "active": active}
     if gold is None:
         out["verdict"] = "정답 청크 없음 (source_chunk_id IS NULL)"
         return out
@@ -196,35 +219,80 @@ def trace(bot_id: Id, qid: int, question: str, gold: Id | None) -> dict:
     return out
 
 
-def _print_table(results: list[dict]) -> None:
+def _print_table(results: list[dict], show_state: bool = False,
+                 summary: bool = True) -> None:
+    """표와 요약을 찍는다.
+
+    `show_state` 가 참이면 <활성/비활성> 칸을 하나 더 둔다. 비활성까지 섞어 찍을 때
+    두 부류가 겉보기에 같으면 판정 개수를 사람이 그대로 세어 오독하기 때문이다.
+    """
     s = get_settings()
     print(f"\n임계값: answerable={s.answerable_max_distance} · max_distance={s.max_distance}"
           f" · top_k={s.top_k} · rerank_candidates={s.rerank_candidates}"
           f" · reranker={s.reranker_enabled}/{s.reranker_provider} · hybrid={s.hybrid_enabled}\n")
-    head = (f"{'q':>3} {'d1':>7} {'게이트':>6} {'정답거리':>8} {'컷':>4} "
+    state_head = f"{'상태':>6} " if show_state else ""
+    head = (f"{'q':>3} {state_head}{'d1':>7} {'게이트':>6} {'정답거리':>8} {'컷':>4} "
             f"{'벡터':>5} {'RRF':>5} {'컷후':>5} {'리랭킹후':>9} {'top':>4}  판정")
     print(head)
-    print("-" * 96)
+    print("-" * (96 + (7 if show_state else 0)))
     for r in results:
+        st = (f"{('활성' if r.get('active', True) else '비활성'):>6} ") if show_state else ""
         if "d1" not in r:
-            print(f"{r['qid']:>3}  {r['verdict']}")
+            print(f"{r['qid']:>3} {st} {r['verdict']}")
             continue
         gate = "통과" if r["gate_pass"] else "차단"
         if not r["gate_pass"]:
             # 게이트에 걸려도 <거리 컷 통과 여부는 찍는다.> 둘 다 걸리는 문항은
             # 게이트만 올려서는 살아나지 않기 때문이다(2026-09-17 의 q6 이 그랬다).
-            print(f"{r['qid']:>3} {r['d1']:>7} {gate:>6} {str(r['gold_dist']):>8} "
+            print(f"{r['qid']:>3} {st}{r['d1']:>7} {gate:>6} {str(r['gold_dist']):>8} "
                   f"{'O' if r['gold_cut_pass'] else 'X':>4} "
                   f"{str(r['vec_rank']):>5} {'-':>5} {'-':>5} {'-':>9} {'X':>4}  {r['verdict']}")
             continue
         rr = f"{r['rerank_rank']}{' 경계' if r['boundary'] else ''}"
-        print(f"{r['qid']:>3} {r['d1']:>7} {gate:>6} {str(r['gold_dist']):>8} "
+        print(f"{r['qid']:>3} {st}{r['d1']:>7} {gate:>6} {str(r['gold_dist']):>8} "
               f"{'O' if r['gold_cut_pass'] else 'X':>4} {str(r['vec_rank']):>5} "
               f"{str(r['rrf_rank']):>5} {str(r['cut_rank']):>5} {rr:>9} "
               f"{'O' if r['in_top_k'] else 'X':>4}  {r['verdict']}")
+    # 요약은 여러 문항을 함께 볼 때만 뜻이 있다. `--qid` 한 줄짜리에서는 개수가 늘 0 아니면 1 이라
+    # 오히려 "활성 0개 기준" 같은 오해를 부른다.
+    if summary:
+        _print_summary(results)
     print("\n⚠️  '경계' 는 리랭킹 후 순위가 정확히 top_k 라는 뜻이다.")
     print("    순위를 건드리는 어떤 변경도 이 문항을 <제일 먼저> 깨뜨린다.")
     print("⚠️  판정 ④ 는 이 도구가 단정하지 못한다. testdata/corpus/ 원문을 직접 볼 것.")
+
+
+# 판정 앞머리 기호 → 요약에 찍을 이름. 표를 사람이 세지 않게 하려는 것이다.
+_VERDICT_LABELS = {
+    "①": "① 후보 안인데 순위가 낮다 (리랭커가 고칠 수 있다)",
+    "②": "② 후보 밖이다 (검색·청킹 문제)",
+    "③": "③ 게이트 또는 거리 컷이 잘랐다 (임계값 문제)",
+    "④": "④ 정답 청크가 근거에 들어갔다 (리랭커 밖의 원인)",
+}
+
+
+def _print_summary(results: list[dict]) -> None:
+    """무엇을 몇 개 기준으로 센 것인지와 판정별 개수를 찍는다.
+
+    🔴 개수를 도구가 직접 찍는 이유: `docs/BACKLOG.md` §5 가 읽는 것이 ① 의 개수인데,
+       사람이 표를 세면 비활성 문항이나 '정답 청크 없음' 행이 조용히 섞인다.
+    """
+    n_active = sum(1 for r in results if r.get("active", True))
+    n_inactive = len(results) - n_active
+    counts: dict[str, int] = {}
+    for r in results:
+        if not r.get("active", True):
+            continue  # 개수는 <활성 문항만> 센다. 평가가 보는 것과 같은 집합이어야 한다.
+        key = r["verdict"][0]
+        counts[key] = counts.get(key, 0) + 1
+
+    print(f"\n요약: 활성 {n_active}개 기준"
+          + (f" (비활성 {n_inactive}개는 표에만 찍고 개수에서 뺐다)" if n_inactive else ""))
+    for mark, label in _VERDICT_LABELS.items():
+        print(f"  {counts.get(mark, 0):>3}  {label}")
+    other = sum(v for k, v in counts.items() if k not in _VERDICT_LABELS)
+    if other:
+        print(f"  {other:>3}  판정 불가 (정답 청크 없음 등)")
 
 
 def _print_scores(bot_id: Id, qid: int, variants: list[str]) -> None:
@@ -238,11 +306,12 @@ def _print_scores(bot_id: Id, qid: int, variants: list[str]) -> None:
     from . import local_reranker, retriever  # 늦은 import
 
     s = get_settings()
-    rows = _questions(bot_id, qid)
+    # 문항 하나를 콕 집은 것이므로 비활성이어도 보여준다(`_questions` 주석 참고).
+    rows = _questions(bot_id, qid, include_inactive=True)
     if not rows:
         print(f"질문 {qid} 이(가) 봇 {bot_id} 에 없습니다.")
         return
-    _, question, gold = rows[0]
+    _, question, gold, is_active = rows[0]
 
     qvec = retriever.embed_one(question)
     cand, _, _ = _candidates(bot_id, question, qvec)
@@ -250,7 +319,7 @@ def _print_scores(bot_id: Id, qid: int, variants: list[str]) -> None:
     contents = retriever.fetch_contents([x.chunk_id for x in srcs])
     texts = [contents.get(x.chunk_id, x.preview) for x in srcs]
 
-    print(f"\n질문 {qid}: {question}")
+    print(f"\n질문 {qid}{'' if is_active else ' [비활성 - 평가에 들어가지 않는 문항이다]'}: {question}")
     print(f"정답 청크: {gold} · 후보 {len(srcs)}개 · top_k={s.top_k}")
     for variant in variants:
         print(f"\n── {variant} ──")
@@ -270,7 +339,11 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         description="정답 청크가 검색 파이프라인 어느 단계에서 사라지는지 추적한다")
     parser.add_argument("--bot-id", type=int, required=True)
-    parser.add_argument("--qid", type=int, default=None, help="이 질문 하나만 추적")
+    parser.add_argument("--qid", type=int, default=None,
+                        help="이 질문 하나만 추적 (비활성이어도 보여준다)")
+    parser.add_argument("--all", action="store_true",
+                        help="비활성(is_active=false) 문항까지 함께 추적한다. "
+                             "표에 상태 칸이 붙고, 판정 개수는 그래도 활성만 센다")
     parser.add_argument("--scores", type=int, default=None, metavar="QID",
                         help="이 질문의 리랭커 점수를 제공자별로 나란히 찍는다")
     parser.add_argument("--variants", default="local,local_int8",
@@ -281,9 +354,14 @@ def main() -> None:
         _print_scores(args.bot_id, args.scores, args.variants.split(","))
         return
 
-    results = [trace(args.bot_id, qid, question, gold)
-               for qid, question, gold in _questions(args.bot_id, args.qid)]
-    _print_table(results)
+    # 기본은 활성 문항만이다. 이유는 `_questions` 주석에 있다.
+    include_inactive = args.all or args.qid is not None
+    rows = _questions(args.bot_id, args.qid, include_inactive=include_inactive)
+    results = [trace(args.bot_id, qid, question, gold, active=bool(active))
+               for qid, question, gold, active in rows]
+    _print_table(results,
+                 show_state=any(not r["active"] for r in results),
+                 summary=args.qid is None)
 
 
 if __name__ == "__main__":
