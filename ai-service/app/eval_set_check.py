@@ -43,10 +43,12 @@ from .parsers import ParseError, extract_text
 ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_FILE = ROOT / "testdata" / "eval_questions.json"
 
-# 활성 문항 수를 <고정>한다. 설계문서 §5 의 약속이다 - 결함 문항을 뺄 때 대체 문항을
-# 넣어 16개를 유지해야 한 문항의 무게(1/16 = 0.0625)가 안 바뀌고 과거 표와 축이 맞는다.
-# 이 숫자를 고칠 때는 그 문서도 함께 고칠 것.
-ACTIVE_EXPECTED = 16
+# 활성 문항 수를 <고정>한다. 결함 문항을 뺄 때 대체 문항을 넣어 수를 유지해야
+# 한 문항의 무게가 안 바뀌고 표들끼리 축이 맞는다.
+# 2026-09-18 에 16 -> 26 으로 올렸다(난이도 확보 슬라이스). 한 문항의 무게가
+# 0.0625 -> 0.038 로 줄어 측정 편차(0.032)와 개선을 가를 여지가 생긴다.
+# 🔴 이 숫자를 고칠 때는 설계문서와 AGENTS.md 의 해당 절도 함께 고칠 것.
+ACTIVE_EXPECTED = 26
 
 # 문항마다 반드시 있어야 하고 비어 있으면 안 되는 칸.
 REQUIRED_FIELDS = ("id", "question", "ground_truth", "source_doc", "source_text")
@@ -196,7 +198,7 @@ def _check_questions_shape(raw: dict, report: _Report) -> list[dict]:
         report.fail(
             f"활성 문항이 {len(active)}개입니다. {ACTIVE_EXPECTED}개여야 합니다 "
             f"(전체 {len(questions)}개 중). 한 문항의 무게(1/{ACTIVE_EXPECTED})가 달라지면 "
-            "과거 표와 축이 어긋납니다 - 설계문서 §5."
+            "과거 표와 축이 어긋납니다 - 2026-09-18-eval-set-difficulty-design.md."
         )
     else:
         report.ok(f"활성 문항 {len(active)}개 · 전체 {len(questions)}개 · id 중복 없음")
