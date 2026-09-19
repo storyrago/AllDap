@@ -493,7 +493,10 @@ LLM 이 (질문, 정답) 쌍을 만들고 `eval_questions` 에 저장한다. **P
 
 ### ▶ 다음 세션은 여기서 시작한다 (2026-08-04 말 기준)
 
-🔴 **가장 최신 상태는 [`docs/superpowers/handoff-2026-09-17.md`](docs/superpowers/handoff-2026-09-17.md) 다.**
+🔴 **가장 최신 상태는 [`docs/superpowers/handoff-2026-09-19.md`](docs/superpowers/handoff-2026-09-19.md) 다.**
+   그 문서가 **다음에 할 일을 하나로 못박아 뒀다: 채점자(LLM-as-judge)를 사람 라벨과 대조하는 것.**
+   난이도 확보로 돌아가지 말 것 - 난이도를 만들어봐야 그것을 재는 지표를 믿을 수 없는 상태다.
+   (그 앞 슬라이스는 [`handoff-2026-09-17.md`](docs/superpowers/handoff-2026-09-17.md))
 이 절의 "다음 후보" 목록은 2026-08-04 기준이라 낡았다. 무엇을 먼저 할지는 그 핸드오프와
 `docs/BACKLOG.md` 를 볼 것. 아래 실행 순서 자체는 여전히 유효하다.
 
