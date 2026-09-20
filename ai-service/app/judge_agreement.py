@@ -257,7 +257,23 @@ def _print_distortion(run_ids: list[int], label_of: dict[str, float]) -> None:
     print("     비교표가 <채점자 오차 안에서> 움직였다는 뜻이 된다.")
 
 
-def fetch_reasons(cases: list[Case], mismatched_ids: list[str]) -> dict[str, tuple[float, str]]:
+def rescore_verdict(again: float | None, stored: float) -> str:
+    """재호출 결과를 세 값 중 하나로 판정한다: `unmeasured` / `same` / `differs`.
+
+    🔴 왜 함수로 뽑았나: 이 셋은 <원인이 다른 사실>이고 한 값으로 뭉개면 안 된다.
+       못 불렀다(측정 실패) · 같은 점수를 줬다(결정성 확인) · 다른 점수를 줬다(발견).
+       뭉개는 순간 "채점자가 흔들린다" 는 틀린 결론이 나온다.
+
+    ⚠️ NaN 으로 표시하지 않는 이유가 여기 있다. `float("nan") != x` 는 언제나 참이라
+       `!=` 분기를 그냥 지나가 <못 불렀다>가 <다르다>로 둔갑한다. 실제로 그렇게 짰다가
+       2026-09-20 에 고쳤다. 이 저장소가 아홉 번 낸 뭉개기 부류의 열 번째가 될 뻔했다.
+    """
+    if again is None:
+        return "unmeasured"
+    return "same" if again == stored else "differs"
+
+
+def fetch_reasons(cases: list[Case], mismatched_ids: list[str]) -> dict[str, tuple[float | None, str]]:
     """불일치 케이스만 채점자를 다시 불러 (점수, 사유)를 받는다.
 
     🔴 왜 다시 부르나: `eval_results` 에 reason 컬럼이 없다. judge.score 가 사유를
@@ -273,7 +289,14 @@ def fetch_reasons(cases: list[Case], mismatched_ids: list[str]) -> dict[str, tup
     from .judge import score as judge_score
 
     by_id = {c.case_id: c for c in cases}
-    out: dict[str, tuple[float, str]] = {}
+    unknown = [cid for cid in mismatched_ids if cid not in by_id]
+    if unknown:
+        raise KeyError(
+            f"cases 에 없는 case_id {len(unknown)}건을 받았습니다: {unknown[:5]}"
+            " ... 같은 run 목록으로 load_cases 한 결과를 넘기세요."
+        )
+
+    out: dict[str, tuple[float | None, str]] = {}
     for cid in mismatched_ids:
         c = by_id[cid]
         s = judge_score(
@@ -283,7 +306,11 @@ def fetch_reasons(cases: list[Case], mismatched_ids: list[str]) -> dict[str, tup
             answer=c.generated_answer,
         )
         if s is None:
-            out[cid] = (float("nan"), "(채점 호출 실패)")
+            # 🔴 NaN 을 쓰지 않는다. NaN != x 가 언제나 참이라, 호출하는 쪽의
+            #    "점수가 달라졌다" 분기를 그냥 지나가 <못 불렀다>가 <다른 점수를
+            #    줬다>로 둔갑한다. 이 저장소가 아홉 번 낸 뭉개기 부류다.
+            #    None 은 "재보지 못했다"이고 호출부가 반드시 따로 분기해야 한다.
+            out[cid] = (None, "(채점 호출 실패)")
             continue
         out[cid] = (s.faithfulness, s.reason)
     return out
@@ -322,7 +349,12 @@ def report(run_ids: list[int], path: str, with_reasons: bool) -> int:
         if cid in reasons:
             again, why = reasons[cid]
             print(f"    사유: {why}")
-            if again != j:
+            # 🔴 세 사실을 갈라 찍는다: 못 불렀다 / 같은 점수를 줬다 / 다른 점수를 줬다.
+            #    NaN 으로 뭉개면 첫째가 셋째로 둔갑한다(2026-09-20 에 그 코드를 고쳤다).
+            verdict = rescore_verdict(again, j)
+            if verdict == "unmeasured":
+                print("    ⚠️ 재호출이 실패해 <대조하지 못했습니다>. 다른 점수를 줬다는 뜻이 아닙니다.")
+            elif verdict == "differs":
                 print(f"    🔴 재호출 점수가 DB 값과 다릅니다: DB {j} vs 재호출 {again}")
                 print("       채점자가 결정적이라는 전제가 이 입력에서는 성립하지 않습니다.")
     return 0

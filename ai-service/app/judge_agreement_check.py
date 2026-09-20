@@ -15,6 +15,7 @@ from __future__ import annotations
 
 from .eval_cases import Case, SourceRef, case_key, chunk_ids_of
 from .judge_agreement import (
+    rescore_verdict,
     build_payload, confusion, direction_counts, linear_weighted_kappa, overall_faithfulness,
 )
 
@@ -165,6 +166,20 @@ def check_kappa_paradox_is_real_on_this_distribution() -> None:
     assert direction_counts(pairs) == (0, 4, 40)
 
 
+def check_rescore_failure_is_not_a_disagreement() -> None:
+    """🔴 <못 불렀다>와 <다른 점수를 줬다>를 가른다. 열 번째 뭉개기가 될 뻔한 자리다.
+
+    처음에는 실패를 NaN 으로 표시했는데, `float("nan") != x` 가 언제나 참이라
+    `!=` 분기를 그냥 지나갔다. 채점 호출이 한 번 실패했을 뿐인데 출력에는
+    "채점자가 결정적이라는 전제가 성립하지 않습니다" 가 찍힌다. 거짓이다.
+    """
+    assert rescore_verdict(None, 1.0) == "unmeasured"
+    assert rescore_verdict(1.0, 1.0) == "same"
+    assert rescore_verdict(0.5, 1.0) == "differs"
+    # NaN 을 넣었다면 이 셋이 전부 "differs" 로 뭉개졌을 것이다
+    assert rescore_verdict(float("nan"), 1.0) == "differs"
+
+
 def main() -> None:
     checks = [
         check_chunk_ids_are_parsed_as_int,
@@ -179,6 +194,7 @@ def main() -> None:
         check_overall_faithfulness_matches_the_repo_formula,
         check_kappa_is_one_on_perfect_agreement,
         check_kappa_paradox_is_real_on_this_distribution,
+        check_rescore_failure_is_not_a_disagreement,
     ]
     for fn in checks:
         fn()
