@@ -13,7 +13,8 @@
 """
 from __future__ import annotations
 
-from .eval_cases import case_key, chunk_ids_of
+from .eval_cases import Case, SourceRef, case_key, chunk_ids_of
+from .judge_agreement import build_payload
 
 
 def check_chunk_ids_are_parsed_as_int() -> None:
@@ -48,12 +49,48 @@ def check_case_key_is_stable() -> None:
     assert case_key(58, "답", [1, 2]) == case_key(58, "답", [1, 2])
 
 
+def _fake_case(case_id: str, faith: float) -> Case:
+    return Case(
+        case_id=case_id,
+        question_id=58,
+        question="질문",
+        ground_truth="정답",
+        generated_answer="답변",
+        sources=(SourceRef(chunk_id=1, document_id=2, filename="a.md", content="본문"),),
+        seen_in_runs=(11, 12),
+        judge_faithfulness=faith,
+        judge_relevancy=1.0,
+    )
+
+
+def check_dump_hides_judge_scores() -> None:
+    """🔴 이 도구의 존재 이유다. 채점자 점수를 보고 매기면 앵커링되어 대조가 성립하지 않는다.
+
+    `answerable_check` 가 홀드아웃을 기본 모드에서 <읽지도 않게> 만들어둔 것과 같은 규칙이다.
+    """
+    payload = build_payload([_fake_case("aaa", 0.0)], carried={})
+    blob = __import__("json").dumps(payload, ensure_ascii=False)
+    assert "faithfulness" not in blob
+    assert "judge" not in blob
+    assert payload["cases"][0]["label"] is None
+
+
+def check_dump_carries_existing_labels() -> None:
+    """다시 dump 해도 사람이 채운 칸을 잃지 않는다. 1.5~2시간짜리 일이라 이어 할 수 있어야 한다."""
+    carried = {"aaa": {"label": 0.5, "note": "절반만 근거에 있다"}}
+    payload = build_payload([_fake_case("aaa", 1.0)], carried=carried)
+    assert payload["cases"][0]["label"] == 0.5
+    assert payload["cases"][0]["note"] == "절반만 근거에 있다"
+
+
 def main() -> None:
     checks = [
         check_chunk_ids_are_parsed_as_int,
         check_chunk_ids_keep_order,
         check_case_key_distinguishes_source_order,
         check_case_key_is_stable,
+        check_dump_hides_judge_scores,
+        check_dump_carries_existing_labels,
     ]
     for fn in checks:
         fn()
