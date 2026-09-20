@@ -67,12 +67,23 @@ def check_dump_hides_judge_scores() -> None:
     """🔴 이 도구의 존재 이유다. 채점자 점수를 보고 매기면 앵커링되어 대조가 성립하지 않는다.
 
     `answerable_check` 가 홀드아웃을 기본 모드에서 <읽지도 않게> 만들어둔 것과 같은 규칙이다.
+
+    🔴 본문에서 낱말을 찾는 방식으로 검사하지 않는다. 그렇게 하면 두 가지로 거짓이 된다:
+       근거 청크 본문에 우연히 "judge" 가 섞이면 <블라인드가 멀쩡한데도> 실패하고
+       (이 저장소의 "정상을 실패로 부르는 검사" 부류다), 반대로 점수가 다른 이름의
+       칸으로 새어 나가면 낱말 검사를 그냥 지나간다.
+       그래서 <허용된 칸 목록>을 고정하고 그 밖의 칸이 생기면 실패시킨다.
     """
+    allowed = {
+        "case_id", "question_id", "question", "ground_truth",
+        "generated_answer", "sources", "seen_in_runs", "label", "note",
+    }
     payload = build_payload([_fake_case("aaa", 0.0)], carried={})
-    blob = __import__("json").dumps(payload, ensure_ascii=False)
-    assert "faithfulness" not in blob
-    assert "judge" not in blob
-    assert payload["cases"][0]["label"] is None
+    case = payload["cases"][0]
+    extra = set(case) - allowed
+    assert not extra, f"라벨 파일에 허용되지 않은 칸이 생겼습니다: {sorted(extra)}"
+    assert set(case["sources"][0]) == {"chunk_id", "filename", "content"}
+    assert case["label"] is None
 
 
 def check_dump_carries_existing_labels() -> None:
