@@ -143,6 +143,28 @@ def check_kappa_is_one_on_perfect_agreement() -> None:
     assert abs(linear_weighted_kappa(pairs) - 1.0) < 1e-9
 
 
+def check_kappa_paradox_is_real_on_this_distribution() -> None:
+    """🔴 카파 역설을 <실행 가능한 형태로> 못박는다. 출력의 주석이 말뿐이 아니게 한다.
+
+    지금 DB 의 채점자 분포는 44건 중 충실성 1.0 이 40건이다. 사람이 그 44건을 전부
+    1.0 으로 본다면(채점자가 박하게만 틀렸다면 그렇게 된다) 이런 일이 벌어진다:
+
+        일치율 90.9%  ·  선형가중 카파 0.0000
+
+    한쪽 평정자가 한 값에 고정되면 우연 일치 기대치가 관측 일치와 같아져 분자가
+    정확히 0 이 된다. **채점자가 44건 중 40건을 맞혔는데도 카파는 "우연 수준" 이다.**
+
+    이 검사가 있는 이유는 <미래의 누군가>가 출력의 주석을 지우고 카파만 인용하는 것을
+    막기 위해서다. 이 저장소가 반복해 낸 부류다: 숫자 하나가 서로 다른 사실을 뭉갠다.
+    """
+    pairs = [(1.0, 1.0)] * 40 + [(1.0, 0.5)] * 3 + [(1.0, 0.0)]
+    agreement = sum(1 for h, j in pairs if h == j) / len(pairs)
+    assert abs(agreement - 40 / 44) < 1e-9
+    assert abs(linear_weighted_kappa(pairs)) < 1e-9
+    # 그리고 방향은 전부 <박함> 이다. 채점자가 낮게 줬으므로 전체충실성은 실제보다 낮다.
+    assert direction_counts(pairs) == (0, 4, 40)
+
+
 def main() -> None:
     checks = [
         check_chunk_ids_are_parsed_as_int,
@@ -156,6 +178,7 @@ def main() -> None:
         check_confusion_counts_by_human_then_judge,
         check_overall_faithfulness_matches_the_repo_formula,
         check_kappa_is_one_on_perfect_agreement,
+        check_kappa_paradox_is_real_on_this_distribution,
     ]
     for fn in checks:
         fn()
