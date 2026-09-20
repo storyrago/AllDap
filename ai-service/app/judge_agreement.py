@@ -257,6 +257,38 @@ def _print_distortion(run_ids: list[int], label_of: dict[str, float]) -> None:
     print("     비교표가 <채점자 오차 안에서> 움직였다는 뜻이 된다.")
 
 
+def fetch_reasons(cases: list[Case], mismatched_ids: list[str]) -> dict[str, tuple[float, str]]:
+    """불일치 케이스만 채점자를 다시 불러 (점수, 사유)를 받는다.
+
+    🔴 왜 다시 부르나: `eval_results` 에 reason 컬럼이 없다. judge.score 가 사유를
+       파싱해 Scores 에 담는데 evalrun 의 INSERT 가 그것을 버린다. 사유가 없으면
+       <틀린 것>과 <거짓 사유를 댄 것>을 가를 수 없다. q3 가 정확히 그 경우였다.
+
+    🔴 덤으로 결정성 점검이 된다. 2026-09-18 에 확인한 것은 두 입력에서 15회씩
+       안 흔들렸다는 것까지다. 재호출 점수가 DB 값과 다르면 <그 자체가 발견>이라
+       조용히 넘기지 않고 찍는다.
+
+    비용: 불일치분만이라 보통 수 건이고 회당 약 25 뉴런이다.
+    """
+    from .judge import score as judge_score
+
+    by_id = {c.case_id: c for c in cases}
+    out: dict[str, tuple[float, str]] = {}
+    for cid in mismatched_ids:
+        c = by_id[cid]
+        s = judge_score(
+            question=c.question,
+            ground_truth=c.ground_truth,
+            sources=[src.to_source() for src in c.sources],
+            answer=c.generated_answer,
+        )
+        if s is None:
+            out[cid] = (float("nan"), "(채점 호출 실패)")
+            continue
+        out[cid] = (s.faithfulness, s.reason)
+    return out
+
+
 def report(run_ids: list[int], path: str, with_reasons: bool) -> int:
     cases = load_cases(run_ids)
     triples = _load_pairs(path, cases)
@@ -270,6 +302,12 @@ def report(run_ids: list[int], path: str, with_reasons: bool) -> int:
     _print_distortion(run_ids, label_of)
 
     mismatched = [(cid, h, j) for cid, h, j in triples if h != j]
+
+    reasons: dict[str, tuple[float, str]] = {}
+    if with_reasons and mismatched:
+        print(f"\n  채점자를 {len(mismatched)}건 다시 부릅니다 (약 {len(mismatched) * 25} 뉴런)...")
+        reasons = fetch_reasons(cases, [cid for cid, _, _ in mismatched])
+
     print(f"\n[4] 불일치 상세  {len(mismatched)}건")
     if not mismatched:
         print("  없음.")
@@ -281,6 +319,12 @@ def report(run_ids: list[int], path: str, with_reasons: bool) -> int:
         print(f"    기대: {c.ground_truth}")
         print(f"    답변: {c.generated_answer[:200]}")
         print(f"    근거: {[s.chunk_id for s in c.sources]}")
+        if cid in reasons:
+            again, why = reasons[cid]
+            print(f"    사유: {why}")
+            if again != j:
+                print(f"    🔴 재호출 점수가 DB 값과 다릅니다: DB {j} vs 재호출 {again}")
+                print("       채점자가 결정적이라는 전제가 이 입력에서는 성립하지 않습니다.")
     return 0
 
 
