@@ -49,6 +49,65 @@ _README = (
 )
 
 
+def confusion(pairs: list[tuple[float, float]]) -> dict[tuple[float, float], int]:
+    """3×3 혼동행렬. 🔴 키는 (사람, 채점자) 순서다.
+
+    숫자 하나로 요약하지 않고 표를 통째로 싣는 이유: 44건 중 40건이 한 칸에 몰려
+    있어서, 요약 지표는 나머지 4건에 통째로 끌려다닌다. 표는 그 사실을 감추지 않는다.
+    """
+    m = {(h, j): 0 for h in LABELS for j in LABELS}
+    for h, j in pairs:
+        m[(h, j)] += 1
+    return m
+
+
+def direction_counts(pairs: list[tuple[float, float]]) -> tuple[int, int, int]:
+    """(후함, 박함, 일치). 🔴 후함 = 채점자가 사람보다 <높게> 준 것이다.
+
+    후하면 전체충실성이 실제보다 높게 나오고, 박하면 낮게 나온다.
+    둘은 반대 방향의 결론이라 절대 한 값으로 뭉개면 안 된다.
+    """
+    generous = sum(1 for h, j in pairs if j > h)
+    harsh = sum(1 for h, j in pairs if j < h)
+    return generous, harsh, len(pairs) - generous - harsh
+
+
+def overall_faithfulness(scores: list[float], question_count: int) -> float:
+    """전체충실성 = avg_faithfulness × scored_count / question_count.
+
+    정리하면 sum(scores) / question_count 다. 이 저장소가 Spring 에서 쓰는 식과
+    같아야 채점자 기준 수치와 나란히 놓을 수 있다.
+    """
+    if question_count <= 0:
+        return 0.0
+    return sum(scores) / question_count
+
+
+def linear_weighted_kappa(pairs: list[tuple[float, float]]) -> float:
+    """선형 가중 카파. ⚠️ 이 데이터에서는 참고용이다.
+
+    44건 중 40건이 1.0 이라 우연 일치 확률이 이미 0.83 쯤이고, 분모(1 - Pe)가
+    거의 0 이 된다. 일치율이 높아도 카파가 낮게 나오는 <카파 역설>이다.
+    출력에서 이 값 옆에 반드시 그 주석을 함께 찍는다.
+    """
+    n = len(pairs)
+    if n == 0:
+        return 0.0
+    idx = {v: i for i, v in enumerate(LABELS)}
+    k = len(LABELS)
+
+    def w(a: int, b: int) -> float:
+        return 1.0 - abs(a - b) / (k - 1)
+
+    obs = sum(w(idx[h], idx[j]) for h, j in pairs) / n
+    hc = [sum(1 for h, _ in pairs if h == v) / n for v in LABELS]
+    jc = [sum(1 for _, j in pairs if j == v) / n for v in LABELS]
+    exp = sum(w(a, b) * hc[a] * jc[b] for a in range(k) for b in range(k))
+    if abs(1.0 - exp) < 1e-12:
+        return 0.0
+    return (obs - exp) / (1.0 - exp)
+
+
 def read_labels(path: str) -> dict[str, dict]:
     """이미 채워둔 라벨을 읽는다. 파일이 없으면 빈 dict."""
     if not os.path.exists(path):

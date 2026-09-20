@@ -14,7 +14,9 @@
 from __future__ import annotations
 
 from .eval_cases import Case, SourceRef, case_key, chunk_ids_of
-from .judge_agreement import build_payload
+from .judge_agreement import (
+    build_payload, confusion, direction_counts, linear_weighted_kappa, overall_faithfulness,
+)
 
 
 def check_chunk_ids_are_parsed_as_int() -> None:
@@ -94,6 +96,53 @@ def check_dump_carries_existing_labels() -> None:
     assert payload["cases"][0]["note"] == "절반만 근거에 있다"
 
 
+def check_direction_generous_means_judge_is_higher() -> None:
+    """🔴 부호가 뒤집히면 결론이 정반대가 된다. 이 검사가 이 파일의 존재 이유다.
+
+    (사람, 채점자) = (0.0, 1.0) 은 <채점자가 후하다>. 사람이 0점을 줄 답에 1점을 줬다.
+    그러면 전체충실성이 실제보다 <높게> 나온다.
+    """
+    generous, harsh, same = direction_counts([(0.0, 1.0)])
+    assert (generous, harsh, same) == (1, 0, 0)
+
+
+def check_direction_harsh_means_judge_is_lower() -> None:
+    """(사람, 채점자) = (1.0, 0.0) 은 <채점자가 박하다>. q3 가 이 모양이었다.
+
+    그러면 전체충실성이 실제보다 <낮게> 나온다.
+    """
+    generous, harsh, same = direction_counts([(1.0, 0.0)])
+    assert (generous, harsh, same) == (0, 1, 0)
+
+
+def check_confusion_counts_by_human_then_judge() -> None:
+    """혼동행렬의 키는 (사람, 채점자) 순서다. 뒤집으면 표를 거꾸로 읽게 된다."""
+    m = confusion([(1.0, 1.0), (1.0, 1.0), (1.0, 0.5), (0.5, 1.0)])
+    assert m[(1.0, 1.0)] == 2
+    assert m[(1.0, 0.5)] == 1
+    assert m[(0.5, 1.0)] == 1
+    assert m[(0.0, 0.0)] == 0
+
+
+def check_overall_faithfulness_matches_the_repo_formula() -> None:
+    """전체충실성 = avg × scored / total. 정리하면 sum / total 이다.
+
+    이 저장소가 쓰는 식 그대로여야 채점자 기준 수치와 나란히 놓을 수 있다.
+    fallback 이 많아 scored 가 작아지는 것은 정상이고, 오염 지표는 따로 있다
+    (generated_answer IS NULL = 처리 실패).
+    """
+    # 26문항 중 24건만 채점됐고 그 평균이 1.0 이면 24/26
+    assert abs(overall_faithfulness([1.0] * 24, 26) - 24 / 26) < 1e-9
+    # 채점된 것이 하나도 없으면 0.0 이다(0으로 나누지 않는다)
+    assert overall_faithfulness([], 26) == 0.0
+
+
+def check_kappa_is_one_on_perfect_agreement() -> None:
+    """완전 일치면 1.0. 다만 이 값은 참고용이다(분포 치우침 주석이 출력에 붙는다)."""
+    pairs = [(1.0, 1.0)] * 8 + [(0.5, 0.5)] * 2
+    assert abs(linear_weighted_kappa(pairs) - 1.0) < 1e-9
+
+
 def main() -> None:
     checks = [
         check_chunk_ids_are_parsed_as_int,
@@ -102,6 +151,11 @@ def main() -> None:
         check_case_key_is_stable,
         check_dump_hides_judge_scores,
         check_dump_carries_existing_labels,
+        check_direction_generous_means_judge_is_higher,
+        check_direction_harsh_means_judge_is_lower,
+        check_confusion_counts_by_human_then_judge,
+        check_overall_faithfulness_matches_the_repo_formula,
+        check_kappa_is_one_on_perfect_agreement,
     ]
     for fn in checks:
         fn()
