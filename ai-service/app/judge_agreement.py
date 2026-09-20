@@ -35,6 +35,7 @@ import json
 import os
 import sys
 
+from .db import cursor
 from .eval_cases import DEFAULT_RUN_IDS, Case, load_cases
 
 LABELS: tuple[float, float, float] = (0.0, 0.5, 1.0)
@@ -154,14 +155,153 @@ def dump(run_ids: list[int], path: str) -> None:
     print("label 칸에 0 / 0.5 / 1 을 채운 뒤 `report` 를 돌리세요.")
 
 
+class LabelFileProblem(RuntimeError):
+    """라벨 파일이 없거나 덜 채워졌다. 부분 집계를 내지 않는다."""
+
+
+def _load_pairs(path: str, cases: list[Case]) -> list[tuple[str, float, float]]:
+    """(case_id, 사람 라벨, 채점자 점수) 목록. 하나라도 비면 실패한다.
+
+    🔴 부분 집계를 내지 않는 이유: 한 번 찍힌 숫자는 결과로 인용된다.
+       "44건 중 30건만 매긴 상태의 중간값" 이라는 꼬리표는 인용될 때 떨어져 나간다.
+    """
+    if not os.path.exists(path):
+        raise LabelFileProblem(
+            f"{path} 가 없습니다. 먼저 `python -m app.judge_agreement dump` 를 돌리고"
+            " label 칸을 0 / 0.5 / 1 로 채우세요."
+        )
+    labels = read_labels(path)
+    by_id = {c.case_id: c for c in cases}
+
+    unknown = sorted(set(labels) - set(by_id))
+    if unknown:
+        raise LabelFileProblem(
+            f"라벨 파일에 DB 에 없는 케이스 {len(unknown)}건이 있습니다: {unknown[:5]}"
+            " ... 코퍼스나 평가셋이 바뀐 것입니다. `dump` 를 다시 돌리세요."
+        )
+
+    blank, bad, pairs = [], [], []
+    for cid, c in by_id.items():
+        rec = labels.get(cid)
+        if rec is None or rec.get("label") is None:
+            blank.append(cid)
+            continue
+        v = float(rec["label"])
+        if v not in LABELS:
+            bad.append((cid, rec["label"]))
+            continue
+        pairs.append((cid, v, c.judge_faithfulness))
+
+    if bad:
+        raise LabelFileProblem(
+            f"라벨 값이 0 / 0.5 / 1 이 아닌 것이 {len(bad)}건 있습니다: {bad[:5]}"
+        )
+    if blank:
+        raise LabelFileProblem(
+            f"아직 매기지 않은 케이스가 {len(blank)}건 남았습니다"
+            f" (전체 {len(by_id)}건). 남은 case_id 예: {blank[:5]}"
+            " ... 전부 채운 뒤 다시 돌리세요. 부분 집계는 내지 않습니다."
+        )
+    return pairs
+
+
+def _print_confusion(pairs: list[tuple[float, float]]) -> None:
+    m = confusion(pairs)
+    print("\n[1] 혼동행렬  (행 = 사람, 열 = 채점자)")
+    print("            " + "".join(f"{j:>7.1f}" for j in LABELS))
+    for h in LABELS:
+        print(f"  사람 {h:>3.1f}   " + "".join(f"{m[(h, j)]:>7d}" for j in LABELS))
+
+
+def _print_direction(pairs: list[tuple[float, float]]) -> None:
+    generous, harsh, same = direction_counts(pairs)
+    n = len(pairs)
+    print(f"\n[2] 방향  (전체 {n}건)")
+    print(f"  일치            {same:>3d}건  ({same / n:.1%})")
+    print(f"  채점자가 후하다  {generous:>3d}건  → 전체충실성이 실제보다 <높게> 나온다")
+    print(f"  채점자가 박하다  {harsh:>3d}건  → 전체충실성이 실제보다 <낮게> 나온다")
+    kappa = linear_weighted_kappa(pairs)
+    print(f"\n  선형가중 카파 {kappa:.3f}")
+    print("  ⚠️ 이 값만 인용하지 말 것. 한쪽 값에 몰린 분포에서는 우연 일치 확률이")
+    print("     높아 분모가 거의 0 이 되고, 일치율이 높아도 카파가 낮게 나온다(카파 역설).")
+
+
+def _print_distortion(run_ids: list[int], label_of: dict[str, float]) -> None:
+    """run 별로 <채점자 기준> 과 <사람 기준> 전체충실성을 나란히 놓는다."""
+    from .eval_cases import case_key, chunk_ids_of
+
+    print("\n[3] 전체충실성 왜곡량  (= avg × scored / total)")
+    print("  run   문항  채점  채점자기준   사람기준      차이")
+    with cursor() as cur:
+        for rid in run_ids:
+            cur.execute(
+                """SELECT question_id, generated_answer, retrieved_chunks, faithfulness
+                     FROM eval_results
+                    WHERE run_id = %s AND generated_answer IS NOT NULL""",
+                (rid,),
+            )
+            rows = cur.fetchall()
+            total = len(rows)
+            j_scores, h_scores = [], []
+            for qid, answer, retrieved, faith in rows:
+                if faith is None:
+                    continue  # fallback. 양쪽 모두 분자에서 빠진다
+                cid = case_key(int(qid), answer, chunk_ids_of(retrieved))
+                j_scores.append(float(faith))
+                h_scores.append(label_of[cid])
+            j = overall_faithfulness(j_scores, total)
+            h = overall_faithfulness(h_scores, total)
+            print(f"  {rid:>3d}   {total:>4d}  {len(j_scores):>4d}"
+                  f"    {j:>8.4f}   {h:>8.4f}   {h - j:>+8.4f}")
+    print("\n  ⚠️ 실측 편차 폭은 0.032 다. 차이가 그보다 크면 이 저장소의 before/after")
+    print("     비교표가 <채점자 오차 안에서> 움직였다는 뜻이 된다.")
+
+
+def report(run_ids: list[int], path: str, with_reasons: bool) -> int:
+    cases = load_cases(run_ids)
+    triples = _load_pairs(path, cases)
+    pairs = [(h, j) for _, h, j in triples]
+    label_of = {cid: h for cid, h, _ in triples}
+    by_id = {c.case_id: c for c in cases}
+
+    print(f"사람 라벨 {len(pairs)}건 · 채점자 {len(pairs)}건  (run {run_ids})")
+    _print_confusion(pairs)
+    _print_direction(pairs)
+    _print_distortion(run_ids, label_of)
+
+    mismatched = [(cid, h, j) for cid, h, j in triples if h != j]
+    print(f"\n[4] 불일치 상세  {len(mismatched)}건")
+    if not mismatched:
+        print("  없음.")
+    for cid, h, j in sorted(mismatched, key=lambda t: abs(t[2] - t[1]), reverse=True):
+        c = by_id[cid]
+        arrow = "후함" if j > h else "박함"
+        print(f"\n  · {cid}  q{c.question_id}  사람 {h} / 채점자 {j}  ({arrow})")
+        print(f"    질문: {c.question}")
+        print(f"    기대: {c.ground_truth}")
+        print(f"    답변: {c.generated_answer[:200]}")
+        print(f"    근거: {[s.chunk_id for s in c.sources]}")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description="채점자를 사람 라벨과 대조한다")
     sub = p.add_subparsers(dest="cmd", required=True)
     d = sub.add_parser("dump", help="블라인드 라벨 파일을 내보낸다")
     d.add_argument("--path", default=DEFAULT_PATH)
+    r = sub.add_parser("report", help="사람 라벨과 채점자를 대조한다")
+    r.add_argument("--path", default=DEFAULT_PATH)
+    r.add_argument("--reasons", action="store_true",
+                   help="불일치 케이스만 채점자를 다시 불러 사유를 받는다 (외부 API 를 부른다)")
     args = p.parse_args(argv)
     if args.cmd == "dump":
         dump(DEFAULT_RUN_IDS, args.path)
+    if args.cmd == "report":
+        try:
+            return report(DEFAULT_RUN_IDS, args.path, args.reasons)
+        except LabelFileProblem as e:
+            print(f"❌ {e}", file=sys.stderr)
+            return 1
     return 0
 
 
