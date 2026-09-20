@@ -107,7 +107,7 @@ class Scores(BaseModel):
 
 **Files:**
 - Create: `ai-service/app/eval_cases.py`
-- Create: `ai-service/app/judge_agreement_check.py` (순수 함수 검사. 이 태스크에서 첫 두 개만 넣는다)
+- Create: `ai-service/app/judge_agreement_check.py` (순수 함수 검사. 이 태스크에서 **검사 4개**를 넣는다. Task 2 가 2개, Task 3 이 5개를 덧붙여 최종 11개가 된다)
 
 **Interfaces:**
 - Consumes: `app.db.cursor`, `app.schemas.Id`, `app.schemas.Source`
