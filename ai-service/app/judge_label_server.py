@@ -185,7 +185,11 @@ PAGE = r"""<!doctype html>
   .card { background: #fff; border: 1px solid #e7e5e4; border-radius: 10px; padding: 20px; margin-bottom: 16px; }
   h2 { font-size: 13px; letter-spacing: .04em; color: #78716c; margin: 0 0 8px; font-weight: 600; }
   .q { font-size: 19px; font-weight: 600; }
-  .answer { white-space: pre-wrap; background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 14px; }
+  .answer { background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 6px 14px; }
+  .answer.raw { white-space: pre-wrap; padding: 14px; }
+  .line { display: flex; gap: 10px; padding: 8px 0; border-top: 1px solid #fde68a; }
+  .line:first-child { border-top: 0; }
+  .line .n { color: #a16207; font-variant-numeric: tabular-nums; flex: none; }
   .src { border-top: 1px dashed #e7e5e4; padding-top: 12px; margin-top: 12px; }
   .src:first-of-type { border-top: 0; padding-top: 0; margin-top: 0; }
   .src .fn { font-size: 12px; color: #78716c; font-family: ui-monospace, monospace; }
@@ -253,8 +257,13 @@ PAGE = r"""<!doctype html>
     <div class="hint" id="gt" style="margin-top:8px"></div>
   </div>
   <div class="card">
-    <h2>답변 (이것의 모든 주장이 아래 근거에 있는가)</h2>
+    <h2>답변 · 한 줄씩 근거에서 찾아보세요</h2>
     <div class="answer" id="answer"></div>
+    <div class="hint" style="margin-top:8px">
+      마침표 기준으로 <strong>기계적으로</strong> 나눈 것입니다(내용 판단은 하지 않았습니다).
+      한 줄 안에 알려준 정보가 둘이면 머릿속에서 더 쪼개서 보세요.
+      <button id="raw" class="ghost" style="padding:2px 8px; font-size:12px; margin-left:6px">원문 보기</button>
+    </div>
   </div>
   <div class="card">
     <h2>근거</h2>
@@ -293,6 +302,35 @@ function firstUnlabeled() {
   return k === -1 ? 0 : k;
 }
 
+// 마침표·물음표·느낌표 뒤에서만 자른다. 뜻을 보고 자르는 것이 아니라 <글자>를 보고 자른다.
+// 🔴 LLM 에게 "주장을 뽑아줘" 를 시키지 않는 이유: 그 순간 사람 기준자에 LLM 판단이 섞여
+//    "LLM 채점자를 사람과 대조한다" 는 이 슬라이스의 전제가 무너진다.
+function splitSentences(text) {
+  return text.split(/(?<=[.!?])\s+/).map(t => t.trim()).filter(Boolean);
+}
+
+let rawMode = false;
+
+function renderAnswer(text) {
+  const box = $('answer');
+  box.innerHTML = '';
+  if (rawMode) { box.className = 'answer raw'; box.textContent = text; return; }
+  box.className = 'answer';
+  const parts = splitSentences(text);
+  const marks = '①②③④⑤⑥⑦⑧⑨⑩';
+  parts.forEach((t, k) => {
+    const row = document.createElement('div');
+    row.className = 'line';
+    const n = document.createElement('span');
+    n.className = 'n';
+    n.textContent = k < marks.length ? marks[k] : (k + 1) + '.';
+    const b = document.createElement('span');
+    b.textContent = t;
+    row.append(n, b);
+    box.append(row);
+  });
+}
+
 function render() {
   const c = data.cases[i];
   const done = data.cases.filter(x => x.label !== null).length;
@@ -300,7 +338,7 @@ function render() {
   $('fill').style.width = (done / data.cases.length * 100) + '%';
   $('question').textContent = c.question;
   $('gt').textContent = '참고로 둔 정답(질문 생성 때 만든 것): ' + c.ground_truth;
-  $('answer').textContent = c.generated_answer;
+  renderAnswer(c.generated_answer);
   $('sources').innerHTML = '';
   c.sources.forEach((s, n) => {
     const d = document.createElement('div');
@@ -343,6 +381,7 @@ document.querySelectorAll('[data-v]').forEach(btn => {
 $('prev').onclick = () => { if (i > 0) { i--; render(); } };
 $('next').onclick = () => { if (i < data.cases.length - 1) { i++; render(); } };
 $('jump').onclick = () => { i = firstUnlabeled(); render(); };
+$('raw').onclick = () => { rawMode = !rawMode; $('raw').textContent = rawMode ? '나눠 보기' : '원문 보기'; renderAnswer(data.cases[i].generated_answer); };
 $('note').onchange = () => setLabel(data.cases[i].label, false);
 
 // 키보드: 숫자로 채점, 화살표로 이동. 메모 칸에 있을 때는 가로채지 않는다.
