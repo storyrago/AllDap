@@ -14,6 +14,7 @@
 from __future__ import annotations
 
 from .eval_cases import Case, SourceRef, case_key, chunk_ids_of
+from .judge_label_server import LabelRejected, apply_label
 from .judge_agreement import (
     rescore_verdict,
     build_payload, confusion, direction_counts, linear_weighted_kappa, overall_faithfulness,
@@ -179,6 +180,57 @@ def check_rescore_failure_is_not_a_disagreement() -> None:
     # NaN 을 넣었다면 이 셋이 전부 "differs" 로 뭉개졌을 것이다
     assert rescore_verdict(float("nan"), 1.0) == "differs"
 
+# ── 라벨링 보조 페이지 (app.judge_label_server) ───────────────────────────────
+# 🔴 여기서 틀리면 <라벨 자체>가 오염된다. 집계가 아무리 정확해도 입력이 틀리면 끝이다.
+
+
+def check_apply_label_rejects_unknown_value() -> None:
+    """0 / 0.5 / 1 이 아닌 값은 파일에 들어가면 안 된다.
+
+    들어가면 `report` 가 나중에 실패하는데, 그때는 어느 건에서 잘못 눌렀는지
+    기억나지 않는다. 눌리는 그 순간에 막는 것이 훨씬 싸다.
+    """
+    data = {"cases": [{"case_id": "a", "label": None, "note": ""}]}
+    for bad in (0.7, 1.5, -1):
+        try:
+            apply_label(data, "a", bad, "")
+        except LabelRejected:
+            continue
+        raise AssertionError(f"{bad} 가 그냥 통과했습니다")
+
+
+def check_apply_label_rejects_unknown_case_id() -> None:
+    """없는 case_id 는 조용히 무시하지 않는다.
+
+    무시하면 화면에는 "저장됨" 이 뜨는데 파일은 그대로다. 이 저장소가 아홉 번 낸
+    <뭉개기> 부류와 같은 모양이라(성공과 아무 일도 안 함이 같은 값) 예외를 던진다.
+    """
+    data = {"cases": [{"case_id": "a", "label": None, "note": ""}]}
+    try:
+        apply_label(data, "없는id", 1.0, "")
+    except LabelRejected:
+        return
+    raise AssertionError("없는 case_id 가 통과했습니다")
+
+
+def check_apply_label_touches_only_that_case() -> None:
+    """한 건을 고칠 때 나머지 43건이 그대로여야 한다. 그리고 원본을 제자리에서 고치지 않는다."""
+    data = {"_readme": "x", "cases": [
+        {"case_id": "a", "label": None, "note": ""},
+        {"case_id": "b", "label": 0.5, "note": "먼저 매긴 것"},
+    ]}
+    out = apply_label(data, "a", 1.0, "메모")
+    assert out["cases"][0]["label"] == 1.0 and out["cases"][0]["note"] == "메모"
+    assert out["cases"][1] == {"case_id": "b", "label": 0.5, "note": "먼저 매긴 것"}
+    assert out["_readme"] == "x"
+    assert data["cases"][0]["label"] is None, "원본 dict 가 제자리에서 바뀌었습니다"
+
+
+def check_apply_label_can_clear_a_mistake() -> None:
+    """None 은 허용한다. 잘못 누른 것을 되돌릴 방법이 없으면 사람이 파일을 손으로 고치게 된다."""
+    data = {"cases": [{"case_id": "a", "label": 0.0, "note": ""}]}
+    assert apply_label(data, "a", None, "")["cases"][0]["label"] is None
+
 
 def main() -> None:
     checks = [
@@ -195,6 +247,10 @@ def main() -> None:
         check_kappa_is_one_on_perfect_agreement,
         check_kappa_paradox_is_real_on_this_distribution,
         check_rescore_failure_is_not_a_disagreement,
+        check_apply_label_rejects_unknown_value,
+        check_apply_label_rejects_unknown_case_id,
+        check_apply_label_touches_only_that_case,
+        check_apply_label_can_clear_a_mistake,
     ]
     for fn in checks:
         fn()
