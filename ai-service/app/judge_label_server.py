@@ -198,6 +198,9 @@ PAGE = r"""<!doctype html>
   .ghost { color: #57534e; }
   input[type=text] { width: 100%; padding: 9px 12px; border: 1px solid #d6d3d1; border-radius: 8px; font: inherit; }
   .hint { font-size: 13px; color: #78716c; }
+  .rule { border-collapse: collapse; }
+  .rule td { padding: 4px 14px 4px 0; vertical-align: top; }
+  details summary::-webkit-details-marker { color: #a8a29e; }
   .nav { display: flex; gap: 10px; align-items: center; }
   .err { color: #b91c1c; }
 </style>
@@ -215,7 +218,34 @@ PAGE = r"""<!doctype html>
 <main>
   <div class="card">
     <h2>기준</h2>
-    <div class="hint" id="readme"></div>
+    <p style="margin:0 0 10px"><strong>답변이 말한 내용이 아래 근거에서 찾아지는가</strong>, 이것만 봅니다.</p>
+    <table class="rule">
+      <tr><td><strong>1.0</strong></td><td>답변이 말한 게 <strong>전부</strong> 근거에 있다</td></tr>
+      <tr><td><strong>0.5</strong></td><td>있는 것과 없는 것이 <strong>섞였다</strong> (답변이 여러 가지를 말할 때만 나옵니다)</td></tr>
+      <tr><td><strong>0.0</strong></td><td>답변이 말한 게 <strong>근거에 없다</strong></td></tr>
+    </table>
+    <ul class="hint" style="margin:12px 0 0; padding-left:18px">
+      <li>세는 것은 <strong>답변의 주장</strong>입니다. 근거를 몇 건 썼는지는 안 봅니다.
+          근거 1 하나에 다 들어 있어도 1.0 입니다.</li>
+      <li>방향은 <strong>답변 → 근거</strong> 한쪽입니다. 근거에 답변보다 많은 내용이 적혀 있는 것,
+          답변과 무관한 근거가 섞여 있는 것은 감점하지 않습니다.</li>
+      <li>🔴 <strong>세상의 상식으로 맞는 말이어도 근거에 없으면 깎습니다.</strong>
+          근거에서 계산하거나 추론해 낸 문장도 근거에 그 말이 없으면 없는 것입니다.</li>
+      <li>표현이 달라도 뜻이 같으면 있는 것으로 봅니다("4단계" ↔ "네 등급").</li>
+      <li>"자세한 내용은 담당자에게 문의하세요" 같은 안내 문구는 주장이 아니라 세지 않습니다.</li>
+    </ul>
+    <details style="margin-top:12px">
+      <summary class="hint" style="cursor:pointer">0.5 는 언제 나오나 (예시)</summary>
+      <div class="hint" style="margin-top:8px">
+        답변: "직급은 사원, 선임, 책임, 수석의 4단계입니다. <u>승진 심사는 매년 12월에 진행합니다.</u>"<br>
+        앞 문장은 근거에 있고 밑줄 친 문장은 근거 어디에도 없다면, 한 답변 안에 있는 것과 없는 것이
+        섞였으므로 0.5 입니다. 답변이 한 가지만 말하면 0.5 가 나올 자리가 없습니다.
+      </div>
+    </details>
+    <details style="margin-top:8px">
+      <summary class="hint" style="cursor:pointer">라벨 파일에 적힌 원문 기준</summary>
+      <div class="hint" id="readme" style="margin-top:8px"></div>
+    </details>
   </div>
   <div class="card">
     <h2>질문</h2>
