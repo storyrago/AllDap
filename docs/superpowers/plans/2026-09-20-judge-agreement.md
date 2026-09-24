@@ -1275,7 +1275,7 @@ EOF
 cd ai-service && .venv/bin/python -m app.judge_agreement_check
 ```
 
-Expected: `11가지 전부 통과.`
+Expected: `13가지 전부 통과.` (Task 3 시점의 11가지에 Task 4·5 가 둘을 더했다)
 
 - [ ] **Step 5: 커밋**
 

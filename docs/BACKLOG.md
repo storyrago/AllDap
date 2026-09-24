@@ -409,6 +409,7 @@ q16(업무용 vs 개인 노트북) · q17 · q20(둘 다 인턴 문서를 수습
 | 판정 사유를 부분 일치로 단언하는 검사 | loadtest 밖에도 있는지 **아무도 안 훑었다.** "정상을 실패로 부르는 검사" 부류의 온상이다 |
 | 봇별 시간대 설정 | 해외 고객이 생기면. `ConversationLogService.java:56` · `web/.../logs/page.tsx:285` |
 | `NEXT_PUBLIC_SITE_URL` 주입 | `web/app/layout.tsx:42` |
+| 채점자 사유(`reason`)가 저장되지 않는다 | `judge.score` 가 파싱해 `Scores.reason` 에 담는데 `evalrun.py` 의 INSERT 가 버린다(`eval_results` 에 컬럼이 없다). 저장소 어디에서도 쓰이지 않는다. 있으면 "틀린 것" 과 "거짓 사유를 댄 것" 을 사후에 가를 수 있다. 🔴 추가하려면 Flyway `V10` 이 필요해 별개 PR 이다. 지금은 `judge_agreement report --reasons` 가 불일치분만 다시 불러 메운다 |
 
 ### 6-1. 경쟁 분석에서 <확인 못 한> 것 둘 (2026-09-19)
 
