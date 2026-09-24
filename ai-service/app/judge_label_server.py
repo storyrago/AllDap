@@ -217,6 +217,7 @@ PAGE = r"""<!doctype html>
     <button id="prev" class="ghost">← 이전</button>
     <button id="next" class="ghost">다음 →</button>
     <button id="jump" class="ghost">안 매긴 곳으로</button>
+    <input type="text" id="goto" placeholder="번호" style="width:64px; text-align:center">
   </div>
 </header>
 <main>
@@ -383,6 +384,13 @@ $('next').onclick = () => { if (i < data.cases.length - 1) { i++; render(); } };
 $('jump').onclick = () => { i = firstUnlabeled(); render(); };
 $('raw').onclick = () => { rawMode = !rawMode; $('raw').textContent = rawMode ? '나눠 보기' : '원문 보기'; renderAnswer(data.cases[i].generated_answer); };
 $('note').onchange = () => setLabel(data.cases[i].label, false);
+$('goto').onchange = () => {
+  // 번호로 바로 이동. 재검토처럼 특정 건만 다시 볼 때 44번 다음을 누르지 않게 한다.
+  const n = parseInt($('goto').value, 10);
+  if (n >= 1 && n <= data.cases.length) { i = n - 1; render(); }
+  $('goto').value = '';
+  $('goto').blur();
+};
 
 // 키보드: 숫자로 채점, 화살표로 이동. 메모 칸에 있을 때는 가로채지 않는다.
 document.addEventListener('keydown', (e) => {
