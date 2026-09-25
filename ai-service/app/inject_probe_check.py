@@ -261,6 +261,31 @@ def check_broken_nesting_is_caught() -> None:
     rows[6] = ("b", "far+4", [21, 77, 23, 24])  # far+2 는 [21, 22]
     bad = inconsistent_cases(_lm_injected(rows))
     assert len(bad) == 1 and "far+4" in bad[0], bad
+    # 같은 청크가 순서만 바뀐 것도 어긋남이다. 주입 순서는 채점자가 보는 근거 번호라,
+    # [11, 12] 와 [12, 11] 은 채점자에게 다른 입력이다. 집합으로 비교하면 이걸 놓친다
+    rows = _consistent_rows("c")
+    rows[2] = ("c", "near+2", [12, 11])
+    rows[3] = ("c", "near+4", [12, 11, 13, 14])
+    bad = inconsistent_cases(_lm_injected(rows))
+    assert len(bad) == 1 and "near+2" in bad[0], bad
+
+
+def check_missing_lower_step_is_caught() -> None:
+    """위 단계가 있는데 아래 단계가 없으면 사람이 줄을 지운 것이다.
+
+    정상 run 은 +4 를 만들 때 +2 · +1 도 함께 만들고, 채점에 실패해도 null 줄로 남긴다.
+    그러니 아래 단계가 빠진 채로 두면 first_drop 이 없는 키를 건너뛰어 붕괴 지점을
+    실제보다 늦게 말한다. near+1@front 만 있고 near+1 이 없는 것도 같은 부류다.
+    """
+    rows = [r for r in _consistent_rows("a") if r[1] != "near+2"]
+    bad = inconsistent_cases(_lm_injected(rows))
+    assert len(bad) == 1 and "near+2" in bad[0], bad
+    rows = [r for r in _consistent_rows("b") if r[1] != "far+1"]
+    bad = inconsistent_cases(_lm_injected(rows))
+    assert len(bad) == 1 and "far+1" in bad[0], bad
+    rows = [r for r in _consistent_rows("c") if r[1] not in ("near+1", "near+2", "near+4")]
+    bad = inconsistent_cases(_lm_injected(rows))
+    assert len(bad) == 1 and "near+1@front" in bad[0], bad
 
 
 def check_front_mismatch_is_caught() -> None:
@@ -321,6 +346,7 @@ def main() -> None:
         check_consistent_injection_passes,
         check_broken_nesting_is_caught,
         check_front_mismatch_is_caught,
+        check_missing_lower_step_is_caught,
         check_first_drop_none_only_when_all_measured,
         check_position_pairs_drop_unmeasured,
         check_missing_conditions_are_listed,

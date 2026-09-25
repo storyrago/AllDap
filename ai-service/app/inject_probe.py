@@ -342,10 +342,22 @@ def inconsistent_cases(lm: dict[tuple[str, str], dict]) -> list[str]:
             # 있는 조건만 모은다. 후보가 모자라 +4 가 없는 것은 어긋남이 아니다
             present = [(k, _injected_ids(lm[(cid, f"{kind}+{k}")]))
                        for k in _STEPS if (cid, f"{kind}+{k}") in lm]
+            # 🔴 반대로 위 단계가 있는데 아래 단계가 없으면 어긋남이다. 정상 run 은 +4 를
+            #    만들 때 +2 · +1 도 함께 만들고, 채점에 실패해도 null 줄로 남긴다. 그러니
+            #    빠진 것은 사람이 줄을 지운 것이고, 그대로 두면 first_drop 이 없는 키를
+            #    건너뛰어 붕괴 지점을 실제보다 늦게 말한다
+            if present:
+                top = present[-1][0]
+                for k in _STEPS:
+                    if k < top and (cid, f"{kind}+{k}") not in lm:
+                        out.append(f"{cid} {kind}+{top}: 있는데 {kind}+{k} 가 없습니다")
             # 앞의 조건이 뒤 조건의 <접두>여야 한다: +2 는 +1 에 한 장을 얹은 것
             for (ka, a), (kb, b) in zip(present, present[1:]):
                 if b[:len(a)] != a:
                     out.append(f"{cid} {kind}+{kb}: 앞부분 {b[:len(a)]} 이 {kind}+{ka} 의 {a} 와 다릅니다")
+        if (cid, "near+1@front") in lm and (cid, "near+1") not in lm:
+            # 같은 부류다. 맨 앞 조건은 near+1 과 같은 청크로만 만들어지므로 짝이 없을 수 없다
+            out.append(f"{cid} near+1@front: 있는데 near+1 이 없습니다")
         if (cid, "near+1") in lm and (cid, "near+1@front") in lm:
             end, front = _injected_ids(lm[(cid, "near+1")]), _injected_ids(lm[(cid, "near+1@front")])
             if end != front:
@@ -459,8 +471,13 @@ def report(results_path: str) -> int:
     lm = latest(records)
     broken = inconsistent_cases(lm)
     if broken:
-        print("❌ 주입 청크가 조건끼리 맞물리지 않습니다 (+1 ⊂ +2 ⊂ +4, near+1 = near+1@front)."
-              " 이어 돌리는 사이 후보가 바뀌었을 수 있습니다. 해당 케이스의 줄을 지우고 run 을 다시 돌리세요:",
+        # 어긋난 줄만 지우면 run 이 near · far 를 다시 골라 남은 줄과 또 어긋날 수 있다.
+        # 케이스의 줄을 전부 지우면 한 번에 다시 고른다. 중간 단계가 빠진 경우도 같은 안내다
+        print("❌ 주입 청크가 조건끼리 맞물리지 않거나 중간 조건이 빠졌습니다"
+              " (+1 ⊂ +2 ⊂ +4, near+1 = near+1@front)."
+              " 이어 돌리는 사이 후보가 바뀌었거나 줄이 지워졌을 수 있습니다."
+              " 그 케이스의 줄을 전부 지운 뒤 run 을 다시 돌리세요."
+              " 그 줄들에 적은 review 도 함께 지워지므로 먼저 옮겨 적어 두세요:",
               file=sys.stderr)
         for line in broken:
             print(f"   {line}", file=sys.stderr)
