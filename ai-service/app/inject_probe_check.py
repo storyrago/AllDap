@@ -17,7 +17,7 @@ from .eval_cases import Case, SourceRef
 from .judge import Scores
 from .inject_probe import (
     CONDITIONS, REVIEW_VALUES, Candidate, bad_reviews, bucket, build_conditions,
-    distribution, done_keys, drops, first_drop, latest, make_record, missing_gold, pick_far,
+    distribution, done_keys, drops, first_drop, inconsistent_cases, latest, make_record, missing_gold, pick_far,
     pick_near, select_targets, unstable_bases,
 )
 
@@ -207,6 +207,54 @@ def check_missing_gold_document_is_reported() -> None:
     assert missing_gold([_case("a", 1.0), _case("c", 1.0)], {}) == [3]
 
 
+def _lm_injected(rows: list[tuple[str, str, list[int]]]) -> dict:
+    """(case_id, 조건, 주입한 chunk_id 목록) 으로 결과 줄을 만든다. 점수는 전부 1.0."""
+    return latest([
+        {"case_id": c, "condition": k, "faithfulness": 1.0, "review": None, "reason": "",
+         "injected": [{"chunk_id": i, "filename": f"{i}.md", "distance": 0.3} for i in ids]}
+        for c, k, ids in rows
+    ])
+
+
+def _consistent_rows(case_id: str) -> list[tuple[str, str, list[int]]]:
+    return [
+        (case_id, "base", []),
+        (case_id, "near+1", [11]), (case_id, "near+2", [11, 12]), (case_id, "near+4", [11, 12, 13, 14]),
+        (case_id, "far+1", [21]), (case_id, "far+2", [21, 22]), (case_id, "far+4", [21, 22, 23, 24]),
+        (case_id, "near+1@front", [11]),
+    ]
+
+
+def check_consistent_injection_passes() -> None:
+    assert inconsistent_cases(_lm_injected(_consistent_rows("a"))) == []
+    # 후보가 모자라 +4 가 없는 것은 어긋남이 아니다
+    rows = [r for r in _consistent_rows("a") if r[1] != "near+4"]
+    assert inconsistent_cases(_lm_injected(rows)) == []
+
+
+def check_broken_nesting_is_caught() -> None:
+    """이어 돌리다 날짜가 바뀌면 near 를 새로 고른다. 그러면 +1 ⊂ +2 가 조용히 깨진다."""
+    rows = _consistent_rows("a")
+    # near+1 은 [11] 인데 near+2 앞자리가 99. near+4 는 새 near+2 를 따라가게 둬서
+    # 어긋난 자리가 정확히 한 곳(near+1 → near+2)이 되게 한다
+    rows[2] = ("a", "near+2", [99, 12])
+    rows[3] = ("a", "near+4", [99, 12, 13, 14])
+    bad = inconsistent_cases(_lm_injected(rows))
+    assert len(bad) == 1 and "a" in bad[0] and "near+2" in bad[0], bad
+    rows = _consistent_rows("b")
+    rows[6] = ("b", "far+4", [21, 77, 23, 24])  # far+2 는 [21, 22]
+    bad = inconsistent_cases(_lm_injected(rows))
+    assert len(bad) == 1 and "far+4" in bad[0], bad
+
+
+def check_front_mismatch_is_caught() -> None:
+    """맨 앞 조건이 다른 청크를 넣었으면 "자리" 가 아니라 "청크" 를 비교한 셈이다."""
+    rows = _consistent_rows("a")
+    rows[7] = ("a", "near+1@front", [55])
+    bad = inconsistent_cases(_lm_injected(rows))
+    assert len(bad) == 1 and "near+1@front" in bad[0], bad
+
+
 def main() -> None:
     checks = [
         check_targets_need_both_human_and_judge_at_one,
@@ -227,6 +275,9 @@ def main() -> None:
         check_first_drop_is_the_earliest_step,
         check_review_values_are_restricted,
         check_missing_gold_document_is_reported,
+        check_consistent_injection_passes,
+        check_broken_nesting_is_caught,
+        check_front_mismatch_is_caught,
     ]
     for fn in checks:
         fn()

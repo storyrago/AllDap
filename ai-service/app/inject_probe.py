@@ -267,6 +267,36 @@ def bad_reviews(records: list[dict]) -> list[str]:
             if r.get("review") is not None and r["review"] not in REVIEW_VALUES]
 
 
+def _injected_ids(r: dict) -> list:
+    return [i["chunk_id"] for i in r["injected"]]
+
+
+def inconsistent_cases(lm: dict[tuple[str, str], dict]) -> list[str]:
+    """케이스마다 주입 청크가 조건끼리 맞물리는지 본다. 어긋난 곳을 한 줄씩 돌려준다.
+
+    🔴 run 은 이어 돌릴 때 near · far 를 <새로> 고른다. 그사이 코퍼스나 임베딩이
+       바뀌면 +1 은 어제 고른 청크, +2 는 오늘 고른 청크가 되어 +1 ⊂ +2 ⊂ +4 가
+       조용히 깨진다. 그러면 "처음 무너진 조건에서 새로 들어온 청크가 범인" 이라는
+       붕괴 지점 해석이 거짓이 된다. 숫자는 그럴듯하게 나오므로 여기서 막는다.
+    """
+    out: list[str] = []
+    case_ids = sorted({cid for cid, _ in lm})
+    for cid in case_ids:
+        for kind in ("near", "far"):
+            # 있는 조건만 모은다. 후보가 모자라 +4 가 없는 것은 어긋남이 아니다
+            present = [(k, _injected_ids(lm[(cid, f"{kind}+{k}")]))
+                       for k in _STEPS if (cid, f"{kind}+{k}") in lm]
+            # 앞의 조건이 뒤 조건의 <접두>여야 한다: +2 는 +1 에 한 장을 얹은 것
+            for (ka, a), (kb, b) in zip(present, present[1:]):
+                if b[:len(a)] != a:
+                    out.append(f"{cid} {kind}+{kb}: 앞부분 {b[:len(a)]} 이 {kind}+{ka} 의 {a} 와 다릅니다")
+        if (cid, "near+1") in lm and (cid, "near+1@front") in lm:
+            end, front = _injected_ids(lm[(cid, "near+1")]), _injected_ids(lm[(cid, "near+1@front")])
+            if end != front:
+                out.append(f"{cid} near+1@front: 주입 청크 {front} 가 near+1 의 {end} 와 다릅니다")
+    return out
+
+
 # ── DB · 외부 API ────────────────────────────────────────────────────────────
 
 
@@ -369,6 +399,14 @@ def report(results_path: str) -> int:
         return 1
 
     lm = latest(records)
+    broken = inconsistent_cases(lm)
+    if broken:
+        print("❌ 주입 청크가 조건끼리 맞물리지 않습니다 (+1 ⊂ +2 ⊂ +4, near+1 = near+1@front)."
+              " 이어 돌리는 사이 후보가 바뀌었을 수 있습니다. 해당 케이스의 줄을 지우고 run 을 다시 돌리세요:",
+              file=sys.stderr)
+        for line in broken:
+            print(f"   {line}", file=sys.stderr)
+        return 1
     unstable = unstable_bases(lm)
     skip = set(unstable)
     cases = sorted({cid for cid, _ in lm} - skip)
