@@ -245,10 +245,20 @@ def distribution(lm: dict[tuple[str, str], dict], condition: str, skip: set[str]
 
 
 def first_drop(lm: dict[tuple[str, str], dict], case_id: str, kind: str) -> str | None:
-    """그 종류에서 처음 1.0 미만이 된 조건. 못 잰 조건은 건너뛴다(무너진 것이 아니다)."""
-    for k in (1, 2, 4):
+    """그 종류에서 처음 1.0 미만이 된 조건. 끝까지 1.0 이면 None.
+
+    🔴 1.0 미만을 만나기 <전에> 못 잰 조건(null)을 만나면 "?" (판정 불가)다.
+       예를 들어 +1 = 1.0, +2 = 못 잼, +4 = 0.0 이면 처음 무너진 자리가 +2 인지 +4 인지
+       모른다. 못 잼을 건너뛰고 +4 라고 하면 붕괴 지점을 실제보다 늦게 잡는다.
+       후보가 모자라 <만들지 않은> 조건(lm 에 키가 없다)은 못 잼이 아니므로 건너뛴다.
+    """
+    for k in _STEPS:
         r = lm.get((case_id, f"{kind}+{k}"))
-        if r is not None and r["faithfulness"] is not None and r["faithfulness"] < 1.0:
+        if r is None:
+            continue
+        if r["faithfulness"] is None:
+            return "?"
+        if r["faithfulness"] < 1.0:
             return f"{kind}+{k}"
     return None
 
@@ -265,6 +275,52 @@ def bad_reviews(records: list[dict]) -> list[str]:
     return [f"{r['case_id']} {r['condition']}: {r['review']!r}"
             for r in records
             if r.get("review") is not None and r["review"] not in REVIEW_VALUES]
+
+
+def position_pairs(lm: dict[tuple[str, str], dict], cases: list[str]) -> tuple[list[str], int]:
+    """자리 비교 대상과, 한쪽이라도 못 잼이라 뺀 개수.
+
+    못 잼을 bucket 으로 바꾸면 "못 잼" 칸끼리 <같은 칸>으로 세지거나, 한쪽만 못 잼이면
+    <갈림>으로 세져 "자리가 중요하다" 는 틀린 결론이 나올 수 있다. 그래서 뺀다.
+    """
+    both: list[str] = []
+    unmeasured = 0
+    for cid in cases:
+        end, front = lm.get((cid, "near+1")), lm.get((cid, "near+1@front"))
+        if end is None or front is None:
+            continue  # near 후보가 없어 두 조건을 만들지 않은 케이스
+        if end["faithfulness"] is None or front["faithfulness"] is None:
+            unmeasured += 1
+        else:
+            both.append(cid)
+    return both, unmeasured
+
+
+def missing_conditions(lm: dict[tuple[str, str], dict], cases: list[str]) -> dict[str, list[str]]:
+    """케이스마다 결과 파일에 없는 조건. 없는 케이스는 결과에 넣지 않는다.
+
+    주입 후보가 모자라 만들지 않았거나 아직 안 돌린 것이다. 이게 보여야 [1] 의 행마다
+    합계가 다른 이유를 읽을 수 있다(설계 §4-1: 4장이 안 차는 문항은 보고서에 적는다).
+    """
+    out: dict[str, list[str]] = {}
+    for cid in cases:
+        gone = [c for c in CONDITIONS if (cid, c) not in lm]
+        if gone:
+            out[cid] = gone
+    return out
+
+
+def review_counts(dropped: list[dict], condition: str) -> dict[str, int]:
+    """그 조건의 떨어진 건을 review 값별로. 미확인(None)은 세지 않는다.
+
+    셋을 따로 세는 이유(설계 §4-3): 채점자의 약점은 <무관한데> 떨어진 것뿐이다.
+    모순 · 뒷받침 청크가 끼어 점수가 바뀐 것은 채점자가 제 일을 한 것일 수 있다.
+    """
+    out = {v: 0 for v in REVIEW_VALUES}
+    for r in dropped:
+        if r["condition"] == condition and r.get("review") in out:
+            out[r["review"]] += 1
+    return out
 
 
 def _injected_ids(r: dict) -> list:
@@ -363,6 +419,8 @@ def run(bot_id: Id, results_path: str, labels_path: str, limit: int | None) -> i
             conds = build_conditions(case.sources, near, far)
             if len(near) < INJECT_MAX:
                 print(f"  ⚠️ q{case.question_id} ({case.case_id}) near 가 {len(near)}장뿐이라 일부 조건을 건너뜁니다")
+            if len(far) < INJECT_MAX:
+                print(f"  ⚠️ q{case.question_id} ({case.case_id}) far 가 {len(far)}장뿐이라 일부 조건을 건너뜁니다")
             for name in CONDITIONS:
                 if name not in conds or (case.case_id, name) in done:
                     continue
@@ -412,23 +470,26 @@ def report(results_path: str) -> int:
     cases = sorted({cid for cid, _ in lm} - skip)
 
     print(f"\n[1] 조건별 분포 (집계 대상 {len(cases)}건, base 불안정으로 뺀 것 {len(skip)}건)")
-    print(f"  {'조건':<14}" + "".join(f"{b:>7}" for b in _BUCKETS) + f"{'하락 중 무관':>12}")
+    print("  (행마다 합계가 다르면 [6] 에 빠진 조건이 있다. 오른쪽 세 칸은 떨어진 건의 사람 확인 결과)")
+    print(f"  {'조건':<14}" + "".join(f"{b:>7}" for b in _BUCKETS)
+          + "".join(f"{'하락·' + v:>9}" for v in REVIEW_VALUES))
     dropped = drops(lm, skip)
     for cond in CONDITIONS:
         d = distribution(lm, cond, skip)
-        irrelevant = sum(1 for r in dropped if r["condition"] == cond and r.get("review") == "무관")
-        print(f"  {cond:<14}" + "".join(f"{d[b]:>7}" for b in _BUCKETS) + f"{irrelevant:>12}")
+        rc = review_counts(dropped, cond)
+        print(f"  {cond:<14}" + "".join(f"{d[b]:>7}" for b in _BUCKETS)
+              + "".join(f"{rc[v]:>9}" for v in REVIEW_VALUES))
 
-    print("\n[2] 문항별 붕괴 지점 (처음 1.0 미만이 된 조건. - 는 끝까지 1.0 이거나 못 잼)")
+    print("\n[2] 문항별 붕괴 지점 (처음 1.0 미만이 된 조건. - 는 끝까지 1.0, ? 는 그 전에 못 잰 조건이 있어 판정 불가)")
     for cid in cases:
         qid = lm.get((cid, "base"), {}).get("question_id", "?")
         print(f"  q{qid:<4} {cid}  near={first_drop(lm, cid, 'near') or '-':<8} far={first_drop(lm, cid, 'far') or '-'}")
 
     print("\n[3] 자리 비교: near+1 (끝) vs near+1@front (맨 앞)")
-    both = [cid for cid in cases if (cid, "near+1") in lm and (cid, "near+1@front") in lm]
+    both, unmeasured = position_pairs(lm, cases)
     same = sum(1 for cid in both if bucket(lm[(cid, "near+1")]["faithfulness"])
                == bucket(lm[(cid, "near+1@front")]["faithfulness"]))
-    print(f"  같은 칸 {same} / {len(both)}건")
+    print(f"  같은 칸 {same} / {len(both)}건 (못 잼으로 뺀 {unmeasured}건)")
     for cid in both:
         a, b = lm[(cid, "near+1")]["faithfulness"], lm[(cid, "near+1@front")]["faithfulness"]
         if bucket(a) != bucket(b):
@@ -448,6 +509,14 @@ def report(results_path: str) -> int:
     print(f"\n[5] base 가 1.0 이 아닌 케이스 {len(unstable)}건 (집계에서 뺐다)")
     for cid, v in sorted(unstable.items()):
         print(f"  {cid}  base={bucket(v)}")
+
+    # [1] 뒤가 아니라 끝에 둔 이유: 설계와 계획이 [4] 번호로 사람 확인 목록을 가리킨다.
+    # 번호를 밀면 그 문서들이 엉뚱한 덩어리를 가리키게 된다.
+    gone = missing_conditions(lm, cases)
+    print(f"\n[6] 결과 파일에 없는 조건이 있는 케이스 {len(gone)}건 (주입 후보 부족 또는 미실행)")
+    for cid, conds in gone.items():
+        qid = lm.get((cid, "base"), {}).get("question_id", "?")
+        print(f"  q{qid:<4} {cid}  : {', '.join(conds)} 없음")
     return 0
 
 

@@ -17,7 +17,8 @@ from .eval_cases import Case, SourceRef
 from .judge import Scores
 from .inject_probe import (
     CONDITIONS, REVIEW_VALUES, Candidate, bad_reviews, bucket, build_conditions,
-    distribution, done_keys, drops, first_drop, inconsistent_cases, latest, make_record, missing_gold, pick_far,
+    distribution, done_keys, drops, first_drop, inconsistent_cases, latest, make_record, missing_conditions, missing_gold,
+    position_pairs, review_counts, pick_far,
     pick_near, select_targets, unstable_bases,
 )
 
@@ -173,18 +174,33 @@ def check_unstable_base_is_excluded_from_drops() -> None:
     lm = _lm([
         ("a", "base", 0.5, None), ("a", "near+1", 0.0, None),
         ("b", "base", 1.0, None), ("b", "near+1", 0.0, None),
+        # 못 잰 줄은 떨어진 건이 아니다. drops 에 섞이면 사람이 review 를 적을 대상이 부풀려진다
+        ("b", "near+2", None, None),
         ("c", "base", None, None),
     ])
     skip = set(unstable_bases(lm))
     assert skip == {"a", "c"}
-    assert [r["case_id"] for r in drops(lm, skip)] == ["b"]
+    assert [(r["case_id"], r["condition"]) for r in drops(lm, skip)] == [("b", "near+1")]
 
 
 def check_first_drop_is_the_earliest_step() -> None:
     lm = _lm([("a", "near+1", 1.0, None), ("a", "near+2", 0.5, None), ("a", "near+4", 0.0, None),
               ("a", "far+1", 1.0, None), ("a", "far+2", None, None), ("a", "far+4", 1.0, None)])
     assert first_drop(lm, "a", "near") == "near+2"
-    assert first_drop(lm, "a", "far") is None, "못 잰 것은 무너진 것이 아니다"
+    # far+2 를 못 쟀으니 far+4 가 1.0 이어도 "끝까지 버텼다" 고 말할 수 없다
+    assert first_drop(lm, "a", "far") == "?", "못 잰 자리가 먼저 오면 판정 불가다"
+
+
+def check_first_drop_none_only_when_all_measured() -> None:
+    lm = _lm([("a", "near+1", 1.0, None), ("a", "near+2", 1.0, None), ("a", "near+4", 1.0, None),
+              ("b", "near+1", None, None), ("b", "near+2", 0.0, None),
+              ("c", "near+1", 1.0, None), ("c", "near+2", 0.0, None), ("c", "near+4", None, None)])
+    assert first_drop(lm, "a", "near") is None, "전부 재서 전부 1.0 이면 무너지지 않은 것이다"
+    assert first_drop(lm, "b", "near") == "?", "+1 을 못 쟀으면 +2 가 처음 무너진 자리인지 모른다"
+    assert first_drop(lm, "c", "near") == "near+2", "무너진 <뒤의> 못 잼은 판정을 바꾸지 않는다"
+    # 후보가 모자라 +4 를 <만들지 않은> 것은 못 잼이 아니다
+    lm = _lm([("d", "far+1", 1.0, None), ("d", "far+2", 1.0, None)])
+    assert first_drop(lm, "d", "far") is None
 
 
 def check_review_values_are_restricted() -> None:
@@ -255,6 +271,33 @@ def check_front_mismatch_is_caught() -> None:
     assert len(bad) == 1 and "near+1@front" in bad[0], bad
 
 
+def check_position_pairs_drop_unmeasured() -> None:
+    """자리 비교에서 한쪽이라도 못 잼이면 <같은 칸/갈림> 어느 쪽에도 넣으면 안 된다."""
+    lm = _lm([("a", "near+1", 1.0, None), ("a", "near+1@front", 0.0, None),
+              ("b", "near+1", None, None), ("b", "near+1@front", 1.0, None),
+              ("c", "near+1", 1.0, None), ("c", "near+1@front", None, None),
+              ("d", "near+1", 1.0, None)])
+    both, unmeasured = position_pairs(lm, ["a", "b", "c", "d"])
+    assert both == ["a"] and unmeasured == 2
+
+
+def check_missing_conditions_are_listed() -> None:
+    """[1] 의 행마다 합계가 다른 이유가 표에 보여야 한다."""
+    lm = _lm([(c_, k, 1.0, None) for c_ in ("a", "b") for k in CONDITIONS if not (c_ == "b" and k.startswith("far"))])
+    lm.pop(("a", "near+4"))
+    got = missing_conditions(lm, ["a", "b"])
+    assert got == {"a": ["near+4"], "b": ["far+1", "far+2", "far+4"]}, got
+
+
+def check_review_counts_are_separate() -> None:
+    """무관 · 모순 · 뒷받침은 따로 센다. 채점자의 약점은 <무관한데 떨어진> 것뿐이다."""
+    dropped = [{"condition": "near+1", "review": "무관"}, {"condition": "near+1", "review": "모순"},
+               {"condition": "near+1", "review": "무관"}, {"condition": "near+1", "review": None},
+               {"condition": "far+1", "review": "뒷받침"}]
+    assert review_counts(dropped, "near+1") == {"무관": 2, "모순": 1, "뒷받침": 0}
+    assert review_counts(dropped, "far+1") == {"무관": 0, "모순": 0, "뒷받침": 1}
+
+
 def main() -> None:
     checks = [
         check_targets_need_both_human_and_judge_at_one,
@@ -278,6 +321,10 @@ def main() -> None:
         check_consistent_injection_passes,
         check_broken_nesting_is_caught,
         check_front_mismatch_is_caught,
+        check_first_drop_none_only_when_all_measured,
+        check_position_pairs_drop_unmeasured,
+        check_missing_conditions_are_listed,
+        check_review_counts_are_separate,
     ]
     for fn in checks:
         fn()
