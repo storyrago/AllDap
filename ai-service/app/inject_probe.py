@@ -19,10 +19,20 @@
 """
 from __future__ import annotations
 
+import argparse
+import json
+import os
 import random
+import sys
 from dataclasses import dataclass
 
-from .eval_cases import Case, SourceRef
+from .config import get_settings
+from .db import cursor
+from .eval_cases import DEFAULT_RUN_IDS, Case, SourceRef, load_cases
+from .judge import Scores, score
+from .judge_agreement import DEFAULT_PATH as LABELS_PATH
+from .judge_agreement import read_labels
+from .retriever import embed_one
 from .schemas import Id
 
 # 튜플(tuple)로 둔 이유: 리스트와 달리 바꿀 수 없어서, 어딘가에서 실수로
@@ -35,6 +45,10 @@ CONDITIONS: tuple[str, ...] = (
 )
 INJECT_MAX = 4
 _STEPS = (1, 2, 4)
+DEFAULT_RESULTS = "testdata/inject_probe_results.jsonl"
+# 연달아 이만큼 실패하면 멈춘다. 하루 한도(429)에 걸리면 이후 호출이 전부 실패하는데,
+# 계속 돌면 남은 수백 건이 전부 null 줄로 쌓여 파일만 지저분해진다.
+_STOP_AFTER_FAILURES = 3
 
 
 # frozen=True: 만든 뒤 필드를 못 바꾸는 불변 객체. 같은 값이면 == 로 같다고 나오고
@@ -137,3 +151,153 @@ def build_conditions(
         first = near[0]
         out["near+1@front"] = ((first.to_ref(),) + base, (first,))
     return out
+
+
+# ── 결과 파일 ────────────────────────────────────────────────────────────────
+# JSON Lines(.jsonl): 한 줄에 JSON 하나. 통째로 다시 쓰는 JSON 과 달리 <끝에 붙이기만>
+# 하면 되므로, 한 건 채점할 때마다 바로 저장할 수 있고 중간에 죽어도 앞의 줄은 멀쩡하다.
+
+
+def make_record(case: Case, condition: str, injected: tuple[Candidate, ...], scores: Scores | None) -> dict:
+    """채점 한 번을 한 줄로. 🔴 실패는 null 이지 0.0 이 아니다."""
+    return {
+        "case_id": case.case_id,
+        "question_id": case.question_id,
+        "condition": condition,
+        "injected": [
+            {"chunk_id": c.chunk_id, "filename": c.filename, "distance": round(c.distance, 4)}
+            for c in injected
+        ],
+        "faithfulness": None if scores is None else scores.faithfulness,
+        "relevancy": None if scores is None else scores.relevancy,
+        "reason": "" if scores is None else scores.reason,
+        # 사람이 채운다: 무관 / 모순 / 뒷받침. run 은 이 칸을 쓰기만 하고 다시 건드리지 않는다.
+        "review": None,
+    }
+
+
+def read_results(path: str) -> list[dict]:
+    """파일이 없으면 빈 목록. 빈 줄은 건너뛴다(사람이 손으로 고치다 남길 수 있다)."""
+    if not os.path.exists(path):
+        return []
+    out: list[dict] = []
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if line:
+                out.append(json.loads(line))
+    return out
+
+
+def latest(records: list[dict]) -> dict[tuple[str, str], dict]:
+    """(case_id, condition) 마다 <마지막> 줄. 실패 뒤 재시도가 성공하면 그것이 남는다."""
+    out: dict[tuple[str, str], dict] = {}
+    for r in records:
+        out[(r["case_id"], r["condition"])] = r
+    return out
+
+
+def done_keys(records: list[dict]) -> set[tuple[str, str]]:
+    """이미 <성공한> 키. 실패(null)는 넣지 않아 다음 실행이 다시 부른다."""
+    return {k for k, r in latest(records).items() if r["faithfulness"] is not None}
+
+
+# ── DB · 외부 API ────────────────────────────────────────────────────────────
+
+
+def _gold_documents(question_ids: list[int]) -> dict[int, Id]:
+    """question_id → 정답 청크가 속한 문서. source_chunk_id 가 NULL 이면 빠진다."""
+    with cursor() as cur:
+        cur.execute(
+            """SELECT q.id, c.document_id
+                 FROM eval_questions q JOIN chunks c ON c.id = q.source_chunk_id
+                WHERE q.id = ANY(%s)""",
+            (question_ids,),
+        )
+        return {int(qid): doc for qid, doc in cur.fetchall()}
+
+
+def _ranked(bot_id: Id, question: str) -> list[Candidate]:
+    """그 봇의 <전체> 청크를 질문과의 벡터 거리 오름차순으로.
+
+    `<=>` 는 pgvector 의 코사인 거리 연산자다. retriever.search 와 같은 거리라
+    max_distance 컷을 그대로 댈 수 있다. 임베딩은 질문당 1회라 비용은 무시할 수준이다.
+    """
+    qvec = embed_one(question)
+    with cursor() as cur:
+        cur.execute(
+            """SELECT c.id, c.document_id, d.filename, c.content,
+                      c.embedding <=> %s::vector AS distance
+                 FROM chunks c JOIN documents d ON d.id = c.document_id
+                WHERE c.bot_id = %s AND c.embedding IS NOT NULL
+                ORDER BY distance""",
+            (qvec, bot_id),
+        )
+        return [Candidate(r[0], r[1], r[2], r[3], float(r[4])) for r in cur.fetchall()]
+
+
+def run(bot_id: Id, results_path: str, labels_path: str, limit: int | None) -> int:
+    """대상 케이스마다 조건을 조립해 채점하고, 한 번마다 즉시 한 줄 붙인다."""
+    s = get_settings()
+    targets = select_targets(load_cases(DEFAULT_RUN_IDS), read_labels(labels_path))
+    if limit is not None:
+        targets = targets[:limit]
+    gold = _gold_documents(sorted({c.question_id for c in targets}))
+    done = done_keys(read_results(results_path))
+    print(f"대상 {len(targets)}건 · 이미 끝난 채점 {len(done)}회")
+
+    failures = 0
+    calls = 0
+    # "a" 모드: 파일 끝에 붙인다. 기존 줄(사람이 적은 review 포함)은 건드리지 않는다.
+    with open(results_path, "a", encoding="utf-8") as out:
+        for i, case in enumerate(targets, 1):
+            exclude_ids = {src.chunk_id for src in case.sources}
+            exclude_docs = {gold[case.question_id]} if case.question_id in gold else set()
+            ranked = _ranked(bot_id, case.question)
+            near = pick_near(ranked, exclude_ids, exclude_docs, s.max_distance)
+            far = pick_far(ranked, exclude_ids, exclude_docs, seed=case.question_id)
+            conds = build_conditions(case.sources, near, far)
+            if len(near) < INJECT_MAX:
+                print(f"  ⚠️ q{case.question_id} ({case.case_id}) near 가 {len(near)}장뿐이라 일부 조건을 건너뜁니다")
+            for name in CONDITIONS:
+                if name not in conds or (case.case_id, name) in done:
+                    continue
+                sources, injected = conds[name]
+                result = score(
+                    case.question, case.ground_truth,
+                    [src.to_source() for src in sources], case.generated_answer,
+                )
+                calls += 1
+                out.write(json.dumps(make_record(case, name, injected, result), ensure_ascii=False) + "\n")
+                # flush: 버퍼에 쌓아두지 말고 지금 디스크로. 이게 없으면 죽을 때 마지막 몇 줄이 사라진다.
+                out.flush()
+                failures = failures + 1 if result is None else 0
+                if failures >= _STOP_AFTER_FAILURES:
+                    print(f"❌ 채점이 {failures}번 연달아 실패해 멈춥니다(하루 한도일 가능성이 큽니다)."
+                          " 한도가 풀린 뒤 같은 명령을 다시 돌리면 이어서 합니다.", file=sys.stderr)
+                    return 1
+            print(f"  [{i}/{len(targets)}] q{case.question_id} 끝")
+    print(f"채점 {calls}회. 결과: {results_path}")
+    return 0
+
+
+def main(argv: list[str] | None = None) -> int:
+    p = argparse.ArgumentParser(description="무관한 청크를 주입해 채점자를 다시 부른다")
+    sub = p.add_subparsers(dest="cmd", required=True)
+    r = sub.add_parser("run", help="채점한다 (외부 API 를 부른다. 이어 돌리기 가능)")
+    r.add_argument("--bot-id", type=int, required=True)
+    r.add_argument("--results", default=DEFAULT_RESULTS)
+    r.add_argument("--labels", default=LABELS_PATH)
+    r.add_argument("--limit", type=int, default=None, help="앞에서 N건만 (시험 삼아 돌릴 때)")
+    args = p.parse_args(argv)
+    if args.cmd == "run":
+        return run(args.bot_id, args.results, args.labels, args.limit)
+    return 0
+
+
+if __name__ == "__main__":
+    from .db import close_pool
+    try:
+        sys.exit(main())
+    finally:
+        close_pool()

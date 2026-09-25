@@ -12,8 +12,10 @@
 from __future__ import annotations
 
 from .eval_cases import Case, SourceRef
+from .judge import Scores
 from .inject_probe import (
-    CONDITIONS, Candidate, build_conditions, pick_far, pick_near, select_targets,
+    CONDITIONS, Candidate, build_conditions, done_keys, latest, make_record,
+    pick_far, pick_near, select_targets,
 )
 
 
@@ -118,6 +120,36 @@ def check_short_picks_skip_unfillable_conditions() -> None:
     assert "near+1@front" in conds
 
 
+def check_failed_scoring_is_null_not_zero() -> None:
+    """🔴 채점 실패는 0점이 아니다. 0점으로 적으면 한도(429)에 걸린 것이
+    "채점자가 무너졌다" 로 둔갑한다. 이 저장소의 "낸 버그" 표 다섯 번째가 이것이었다."""
+    rec = make_record(_case("a", 1.0), "near+1", (_cand(11, 111, 0.3),), None)
+    assert rec["faithfulness"] is None and rec["relevancy"] is None
+    assert rec["review"] is None
+    ok = make_record(_case("a", 1.0), "base", (), Scores(faithfulness=1.0, relevancy=1.0, reason="r"))
+    assert ok["faithfulness"] == 1.0 and ok["injected"] == []
+
+
+def check_resume_skips_only_successful_keys() -> None:
+    """성공한 것만 건너뛴다. 실패(null)는 다음 실행에서 다시 부른다."""
+    recs = [
+        {"case_id": "a", "condition": "base", "faithfulness": 1.0},
+        {"case_id": "a", "condition": "near+1", "faithfulness": None},
+        {"case_id": "b", "condition": "base", "faithfulness": 0.0},
+    ]
+    assert done_keys(recs) == {("a", "base"), ("b", "base")}
+
+
+def check_latest_line_wins() -> None:
+    """실패 뒤 재시도가 성공하면 파일에 두 줄이 남는다. 집계는 마지막 줄을 본다."""
+    recs = [
+        {"case_id": "a", "condition": "near+1", "faithfulness": None},
+        {"case_id": "a", "condition": "near+1", "faithfulness": 1.0},
+    ]
+    assert latest(recs)[("a", "near+1")]["faithfulness"] == 1.0
+    assert done_keys(recs) == {("a", "near+1")}
+
+
 def main() -> None:
     checks = [
         check_targets_need_both_human_and_judge_at_one,
@@ -130,6 +162,9 @@ def main() -> None:
         check_conditions_are_nested,
         check_front_condition_puts_near_first,
         check_short_picks_skip_unfillable_conditions,
+        check_failed_scoring_is_null_not_zero,
+        check_resume_skips_only_successful_keys,
+        check_latest_line_wins,
     ]
     for fn in checks:
         fn()
