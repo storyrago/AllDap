@@ -49,6 +49,8 @@ DEFAULT_RESULTS = "testdata/inject_probe_results.jsonl"
 # 연달아 이만큼 실패하면 멈춘다. 하루 한도(429)에 걸리면 이후 호출이 전부 실패하는데,
 # 계속 돌면 남은 수백 건이 전부 null 줄로 쌓여 파일만 지저분해진다.
 _STOP_AFTER_FAILURES = 3
+REVIEW_VALUES: tuple[str, ...] = ("무관", "모순", "뒷받침")
+_BUCKETS = ("1.0", "0.5", "0.0", "기타", "못 잼")
 
 
 # frozen=True: 만든 뒤 필드를 못 바꾸는 불변 객체. 같은 값이면 == 로 같다고 나오고
@@ -202,6 +204,56 @@ def done_keys(records: list[dict]) -> set[tuple[str, str]]:
     return {k for k, r in latest(records).items() if r["faithfulness"] is not None}
 
 
+# ── 집계 (순수 함수) ─────────────────────────────────────────────────────────
+
+
+def bucket(v: float | None) -> str:
+    """점수를 칸으로. 채점자는 0 / 0.5 / 1 을 주도록 지시받지만 다른 값이 올 수 있어 기타를 둔다."""
+    if v is None:
+        return "못 잼"
+    for name in ("1.0", "0.5", "0.0"):
+        if float(v) == float(name):
+            return name
+    return "기타"
+
+
+def unstable_bases(lm: dict[tuple[str, str], dict]) -> dict[str, float | None]:
+    """base 가 1.0 이 아닌 케이스(못 잰 것 포함). 이 케이스들은 탐침 집계에서 뺀다."""
+    return {cid: r["faithfulness"] for (cid, cond), r in lm.items()
+            if cond == "base" and r["faithfulness"] != 1.0}
+
+
+def distribution(lm: dict[tuple[str, str], dict], condition: str, skip: set[str]) -> dict[str, int]:
+    out = {b: 0 for b in _BUCKETS}
+    for (cid, cond), r in lm.items():
+        if cond == condition and cid not in skip:
+            out[bucket(r["faithfulness"])] += 1
+    return out
+
+
+def first_drop(lm: dict[tuple[str, str], dict], case_id: str, kind: str) -> str | None:
+    """그 종류에서 처음 1.0 미만이 된 조건. 못 잰 조건은 건너뛴다(무너진 것이 아니다)."""
+    for k in (1, 2, 4):
+        r = lm.get((case_id, f"{kind}+{k}"))
+        if r is not None and r["faithfulness"] is not None and r["faithfulness"] < 1.0:
+            return f"{kind}+{k}"
+    return None
+
+
+def drops(lm: dict[tuple[str, str], dict], skip: set[str]) -> list[dict]:
+    """주입 조건에서 1.0 미만이 된 줄. 사람이 review 를 적을 대상이다."""
+    return [r for (cid, cond), r in sorted(lm.items())
+            if cond != "base" and cid not in skip
+            and r["faithfulness"] is not None and r["faithfulness"] < 1.0]
+
+
+def bad_reviews(records: list[dict]) -> list[str]:
+    """허용하지 않는 review 값. 오타 하나가 조용히 "무관 아님" 으로 세지면 결론이 바뀐다."""
+    return [f"{r['case_id']} {r['condition']}: {r['review']!r}"
+            for r in records
+            if r.get("review") is not None and r["review"] not in REVIEW_VALUES]
+
+
 # ── DB · 외부 API ────────────────────────────────────────────────────────────
 
 
@@ -281,6 +333,64 @@ def run(bot_id: Id, results_path: str, labels_path: str, limit: int | None) -> i
     return 0
 
 
+def report(results_path: str) -> int:
+    """결과 파일만 읽는다. 외부 API 를 부르지 않는다."""
+    records = read_results(results_path)
+    if not records:
+        print(f"❌ {results_path} 가 없거나 비어 있습니다. 먼저 run 을 돌리세요.", file=sys.stderr)
+        return 1
+    bad = bad_reviews(records)
+    if bad:
+        print("❌ review 칸에는 무관 / 모순 / 뒷받침 만 적을 수 있습니다:", file=sys.stderr)
+        for line in bad:
+            print(f"   {line}", file=sys.stderr)
+        return 1
+
+    lm = latest(records)
+    unstable = unstable_bases(lm)
+    skip = set(unstable)
+    cases = sorted({cid for cid, _ in lm} - skip)
+
+    print(f"\n[1] 조건별 분포 (집계 대상 {len(cases)}건, base 불안정으로 뺀 것 {len(skip)}건)")
+    print(f"  {'조건':<14}" + "".join(f"{b:>7}" for b in _BUCKETS) + f"{'하락 중 무관':>12}")
+    dropped = drops(lm, skip)
+    for cond in CONDITIONS:
+        d = distribution(lm, cond, skip)
+        irrelevant = sum(1 for r in dropped if r["condition"] == cond and r.get("review") == "무관")
+        print(f"  {cond:<14}" + "".join(f"{d[b]:>7}" for b in _BUCKETS) + f"{irrelevant:>12}")
+
+    print("\n[2] 문항별 붕괴 지점 (처음 1.0 미만이 된 조건. - 는 끝까지 1.0 이거나 못 잼)")
+    for cid in cases:
+        qid = lm.get((cid, "base"), {}).get("question_id", "?")
+        print(f"  q{qid:<4} {cid}  near={first_drop(lm, cid, 'near') or '-':<8} far={first_drop(lm, cid, 'far') or '-'}")
+
+    print("\n[3] 자리 비교: near+1 (끝) vs near+1@front (맨 앞)")
+    both = [cid for cid in cases if (cid, "near+1") in lm and (cid, "near+1@front") in lm]
+    same = sum(1 for cid in both if bucket(lm[(cid, "near+1")]["faithfulness"])
+               == bucket(lm[(cid, "near+1@front")]["faithfulness"]))
+    print(f"  같은 칸 {same} / {len(both)}건")
+    for cid in both:
+        a, b = lm[(cid, "near+1")]["faithfulness"], lm[(cid, "near+1@front")]["faithfulness"]
+        if bucket(a) != bucket(b):
+            print(f"  갈림  {cid}  끝={bucket(a)}  앞={bucket(b)}")
+
+    print(f"\n[4] 떨어진 건 {len(dropped)}개 (사람이 review 를 적을 대상)")
+    pending = 0
+    for r in dropped:
+        pending += r.get("review") is None
+        names = ", ".join(f"{i['chunk_id']}:{i['filename']}" for i in r["injected"])
+        print(f"  {r['case_id']} {r['condition']:<13} {bucket(r['faithfulness'])}  "
+              f"review={r.get('review') or '(미확인)'}  주입=[{names}]")
+        print(f"      사유: {r['reason'][:160]}")
+    if pending:
+        print(f"  ⚠️ 사람 확인 필요 {pending}건. 결과 파일의 해당 줄 review 칸에 무관 / 모순 / 뒷받침 을 적으세요.")
+
+    print(f"\n[5] base 가 1.0 이 아닌 케이스 {len(unstable)}건 (집계에서 뺐다)")
+    for cid, v in sorted(unstable.items()):
+        print(f"  {cid}  base={bucket(v)}")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description="무관한 청크를 주입해 채점자를 다시 부른다")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -289,9 +399,13 @@ def main(argv: list[str] | None = None) -> int:
     r.add_argument("--results", default=DEFAULT_RESULTS)
     r.add_argument("--labels", default=LABELS_PATH)
     r.add_argument("--limit", type=int, default=None, help="앞에서 N건만 (시험 삼아 돌릴 때)")
+    rp = sub.add_parser("report", help="결과를 집계한다 (외부 API 를 부르지 않는다)")
+    rp.add_argument("--results", default=DEFAULT_RESULTS)
     args = p.parse_args(argv)
     if args.cmd == "run":
         return run(args.bot_id, args.results, args.labels, args.limit)
+    if args.cmd == "report":
+        return report(args.results)
     return 0
 
 

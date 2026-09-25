@@ -14,8 +14,9 @@ from __future__ import annotations
 from .eval_cases import Case, SourceRef
 from .judge import Scores
 from .inject_probe import (
-    CONDITIONS, Candidate, build_conditions, done_keys, latest, make_record,
-    pick_far, pick_near, select_targets,
+    CONDITIONS, REVIEW_VALUES, Candidate, bad_reviews, bucket, build_conditions,
+    distribution, done_keys, drops, first_drop, latest, make_record, pick_far,
+    pick_near, select_targets, unstable_bases,
 )
 
 
@@ -150,6 +151,49 @@ def check_latest_line_wins() -> None:
     assert done_keys(recs) == {("a", "near+1")}
 
 
+def _lm(rows: list[tuple[str, str, float | None, str | None]]) -> dict:
+    return latest([
+        {"case_id": c, "condition": k, "faithfulness": f, "review": rv, "injected": [], "reason": ""}
+        for c, k, f, rv in rows
+    ])
+
+
+def check_distribution_counts_null_separately() -> None:
+    """🔴 못 잰 것은 0.0 칸이 아니라 <못 잼> 칸이다."""
+    lm = _lm([("a", "near+1", 0.0, None), ("b", "near+1", None, None), ("c", "near+1", 1.0, None)])
+    d = distribution(lm, "near+1", skip=set())
+    assert d["0.0"] == 1 and d["못 잼"] == 1 and d["1.0"] == 1
+    assert bucket(0.7) == "기타"
+
+
+def check_unstable_base_is_excluded_from_drops() -> None:
+    """base 가 이미 1.0 이 아니면 "끼워서 떨어졌다" 와 "원래 떨어져 있었다" 가 섞인다."""
+    lm = _lm([
+        ("a", "base", 0.5, None), ("a", "near+1", 0.0, None),
+        ("b", "base", 1.0, None), ("b", "near+1", 0.0, None),
+        ("c", "base", None, None),
+    ])
+    skip = set(unstable_bases(lm))
+    assert skip == {"a", "c"}
+    assert [r["case_id"] for r in drops(lm, skip)] == ["b"]
+
+
+def check_first_drop_is_the_earliest_step() -> None:
+    lm = _lm([("a", "near+1", 1.0, None), ("a", "near+2", 0.5, None), ("a", "near+4", 0.0, None),
+              ("a", "far+1", 1.0, None), ("a", "far+2", None, None), ("a", "far+4", 1.0, None)])
+    assert first_drop(lm, "a", "near") == "near+2"
+    assert first_drop(lm, "a", "far") is None, "못 잰 것은 무너진 것이 아니다"
+
+
+def check_review_values_are_restricted() -> None:
+    recs = [{"case_id": "a", "condition": "near+1", "review": "무관"},
+            {"case_id": "b", "condition": "near+1", "review": None},
+            {"case_id": "c", "condition": "near+2", "review": "관련있음"}]
+    bad = bad_reviews(recs)
+    assert len(bad) == 1 and "관련있음" in bad[0]
+    assert REVIEW_VALUES == ("무관", "모순", "뒷받침")
+
+
 def main() -> None:
     checks = [
         check_targets_need_both_human_and_judge_at_one,
@@ -165,6 +209,10 @@ def main() -> None:
         check_failed_scoring_is_null_not_zero,
         check_resume_skips_only_successful_keys,
         check_latest_line_wins,
+        check_distribution_counts_null_separately,
+        check_unstable_base_is_excluded_from_drops,
+        check_first_drop_is_the_earliest_step,
+        check_review_values_are_restricted,
     ]
     for fn in checks:
         fn()
