@@ -91,6 +91,19 @@ def select_targets(cases: list[Case], labels: dict[str, dict]) -> list[Case]:
     return out
 
 
+def missing_gold(targets: list[Case], gold: dict[int, Id]) -> list[int]:
+    """정답 문서를 찾지 못한 question_id (오름차순, 중복 없음).
+
+    🔴 하나라도 있으면 채점을 시작하지 않는다. 정답 문서를 모르면 그 문서의
+       <형제 청크>를 주입 후보에서 뺄 수 없다. 형제 청크는 질문과 가까워 near 로
+       뽑히기 쉽고, 대개 답을 뒷받침하므로 점수가 안 떨어진다. 그러면 결과가 조용히
+       "채점자는 near 에 강하다" 쪽으로 기운다. 사람 확인(review)은 <떨어진> 건만
+       보므로 떨어지지 않은 이 오염은 사람도 못 잡는다.
+    """
+    # {…} 는 집합(set): 같은 문항의 케이스가 여럿이어도 한 번만 남는다
+    return sorted({c.question_id for c in targets if c.question_id not in gold})
+
+
 def _eligible(ranked: list[Candidate], exclude_ids: set[Id], exclude_docs: set[Id]) -> list[Candidate]:
     """원래 근거와 정답 문서를 뺀다. 정답 문서가 섞이면 <답을 뒷받침하는> 종이가 된다."""
     return [r for r in ranked if r.chunk_id not in exclude_ids and r.document_id not in exclude_docs]
@@ -295,6 +308,14 @@ def run(bot_id: Id, results_path: str, labels_path: str, limit: int | None) -> i
     if limit is not None:
         targets = targets[:limit]
     gold = _gold_documents(sorted({c.question_id for c in targets}))
+    missing = missing_gold(targets, gold)
+    if missing:
+        # 채점을 한 번도 부르기 전에 멈춘다. 이유는 missing_gold 주석에 있다.
+        print(f"❌ 정답 문서를 찾지 못한 문항이 있어 시작하지 않습니다: "
+              f"{', '.join(f'q{q}' for q in missing)}\n"
+              "   eval_questions.source_chunk_id 가 비었거나 그 청크가 지워진 경우입니다."
+              " 평가셋을 다시 적재(app.eval_set load)한 뒤 돌리세요.", file=sys.stderr)
+        return 1
     done = done_keys(read_results(results_path))
     print(f"대상 {len(targets)}건 · 이미 끝난 채점 {len(done)}회")
 
@@ -304,7 +325,8 @@ def run(bot_id: Id, results_path: str, labels_path: str, limit: int | None) -> i
     with open(results_path, "a", encoding="utf-8") as out:
         for i, case in enumerate(targets, 1):
             exclude_ids = {src.chunk_id for src in case.sources}
-            exclude_docs = {gold[case.question_id]} if case.question_id in gold else set()
+            # 위에서 missing_gold 로 걸렀으므로 여기서는 반드시 있다
+            exclude_docs = {gold[case.question_id]}
             ranked = _ranked(bot_id, case.question)
             near = pick_near(ranked, exclude_ids, exclude_docs, s.max_distance)
             far = pick_far(ranked, exclude_ids, exclude_docs, seed=case.question_id)

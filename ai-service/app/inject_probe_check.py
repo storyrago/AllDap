@@ -11,11 +11,13 @@
 """
 from __future__ import annotations
 
+from dataclasses import replace
+
 from .eval_cases import Case, SourceRef
 from .judge import Scores
 from .inject_probe import (
     CONDITIONS, REVIEW_VALUES, Candidate, bad_reviews, bucket, build_conditions,
-    distribution, done_keys, drops, first_drop, latest, make_record, pick_far,
+    distribution, done_keys, drops, first_drop, latest, make_record, missing_gold, pick_far,
     pick_near, select_targets, unstable_bases,
 )
 
@@ -194,6 +196,17 @@ def check_review_values_are_restricted() -> None:
     assert REVIEW_VALUES == ("무관", "모순", "뒷받침")
 
 
+def check_missing_gold_document_is_reported() -> None:
+    """정답 문서를 모르면 그 문서의 형제 청크를 못 뺀다. 그러면 near 가 답을 뒷받침해
+    점수가 안 떨어지고, 결과가 조용히 "near 에 강하다" 쪽으로 기운다. 그래서 멈춰야 한다."""
+    # replace: frozen 데이터클래스는 필드를 못 바꾸므로, 한 필드만 다른 <새 객체>를 만든다
+    targets = [_case("a", 1.0), replace(_case("b", 1.0), question_id=7)]
+    assert missing_gold(targets, {3: 30}) == [7]
+    assert missing_gold(targets, {3: 30, 7: 70}) == []
+    # 같은 문항이 여러 케이스에 있어도 한 번만 찍는다
+    assert missing_gold([_case("a", 1.0), _case("c", 1.0)], {}) == [3]
+
+
 def main() -> None:
     checks = [
         check_targets_need_both_human_and_judge_at_one,
@@ -213,6 +226,7 @@ def main() -> None:
         check_unstable_base_is_excluded_from_drops,
         check_first_drop_is_the_earliest_step,
         check_review_values_are_restricted,
+        check_missing_gold_document_is_reported,
     ]
     for fn in checks:
         fn()
