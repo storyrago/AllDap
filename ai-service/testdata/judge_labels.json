@@ -47,7 +47,7 @@
         12,
         16
       ],
-      "label": null,
+      "label": 1,
       "note": ""
     },
     {
@@ -89,7 +89,7 @@
         15,
         16
       ],
-      "label": null,
+      "label": 1,
       "note": ""
     },
     {
@@ -129,7 +129,7 @@
         15,
         16
       ],
-      "label": null,
+      "label": 1,
       "note": ""
     },
     {
@@ -170,7 +170,7 @@
         15,
         16
       ],
-      "label": null,
+      "label": 1,
       "note": ""
     },
     {
@@ -210,8 +210,8 @@
         14,
         15
       ],
-      "label": null,
-      "note": ""
+      "label": 0.5,
+      "note": "문서상으로는 직급과 성과평가 등급만 확인됩니다. 라는 문장이 없음"
     },
     {
       "case_id": "208f56993f14",
@@ -254,7 +254,7 @@
         15,
         16
       ],
-      "label": null,
+      "label": 1,
       "note": ""
     },
     {
@@ -295,7 +295,7 @@
         12,
         13
       ],
-      "label": null,
+      "label": 1,
       "note": ""
     },
     {
@@ -334,7 +334,7 @@
       "seen_in_runs": [
         16
       ],
-      "label": null,
+      "label": 1,
       "note": ""
     },
     {
@@ -374,7 +374,7 @@
         12,
         15
       ],
-      "label": null,
+      "label": 1,
       "note": ""
     },
     {
@@ -415,7 +415,7 @@
         15,
         16
       ],
-      "label": null,
+      "label": 1,
       "note": ""
     },
     {
@@ -455,7 +455,7 @@
         12,
         14
       ],
-      "label": null,
+      "label": 1,
       "note": ""
     },
     {
@@ -494,7 +494,7 @@
       "seen_in_runs": [
         11
       ],
-      "label": null,
+      "label": 1,
       "note": ""
     },
     {
@@ -535,7 +535,7 @@
         12,
         13
       ],
-      "label": null,
+      "label": 1,
       "note": ""
     },
     {
@@ -576,7 +576,7 @@
         15,
         16
       ],
-      "label": null,
+      "label": 1,
       "note": ""
     },
     {
@@ -618,7 +618,7 @@
         14,
         16
       ],
-      "label": null,
+      "label": 1,
       "note": ""
     },
     {
@@ -660,8 +660,8 @@
         15,
         16
       ],
-      "label": null,
-      "note": ""
+      "label": 1,
+      "note": "ただ 라는 단어는 나와있지 않음"
     },
     {
       "case_id": "53aa44e612e1",
@@ -700,7 +700,7 @@
         14,
         15
       ],
-      "label": null,
+      "label": 1,
       "note": ""
     },
     {
@@ -744,8 +744,8 @@
         15,
         16
       ],
-      "label": null,
-      "note": ""
+      "label": 0.5,
+      "note": "임직원 추천으로 입사하고, 3개월 근속한 다음달임"
     },
     {
       "case_id": "6092f1b3b045",
@@ -786,7 +786,7 @@
         14,
         15
       ],
-      "label": null,
+      "label": 1,
       "note": ""
     },
     {
@@ -825,7 +825,7 @@
       "seen_in_runs": [
         15
       ],
-      "label": null,
+      "label": 1,
       "note": ""
     },
     {
@@ -864,7 +864,7 @@
       "seen_in_runs": [
         16
       ],
-      "label": null,
+      "label": 1,
       "note": ""
     },
     {
@@ -908,7 +908,7 @@
         15,
         16
       ],
-      "label": null,
+      "label": 1,
       "note": ""
     },
     {
@@ -952,8 +952,8 @@
         15,
         16
       ],
-      "label": null,
-      "note": ""
+      "label": 1,
+      "note": "사내 시스템 비밀번호임"
     },
     {
       "case_id": "8b1dfc28d209",
@@ -991,7 +991,7 @@
       "seen_in_runs": [
         13
       ],
-      "label": null,
+      "label": 1,
       "note": ""
     },
     {
@@ -1035,7 +1035,7 @@
         15,
         16
       ],
-      "label": null,
+      "label": 1,
       "note": ""
     },
     {
@@ -1079,7 +1079,7 @@
         15,
         16
       ],
-      "label": null,
+      "label": 1,
       "note": ""
     },
     {
@@ -1120,8 +1120,8 @@
         13,
         14
       ],
-      "label": null,
-      "note": ""
+      "label": 1,
+      "note": "사용자가에게 답변을 전달할 때 근거1 근거2 이런식으로 답변하면 파악이 어려움"
     },
     {
       "case_id": "9b1a66203834",
@@ -1159,7 +1159,7 @@
       "seen_in_runs": [
         12
       ],
-      "label": null,
+      "label": 1,
       "note": ""
     },
     {
@@ -1200,7 +1200,7 @@
         15,
         16
       ],
-      "label": null,
+      "label": 1,
       "note": ""
     },
     {
@@ -1244,7 +1244,7 @@
         15,
         16
       ],
-      "label": null,
+      "label": 1,
       "note": ""
     },
     {
@@ -1283,8 +1283,8 @@
       "seen_in_runs": [
         15
       ],
-      "label": null,
-      "note": ""
+      "label": 1,
+      "note": "알려야하는게 아니라 신고할 수 있따"
     },
     {
       "case_id": "c408eb2c703b",
@@ -1324,7 +1324,7 @@
         12,
         13
       ],
-      "label": null,
+      "label": 1,
       "note": ""
     },
     {
@@ -1365,7 +1365,7 @@
         12,
         13
       ],
-      "label": null,
+      "label": 1,
       "note": ""
     },
     {
@@ -1409,7 +1409,7 @@
         15,
         16
       ],
-      "label": null,
+      "label": 1,
       "note": ""
     },
     {
@@ -1450,7 +1450,7 @@
         13,
         16
       ],
-      "label": null,
+      "label": 1,
       "note": ""
     },
     {
@@ -1489,8 +1489,8 @@
       "seen_in_runs": [
         11
       ],
-      "label": null,
-      "note": ""
+      "label": 1,
+      "note": "사용자에게 근거1 근거2 이런식으로 나타내면 찾기 어려움"
     },
     {
       "case_id": "e23277d6ec39",
@@ -1530,7 +1530,7 @@
         12,
         13
       ],
-      "label": null,
+      "label": 1,
       "note": ""
     },
     {
@@ -1574,7 +1574,7 @@
         15,
         16
       ],
-      "label": null,
+      "label": 1,
       "note": ""
     },
     {
@@ -1618,7 +1618,7 @@
         15,
         16
       ],
-      "label": null,
+      "label": 1,
       "note": ""
     },
     {
@@ -1659,7 +1659,7 @@
         15,
         16
       ],
-      "label": null,
+      "label": 1,
       "note": ""
     },
     {
@@ -1698,8 +1698,8 @@
       "seen_in_runs": [
         14
       ],
-      "label": null,
-      "note": ""
+      "label": 0,
+      "note": "기간제 얘기는 없음"
     },
     {
       "case_id": "f04516e37215",
@@ -1738,8 +1738,8 @@
         13,
         14
       ],
-      "label": null,
-      "note": ""
+      "label": 1,
+      "note": "문서상으로는 이까지 확인됩니다 없어야함"
     },
     {
       "case_id": "f848fcc843b1",
@@ -1779,8 +1779,8 @@
         12,
         13
       ],
-      "label": null,
-      "note": ""
+      "label": 0,
+      "note": "기간제가 없음"
     },
     {
       "case_id": "fc43d5f13390",
@@ -1822,7 +1822,7 @@
         14,
         16
       ],
-      "label": null,
+      "label": 1,
       "note": ""
     }
   ]
