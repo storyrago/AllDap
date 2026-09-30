@@ -493,13 +493,13 @@ LLM 이 (질문, 정답) 쌍을 만들고 `eval_questions` 에 저장한다. **P
 
 ### ▶ 다음 세션은 여기서 시작한다 (2026-08-04 말 기준)
 
-🔴 **가장 최신 상태는 [`docs/superpowers/handoff-2026-09-26.md`](docs/superpowers/handoff-2026-09-26.md) 다.**
-   무관한 청크 주입 탐침(2026-09-25 핸드오프가 지시한 일)은 끝났다
-   (아래 "무관한 청크 주입 탐침 (2026-09-26)" 절). 끝에 붙인 227회는 한 번도 안 무너졌다.
-   **다음 후보는 셋이고 순서는 아직 안 정했다**: ① 맨 앞 끼우기에서 번호 밀림과 자리를 떼어 재는 실험 ·
-   ② 생성 모델 쪽 탐침(이번 결과로 우선순위가 내려갔다) · ③ 답변이 근거를 번호로 인용하는 것 자체의 문제.
-   자세한 것은 그 핸드오프 5절.
-   (앞 슬라이스는 [`handoff-2026-09-25.md`](docs/superpowers/handoff-2026-09-25.md) ·
+🔴 **가장 최신 상태는 [`docs/superpowers/handoff-2026-10-01.md`](docs/superpowers/handoff-2026-10-01.md) 다.**
+   **리랭커 파인튜닝 전후 비교 실험의 설계가 끝났다**
+   ([`specs/2026-10-01-reranker-finetune-design.md`](docs/superpowers/specs/2026-10-01-reranker-finetune-design.md)).
+   다음 할 일은 그 핸드오프 6절의 순서 그대로다: 사용자 스펙 검토 → 구현 계획 → 구현.
+   2026-09-26 핸드오프의 후보 셋 중 ①(자리 효과)과 ③(번호 인용)은 2026-10-01 에 닫혔다(그 핸드오프 2절).
+   (앞 슬라이스는 [`handoff-2026-09-26.md`](docs/superpowers/handoff-2026-09-26.md) ·
+   [`handoff-2026-09-25.md`](docs/superpowers/handoff-2026-09-25.md) ·
    [`handoff-2026-09-21.md`](docs/superpowers/handoff-2026-09-21.md) ·
    [`handoff-2026-09-19.md`](docs/superpowers/handoff-2026-09-19.md))
 이 절의 "다음 후보" 목록은 2026-08-04 기준이라 낡았다. 무엇을 먼저 할지는 그 핸드오프와
