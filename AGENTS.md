@@ -398,12 +398,11 @@ Flyway 규칙 5번이 말하는 "진행 상황 표의 요금제 선택 (2026-09-
 
 ### ▶ 다음 세션은 여기서 시작한다
 
-🔴 **가장 최신 상태는 [`docs/superpowers/handoff-2026-10-01.md`](docs/superpowers/handoff-2026-10-01.md) 다.**
-   **리랭커 파인튜닝 전후 비교 실험의 설계가 끝났다**
-   ([`specs/2026-10-01-reranker-finetune-design.md`](docs/superpowers/specs/2026-10-01-reranker-finetune-design.md)).
-   다음 할 일은 그 핸드오프 6절의 순서 그대로다: 사용자 스펙 검토 → 구현 계획 → 구현.
-   2026-09-26 핸드오프의 후보 셋 중 ①(자리 효과)과 ③(번호 인용)은 2026-10-01 에 닫혔다(그 핸드오프 2절).
-   (앞 슬라이스는 [`handoff-2026-09-26.md`](docs/superpowers/handoff-2026-09-26.md) ·
+🔴 **가장 최신 상태는 [`docs/superpowers/handoff-2026-10-02.md`](docs/superpowers/handoff-2026-10-02.md) 다.**
+   **리랭커 파인튜닝 실험은 학습 전 관문에서 종료됐다**(학습하지 않음). 결과와 다시 열 조건은
+   [`plans/2026-10-01-reranker-finetune-results.md`](docs/superpowers/plans/2026-10-01-reranker-finetune-results.md).
+   (앞 슬라이스는 [`handoff-2026-10-01.md`](docs/superpowers/handoff-2026-10-01.md) ·
+   [`handoff-2026-09-26.md`](docs/superpowers/handoff-2026-09-26.md) ·
    [`handoff-2026-09-25.md`](docs/superpowers/handoff-2026-09-25.md) ·
    [`handoff-2026-09-21.md`](docs/superpowers/handoff-2026-09-21.md) ·
    [`handoff-2026-09-19.md`](docs/superpowers/handoff-2026-09-19.md))
