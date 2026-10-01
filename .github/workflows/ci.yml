@@ -243,6 +243,8 @@ jobs:
       #       DB 도 외부 API 도 안 쓴다. 🔴 이 점검의 핵심은 꼬리표(source_text)를 실제로
       #       <다시 잘라> 대조하는 것이라, 코퍼스나 청킹 설정이 바뀌면 여기서 빨간불이 난다.
       #       파일이 없으면 통과가 아니라 실패다 - 점검 대상이 없는 것과 통과한 것은 다르다.
+      #    ✅ app.finetune_split_check 는 리랭커 파인튜닝의 분할, 문제, 학습 데이터 파일이
+      #       서로 새지 않는지 파일만 읽고 본다(스펙 2026-10-01 §8).
       #    ✅ app.local_reranker_check · app.export_reranker_check 는 <계약과 순수 로직>만 본다.
       #       onnxruntime · transformers · torch 를 import 하지 않고(늦은 import) 모델 파일도
       #       안 읽는다. 🔴 이 둘이 여기서 도는 것 자체가 그 <늦은 import> 의 검사다 -
@@ -252,6 +254,9 @@ jobs:
           python -m app.parsers_check
           python -m app.chunker_check
           python -m app.eval_set_check
+          python -m app.finetune_split_check
+          python -m app.eval_set_io_check
+          python -m app.rank_trace_check
           python -m app.retriever_check
           python -m app.evalrun_check
           python -m app.evaluator_check

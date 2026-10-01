@@ -5,6 +5,8 @@
     cd ai-service && RERANKER_PROVIDER=local .venv/bin/python -m app.rank_trace --bot-id 1 --qid 7
     cd ai-service && RERANKER_PROVIDER=local .venv/bin/python -m app.rank_trace --bot-id 1 --all
     cd ai-service && .venv/bin/python -m app.rank_trace --bot-id 1 --scores 7   # 제공자별 점수 비교
+    cd ai-service && .venv/bin/python -m app.rank_trace --bot-id 3 --compare local --gate local
+    cd ai-service && .venv/bin/python -m app.rank_trace --bot-id 3 --compare local,local_int8,local_ft,local_ft_int8 --pair local:local_ft --pair local_ft:local_ft_int8 --out testdata/finetune/compare_test.json
 
 🔴 기본은 <활성 문항만>(`is_active=true`) 추적한다. 평가(`evalrun`)가 보는 것과 같은 집합이다.
    `--all` 을 붙이면 비활성까지 찍되 표에 상태 칸이 붙고, 판정 개수는 그래도 활성만 센다.
@@ -64,6 +66,10 @@ CI 에서 돌지 않는다
 from __future__ import annotations
 
 import argparse
+import json
+import math
+from datetime import date
+from pathlib import Path
 
 from .config import get_settings
 from .db import close_pool, cursor
@@ -334,6 +340,228 @@ def _print_scores(bot_id: Id, qid: int, variants: list[str]) -> None:
             print(f"{rank:>3}. score={item['score']:>12.6f}  chunk={str(src.chunk_id):<5} "
                   f"{src.filename[:28]}{tail}")
 
+# ─────────────────────────────────────────────────────────────────────────────
+# 여러 모델 비교 (2026-10-01, 리랭커 파인튜닝 실험)
+# 설계: docs/superpowers/specs/2026-10-01-reranker-finetune-design.md §5
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# 무엇이 위의 trace() 와 다른가
+#   trace() 는 설정의 reranker_provider 하나로 잰다. 비교 모드는 같은 리랭커 후보에
+#   로컬 변형 여러 개를 차례로 넣는다. 후보를 한 번만 만들기 때문에, 변형끼리의 차이는
+#   리랭커 하나에서만 생긴다.
+#
+# 문제마다 상태가 넷 중 하나다(스펙 §0 "고칠 수 있는 문제", §5-4).
+#   fixable  거리 게이트를 통과했고 정답 청크가 거리 컷을 통과해 리랭커 후보 안에 있다
+#   gate     거리 게이트에 걸려 근거가 모두 버려진다(리랭커가 불리지 않는다)
+#   cut      정답 청크가 거리 컷(max_distance)에 잘린다
+#   outside  정답 청크가 리랭커 후보 밖이다
+# gate, cut, outside 는 리랭커가 바꿀 수 없으므로 모든 변형에서 결과가 같다.
+
+STATUSES = ("fixable", "gate", "cut", "outside")
+_STATUS_LABELS = {
+    "fixable": "고칠 수 있는 문제",
+    "gate": "거리 게이트에 걸림",
+    "cut": "정답 청크가 거리 컷에 잘림",
+    "outside": "정답 청크가 리랭커 후보 밖",
+}
+ALPHA = 0.05            # 판정 유의수준. 결과를 보기 전에 정했다(스펙 §5-3).
+GATE_MIN_RATIO = 0.25   # 관문: 고칠 수 있는데 5위 밖인 문제가 시험 문제 전체의 4분의 1 이상(스펙 §5-2).
+
+
+def sign_test_p(improved: int, worsened: int) -> float:
+    """양측 부호 검정의 p 값.
+
+    갈린 문제 n 개가 동전 던지기처럼 반반으로 갈린다고 가정할 때, 지금보다 한쪽으로 더
+    치우친 결과가 나올 확률이다. 작은 쪽 개수를 k 라 하면
+        p = 2 × (C(n,0) + C(n,1) + ... + C(n,k)) / 2^n
+    math.comb(n, i) 가 C(n, i)(n 개 중 i 개를 고르는 경우의 수)다. scipy 를 쓰지 않는 이유는
+    CI 가 requirements.txt 만 설치하고, 식이 이 한 줄이라 의존성을 늘릴 값어치가 없어서다.
+    """
+    n = improved + worsened
+    if n == 0:
+        return 1.0
+    k = min(improved, worsened)
+    tail = sum(math.comb(n, i) for i in range(k + 1)) / 2 ** n
+    return min(1.0, 2 * tail)  # 양쪽이 같으면 2 × tail 이 1 을 넘으므로 자른다
+
+
+def judge(improved: int, worsened: int) -> str:
+    """스펙 §5-3 의 판정 규칙."""
+    p = sign_test_p(improved, worsened)
+    if p < ALPHA and improved > worsened:
+        return "효과 있음"
+    if p < ALPHA and worsened > improved:
+        return "악화"
+    return "구별되지 않음"
+
+
+def _in_top(r: dict, variant: str, top_k: int) -> bool:
+    return r["status"] == "fixable" and r["ranks"][variant] <= top_k
+
+
+def summarize(results: list[dict], variant: str, top_k: int) -> dict:
+    """한 변형의 지표. 대표 지표의 분모는 시험 문제 전체다(고칠 수 없는 문제 포함)."""
+    fixable = [r for r in results if r["status"] == "fixable"]
+    hit = sum(1 for r in fixable if r["ranks"][variant] <= top_k)
+    n = len(results)
+    return {
+        "variant": variant,
+        "n": n,
+        "fixable": len(fixable),
+        "hit": hit,
+        "top_rate": hit / n if n else 0.0,
+        "fixable_rate": hit / len(fixable) if fixable else 0.0,
+        # 평균 순위는 고칠 수 있는 문제만으로 낸다. 다른 문제에는 리랭커 순위가 없다.
+        "mean_rank": (sum(r["ranks"][variant] for r in fixable) / len(fixable)) if fixable else None,
+        "status_counts": {s: sum(1 for r in results if r["status"] == s) for s in STATUSES},
+    }
+
+
+def paired(results: list[dict], base: str, target: str, top_k: int) -> tuple[list[dict], list[dict]]:
+    """(좋아진 문제, 나빠진 문제). 둘 다 5위 안이거나 둘 다 5위 밖인 동점은 뺀다."""
+    up = [r for r in results if not _in_top(r, base, top_k) and _in_top(r, target, top_k)]
+    down = [r for r in results if _in_top(r, base, top_k) and not _in_top(r, target, top_k)]
+    return up, down
+
+
+def gate_count(results: list[dict], variant: str, top_k: int) -> tuple[int, int]:
+    """(고칠 수 있는데 5위 밖인 문제 수, 시험 문제 전체 수). 분모를 전체로 잡는 이유는 스펙 §5-2."""
+    room = sum(1 for r in results if r["status"] == "fixable" and r["ranks"][variant] > top_k)
+    return room, len(results)
+
+
+def _chunk_counts(bot_id: Id) -> tuple[int, int]:
+    """(그 봇의 청크 수, 그중 임베딩이 빈 청크 수)."""
+    with cursor() as cur:
+        # count(*) FILTER (WHERE ...) 는 조건에 맞는 행만 센다. 한 번 읽어 두 수를 함께 낸다.
+        cur.execute("SELECT count(*), count(*) FILTER (WHERE embedding IS NULL) "
+                    "FROM chunks WHERE bot_id = %s", (bot_id,))
+        total, empty = cur.fetchone()
+    return total, empty
+
+
+def chunks_not_ready(bot_id: Id, total: int, empty: int) -> str | None:
+    """재기 전에 막을 사유. 없으면 None. DB 를 쓰지 않아 rank_trace_check 가 시험한다."""
+    if total == 0 or empty:
+        return (f"봇 {bot_id} 의 문서 처리가 끝나지 않았습니다(청크 {total}개 중 임베딩이 빈 것 "
+                f"{empty}개). 임베딩이 빈 정답 청크는 거리 컷에 잘린 것으로 잘못 세어집니다. "
+                "문서 처리가 끝난 뒤 다시 실행해주세요.")
+    return None
+
+
+def measure_variants(bot_id: Id, variants: list[str]) -> list[dict]:
+    """봇의 활성 평가 질문마다 리랭커 후보를 한 번 만들고, 변형마다 정답 청크의 순위를 잰다."""
+    from . import local_reranker, retriever  # 늦은 import: 이 모듈을 열기만 해서 모델이 뜨면 안 된다
+
+    s = get_settings()
+    if s.rerank_fusion:
+        # 이 모드는 리랭커 순서를 그대로 최종 순서로 본다. 융합이 켜져 있으면 실제 검색과 달라진다.
+        raise SystemExit("rerank_fusion 이 켜져 있습니다. 비교 모드는 기본값(꺼짐)에서만 돌립니다. "
+                         "RERANK_FUSION=false 로 다시 실행해주세요.")
+    if not s.reranker_enabled:
+        raise SystemExit("reranker_enabled 가 꺼져 있습니다. RERANKER_ENABLED=true 로 다시 실행해주세요.")
+
+    rows = _questions(bot_id, None)
+    no_gold = [qid for qid, _, gold, _ in rows if gold is None]
+    if no_gold:
+        raise SystemExit(f"정답 청크가 끊긴 문항이 있습니다: {no_gold}. "
+                         "`python -m app.eval_set load --file ...` 로 다시 적재해주세요.")
+    if not rows:
+        raise SystemExit(f"봇 {bot_id} 에 활성 평가 질문이 없습니다. 먼저 문제 파일을 적재해주세요.")
+    # 아래 거리 질의는 embedding IS NOT NULL 만 본다. 임베딩이 빈 정답 청크는 cut 으로 뭉개져
+    # 관문 분모가 조용히 낮아지므로, 처리가 덜 끝난 봇은 재지 않는다.
+    not_ready = chunks_not_ready(bot_id, *_chunk_counts(bot_id))
+    if not_ready:
+        raise SystemExit(not_ready)
+
+    out: list[dict] = []
+    for i, (qid, question, gold, _active) in enumerate(rows, 1):
+        r: dict = {"qid": qid, "question": question, "ranks": {}}
+        qvec = retriever.embed_one(question)
+        allrows = _all_distances(bot_id, qvec)
+        dist = {cid: float(d) for cid, d in allrows}
+        d1 = float(allrows[0][1])
+        # trace() 는 d1, gold_dist 를 소수 넷째 자리로 반올림한 뒤 비교하고, 이 모드는 반올림하지
+        # 않는다(search() 와 같다). 두 결과가 한 문항에서 갈리면 이 차이부터 볼 것.
+        if s.answerable_max_distance is not None and d1 > s.answerable_max_distance:
+            r["status"] = "gate"
+        elif gold not in dist or dist[gold] > s.max_distance:
+            r["status"] = "cut"
+        else:
+            cand, _, _ = _candidates(bot_id, question, qvec)
+            sources = _cut(cand)
+            ids = [x.chunk_id for x in sources]
+            if gold not in ids:
+                r["status"] = "outside"
+            else:
+                r["status"] = "fixable"
+                contents = retriever.fetch_contents(ids)
+                texts = [contents.get(x.chunk_id, x.preview) for x in sources]
+                for variant in variants:
+                    ranked = sources
+                    if len(sources) > 1:  # 후보가 하나면 리랭커를 부르지 않는다(search() 와 같다)
+                        resp = local_reranker.rerank(question, texts, variant=variant)
+                        ranked = retriever._apply_order(sources, [it["id"] for it in resp["response"]])
+                    r["ranks"][variant] = [x.chunk_id for x in ranked].index(gold) + 1
+        out.append(r)
+        print(f"  {i}/{len(rows)} 질문 {qid}: {r['status']} {r['ranks'] or ''}", flush=True)
+    return out
+
+
+def _print_compare(results: list[dict], variants: list[str], pairs: list[tuple[str, str]],
+                   gate: str | None, top_k: int) -> None:
+    print(f"\n시험 문제 {len(results)}개, top_k={top_k}")
+    print(f"{'변형':<15} {'상위 5개 진입률':>14} {'고칠 수 있는 문제 기준':>20} {'정답 평균 순위':>14}")
+    for v in variants:
+        m = summarize(results, v, top_k)
+        mean = f"{m['mean_rank']:.2f}" if m["mean_rank"] is not None else "-"
+        print(f"{v:<15} {m['hit']:>3}/{m['n']:<3} {m['top_rate']:>6.3f}   "
+              f"{m['hit']:>3}/{m['fixable']:<3} {m['fixable_rate']:>6.3f}       {mean:>8}")
+    counts = summarize(results, variants[0], top_k)["status_counts"]
+    print("\n따로 세는 문제(모든 변형에서 결과가 같다, 스펙 §5-4):")
+    for status in STATUSES[1:]:
+        print(f"  {counts[status]:>3}  {_STATUS_LABELS[status]}")
+
+    for base, target in pairs:
+        up, down = paired(results, base, target, top_k)
+        p = sign_test_p(len(up), len(down))
+        print(f"\n비교 {base} → {target}: 좋아짐 {len(up)}, 나빠짐 {len(down)}, "
+              f"부호 검정 p={p:.4f} → {judge(len(up), len(down))}")
+        # 나빠진 문제는 판정과 관계없이 전부 찍는다(스펙 §5-3 마지막 줄).
+        for r in down:
+            print(f"    나빠짐 [{r['qid']}] {r['ranks'][base]}위 → {r['ranks'][target]}위  {r['question']}")
+        for r in up:
+            print(f"    좋아짐 [{r['qid']}] {r['ranks'][base]}위 → {r['ranks'][target]}위  {r['question']}")
+
+    if gate:
+        room, n = gate_count(results, gate, top_k)
+        ratio = room / n if n else 0.0
+        verdict = "통과" if ratio >= GATE_MIN_RATIO else "통과하지 못함"
+        print(f"\n관문({gate}): 고칠 수 있는데 5위 밖 {room}/{n} = {ratio:.3f} "
+              f"(기준 {GATE_MIN_RATIO} 이상) → {verdict}")
+
+
+def _write_compare(path: Path, bot_id: Id, variants: list[str], results: list[dict]) -> None:
+    s = get_settings()
+    payload = {
+        "bot_id": bot_id,
+        "measured_on": date.today().isoformat(),
+        # 설정을 함께 적는다. 다른 설정으로 잰 결과와 이어 붙이지 않기 위해서다.
+        "settings": {
+            "answerable_max_distance": s.answerable_max_distance,
+            "max_distance": s.max_distance,
+            "top_k": s.top_k,
+            "rerank_candidates": s.rerank_candidates,
+            "hybrid_enabled": s.hybrid_enabled,
+            "rerank_fusion": s.rerank_fusion,
+        },
+        "variants": variants,
+        "results": results,
+    }
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    print(f"\n{path} 에 썼습니다.")
+
 
 def main() -> None:
     parser = argparse.ArgumentParser(
@@ -348,7 +576,33 @@ def main() -> None:
                         help="이 질문의 리랭커 점수를 제공자별로 나란히 찍는다")
     parser.add_argument("--variants", default="local,local_int8",
                         help="--scores 와 함께 쓸 로컬 제공자 목록(쉼표 구분)")
+    parser.add_argument("--compare", default=None, metavar="V1,V2",
+                        help="활성 문항 전부를 이 로컬 변형들로 잰다(쉼표 구분). 예: local,local_ft")
+    parser.add_argument("--pair", action="append", default=[], metavar="BASE:TARGET",
+                        help="--compare 와 함께. 좋아짐, 나빠짐, 부호 검정을 낼 짝. 여러 번 줄 수 있다")
+    parser.add_argument("--gate", default=None, metavar="VARIANT",
+                        help="--compare 와 함께. 이 변형으로 학습 전 관문(4분의 1)을 판정한다")
+    parser.add_argument("--out", default=None, metavar="PATH",
+                        help="--compare 결과를 JSON 으로 쓴다(ai-service/ 기준 상대 경로)")
     args = parser.parse_args()
+
+    if args.compare:
+        variants = [v.strip() for v in args.compare.split(",") if v.strip()]
+        # "a:b" 를 (a, b) 로. split(":", 1) 은 처음 콜론에서 한 번만 자른다.
+        pairs = [tuple(p.split(":", 1)) for p in args.pair]
+        for pair in pairs:
+            if len(pair) != 2 or pair[0] not in variants or pair[1] not in variants:
+                raise SystemExit(f"--pair {':'.join(pair)} 의 두 변형이 --compare 목록에 있어야 합니다.")
+        if args.gate and args.gate not in variants:
+            raise SystemExit(f"--gate {args.gate} 가 --compare 목록에 없습니다.")
+        results = measure_variants(args.bot_id, variants)
+        _print_compare(results, variants, pairs, args.gate, get_settings().top_k)
+        if args.out:
+            out = Path(args.out)
+            if not out.is_absolute():
+                out = Path(__file__).resolve().parent.parent / out
+            _write_compare(out, args.bot_id, variants, results)
+        return
 
     if args.scores is not None:
         _print_scores(args.bot_id, args.scores, args.variants.split(","))
