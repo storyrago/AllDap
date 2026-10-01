@@ -454,8 +454,18 @@ def main() -> int:
     else:
         lines = PAIRS_FILE.read_text(encoding="utf-8").splitlines()
         pairs = [json.loads(line) for line in lines if line.strip()]
-        report("2. 시험, 예비 시험 정답이 학습 데이터에 없다",
-               check_pairs(pairs, protected_texts(payloads, twins)))
+        # 보호 목록은 시험, 예비 시험 문제 파일로 만든다. 둘 중 하나라도 없으면 보호 목록이
+        # 비거나 반쪽이라 무엇을 넣어도 통과한다. "검사하지 못함" 을 "검사해서 통과" 와 같은 ✅ 로
+        # 찍지 않으려고 실패로 센다. 계획 순서상 두 파일이 train_pairs 보다 먼저 있어야 하므로
+        # 건너뛸 상황이 아니다.
+        missing = [QUESTION_FILES[k].name for k in ("test", "holdout") if k not in payloads]
+        if missing:
+            report("2. 시험, 예비 시험 정답이 학습 데이터에 없다",
+                   [f"train_pairs.jsonl 은 있는데 {', '.join(missing)} 이 없거나 읽지 못해 "
+                    "보호 목록을 만들 수 없습니다. 문제 파일을 먼저 만든 뒤 다시 실행해주세요."])
+        else:
+            report("2. 시험, 예비 시험 정답이 학습 데이터에 없다",
+                   check_pairs(pairs, protected_texts(payloads, twins)))
         if not NOTEBOOK_FILE.exists():
             skip("노트북이 아직 없어 6번 검사를 건너뜁니다")
         else:

@@ -254,6 +254,13 @@ def dump(bot_id: Id, path: Path = EVAL_SET_PATH) -> int:
 def read_payload(path: Path = EVAL_SET_PATH) -> dict:
     """파일을 읽는다. 없거나 깨졌으면 무엇을 어떻게 하면 되는지까지 알려준다."""
     if not path.exists():
+        if path != EVAL_SET_PATH:
+            # --file 로 준 경로가 없는 것은 대개 경로를 잘못 적은 것이다. dump 로 만들라고 하면
+            # 엉뚱한 봇의 질문으로 새 파일을 만들게 된다.
+            raise SystemExit(
+                f"문제 파일이 없습니다: {path}\n"
+                "--file 의 상대 경로는 ai-service/ 기준입니다. 경로를 ai-service/ 기준으로 확인해주세요."
+            )
         raise SystemExit(
             f"평가셋 파일이 없습니다: {path}\n"
             "먼저 `python -m app.eval_set dump --bot-id <봇번호>` 로 만들어주세요."
@@ -430,6 +437,27 @@ def resolve_file(arg: str | None) -> Path:
     return p if p.is_absolute() else _AI_SERVICE_DIR / p
 
 
+# 봇 1번 평가셋 파일의 주인. 데모 봇 id 는 1 로 고정이다(AGENTS.md Flyway 규칙 4번).
+DEFAULT_FILE_BOT_ID = 1
+
+
+def target_file(bot_id: Id, arg: str | None) -> Path:
+    """(봇, --file) → 쓸 파일. 다른 봇인데 --file 이 없으면 거절한다.
+
+    거절하는 이유: 기본 파일은 봇 1번의 평가셋이다. 다른 봇으로 dump 하면 그 파일을 다른 봇의
+    질문으로 덮어쓰고, load 하면 봇 1번 문항이 다른 봇에 들어간다. 둘 다 오류 없이 끝나서
+    나중에야 드러난다.
+    """
+    if arg is None and bot_id != DEFAULT_FILE_BOT_ID:
+        raise SystemExit(
+            f"봇 {bot_id} 에 --file 없이 실행했습니다. --file 이 없으면 봇 {DEFAULT_FILE_BOT_ID}번 "
+            "평가셋 파일(testdata/eval_questions.json)을 씁니다.\n"
+            f"이대로 dump 하면 그 파일을 봇 {bot_id} 의 질문으로 덮어쓰고, load 하면 봇 "
+            f"{DEFAULT_FILE_BOT_ID}번 문항을 봇 {bot_id} 에 넣게 됩니다. --file 로 문제 파일을 지정해주세요."
+        )
+    return resolve_file(arg)
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # 3. CLI
 # ─────────────────────────────────────────────────────────────────────────────
@@ -456,7 +484,7 @@ def main() -> int:
         help="기존 질문을 지우고 넣는다 (평가 결과도 CASCADE 로 함께 지워진다)")
 
     args = parser.parse_args()
-    path = resolve_file(args.file)
+    path = target_file(args.bot_id, args.file)
     if args.command == "dump":
         return dump(args.bot_id, path)
     return load(args.bot_id, args.replace, path)

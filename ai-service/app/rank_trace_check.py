@@ -9,7 +9,7 @@
 """
 from __future__ import annotations
 
-from .rank_trace import gate_count, judge, paired, sign_test_p, summarize
+from .rank_trace import chunks_not_ready, gate_count, judge, paired, sign_test_p, summarize
 
 
 def _r(qid: int, status: str, **ranks: int) -> dict:
@@ -68,6 +68,14 @@ def check_gate_count_uses_all_questions() -> None:
     assert gate_count(results, "local", top_k=5) == (1, 4)
 
 
+def check_chunks_not_ready() -> None:
+    assert chunks_not_ready(3, 120, 0) is None
+    empty_bot = chunks_not_ready(3, 0, 0)
+    assert empty_bot and "청크 0개" in empty_bot, empty_bot
+    half = chunks_not_ready(3, 120, 1)
+    assert half and "120개" in half and "1개" in half, half
+
+
 def main() -> None:
     checks = [
         check_sign_test_matches_spec_examples,
@@ -75,6 +83,7 @@ def main() -> None:
         check_summarize_counts_unfixable_in_denominator,
         check_paired_ignores_ties_and_unfixable,
         check_gate_count_uses_all_questions,
+        check_chunks_not_ready,
     ]
     for fn in checks:
         fn()

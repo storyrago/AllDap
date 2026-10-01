@@ -430,6 +430,25 @@ def gate_count(results: list[dict], variant: str, top_k: int) -> tuple[int, int]
     return room, len(results)
 
 
+def _chunk_counts(bot_id: Id) -> tuple[int, int]:
+    """(그 봇의 청크 수, 그중 임베딩이 빈 청크 수)."""
+    with cursor() as cur:
+        # count(*) FILTER (WHERE ...) 는 조건에 맞는 행만 센다. 한 번 읽어 두 수를 함께 낸다.
+        cur.execute("SELECT count(*), count(*) FILTER (WHERE embedding IS NULL) "
+                    "FROM chunks WHERE bot_id = %s", (bot_id,))
+        total, empty = cur.fetchone()
+    return total, empty
+
+
+def chunks_not_ready(bot_id: Id, total: int, empty: int) -> str | None:
+    """재기 전에 막을 사유. 없으면 None. DB 를 쓰지 않아 rank_trace_check 가 시험한다."""
+    if total == 0 or empty:
+        return (f"봇 {bot_id} 의 문서 처리가 끝나지 않았습니다(청크 {total}개 중 임베딩이 빈 것 "
+                f"{empty}개). 임베딩이 빈 정답 청크는 거리 컷에 잘린 것으로 잘못 세어집니다. "
+                "문서 처리가 끝난 뒤 다시 실행해주세요.")
+    return None
+
+
 def measure_variants(bot_id: Id, variants: list[str]) -> list[dict]:
     """봇의 활성 평가 질문마다 리랭커 후보를 한 번 만들고, 변형마다 정답 청크의 순위를 잰다."""
     from . import local_reranker, retriever  # 늦은 import: 이 모듈을 열기만 해서 모델이 뜨면 안 된다
@@ -449,6 +468,11 @@ def measure_variants(bot_id: Id, variants: list[str]) -> list[dict]:
                          "`python -m app.eval_set load --file ...` 로 다시 적재해주세요.")
     if not rows:
         raise SystemExit(f"봇 {bot_id} 에 활성 평가 질문이 없습니다. 먼저 문제 파일을 적재해주세요.")
+    # 아래 거리 질의는 embedding IS NOT NULL 만 본다. 임베딩이 빈 정답 청크는 cut 으로 뭉개져
+    # 관문 분모가 조용히 낮아지므로, 처리가 덜 끝난 봇은 재지 않는다.
+    not_ready = chunks_not_ready(bot_id, *_chunk_counts(bot_id))
+    if not_ready:
+        raise SystemExit(not_ready)
 
     out: list[dict] = []
     for i, (qid, question, gold, _active) in enumerate(rows, 1):
@@ -457,6 +481,8 @@ def measure_variants(bot_id: Id, variants: list[str]) -> list[dict]:
         allrows = _all_distances(bot_id, qvec)
         dist = {cid: float(d) for cid, d in allrows}
         d1 = float(allrows[0][1])
+        # trace() 는 d1, gold_dist 를 소수 넷째 자리로 반올림한 뒤 비교하고, 이 모드는 반올림하지
+        # 않는다(search() 와 같다). 두 결과가 한 문항에서 갈리면 이 차이부터 볼 것.
         if s.answerable_max_distance is not None and d1 > s.answerable_max_distance:
             r["status"] = "gate"
         elif gold not in dist or dist[gold] > s.max_distance:
