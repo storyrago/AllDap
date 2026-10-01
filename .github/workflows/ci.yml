@@ -255,6 +255,7 @@ jobs:
           python -m app.chunker_check
           python -m app.eval_set_check
           python -m app.finetune_split_check
+          python -m app.eval_set_io_check
           python -m app.retriever_check
           python -m app.evalrun_check
           python -m app.evaluator_check
