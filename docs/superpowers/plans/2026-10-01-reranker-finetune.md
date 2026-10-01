@@ -1624,6 +1624,8 @@ git commit -m "feat: 리랭커 파인튜닝의 예비 시험 문제를 더한다
 
 ### Task 6: 시험 문제 60개 이상을 쓰고, 사용자 검토 뒤 시험용 봇에 적재한다
 
+> 2차 시도(2026-10-02, 1차 관문 실패 뒤)는 스펙 §4-4 규칙 11 을 따른다. 대상을 돌려 말하고, B 의 순위로 문제를 고르지 않는다.
+
 **Files:**
 - Create: `ai-service/testdata/finetune/test_questions.json`
 
@@ -1669,6 +1671,8 @@ git commit -m "feat: 리랭커 파인튜닝의 시험 문제를 더한다 (사�
 ---
 
 ### Task 7: 학습 전 관문을 잰다
+
+> 2차 시도는 스펙 §4-4 규칙 11 을 따른다. 2차도 통과하지 못하면 학습하지 않고 실험을 마친다. 1차 결과는 `testdata/finetune/gate_B_round1.json`.
 
 **Files:**
 - Create: `ai-service/testdata/finetune/gate_B.json`
@@ -2776,3 +2780,4 @@ PR 본문은 템플릿을 채운다. "어떻게 해결했나요" 에 `compare_te
 ## 실행 기록
 
 - 학습용 봇 = 7, 시험용 봇 = 8, 청크 수 학습용 220, 시험용 140 (2026-10-02)
+- 1차 관문: 통과하지 못함. 고칠 수 있는데 5위 밖 4/71 = 0.056, 5위 안 65, 거리 게이트 2, 후보 밖 0 (2026-10-02, `testdata/finetune/gate_B_round1.json`). 시험 문제를 규칙 11 로 1회 다시 쓴다
