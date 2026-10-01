@@ -1701,6 +1701,8 @@ git commit -m "feat: 리랭커 파인튜닝의 학습 전 관문을 잰 결과�
 
 ### Task 8: 학습 데이터 생성 도구 `finetune_data.py`
 
+> ⏹ 관문 실패로 하지 않음 (2026-10-02). [`2026-10-01-reranker-finetune-results.md`](2026-10-01-reranker-finetune-results.md)
+
 **Files:**
 - Create: `ai-service/app/finetune_data.py`
 - Create: `ai-service/app/finetune_data_check.py`
@@ -1989,6 +1991,8 @@ git commit -m "feat: 연습 문제로 리랭커 학습 데이터를 만드는 �
 
 ### Task 9: 연습 문제 300~400개를 쓰고 학습 데이터를 만든다
 
+> ⏹ 관문 실패로 하지 않음 (2026-10-02). [`2026-10-01-reranker-finetune-results.md`](2026-10-01-reranker-finetune-results.md)
+
 **Files:**
 - Create: `ai-service/testdata/finetune/train_questions.json`
 - Create: `ai-service/testdata/finetune/train_pairs.jsonl`
@@ -2031,6 +2035,8 @@ git commit -m "feat: 리랭커 파인튜닝의 연습 문제와 학습 데이터
 ---
 
 ### Task 10: 코랩 학습 노트북
+
+> ⏹ 관문 실패로 하지 않음 (2026-10-02). [`2026-10-01-reranker-finetune-results.md`](2026-10-01-reranker-finetune-results.md)
 
 **Files:**
 - Create: `ai-service/notebooks/train_reranker.ipynb`
@@ -2259,6 +2265,8 @@ git commit -m "feat: 리랭커 파인튜닝 코랩 노트북을 더한다"
 
 ### Task 11: 사용자가 코랩에서 학습한다
 
+> ⏹ 관문 실패로 하지 않음 (2026-10-02). [`2026-10-01-reranker-finetune-results.md`](2026-10-01-reranker-finetune-results.md)
+
 **Files:** 없음
 
 - [ ] **Step 1: 사용자에게 넘기고 멈춘다**
@@ -2283,6 +2291,8 @@ Expected: `smoke: false`, `train_pairs_sha256` 이 저장소 파일의 해시와
 ---
 
 ### Task 12: `export_reranker` 가 파인튜닝 모델을 받게 고친다
+
+> ⏹ 관문 실패로 하지 않음 (2026-10-02). [`2026-10-01-reranker-finetune-results.md`](2026-10-01-reranker-finetune-results.md)
 
 **Files:**
 - Modify: `ai-service/app/export_reranker.py`
@@ -2631,6 +2641,8 @@ git commit -m "feat: export_reranker 가 파인튜닝 모델을 변형별 원본
 
 ### Task 13: 내보내고 시험용 봇에서 B, C, D, E 를 비교한다
 
+> ⏹ 관문 실패로 하지 않음 (2026-10-02). [`2026-10-01-reranker-finetune-results.md`](2026-10-01-reranker-finetune-results.md)
+
 **Files:**
 - Create: `ai-service/testdata/finetune/compare_test.json`
 
@@ -2668,6 +2680,8 @@ git commit -m "feat: 시험용 봇에서 리랭커 파인튜닝 전후를 비교
 
 ### Task 14: (효과 있음이 아닐 때만) 예비 시험 문제로 원인을 가른다
 
+> ⏹ 관문 실패로 하지 않음 (2026-10-02). [`2026-10-01-reranker-finetune-results.md`](2026-10-01-reranker-finetune-results.md)
+
 **Files:**
 - Create: `ai-service/testdata/finetune/compare_holdout.json`
 
@@ -2698,6 +2712,8 @@ git commit -m "feat: 예비 시험 문제로 리랭커 파인튜닝의 원인을
 ---
 
 ### Task 15: 전체충실성을 B 와 D 로 1회씩 잰다 (보조 자료)
+
+> ⏹ 관문 실패로 하지 않음 (2026-10-02). [`2026-10-01-reranker-finetune-results.md`](2026-10-01-reranker-finetune-results.md)
 
 **Files:** 없음(로컬 DB 의 `eval_runs`, `eval_results`)
 
@@ -2733,6 +2749,8 @@ Expected: `provider = local`, `broken = 0`. `broken` 이 0 이 아니면 오염�
 ---
 
 ### Task 16: 기록하고 PR 2 를 연다
+
+> ⏹ 관문 실패로 하지 않음 (2026-10-02). [`2026-10-01-reranker-finetune-results.md`](2026-10-01-reranker-finetune-results.md)
 
 **Files:**
 - Create: `docs/superpowers/plans/2026-10-01-reranker-finetune-results.md`
@@ -2781,3 +2799,4 @@ PR 본문은 템플릿을 채운다. "어떻게 해결했나요" 에 `compare_te
 
 - 학습용 봇 = 7, 시험용 봇 = 8, 청크 수 학습용 220, 시험용 140 (2026-10-02)
 - 1차 관문: 통과하지 못함. 고칠 수 있는데 5위 밖 4/71 = 0.056, 5위 안 65, 거리 게이트 2, 후보 밖 0 (2026-10-02, `testdata/finetune/gate_B_round1.json`). 시험 문제를 규칙 11 로 1회 다시 쓴다
+- 2차 관문: 통과하지 못함. 고칠 수 있는데 5위 밖 4/71 = 0.056, 5위 안 64, 거리 게이트 2, 거리 컷 1, 후보 밖 0 (2026-10-02, `testdata/finetune/gate_B.json`). 규칙 11 대로 학습 없이 실험을 마친다. 결과: [`2026-10-01-reranker-finetune-results.md`](2026-10-01-reranker-finetune-results.md)
