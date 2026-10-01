@@ -88,6 +88,7 @@ git worktree add ../AllDap-ft-tools -b feat/reranker-finetune-tools origin/main
 cd ../AllDap-ft-tools/ai-service
 ln -s ../../AllDap/ai-service/.venv .venv   # 가상환경은 새로 만들지 않고 메인 폴더 것을 쓴다
 ln -s ../../AllDap/ai-service/models models # 모델 산출물(git 제외, 수 GB)도 같은 이유로 공유한다
+ln -s ../../AllDap/ai-service/.env .env      # config 의 env_file=".env" 가 실행 위치 기준이라 없으면 DB, 임베딩 설정을 못 읽는다
 # .gitignore 의 `.venv/`, `ai-service/models/` 는 끝에 / 가 있어 디렉터리만 걸린다. 심볼릭 링크는
 # 파일이라 걸리지 않으므로 저장소 공통 exclude 에 더한다(모든 워크트리가 같은 파일을 쓴다).
 printf 'ai-service/.venv\nai-service/models\n' >> "$(git rev-parse --git-common-dir)/info/exclude"
@@ -1474,6 +1475,7 @@ git worktree add ../AllDap-ft -b feat/reranker-finetune origin/main
 cd ../AllDap-ft/ai-service
 ln -s ../../AllDap/ai-service/.venv .venv
 ln -s ../../AllDap/ai-service/models models
+ln -s ../../AllDap/ai-service/.env .env
 ls app/finetune_split_check.py   # PR 1 이 들어왔는지 확인
 ```
 
