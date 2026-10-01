@@ -1483,10 +1483,10 @@ ls app/finetune_split_check.py   # PR 1 이 들어왔는지 확인
 
 ```bash
 cd ../AllDap-ft
-docker compose up -d
+docker compose up -d   # 워크트리에서는 폴더명 때문에 compose 프로젝트명이 달라져 alldap-db 와 이름이 겹친다. 이미 떠 있으면 건너뛴다
 (cd api && ./gradlew bootRun)                                    # 별도 터미널(또는 백그라운드)
 (cd ai-service && .venv/bin/uvicorn app.main:app --port 8001)    # 별도 터미널(또는 백그라운드)
-curl -s localhost:8080/actuator/health
+curl -s localhost:8081/actuator/health
 ```
 
 Expected: `{"status":"UP"...}`. Spring 이 먼저 떠야 스키마가 있다(AGENTS.md Flyway 규칙 2).
