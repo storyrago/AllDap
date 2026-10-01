@@ -1,0 +1,579 @@
+{
+  "bot_id": 8,
+  "measured_on": "2026-10-02",
+  "settings": {
+    "answerable_max_distance": 0.44,
+    "max_distance": 0.55,
+    "top_k": 5,
+    "rerank_candidates": 20,
+    "hybrid_enabled": true,
+    "rerank_fusion": false
+  },
+  "variants": [
+    "local"
+  ],
+  "results": [
+    {
+      "qid": 189,
+      "question": "실험실에서 연구하는 사람은 출근 시간이 몇 시인가요? 코어타임도 있나요?",
+      "ranks": {
+        "local": 1
+      },
+      "status": "fixable"
+    },
+    {
+      "qid": 190,
+      "question": "연구 개발 쪽에서 실험하는 사람은 재택 주 몇 번까지 돼요?",
+      "ranks": {
+        "local": 1
+      },
+      "status": "fixable"
+    },
+    {
+      "qid": 191,
+      "question": "연구직 워크스테이션 교체 주기",
+      "ranks": {
+        "local": 1
+      },
+      "status": "fixable"
+    },
+    {
+      "qid": 192,
+      "question": "실험실에서 연구를 하는데 학회에 출장을 가요. 일비는 얼마 나오나요?",
+      "ranks": {
+        "local": 1
+      },
+      "status": "fixable"
+    },
+    {
+      "qid": 193,
+      "question": "실험실 연구하는 신입 수습기간 몇개월이에요",
+      "ranks": {
+        "local": 1
+      },
+      "status": "fixable"
+    },
+    {
+      "qid": 194,
+      "question": "실험실 연구자는 배우자 출산 휴가를 며칠 쓸 수 있나요?",
+      "ranks": {
+        "local": 13
+      },
+      "status": "fixable"
+    },
+    {
+      "qid": 195,
+      "question": "연구직 징계 종류",
+      "ranks": {
+        "local": 1
+      },
+      "status": "fixable"
+    },
+    {
+      "qid": 196,
+      "question": "외국 현지 사무소에서 일하게 됐는데 출근은 현지 시각으로 몇 시인가요?",
+      "ranks": {
+        "local": 1
+      },
+      "status": "fixable"
+    },
+    {
+      "qid": 197,
+      "question": "본사에서 외국으로 나가 근무하는 사람은 재택 일주일에 며칠 가능해요?",
+      "ranks": {
+        "local": 3
+      },
+      "status": "fixable"
+    },
+    {
+      "qid": 198,
+      "question": "본사에서 외국 사무소로 나가 있는 사람의 노트북 교체 주기는 몇 년인가요?",
+      "ranks": {
+        "local": 1
+      },
+      "status": "fixable"
+    },
+    {
+      "qid": 199,
+      "question": "해외지사 자가용 출장 단가",
+      "ranks": {
+        "local": 12
+      },
+      "status": "fixable"
+    },
+    {
+      "qid": 200,
+      "question": "외국 현지 사무소 신입 수습 몇달이에요",
+      "ranks": {
+        "local": 1
+      },
+      "status": "fixable"
+    },
+    {
+      "qid": 201,
+      "question": "본사에서 외국으로 나가 몇 년째 근무 중인데 이번에 결혼해요. 결혼 휴가는 며칠인가요?",
+      "ranks": {
+        "local": 1
+      },
+      "status": "fixable"
+    },
+    {
+      "qid": 202,
+      "question": "외국 현지 사무소 쪽에 자연재해 나서 집이 망가지면 지원 있어요?",
+      "ranks": {
+        "local": 1
+      },
+      "status": "fixable"
+    },
+    {
+      "qid": 203,
+      "question": "자회사 코어타임",
+      "ranks": {},
+      "status": "gate"
+    },
+    {
+      "qid": 204,
+      "question": "계열사에 다니면 재택근무가 주 몇 회까지 허용되나요?",
+      "ranks": {
+        "local": 6
+      },
+      "status": "fixable"
+    },
+    {
+      "qid": 205,
+      "question": "모회사 말고 계열사로 입사하는데 재택으로 일할 환경을 꾸미는 데 돈을 따로 주나요?",
+      "ranks": {
+        "local": 4
+      },
+      "status": "fixable"
+    },
+    {
+      "qid": 206,
+      "question": "계열사 다니는데 자가용으로 출장갈때 얼마씩 계산해요",
+      "ranks": {
+        "local": 2
+      },
+      "status": "fixable"
+    },
+    {
+      "qid": 207,
+      "question": "계열사는 수습 얼마나 해요?",
+      "ranks": {},
+      "status": "gate"
+    },
+    {
+      "qid": 208,
+      "question": "자회사 본인 결혼 휴가",
+      "ranks": {
+        "local": 3
+      },
+      "status": "fixable"
+    },
+    {
+      "qid": 209,
+      "question": "모회사 말고 계열사에서는 자연재해로 주택 피해를 입으면 얼마까지 지원해 주나요?",
+      "ranks": {
+        "local": 1
+      },
+      "status": "fixable"
+    },
+    {
+      "qid": 210,
+      "question": "자회사 다니는데 재직증명서 어디서 떼요?",
+      "ranks": {
+        "local": 1
+      },
+      "status": "fixable"
+    },
+    {
+      "qid": 211,
+      "question": "계열사 징계종류 뭐뭐있나요",
+      "ranks": {
+        "local": 1
+      },
+      "status": "fixable"
+    },
+    {
+      "qid": 212,
+      "question": "일주일에 20시간도 안 되게 일하기로 계약했는데 계약은 몇 개월 단위로 갱신되나요?",
+      "ranks": {
+        "local": 1
+      },
+      "status": "fixable"
+    },
+    {
+      "qid": 213,
+      "question": "주 20시간 미만으로 일하는 사람의 초과 근무는 한 달에 몇 시간까지 가능한가요?",
+      "ranks": {
+        "local": 1
+      },
+      "status": "fixable"
+    },
+    {
+      "qid": 214,
+      "question": "시간제 재택근무 신청",
+      "ranks": {
+        "local": 1
+      },
+      "status": "fixable"
+    },
+    {
+      "qid": 215,
+      "question": "4시간 근무 계약으로 다닌 지 5개월 됐는데 연차가 며칠 생겼는지 궁금해요",
+      "ranks": {
+        "local": 1
+      },
+      "status": "fixable"
+    },
+    {
+      "qid": 216,
+      "question": "주 20시간 안 되게 일하는데 노트북 받아요?",
+      "ranks": {
+        "local": 1
+      },
+      "status": "fixable"
+    },
+    {
+      "qid": 217,
+      "question": "4시간 근무 계약인데 식대 얼마 나와요",
+      "ranks": {
+        "local": 1
+      },
+      "status": "fixable"
+    },
+    {
+      "qid": 218,
+      "question": "주 20시간 미만으로 계약한 사람은 건강검진을 받을 때 본인 부담이 몇 퍼센트인가요?",
+      "ranks": {
+        "local": 1
+      },
+      "status": "fixable"
+    },
+    {
+      "qid": 219,
+      "question": "시간제 축의금 조의금",
+      "ranks": {
+        "local": 2
+      },
+      "status": "fixable"
+    },
+    {
+      "qid": 220,
+      "question": "집에서만 일하는 조건으로 입사했으면 코어타임 몇 시부터예요?",
+      "ranks": {
+        "local": 4
+      },
+      "status": "fixable"
+    },
+    {
+      "qid": 221,
+      "question": "전일 재택을 조건으로 채용된 사람은 사무실에 한 달에 몇 번 출근해야 하나요?",
+      "ranks": {
+        "local": 4
+      },
+      "status": "fixable"
+    },
+    {
+      "qid": 222,
+      "question": "재택근무 전담 모니터 지급",
+      "ranks": {
+        "local": 1
+      },
+      "status": "fixable"
+    },
+    {
+      "qid": 223,
+      "question": "집에서만 일하기로 하고 들어왔는데 사무실 나가는 날 점심은 어떻게 되나요? 식대가 따로 있나요?",
+      "ranks": {
+        "local": 1
+      },
+      "status": "fixable"
+    },
+    {
+      "qid": 224,
+      "question": "전일재택으로 채용됐는데 건강검진 어디서받아요",
+      "ranks": {
+        "local": 1
+      },
+      "status": "fixable"
+    },
+    {
+      "qid": 225,
+      "question": "집에서만 근무하는 조건으로 들어왔는데 결혼휴가 며칠이에요?",
+      "ranks": {
+        "local": 6
+      },
+      "status": "fixable"
+    },
+    {
+      "qid": 226,
+      "question": "정년퇴직 후 다시 고용되어 일하는 사람도 유연출근제를 쓸 수 있나요?",
+      "ranks": {},
+      "status": "cut"
+    },
+    {
+      "qid": 227,
+      "question": "촉탁직 임금 기본급 비율",
+      "ranks": {
+        "local": 1
+      },
+      "status": "fixable"
+    },
+    {
+      "qid": 228,
+      "question": "정년 퇴직하고 1년 계약으로 다시 일하게 됐는데 예전 근속 연수가 연차에 반영되나요?",
+      "ranks": {
+        "local": 2
+      },
+      "status": "fixable"
+    },
+    {
+      "qid": 229,
+      "question": "정년 지나고 다시 계약해서 일하면 재택 몇 번 돼요?",
+      "ranks": {
+        "local": 2
+      },
+      "status": "fixable"
+    },
+    {
+      "qid": 230,
+      "question": "정년후 재고용됐는데 노트북 부서지면 자기부담금 있나요",
+      "ranks": {
+        "local": 2
+      },
+      "status": "fixable"
+    },
+    {
+      "qid": 231,
+      "question": "촉탁직 건강검진 항목",
+      "ranks": {
+        "local": 1
+      },
+      "status": "fixable"
+    },
+    {
+      "qid": 232,
+      "question": "정년 뒤에 재고용된 사람은 계약이 끝날 때 퇴직금을 받나요?",
+      "ranks": {
+        "local": 1
+      },
+      "status": "fixable"
+    },
+    {
+      "qid": 233,
+      "question": "학교에서 실습나온 학생은 최대 몇주까지 있을수있어요",
+      "ranks": {
+        "local": 1
+      },
+      "status": "fixable"
+    },
+    {
+      "qid": 234,
+      "question": "학교에서 실습 나온 학생도 초과 근무 돼요?",
+      "ranks": {
+        "local": 1
+      },
+      "status": "fixable"
+    },
+    {
+      "qid": 235,
+      "question": "현장실습 수당",
+      "ranks": {
+        "local": 1
+      },
+      "status": "fixable"
+    },
+    {
+      "qid": 236,
+      "question": "현장실습생으로 들어가는데 첫 주에 교육이 있다던데 몇 시간인가요?",
+      "ranks": {
+        "local": 1
+      },
+      "status": "fixable"
+    },
+    {
+      "qid": 237,
+      "question": "학교 실습 나온 학생 재택 안되나요",
+      "ranks": {
+        "local": 1
+      },
+      "status": "fixable"
+    },
+    {
+      "qid": 238,
+      "question": "학교와의 협약으로 실습 중인 재학생도 노트북을 지급받나요?",
+      "ranks": {
+        "local": 2
+      },
+      "status": "fixable"
+    },
+    {
+      "qid": 239,
+      "question": "학교에서 실습 온 학생은 건강검진 회사에서 해줘요?",
+      "ranks": {
+        "local": 1
+      },
+      "status": "fixable"
+    },
+    {
+      "qid": 240,
+      "question": "현장실습생 평가 서류 전형 면제",
+      "ranks": {
+        "local": 1
+      },
+      "status": "fixable"
+    },
+    {
+      "qid": 241,
+      "question": "파견으로 와서 일하고 있는데 퇴직금이나 연차는 회사 인사규정대로 받나요?",
+      "ranks": {
+        "local": 1
+      },
+      "status": "fixable"
+    },
+    {
+      "qid": 242,
+      "question": "파견 인력도 코어타임을 지켜야 하나요?",
+      "ranks": {
+        "local": 1
+      },
+      "status": "fixable"
+    },
+    {
+      "qid": 243,
+      "question": "파견직은 사내 식당 써도 돼요? 밥값은요?",
+      "ranks": {
+        "local": 3
+      },
+      "status": "fixable"
+    },
+    {
+      "qid": 244,
+      "question": "주재원 지원자격 어떻게되요",
+      "ranks": {
+        "local": 1
+      },
+      "status": "fixable"
+    },
+    {
+      "qid": 245,
+      "question": "주재원 파견 기간 연장",
+      "ranks": {
+        "local": 1
+      },
+      "status": "fixable"
+    },
+    {
+      "qid": 246,
+      "question": "B지역에 나가는 주재원의 주재 수당은 월 얼마인가요?",
+      "ranks": {
+        "local": 1
+      },
+      "status": "fixable"
+    },
+    {
+      "qid": 247,
+      "question": "주재원으로 나가면서 아이를 데려가려는데 학비 지원이 있나요?",
+      "ranks": {
+        "local": 2
+      },
+      "status": "fixable"
+    },
+    {
+      "qid": 248,
+      "question": "주재원 갔다 와서 바로 퇴사하면 어떻게 돼요?",
+      "ranks": {
+        "local": 2
+      },
+      "status": "fixable"
+    },
+    {
+      "qid": 249,
+      "question": "회의실 노쇼 몇번이면 예약 정지되나요",
+      "ranks": {
+        "local": 1
+      },
+      "status": "fixable"
+    },
+    {
+      "qid": 250,
+      "question": "사원증을 집에 두고 왔는데 어떻게 출입하나요?",
+      "ranks": {
+        "local": 3
+      },
+      "status": "fixable"
+    },
+    {
+      "qid": 251,
+      "question": "성과평가 이의 신청 며칠 이내",
+      "ranks": {
+        "local": 1
+      },
+      "status": "fixable"
+    },
+    {
+      "qid": 252,
+      "question": "성과평가에서 A등급을 받으면 상여금 지급률이 몇 퍼센트인가요?",
+      "ranks": {
+        "local": 1
+      },
+      "status": "fixable"
+    },
+    {
+      "qid": 253,
+      "question": "괴롭힘 신고하면 조사는 며칠 안에 시작해요?",
+      "ranks": {
+        "local": 1
+      },
+      "status": "fixable"
+    },
+    {
+      "qid": 254,
+      "question": "폭설로 대중교통이 멈추면 출근해야 하나요?",
+      "ranks": {
+        "local": 1
+      },
+      "status": "fixable"
+    },
+    {
+      "qid": 255,
+      "question": "통근버스 이용료 얼마에요",
+      "ranks": {
+        "local": 1
+      },
+      "status": "fixable"
+    },
+    {
+      "qid": 256,
+      "question": "육아휴직을 하면 회사에서 정부 급여 말고 따로 주는 돈이 있나요?",
+      "ranks": {
+        "local": 1
+      },
+      "status": "fixable"
+    },
+    {
+      "qid": 257,
+      "question": "외부 강연 횟수 제한",
+      "ranks": {
+        "local": 1
+      },
+      "status": "fixable"
+    },
+    {
+      "qid": 258,
+      "question": "아이디어 제안 채택되면 포상금 얼마예요?",
+      "ranks": {
+        "local": 1
+      },
+      "status": "fixable"
+    },
+    {
+      "qid": 259,
+      "question": "타운홀 미팅 얼마나 자주해요",
+      "ranks": {
+        "local": 1
+      },
+      "status": "fixable"
+    }
+  ]
+}
