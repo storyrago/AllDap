@@ -20,7 +20,7 @@ from .judge5 import (
     replacement_failures, sign_test_p, summarize, to_three,
 )
 from .judge5_cloudflare import done_ids, result_line
-from .judge5_export import labels_ready, make_cases, make_label_file
+from .judge5_export import NEW_LABELS, labels_ready, make_cases, make_label_file
 from .judge_label_server import LabelRejected, apply_label
 
 _SOURCES = [
@@ -51,11 +51,38 @@ def check_new_label_file_hides_old_label_and_reference() -> None:
     assert "정답1" not in str(new)
 
 
-def check_new_label_file_keeps_cases_and_sorts_by_id() -> None:
+_CASE_KEYS = {"case_id", "question", "generated_answer", "sources", "label", "note"}
+
+
+def check_new_label_file_keeps_cases_and_only_safe_keys() -> None:
+    """사례 키가 정확히 여섯이어야 한다. question_id 같은 단서가 하나라도 붙으면 여기서 걸린다."""
     new = make_label_file(_OLD)
-    assert [c["case_id"] for c in new["cases"]] == ["aa", "bb"]
-    assert new["cases"][0]["sources"] == _SOURCES
+    assert {c["case_id"] for c in new["cases"]} == {"aa", "bb"}
+    assert all(set(c) == _CASE_KEYS for c in new["cases"])
+    assert all(c["sources"] == _SOURCES for c in new["cases"])
     assert new["scale"] == 5
+
+
+def check_new_label_file_order_is_shuffled_but_fixed() -> None:
+    """옛 화면(case_id 순서)과 다른 순서로 보이되, 다시 만들어도 같은 순서여야 한다."""
+    old = dict(_OLD, cases=[dict(_OLD["cases"][0], case_id=f"c{i:02d}") for i in range(20)])
+    a = [c["case_id"] for c in make_label_file(old)["cases"]]
+    b = [c["case_id"] for c in make_label_file(dict(old, cases=old["cases"][::-1]))["cases"]]
+    assert a == b                 # 입력 순서와 무관하고 실행마다 같다
+    assert a != sorted(a)         # 옛 화면 순서가 아니다
+
+
+def check_committed_new_label_file_is_blind() -> None:
+    """커밋된 새 라벨 파일 자체를 본다. 손으로 고치거나 다른 도구가 덮어써 단서가 들어가도 CI 가 잡는다.
+    Task 3 뒤에는 이 파일이 실험의 자이므로 라벨 값의 범위도 함께 본다."""
+    data = json.loads(NEW_LABELS.read_text(encoding="utf-8"))
+    assert data["scale"] == 5
+    assert data["rubric"]["criteria"] == CRITERIA
+    assert data["rubric"]["levels"] == {str(k): v for k, v in RUBRIC.items()}
+    assert len(data["cases"]) == 44
+    for c in data["cases"]:
+        assert set(c) == _CASE_KEYS, c["case_id"]
+        assert c["label"] is None or c["label"] in SCALE, c["case_id"]
 
 
 def check_new_label_file_rubric_is_the_model_rubric() -> None:
@@ -68,7 +95,8 @@ def check_new_label_file_rubric_is_the_model_rubric() -> None:
 def check_apply_label_five_point_mode() -> None:
     data = make_label_file(_OLD)
     out = apply_label(data, "aa", 4, "")
-    assert [c["label"] for c in out["cases"]] == [4, None]
+    # 순서를 섞으므로 위치가 아니라 case_id 로 본다.
+    assert {c["case_id"]: c["label"] for c in out["cases"]} == {"aa": 4, "bb": None}
     for bad in (0, 0.5, 6):
         try:
             apply_label(data, "aa", bad, "")
@@ -281,7 +309,9 @@ CHECKS = [
     check_pick_best_tie_breaks,
     check_replacement_rule,
     check_new_label_file_hides_old_label_and_reference,
-    check_new_label_file_keeps_cases_and_sorts_by_id,
+    check_new_label_file_keeps_cases_and_only_safe_keys,
+    check_new_label_file_order_is_shuffled_but_fixed,
+    check_committed_new_label_file_is_blind,
     check_new_label_file_rubric_is_the_model_rubric,
     check_apply_label_five_point_mode,
     check_apply_label_old_mode_unchanged,

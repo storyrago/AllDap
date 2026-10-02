@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import random
 import subprocess
 import sys
 from pathlib import Path
@@ -22,6 +23,11 @@ from .judge5 import CRITERIA, RUBRIC, SCALE, build_messages, sha256_file
 ROOT = Path(__file__).resolve().parent.parent
 OLD_LABELS = ROOT / "testdata" / "judge_labels.json"
 NEW_LABELS = ROOT / "testdata" / "judge_labels_5pt.json"
+
+# 새 라벨 화면의 사례 순서를 섞는 시드. 옛 화면은 case_id 순서였다. 같은 사람이 같은 순서로 다시 보면
+# "7번째는 0.5 였지" 같은 기억이 단서가 된다(스펙 §8). 시드를 고정하는 이유: 다시 만들어도 같은 순서가
+# 나와야 시험지 해시가 재현된다.
+SHUFFLE_SEED = 20261002
 JUDGE5_DIR = ROOT / "testdata" / "judge5"
 CASES = JUDGE5_DIR / "cases.jsonl"
 CASES_SHA = JUDGE5_DIR / "cases.sha256"
@@ -39,6 +45,7 @@ def make_label_file(old: dict) -> dict:
 
     옮기지 않는 것: label, note(옛 라벨), ground_truth(스펙 §3-2: 충실성은 근거만 본다),
     question_id, seen_in_runs(문항 번호가 단서가 되지 않게).
+    순서: case_id 로 먼저 줄 세운 뒤(입력 순서와 무관하게 하려고) 고정 시드로 섞는다.
     """
     cases = [
         {
@@ -52,6 +59,8 @@ def make_label_file(old: dict) -> dict:
         # sorted(..., key=...) 는 case_id(해시) 순서로 줄 세운다. 옛 파일과 같은 순서다.
         for c in sorted(old["cases"], key=lambda c: c["case_id"])
     ]
+    # random.Random(시드) 는 전역 난수와 따로 노는 난수 생성기다. shuffle 은 리스트를 제자리에서 섞는다.
+    random.Random(SHUFFLE_SEED).shuffle(cases)
     return {
         "_readme": _README5,
         "scale": 5,

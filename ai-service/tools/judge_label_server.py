@@ -338,9 +338,15 @@ async function boot() {
       $('table5').append(tr);
       const btn = document.createElement('button');
       btn.dataset.v = String(v);
-      btn.innerHTML = v + ' <span class="hint">(' + v + ')</span>';
+      // 버튼에 뜻을 함께 적는다. 옛 화면에서는 키 1 이 "1.0 전부 근거에 있다" 였는데 여기서는 최악이다.
+      // 같은 사람이 손버릇대로 1 을 누르면 최선 답변이 최악으로 저장된다. 글자로 그 실수를 보이게 한다.
+      btn.textContent = v + ' · ' + data.rubric.levels[String(v)] + ' ';
+      const k = document.createElement('span'); k.className = 'hint'; k.textContent = '(' + v + ')';
+      btn.append(k);
       $('btns5').append(btn);
     }
+    $('btns5').style.flexDirection = 'column';   // 뜻이 긴 버튼 다섯 개라 한 줄에 하나씩
+    $('btns5').style.alignItems = 'flex-start';
     const clear = document.createElement('button');
     clear.dataset.v = '';
     clear.innerHTML = '지우기 <span class="hint">(0)</span>';
@@ -429,8 +435,15 @@ async function setLabel(v, advance) {
   if (!res.ok) { $('status').innerHTML = '<span class="err">저장 실패: ' + out.error + '</span>'; return; }
   c.label = v;
   c.note = $('note').value;
-  if (advance && v !== null && i < data.cases.length - 1) { i++; render(); }
-  else { render(); $('status').textContent = '저장됨'; }
+  // 다섯 칸 모드는 눌러도 다음 건으로 넘기지 않는다. 저장된 점수를 눈으로 확인하고 → 로 넘어간다.
+  // 키 1 의 뜻이 옛 화면과 반대라서, 바로 넘어가면 잘못 누른 것을 볼 틈이 없다.
+  if (advance && scale !== 5 && v !== null && i < data.cases.length - 1) { i++; render(); }
+  else {
+    render();
+    $('status').textContent = (scale === 5 && v !== null)
+      ? '저장됨: ' + v + '점 · ' + data.rubric.levels[String(v)] + '  (다음 건은 → 키)'
+      : '저장됨';
+  }
 }
 
 $('prev').onclick = () => { if (i > 0) { i--; render(); } };
