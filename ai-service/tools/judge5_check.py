@@ -340,6 +340,13 @@ def _notebook_code() -> str:
     return "\n".join(parts)
 
 
+def _without_comments(code: str) -> str:
+    """줄마다 # 뒤를 지운다. 문자열 안의 # 도 지우므로(SMOKE_MESSAGES 줄의 "###" 가 잘린다) 이 결과는
+    설정 글자를 찾는 데만 쓰고, SMOKE_MESSAGES 비교는 주석을 지우지 않은 원문으로 한다."""
+    # str.split("#", 1)[0] 은 첫 # 앞부분만 남긴다. # 가 없으면 줄 전체가 남는다.
+    return "\n".join(line.split("#", 1)[0] for line in code.splitlines())
+
+
 def check_notebook_matches_the_module() -> None:
     """노트북은 judge5 를 import 하지 못한다(코랩에는 이 저장소가 없다). 그래서 값을 복사해 두고
     여기서 글자가 같은지 본다. 갈라지면 코랩 모델만 다른 조건으로 채점한다."""
@@ -349,8 +356,14 @@ def check_notebook_matches_the_module() -> None:
         assert f'"{key}": "{MODELS[key]}"' in code, key
     assert "do_sample=False" in code
     # 저장소 기본값의 반복 억제(Qwen 계열 1.05)를 끄고, 4비트가 아닌 부분의 정밀도와 transformers 판을 고정한다.
-    assert "repetition_penalty=1.0" in code
-    assert "dtype=torch.float16" in code
+    # 아래 설정은 주석을 뺀 코드에서 본다. 주석에도 같은 글자가 있어서, 코드에서 지워도 주석 때문에 통과했다.
+    # (?!\d): 1.0 뒤에 숫자가 더 붙으면(1.05) 맞지 않게 한다. "1.0" 은 "1.05" 안에도 들어 있다.
+    bare = _without_comments(code)
+    assert re.search(r"repetition_penalty=1\.0(?!\d)", bare)
+    assert "use_model_defaults=False" in bare   # 4.57 이 저장소 기본값으로 다시 덮는 경로를 막는다
+    # (?<!_): bnb_4bit_compute_dtype=torch.float16 안의 같은 글자에 맞지 않게, 앞이 _ 인 것은 뺀다.
+    assert re.search(r"(?<!_)dtype=torch\.float16", bare)
+    assert bare.count("revision=revision") >= 3  # 토크나이저, 대화 틀, 가중치 모두 같은 판
     assert '"transformers==4.57.6"' in code
     # 가짜 사례 messages 가 judge5 의 것과 글자까지 같아야 M1 smoke 와 같은 확인이 된다.
     line = next(l for l in code.splitlines() if l.startswith("SMOKE_MESSAGES = "))
