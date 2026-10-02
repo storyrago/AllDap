@@ -347,7 +347,7 @@ Python 의 `POST /internal/chat` 요청 스키마(`ChatRequest`)는 지금도
 결합은 **대체가 아니라 덧붙임**이다(기본 규칙을 앞에 두고 "충돌하면 위가 우선").
 대체하면 `NO_ANSWER` 규칙이 사라져 환각 억제가 설정 하나로 뚫린다.
 🔴 **다만 프롬프트로 프롬프트를 막는 데는 한계가 있고, 실측으로 뚫렸다.**
-막지 못하므로 대신 잰다. `ai-service/app/bot_prompt_check.py` 가 그것이다. 자세한 내용은 루트 `AGENTS.md`.
+막지 못하므로 대신 잰다. `ai-service/tools/bot_prompt_check.py` 가 그것이다. 자세한 내용은 루트 `AGENTS.md`.
 
 ### 그 밖의 갭
 

@@ -48,7 +48,7 @@ from pathlib import Path
 
 from app.retriever import _keywords
 
-# 이 파일은 ai-service/app/ 에 있다. parent 가 app, 그 parent 가 ai-service 다.
+# 이 파일은 ai-service/tools/ 에 있다. parent 가 tools, 그 parent 가 ai-service 다.
 _ROOT = Path(__file__).resolve().parent.parent
 _DEFAULT_FILE = _ROOT / "testdata" / "eval_questions.json"
 _DEFAULT_CORPUS = _ROOT / "testdata" / "corpus"

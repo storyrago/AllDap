@@ -101,7 +101,7 @@ def resolve_bot_id() -> Id:
         # answerable_check 로 돌린 사람에게 엉뚱한 명령을 알려주게 된다.
         module = Path(sys.argv[0]).stem or "fallback_e2e_check"
         print("   → 잴 봇을 직접 지정하려면:")
-        print(f"     cd ai-service && EVAL_BOT_ID=<번호> .venv/bin/python -m app.{module}")
+        print(f"     cd ai-service && EVAL_BOT_ID=<번호> .venv/bin/python -m tools.{module}")
         sys.exit(1)
 
     if env is not None:

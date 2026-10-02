@@ -103,7 +103,7 @@ public class Bot extends BaseEntity {
      * <p>🔴 결합은 <b>대체가 아니라 덧붙임</b>이다. 기본 규칙을 앞에 두고 "충돌하면 위가 우선"을
      * 명시한다. 대체하면 {@code NO_ANSWER} 규칙이 사라져 환각 억제가 설정 하나로 뚫린다.
      * 그마저도 <b>방어이지 보장이 아니다</b>: 지침으로 지침을 막는 것이라
-     * 실제로 뚫리는 경우가 실측돼 있다({@code ai-service/app/bot_prompt_check.py}).
+     * 실제로 뚫리는 경우가 실측돼 있다({@code ai-service/tools/bot_prompt_check.py}).
      * 봇 지침을 바꾼 뒤에는 그걸 돌려 깨지는지 볼 것.
      */
     @Column(name = "system_prompt")
