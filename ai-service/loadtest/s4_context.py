@@ -330,7 +330,7 @@ def read_python_runtime(python_metrics: str) -> dict:
        "그 프로세스가 실제로 40 이었다" 가 뭉개진다. 손쓸 곳이 다르다: 앞은 셸을
        고치는 것이고 뒤는 lifespan 이 안 돈 것이다.
 
-    🔴 app/metrics_check.py ⑤ 로는 이걸 대신할 수 없다. 그 검사는 로컬 TestClient 의
+    🔴 tools/metrics_check.py ⑤ 로는 이걸 대신할 수 없다. 그 검사는 로컬 TestClient 의
        lifespan 을 보는 것이지 <지금 8001 을 듣고 있는 프로세스>를 보는 것이 아니다.
 
     못 읽으면 None 이 아니라 error 를 남긴다. "안 읽었다" 와 "읽었더니 없더라" 는

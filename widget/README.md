@@ -315,7 +315,7 @@ Python `ChatResponse` 에는 여전히 id 가 없다. 대신 **Spring 이 `messa
 결합은 대체가 아니라 덧붙임이다(기본 규칙을 앞에 두고 "충돌하면 위가 우선").
 
 🔴 **다만 프롬프트로 프롬프트를 막는 데는 한계가 있다.** 봇 지침으로 `NO_ANSWER` 를
-쓰지 말라고 시키면 실제로 뚫린다(실측). 막지 못하므로 대신 잰다: `ai-service/app/bot_prompt_check.py`.
+쓰지 말라고 시키면 실제로 뚫린다(실측). 막지 못하므로 대신 잰다: `ai-service/tools/bot_prompt_check.py`.
 자세한 내용은 저장소 루트 `AGENTS.md` 의 "알려진 한계" 절 참고.
 
 ### 5. 그 밖에

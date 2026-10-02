@@ -96,7 +96,7 @@ def sample_anyio_threads() -> None:
        그래서 이걸 부르는 /internal/metrics 라우트는 반드시 `async def` 여야 한다.
        `def` 로 두면 FastAPI 가 워커 스레드로 넘기고, 지표 엔드포인트만 500 을 낸다 —
        하필 <부하 한가운데서>, 즉 그 숫자가 가장 필요한 순간에.
-       app/metrics_check.py 가 이 제약을 검사로 못 박아둔다.
+       tools/metrics_check.py 가 이 제약을 검사로 못 박아둔다.
 
     ⚠️ 스크레이프 시점의 <순간값>이다. 15초 간격 사이에 40 에 붙었다 떨어지면 못 본다.
        S2 는 단계를 2분씩 유지하므로 단계마다 점이 8개 찍혀 그 한계에 걸리지 않는다.

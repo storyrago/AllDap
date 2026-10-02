@@ -188,7 +188,7 @@ export default function SettingsPage() {
                경고 자리는 없애지 않고 <진짜 한계>로 바꾼다. 결합은 대체가 아니라 덧붙임이고
                "충돌하면 위 규칙이 우선" 을 명시하지만(generator.build_system_prompt),
                프롬프트로 프롬프트를 막는 데는 한계가 있어 실측으로 뚫렸다.
-               재는 도구는 ai-service/app/bot_prompt_check.py 다.
+               재는 도구는 ai-service/tools/bot_prompt_check.py 다.
           */}
           <p className="rounded-md border border-warning bg-warning-surface px-3 py-2 text-xs text-warning">
             {/* {" "} 가 필요하다 — 없으면 "있습니다.“모르는" 처럼 <붙어서> 렌더된다.
