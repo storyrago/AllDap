@@ -15,11 +15,72 @@ from .judge5 import (
     build_messages, compare, linear_weighted_kappa, parse_result, pick_best,
     replacement_failures, sign_test_p, summarize, to_three,
 )
+from .judge5_export import make_label_file
+from .judge_label_server import LabelRejected, apply_label
 
 _SOURCES = [
     {"chunk_id": 1, "filename": "a.md", "content": "연차는 15일이다."},
     {"chunk_id": 2, "filename": "b.md", "content": "재택은 주 1회다."},
 ]
+
+_OLD = {
+    "_readme": "옛 안내",
+    "run_ids": [11],
+    "cases": [
+        {"case_id": "bb", "question_id": "2", "question": "q2", "ground_truth": "정답2",
+         "generated_answer": "a2", "sources": _SOURCES, "seen_in_runs": [11], "label": 1, "note": "옛 메모"},
+        {"case_id": "aa", "question_id": "1", "question": "q1", "ground_truth": "정답1",
+         "generated_answer": "a1", "sources": _SOURCES, "seen_in_runs": [11], "label": 0.5, "note": ""},
+    ],
+}
+
+
+def check_new_label_file_hides_old_label_and_reference() -> None:
+    """🔴 새 라벨은 블라인드로 매긴다. 옛 라벨, 옛 메모, 기대 답변이 파일에 없어야 화면에도 못 샌다."""
+    new = make_label_file(_OLD)
+    for c in new["cases"]:
+        assert c["label"] is None and c["note"] == ""
+        assert "ground_truth" not in c
+        assert "seen_in_runs" not in c
+    assert "옛 메모" not in str(new)
+    assert "정답1" not in str(new)
+
+
+def check_new_label_file_keeps_cases_and_sorts_by_id() -> None:
+    new = make_label_file(_OLD)
+    assert [c["case_id"] for c in new["cases"]] == ["aa", "bb"]
+    assert new["cases"][0]["sources"] == _SOURCES
+    assert new["scale"] == 5
+
+
+def check_new_label_file_rubric_is_the_model_rubric() -> None:
+    """사람이 보는 채점표와 모델이 받는 채점표가 같은 글자여야 한다."""
+    new = make_label_file(_OLD)
+    assert new["rubric"]["criteria"] == CRITERIA
+    assert new["rubric"]["levels"] == {str(k): v for k, v in RUBRIC.items()}
+
+
+def check_apply_label_five_point_mode() -> None:
+    data = make_label_file(_OLD)
+    out = apply_label(data, "aa", 4, "")
+    assert [c["label"] for c in out["cases"]] == [4, None]
+    for bad in (0, 0.5, 6):
+        try:
+            apply_label(data, "aa", bad, "")
+        except LabelRejected:
+            continue
+        raise AssertionError(f"{bad} 를 받으면 안 된다")
+
+
+def check_apply_label_old_mode_unchanged() -> None:
+    """scale 이 없는 옛 파일은 예전처럼 0, 0.5, 1 만 받는다."""
+    out = apply_label(_OLD, "aa", 0.5, "")
+    assert out["cases"][1]["label"] == 0.5
+    try:
+        apply_label(_OLD, "aa", 4, "")
+    except LabelRejected:
+        return
+    raise AssertionError("옛 파일에 4 를 받으면 안 된다")
 
 
 def check_parse_reads_single_result() -> None:
@@ -152,6 +213,11 @@ CHECKS = [
     check_to_three_follows_old_label_definition,
     check_pick_best_tie_breaks,
     check_replacement_rule,
+    check_new_label_file_hides_old_label_and_reference,
+    check_new_label_file_keeps_cases_and_sorts_by_id,
+    check_new_label_file_rubric_is_the_model_rubric,
+    check_apply_label_five_point_mode,
+    check_apply_label_old_mode_unchanged,
 ]
 
 
