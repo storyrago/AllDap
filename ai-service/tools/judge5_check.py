@@ -11,16 +11,17 @@
 from __future__ import annotations
 
 import json
+import re
 import tempfile
 from pathlib import Path
 
 from .judge5 import (
-    CRITERIA, RUBRIC, SCALE,
+    CRITERIA, MAX_NEW_TOKENS, MODELS, RUBRIC, SCALE,
     build_messages, compare, linear_weighted_kappa, parse_result, pick_best,
     replacement_failures, sign_test_p, summarize, to_three,
 )
 from .judge5_cloudflare import done_ids, result_line
-from .judge5_export import NEW_LABELS, labels_ready, make_cases, make_label_file
+from .judge5_export import CASES_SHA, NEW_LABELS, ROOT, labels_ready, make_cases, make_label_file
 from .judge_label_server import LabelRejected, apply_label
 
 _SOURCES = [
@@ -293,6 +294,38 @@ def check_done_ids_reads_existing_lines() -> None:
         assert done_ids(p) == {"aa", "bb"}
 
 
+NOTEBOOK = ROOT / "notebooks" / "judge5_colab.ipynb"
+
+
+def _notebook_code() -> str:
+    nb = json.loads(NOTEBOOK.read_text(encoding="utf-8"))
+    # ipynb 의 source 는 문자열일 수도, 줄 목록일 수도 있다. 둘 다 이어 붙인다.
+    parts = []
+    for cell in nb["cells"]:
+        if cell["cell_type"] == "code":
+            src = cell["source"]
+            parts.append(src if isinstance(src, str) else "".join(src))
+    return "\n".join(parts)
+
+
+def check_notebook_matches_the_module() -> None:
+    """노트북은 judge5 를 import 하지 못한다(코랩에는 이 저장소가 없다). 그래서 값을 복사해 두고
+    여기서 글자가 같은지 본다. 갈라지면 코랩 모델만 다른 조건으로 채점한다."""
+    code = _notebook_code()
+    assert f"MAX_NEW_TOKENS = {MAX_NEW_TOKENS}" in code
+    for key in ("M2", "M3", "M4"):
+        assert f'"{key}": "{MODELS[key]}"' in code, key
+    assert "do_sample=False" in code
+
+
+def check_notebook_hash_matches_cases_file() -> None:
+    """시험지 파일이 있으면 노트북의 기대 해시가 그 파일의 해시와 같아야 한다."""
+    m = re.search(r'EXPECTED_SHA256\s*=\s*"([0-9a-f]{64}|)"', _notebook_code())
+    assert m, "노트북에 EXPECTED_SHA256 줄이 없다"
+    if CASES_SHA.exists():
+        assert m.group(1) == CASES_SHA.read_text(encoding="utf-8").split()[0], "노트북 해시를 갱신하라(태스크 7)"
+
+
 CHECKS = [
     check_parse_reads_single_result,
     check_parse_keeps_failure_reasons_apart,
@@ -320,6 +353,8 @@ CHECKS = [
     check_labels_ready_refuses_incomplete,
     check_result_line_shape,
     check_done_ids_reads_existing_lines,
+    check_notebook_matches_the_module,
+    check_notebook_hash_matches_cases_file,
 ]
 
 
