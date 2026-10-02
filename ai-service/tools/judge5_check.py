@@ -186,6 +186,13 @@ def check_pick_best_tie_breaks() -> None:
     assert pick_best({"M2": a, "M3": c}) == "M3"   # 평균 거리가 작은 쪽
     assert pick_best({"M3": a, "M2": b}) == "M2"   # 모든 값이 같으면 이름 순서
     assert pick_best({}) is None
+    # 못 읽음만 다른 두 요약: 못 읽음이 적은 쪽(리뷰 지적, 이 분기가 점검에 안 걸려 있었다).
+    with_unread = summarize([(5, 5), (5, 5), (5, None)])   # 거리 1 이하 2건, 평균 0, 못 읽음 1
+    no_unread = summarize([(5, 5), (5, 5)])                 # 거리 1 이하 2건, 평균 0, 못 읽음 0
+    assert pick_best({"M2": with_unread, "M3": no_unread}) == "M3"
+    # 평균 거리가 못 읽음보다 먼저 본다. 순서가 뒤집히면 M2 가 뽑힌다.
+    worse_mean = summarize([(5, 5), (5, 4)])                # 거리 1 이하 2건, 평균 0.5, 못 읽음 0
+    assert pick_best({"M2": worse_mean, "M3": with_unread}) == "M3"
 
 
 def check_replacement_rule() -> None:
@@ -196,6 +203,22 @@ def check_replacement_rule() -> None:
     tie = compare(human, {"a": 5, "b": 5, "c": 4}, {"a": 5, "b": 5, "c": 4})
     assert replacement_failures(good, m1, tie) == []
     assert any("못 읽음" in r for r in replacement_failures(unread, m1, tie))
+
+    # 기준 1: 거리 1 이하가 M1 보다 하나라도 적으면 탈락한다.
+    one_less = summarize([(5, 5), (5, 3), (4, 4)])
+    assert any("거리 1 이하" in r for r in replacement_failures(one_less, m1, tie))
+
+    # 기준 3 의 방향. compare 의 인자 순서는 (사람, 후보, M1) 이다. 10:0 으로 갈리면 p = 2/1024 < 0.05.
+    # 두 경우 모두 거리 1 이하 수가 같아서(전부 거리 0 또는 1) 기준 1 은 걸리지 않는다. 기준 3 만 따로 본다.
+    human10 = {str(i): 5 for i in range(10)}
+    fives = {str(i): 5 for i in range(10)}
+    fours = {str(i): 4 for i in range(10)}
+    s5, s4 = summarize([(5, 5)] * 10), summarize([(5, 4)] * 10)
+    # 가) M1 이 사람에 더 가깝다 → 실패 사유가 나와야 한다.
+    assert any("M1 이 사람에 더 가깝다" in r
+               for r in replacement_failures(s4, s5, compare(human10, fours, fives)))
+    # 나) 후보가 사람에 더 가깝다 → 실패 사유가 없어야 한다(방향이 뒤집히면 여기서 걸린다).
+    assert replacement_failures(s5, s4, compare(human10, fives, fours)) == []
 
 
 CHECKS = [
