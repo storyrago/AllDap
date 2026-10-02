@@ -10,12 +10,17 @@
 """
 from __future__ import annotations
 
+import json
+import tempfile
+from pathlib import Path
+
 from .judge5 import (
     CRITERIA, RUBRIC, SCALE,
     build_messages, compare, linear_weighted_kappa, parse_result, pick_best,
     replacement_failures, sign_test_p, summarize, to_three,
 )
-from .judge5_export import make_label_file
+from .judge5_cloudflare import done_ids, result_line
+from .judge5_export import labels_ready, make_cases, make_label_file
 from .judge_label_server import LabelRejected, apply_label
 
 _SOURCES = [
@@ -221,6 +226,45 @@ def check_replacement_rule() -> None:
     assert replacement_failures(s5, s4, compare(human10, fives, fours)) == []
 
 
+def _filled(labels: dict, v: int = 5) -> dict:
+    return dict(labels, cases=[dict(c, label=v) for c in labels["cases"]])
+
+
+def check_cases_carry_no_label() -> None:
+    """🔴 시험지에 사람 라벨이 들어가면 코랩 모델이 정답을 보고 채점한다."""
+    cases = make_cases(_filled(make_label_file(_OLD), 3))
+    assert [sorted(c) for c in cases] == [["case_id", "messages"]] * 2
+    assert all('"label"' not in json.dumps(c, ensure_ascii=False) for c in cases)
+
+
+def check_cases_use_the_common_messages() -> None:
+    labels = _filled(make_label_file(_OLD))
+    first = labels["cases"][0]
+    assert make_cases(labels)[0]["messages"] == build_messages(
+        first["question"], first["sources"], first["generated_answer"])
+
+
+def check_labels_ready_refuses_incomplete() -> None:
+    """라벨이 하나라도 비면 시험지를 만들지 않는다(스펙 §4-1 순서)."""
+    assert labels_ready(make_label_file(_OLD))   # 비어 있으면 문제 목록이 나온다
+    assert labels_ready(_filled(make_label_file(_OLD))) == []
+
+
+def check_result_line_shape() -> None:
+    line = result_line("aa", "M1", "@cf/x", "cloudflare", 1, "Feedback: [RESULT] 5", "stop", "abc")
+    assert sorted(line) == sorted(
+        ["case_id", "model", "repo", "revision", "run", "output", "finish", "cases_sha256"])
+
+
+def check_done_ids_reads_existing_lines() -> None:
+    """이어 하기: 이미 쓴 사례는 다시 부르지 않는다(뉴런 절약, 코랩 끊김 대비)."""
+    with tempfile.TemporaryDirectory() as d:
+        p = Path(d) / "M1_run1.jsonl"
+        assert done_ids(p) == set()
+        p.write_text(json.dumps({"case_id": "aa"}) + "\n" + json.dumps({"case_id": "bb"}) + "\n")
+        assert done_ids(p) == {"aa", "bb"}
+
+
 CHECKS = [
     check_parse_reads_single_result,
     check_parse_keeps_failure_reasons_apart,
@@ -241,6 +285,11 @@ CHECKS = [
     check_new_label_file_rubric_is_the_model_rubric,
     check_apply_label_five_point_mode,
     check_apply_label_old_mode_unchanged,
+    check_cases_carry_no_label,
+    check_cases_use_the_common_messages,
+    check_labels_ready_refuses_incomplete,
+    check_result_line_shape,
+    check_done_ids_reads_existing_lines,
 ]
 
 
