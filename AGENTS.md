@@ -252,13 +252,15 @@ Spring:   대화 로그 저장(assistant 메시지 + sources + is_fallback)
    ⚠️ **예외: 임베드 위젯(`widget/`)은 다르다.** 고객 사이트에 붙어 <방문자>가 쓰므로
    좁은 폭에서 열린다. 위젯 자체의 모바일 동작은 계속 챙긴다.
    (랜딩 헤더에는 이 결정 <전에> 만든 `<details>` 햄버거가 남아 있다 — 이미 도므로 두었다)
-7. **범위를 넓히지 말 것 (2026-09-16 에 <리랭커 추론에 한해> 열었다).**
+7. **범위를 넓히지 말 것 (2026-09-16 에 <리랭커 추론에 한해> 열었고, 2026-10-02 에 <채점 모델 추론을 실험 용도로> 열었다).**
    ⬜ **여전히 범위 밖:** 생성 모델(llama-3.3-70b) 셀프호스팅 · 경량화, 임베딩 모델 셀프호스팅,
    온디바이스 추론 일반. 원래 기각 사유가 그대로 유효하다(t3.micro 1GB 로 불가능하다).
-   ✅ **연 것은 하나뿐이다: 리랭커(`bge-reranker-base`, 2억 7천만 파라미터) 추론을
-   로컬에서 돌리고 양자화하는 것.** 근거는
-   `docs/superpowers/specs/2026-09-16-reranker-local-quantization-design.md` 와
+   ✅ **연 것은 둘이다.**
+   ① 리랭커(`bge-reranker-base`, 2억 7천만 파라미터) 추론을 로컬에서 돌리고 양자화하는 것.
+   근거는 `docs/superpowers/specs/2026-09-16-reranker-local-quantization-design.md` 와
    `docs/decisions.md` 2026-09-16 항목.
+   ② 채점 모델의 추론을 **실험 용도로** 직접 돌리는 것(로컬 또는 코랩). 서비스의 채점은
+   Cloudflare 를 그대로 쓴다. 근거는 `docs/superpowers/specs/2026-10-02-judge-selfhost-design.md`.
 8. **작업 성격에 따라 모델을 나눠 쓸 것** (아래 "모델 선택" 참조).
 9. **간단한 수정은 `main`에 바로, 나머지는 브랜치+PR** (아래 "브랜치·PR" 참조).
 
@@ -617,7 +619,7 @@ RERANKER_PROVIDER=local_int8 .venv/bin/uvicorn app.main:app --port 8001
 - 백그라운드 처리가 FastAPI `BackgroundTasks` 라 프로세스 종료 시 작업이 유실된다. 트래픽이 붙으면 Redis + RQ 로 교체.
 - 구버전 `.hwp` 미지원 (바이너리 포맷).
 - pgvector 는 수백만 벡터 규모에서 전용 벡터DB보다 불리하다. 현재 규모에선 문제없다.
-- 임베딩·답변 생성·채점은 외부 API(Cloudflare)다. 셀프호스팅은 리랭커 추론만 예외다(작업 규칙 7번).
+- 임베딩·답변 생성·채점은 외부 API(Cloudflare)다. 직접 돌리는 것은 리랭커 추론과 실험용 채점 모델 추론뿐이다(작업 규칙 7번).
 - 1차 방어선은 `max_distance` 를 낮춰서는 살릴 수 없다(근거가 줄어 오답이 는다). 판정은 별도 값 `answerable_max_distance = 0.44` 가 맡는다.
 - `answerable_max_distance` 를 다시 고를 때 함정 셋: 판정은 top1 거리(`d1`) 기준이지 정답 청크까지의 거리가 아니다 / `answerable_check` 표는 결과가 바뀌는 지점만 보여줘 같은 구간의 값을 놓칠 수 있다(0.44 를 놓칠 뻔했다) / 홀드아웃은 보기 전에 임계값을 고르고, 보고 나서 바꾸지 않는다. 근거는 "판정과 컷의 분리" 절.
 - `answerable_max_distance` 는 코퍼스와 임베딩 모델에 딸려 있다. 둘 중 하나가 바뀌면 `tools.answerable_check` 를 다시 돌린다.
