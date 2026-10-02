@@ -78,6 +78,17 @@ Score 5: {s5}
 ###Feedback: """
 
 
+def prompt_sha256() -> str:
+    """공통 지시문 본문(시스템 프롬프트, 틀, 기준, 채점표)의 SHA-256. 스펙 §3-2 가 시험지와 함께 적으라는 값이다.
+
+    시험지 파일에는 완성된 messages 가 들어 있어 파일 해시가 지시문까지 덮는다. 그래도 따로 적는 이유:
+    결과 문서를 읽는 사람이 "지시문이 바뀌었는가" 를 시험지 전체 해시와 분리해서 볼 수 있게 하려는 것이다.
+    """
+    # "\x00".join: 조각 사이에 본문에 나올 수 없는 글자를 끼워, 경계가 옮겨 간 다른 본문이 같은 해시가 되지 않게 한다.
+    body = "\x00".join([SYSTEM_PROMPT, _USER_TEMPLATE, CRITERIA, *(RUBRIC[k] for k in SCALE)])
+    return hashlib.sha256(body.encode("utf-8")).hexdigest()
+
+
 def build_instruction(question: str, sources: list[dict]) -> str:
     """채점 대상이 받은 과제를 다시 쓴다: 근거 전문과 질문.
 

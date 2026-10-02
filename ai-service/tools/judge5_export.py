@@ -16,7 +16,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from .judge5 import CRITERIA, RUBRIC, SCALE, build_messages, sha256_file
+from .judge5 import CRITERIA, RUBRIC, SCALE, build_messages, prompt_sha256, sha256_file
 
 # __file__ 은 ai-service/tools/judge5_export.py 다. 두 번 올라가면 ai-service/ 다.
 # 실행 위치와 무관하게 같은 파일을 가리키려고 __file__ 기준으로 잡는다.
@@ -56,7 +56,8 @@ def make_label_file(old: dict) -> dict:
             "label": None,
             "note": "",
         }
-        # sorted(..., key=...) 는 case_id(해시) 순서로 줄 세운다. 옛 파일과 같은 순서다.
+        # sorted(..., key=...) 는 case_id(해시) 순서로 줄 세운다. 입력 순서와 무관하게 하려는 것이고,
+        # 최종 순서는 아래에서 섞는다(옛 화면의 순서와 같지 않다).
         for c in sorted(old["cases"], key=lambda c: c["case_id"])
     ]
     # random.Random(시드) 는 전역 난수와 따로 노는 난수 생성기다. shuffle 은 리스트를 제자리에서 섞는다.
@@ -137,9 +138,11 @@ def cmd_cases() -> int:
     CASES.write_text(
         "".join(json.dumps(r, ensure_ascii=False, sort_keys=True) + "\n" for r in rows), encoding="utf-8")
     sha = sha256_file(CASES)
-    CASES_SHA.write_text(f"{sha}  cases.jsonl\n", encoding="utf-8")
+    # 첫 줄은 시험지 파일 해시(다른 도구는 split()[0] 으로 이 값만 읽는다), 둘째 줄은 공통 지시문 해시(스펙 §3-2).
+    CASES_SHA.write_text(f"{sha}  cases.jsonl\n{prompt_sha256()}  prompt\n", encoding="utf-8")
     print(f"{CASES.relative_to(ROOT)} 에 {len(rows)}건을 썼습니다.")
     print(f"SHA-256: {sha}")
+    print(f"공통 지시문 SHA-256: {prompt_sha256()}")
     print("코랩 노트북의 EXPECTED_SHA256 에 이 값을 넣으세요(계획 태스크 7).")
     return 0
 

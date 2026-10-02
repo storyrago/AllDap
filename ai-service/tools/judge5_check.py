@@ -17,10 +17,10 @@ from pathlib import Path
 
 from .judge5 import (
     CRITERIA, MAX_NEW_TOKENS, MODELS, RUBRIC, SCALE,
-    build_messages, compare, linear_weighted_kappa, parse_result, pick_best,
+    build_messages, compare, prompt_sha256, linear_weighted_kappa, parse_result, pick_best,
     replacement_failures, sign_test_p, summarize, to_three,
 )
-from .judge5_cloudflare import done_ids, result_line
+from .judge5_cloudflare import done_ids, foreign_lines, result_line
 from .judge5_export import CASES_SHA, NEW_LABELS, ROOT, labels_ready, make_cases, make_label_file
 from .judge_label_server import LabelRejected, apply_label
 
@@ -285,6 +285,36 @@ def check_result_line_shape() -> None:
         ["case_id", "model", "repo", "revision", "run", "output", "finish", "cases_sha256"])
 
 
+def check_foreign_lines_counts_other_cases_files() -> None:
+    """이어 하기 전에, 다른 시험지로 채점한 줄이 섞여 있으면 센다(섞이면 멈춘다)."""
+    with tempfile.TemporaryDirectory() as d:
+        p = Path(d) / "M1_run1.jsonl"
+        assert foreign_lines(p, "s") == 0
+        p.write_text(json.dumps({"case_id": "aa", "cases_sha256": "s"}) + "\n"
+                     + json.dumps({"case_id": "bb", "cases_sha256": "옛것"}) + "\n")
+        assert foreign_lines(p, "s") == 1
+
+
+def check_prompt_hash_covers_every_part() -> None:
+    """지시문의 어느 조각이 한 글자 바뀌어도 해시가 바뀌어야 한다."""
+    from . import judge5
+    base = prompt_sha256()
+    for name in ("SYSTEM_PROMPT", "_USER_TEMPLATE", "CRITERIA"):
+        old = getattr(judge5, name)
+        try:
+            setattr(judge5, name, old + " ")
+            assert prompt_sha256() != base, name
+        finally:
+            setattr(judge5, name, old)   # 다른 검사에 영향을 주지 않게 반드시 되돌린다
+    old = judge5.RUBRIC[3]
+    try:
+        judge5.RUBRIC[3] = old + " "
+        assert prompt_sha256() != base, "RUBRIC"
+    finally:
+        judge5.RUBRIC[3] = old
+    assert prompt_sha256() == base
+
+
 def check_done_ids_reads_existing_lines() -> None:
     """이어 하기: 이미 쓴 사례는 다시 부르지 않는다(뉴런 절약, 코랩 끊김 대비)."""
     with tempfile.TemporaryDirectory() as d:
@@ -353,6 +383,8 @@ CHECKS = [
     check_labels_ready_refuses_incomplete,
     check_result_line_shape,
     check_done_ids_reads_existing_lines,
+    check_foreign_lines_counts_other_cases_files,
+    check_prompt_hash_covers_every_part,
     check_notebook_matches_the_module,
     check_notebook_hash_matches_cases_file,
 ]
