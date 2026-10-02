@@ -190,7 +190,18 @@ PAGE = r"""<!doctype html>
            padding: 12px 24px; display: flex; align-items: center; gap: 16px; }
   .bar { flex: 1; height: 8px; background: #e7e5e4; border-radius: 4px; overflow: hidden; }
   .bar > div { height: 100%; background: #16a34a; width: 0; transition: width .2s; }
-  main { max-width: 900px; margin: 0 auto; padding: 24px; }
+  /* 두 칸: 왼쪽은 읽을 것(질문·답변·근거), 오른쪽은 누를 것(채점표·버튼·메모).
+     근거가 길어 스크롤해 내려가도 버튼과 채점표가 화면에 남도록 오른쪽 칸을 sticky 로 둔다.
+     데스크톱 전용 도구라 좁은 화면 대응은 하지 않았다. */
+  main { max-width: 1320px; margin: 0 auto; padding: 24px;
+         display: grid; grid-template-columns: minmax(0, 1fr) 400px; gap: 20px; align-items: start; }
+  /* top 은 header 높이(약 57px) + 여백. 패널이 화면보다 길면 패널 안에서만 스크롤한다. */
+  aside { position: sticky; top: 76px; max-height: calc(100vh - 92px); overflow-y: auto; }
+  aside .card { margin-bottom: 0; }
+  aside .card { padding: 16px; }
+  aside .rule td { padding: 2px 10px 2px 0; font-size: 13px; line-height: 1.45; }
+  aside .btns { gap: 6px; }
+  aside .btns button { width: 100%; text-align: left; padding: 6px 12px; font-size: 14px; line-height: 1.4; }
   .card { background: #fff; border: 1px solid #e7e5e4; border-radius: 10px; padding: 20px; margin-bottom: 16px; }
   h2 { font-size: 13px; letter-spacing: .04em; color: #78716c; margin: 0 0 8px; font-weight: 600; }
   .q { font-size: 19px; font-weight: 600; }
@@ -233,6 +244,7 @@ PAGE = r"""<!doctype html>
   </div>
 </header>
 <main>
+  <div>
   <div class="card">
     <h2>기준</h2>
     <p style="margin:0 0 10px"><strong>답변이 말한 내용이 아래 근거에서 찾아지는가</strong>, 이것만 봅니다.</p>
@@ -262,9 +274,9 @@ PAGE = r"""<!doctype html>
     </details>
     </div>
     <!-- 다섯 칸 파일일 때만 보인다. 표의 글자는 파일의 rubric 에서 그린다(모델이 받는 채점표와 같은 글자). -->
+    <!-- 다섯 줄 채점표(table5)는 오른쪽 고정 패널에 있다. 버튼 바로 위에서 보며 누르게. -->
     <div id="rule5" hidden>
-      <p class="hint" id="criteria5" style="margin:0 0 8px"></p>
-      <table class="rule" id="table5"></table>
+      <p class="hint" id="criteria5" style="margin:0"></p>
     </div>
     <details style="margin-top:8px">
       <summary class="hint" style="cursor:pointer">라벨 파일에 적힌 원문 기준</summary>
@@ -289,8 +301,11 @@ PAGE = r"""<!doctype html>
     <h2>근거</h2>
     <div id="sources"></div>
   </div>
+  </div>
+  <aside>
   <div class="card">
     <h2>충실성</h2>
+    <table class="rule" id="table5" hidden style="margin-bottom:12px"></table>
     <div class="btns" id="btns3">
       <button data-v="1">1.0 · 전부 근거에 있다 <span class="hint">(1)</span></button>
       <button data-v="0.5">0.5 · 일부만 있다 <span class="hint">(2)</span></button>
@@ -303,6 +318,7 @@ PAGE = r"""<!doctype html>
     </div>
     <div class="hint" id="status" style="margin-top:10px"></div>
   </div>
+  </aside>
 </main>
 <script>
 // 데이터는 서버에서 한 번 받아 메모리에 두고, 라벨을 누를 때마다 서버에 한 건씩 보낸다.
@@ -326,6 +342,7 @@ async function boot() {
     $('rule3').hidden = true;
     $('btns3').hidden = true;
     $('rule5').hidden = false;
+    $('table5').hidden = false;
     $('btns5').hidden = false;
     $('criteria5').textContent = data.rubric.criteria;
     // 5 부터 1 까지 내림차순으로 그린다. 옛 화면도 1.0 을 맨 위에 두었다.
