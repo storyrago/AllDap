@@ -45,10 +45,11 @@ def load_finishes(path: Path) -> dict[str, str | None]:
 
 
 def cut_missing(outputs: dict[str, str], finishes: dict[str, str | None]) -> int:
-    """missing 중 finish=length 인 사례 수. 512 는 우리가 정한 값이라 잘려서 못 읽은 것은 모델의 실패와 다르다.
+    """못 읽음 중 finish=length 인 사례 수. 512 는 우리가 정한 값이라 잘려서 못 읽은 것은 모델의 실패와 다르다.
+    missing 만 세지 않는 이유: [RESULT] 직후에 잘리면 out_of_range 가 된다(스펙 §4-7).
     판정 규칙(못 읽음으로 센다)은 그대로 두고 표시만 나눈다."""
     return sum(1 for cid, text in outputs.items()
-               if parse_result(text)[1] == "missing" and finishes.get(cid) == "length")
+               if parse_result(text)[1] != "ok" and finishes.get(cid) == "length")
 
 
 def load_ids(path: Path) -> set[str]:

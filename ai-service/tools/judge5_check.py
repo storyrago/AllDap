@@ -143,6 +143,9 @@ def check_parse_strict_on_values() -> None:
     assert parse_result("[RESULT] 4.0") == (None, "out_of_range")
     assert parse_result("[RESULT] -1") == (None, "out_of_range")
     assert parse_result("[RESULT] 4 ... [RESULT] 4.5") == (None, "out_of_range")
+    # [RESULT] 는 있는데 값을 못 찾으면 missing 이 아니라 out_of_range 다(스펙 §4-7 표).
+    assert parse_result("[RESULT] Score: 4") == (None, "out_of_range")
+    assert parse_result("[RESULT] - 4") == (None, "out_of_range")
     # 문장 끝 마침표는 소수점이 아니다(뒤에 숫자가 없다).
     assert parse_result("Feedback: 좋다. [RESULT] 4.") == (4, "ok")
 
@@ -424,8 +427,9 @@ def check_scores_of_counts_each_failure_kind() -> None:
 
 
 def check_cut_missing_counts_only_truncated() -> None:
-    outs = {"a": "[RESULT] 5", "b": "잘린 출력", "c": "양식 안 지킴"}
-    assert cut_missing(outs, {"a": "length", "b": "length", "c": "stop"}) == 1
+    # 잘림은 못 읽음 전체에서 센다. [RESULT] 직후에 잘리면 missing 이 아니라 out_of_range 라서다.
+    outs = {"a": "[RESULT] 5", "b": "잘린 출력", "c": "양식 안 지킴", "d": "... [RESULT]"}
+    assert cut_missing(outs, {"a": "length", "b": "length", "c": "stop", "d": "length"}) == 2
 
 
 def check_build_compares_in_the_right_direction() -> None:

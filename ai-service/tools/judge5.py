@@ -145,7 +145,7 @@ def parse_result(text: str | None) -> tuple[int | None, str]:
     상태는 넷이다. 앞의 하나만 점수가 있고 나머지 셋은 서로 다른 실패다.
       ok            점수 하나를 읽었다
       missing       [RESULT] 가 없다(출력이 잘렸거나 양식을 안 지켰다)
-      out_of_range  1~5 정수가 아닌 값을 썼다(소수, 음수, 범위 밖)
+      out_of_range  [RESULT] 는 있는데 뒤의 값이 1~5 정수가 아니다(소수, 음수, 범위 밖, 숫자를 못 찾음)
       conflict      [RESULT] 를 여러 번 쓰고 값이 서로 다르다
     셋을 "못 읽음" 하나로 뭉개지 않는 이유: 원인이 다르면 고칠 곳도 다르다.
     규칙(꾸밈은 너그럽게, 값은 엄격하게)은 스펙 §4-7 에 측정 전에 고정돼 있다.
@@ -154,7 +154,10 @@ def parse_result(text: str | None) -> tuple[int | None, str]:
         return None, "missing"
     raw = _RESULT_RE.findall(text)   # 잡힌 값의 글자 목록(예: ["4"], ["4.5"], ["-1"])
     if not raw:
-        return None, "missing"
+        # [RESULT] 는 썼는데 뒤에서 값을 못 찾은 것("[RESULT] Score: 4")은 missing 이 아니다.
+        # 스펙 §4-7 표의 missing 은 "[RESULT] 가 없다" 이고, 이 경우는 "값을 읽을 수 없다" 쪽이다.
+        # 잘려서 [RESULT] 까지 못 쓴 것과 [RESULT] 까지 쓰고 값 모양이 틀린 것은 고칠 곳이 다르다.
+        return None, ("out_of_range" if "[RESULT]" in text else "missing")
     # str.isdigit(): 0~9 로만 된 글자인지. "4.5" 와 "-1" 은 False 라 정수로 바꾸지 않고 바로 out_of_range 다.
     if any(not x.isdigit() or int(x) not in SCALE for x in raw):
         return None, "out_of_range"
