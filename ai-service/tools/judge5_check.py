@@ -137,6 +137,26 @@ def check_parse_keeps_failure_reasons_apart() -> None:
     assert parse_result("[RESULT] 4 [RESULT] 4") == (4, "ok")
 
 
+def check_parse_strict_on_values() -> None:
+    """값은 엄격하게(스펙 §4-7): 소수와 음수를 정수로 잘라 읽지 않는다."""
+    assert parse_result("[RESULT] 4.5") == (None, "out_of_range")
+    assert parse_result("[RESULT] 4.0") == (None, "out_of_range")
+    assert parse_result("[RESULT] -1") == (None, "out_of_range")
+    assert parse_result("[RESULT] 4 ... [RESULT] 4.5") == (None, "out_of_range")
+    # 문장 끝 마침표는 소수점이 아니다(뒤에 숫자가 없다).
+    assert parse_result("Feedback: 좋다. [RESULT] 4.") == (4, "ok")
+
+
+def check_parse_lenient_on_decoration() -> None:
+    """꾸밈은 너그럽게(스펙 §4-7): 콜론 하나와 마크다운 굵게는 점수로 읽는다."""
+    assert parse_result("[RESULT]: 4") == (4, "ok")
+    assert parse_result("**[RESULT]** 4") == (4, "ok")
+    assert parse_result("[RESULT] **4**") == (4, "ok")
+    assert parse_result("**[RESULT]:** 3") == (3, "ok")
+    assert parse_result("[RESULT]: (2)") == (2, "ok")
+    assert parse_result("**[RESULT]** 4 [RESULT]: 5") == (None, "conflict")
+
+
 def check_messages_carry_every_source_in_order() -> None:
     msgs = build_messages("연차는?", _SOURCES, "15일입니다.")
     assert [m["role"] for m in msgs] == ["system", "user"]
@@ -362,7 +382,9 @@ def check_notebook_matches_the_module() -> None:
     # [^)]* 는 닫는 괄호 전까지(줄바꿈 포함)를 뜻한다. 이 호출 안에는 다른 괄호가 없다.
     assert re.search(r"GenerationConfig\([^)]*do_sample=False", bare)
     assert re.search(r"GenerationConfig\([^)]*repetition_penalty=1\.0(?!\d)", bare)
-    assert "use_model_defaults=False" in bare   # 4.57 이 저장소 기본값으로 다시 덮는 경로를 막는다
+    # generate 호출 줄을 통째로 본다. 4.57 이 저장소 기본값으로 다시 덮는 경로(use_model_defaults)를 막고,
+    # 호출에 do_sample 같은 키워드가 덧붙으면(키워드는 generation_config 를 덮는다) 여기서 걸린다.
+    assert "model.generate(**enc, generation_config=gen, use_model_defaults=False)" in bare
     # (?<!_): bnb_4bit_compute_dtype=torch.float16 안의 같은 글자에 맞지 않게, 앞이 _ 인 것은 뺀다.
     assert re.search(r"(?<!_)dtype=torch\.float16", bare)
     assert bare.count("revision=revision") >= 3  # 토크나이저, 대화 틀, 가중치 모두 같은 판
@@ -451,6 +473,8 @@ def check_build_compares_in_the_right_direction() -> None:
 CHECKS = [
     check_parse_reads_single_result,
     check_parse_keeps_failure_reasons_apart,
+    check_parse_strict_on_values,
+    check_parse_lenient_on_decoration,
     check_messages_carry_every_source_in_order,
     check_messages_carry_the_whole_rubric,
     check_messages_do_not_leak_reference_answer,

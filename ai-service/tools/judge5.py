@@ -51,7 +51,7 @@ RUBRIC: dict[int, str] = {
 # 틀은 영어 그대로 두고 내용(근거, 질문, 답변, 채점표)만 한국어로 넣는다(스펙 §3-2).
 SYSTEM_PROMPT = (
     "You are a fair judge assistant tasked with providing clear, objective feedback based on "
-    "a specific criteria, ensuring each assessment reflects the absolute standards set for performance."
+    "specific criteria, ensuring each assessment reflects the absolute standards set for performance."
 )
 
 _USER_TEMPLATE = """###Task Description:
@@ -115,8 +115,15 @@ def build_messages(question: str, sources: list[dict], answer: str) -> list[dict
     return [{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": user}]
 
 
-# [RESULT] 뒤의 정수. 괄호를 씌우는 모델이 있어 \(? 로 선택적으로 받는다.
-_RESULT_RE = re.compile(r"\[RESULT\]\s*\(?\s*(\d+)")
+# 점수 읽기 규칙(스펙 §4-7, 2026-10-02 사용자 결정): 꾸밈은 너그럽게, 값은 엄격하게.
+#   너그럽게: [RESULT] 앞뒤의 마크다운 굵게(**), 뒤의 콜론 하나, 괄호. 일반 지시 모델이 흔히 붙이는 버릇이라
+#             이것 때문에 못 읽음이 되면 실력과 무관하게 §4-4 의 "못 읽음 0건" 에서 떨어진다.
+#   엄격하게: 값은 부호와 소수점까지 통째로 잡는다(-?\d+(?:\.\d+)?). 4.5 를 4 로 읽으면 근거 없는 점수를 만들고,
+#             -1 을 못 잡으면 out_of_range 가 아니라 missing 으로 섞인다. 정수가 아니면 아래에서 out_of_range 다.
+# (?:\*\*)? 는 "** 가 있어도 되고 없어도 된다", :? 는 "콜론 하나가 있어도 된다" 는 뜻이다.
+_RESULT_RE = re.compile(
+    r"(?:\*\*)?\[RESULT\](?:\*\*)?\s*:?\s*(?:\*\*)?\s*\(?\s*(?:\*\*)?\s*(-?\d+(?:\.\d+)?)"
+)
 
 
 # 동작 확인용 가짜 사례. 44건과 무관하다(순서 규칙, 스펙 §4-1). M1 의 --smoke 와 코랩 노트북이 모두 이것을 쓴다.
@@ -138,17 +145,20 @@ def parse_result(text: str | None) -> tuple[int | None, str]:
     상태는 넷이다. 앞의 하나만 점수가 있고 나머지 셋은 서로 다른 실패다.
       ok            점수 하나를 읽었다
       missing       [RESULT] 가 없다(출력이 잘렸거나 양식을 안 지켰다)
-      out_of_range  1~5 밖의 수를 썼다
+      out_of_range  1~5 정수가 아닌 값을 썼다(소수, 음수, 범위 밖)
       conflict      [RESULT] 를 여러 번 쓰고 값이 서로 다르다
     셋을 "못 읽음" 하나로 뭉개지 않는 이유: 원인이 다르면 고칠 곳도 다르다.
+    규칙(꾸밈은 너그럽게, 값은 엄격하게)은 스펙 §4-7 에 측정 전에 고정돼 있다.
     """
     if not text:
         return None, "missing"
-    found = [int(x) for x in _RESULT_RE.findall(text)]
-    if not found:
+    raw = _RESULT_RE.findall(text)   # 잡힌 값의 글자 목록(예: ["4"], ["4.5"], ["-1"])
+    if not raw:
         return None, "missing"
-    if any(v not in SCALE for v in found):
+    # str.isdigit(): 0~9 로만 된 글자인지. "4.5" 와 "-1" 은 False 라 정수로 바꾸지 않고 바로 out_of_range 다.
+    if any(not x.isdigit() or int(x) not in SCALE for x in raw):
         return None, "out_of_range"
+    found = [int(x) for x in raw]
     if len(set(found)) > 1:
         return None, "conflict"
     return found[0], "ok"
