@@ -19,6 +19,8 @@ import java.time.Duration;
  * @param retryDelay       재시도 전 대기. 길게 잡으면 사용자를 그만큼 더 기다리게 한다.
  * @param circuitFailureThreshold 연속 실패 몇 번에 서킷을 열 것인가
  * @param circuitOpenDuration     서킷이 열린 뒤 얼마 동안 호출하지 않을 것인가
+ * @param healthTimeout  헬스체크({@code GET /health}) 의 연결·읽기 타임아웃. 채팅의 120초를 물려받지 않게
+ *                       따로 둔다. 근거는 RestClientConfig.aiServiceHealthRestClient 주석.
  */
 @ConfigurationProperties(prefix = "app.ai-service")
 public record AiServiceProperties(
@@ -28,6 +30,7 @@ public record AiServiceProperties(
         @DefaultValue("2") int retryMaxAttempts,
         @DefaultValue("200ms") Duration retryDelay,
         @DefaultValue("5") int circuitFailureThreshold,
-        @DefaultValue("30s") Duration circuitOpenDuration
+        @DefaultValue("30s") Duration circuitOpenDuration,
+        @DefaultValue("2s") Duration healthTimeout
 ) {
 }

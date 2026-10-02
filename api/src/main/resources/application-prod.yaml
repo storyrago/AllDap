@@ -83,6 +83,8 @@ management:
   endpoint:
     health:
       show-details: never
+      # health 그룹(self · ai-service)은 application.yaml 에만 정의한다. 프로필 설정은 그 위에 합쳐지므로
+      # 여기서 다시 적지 않는다(두 곳에 적으면 한쪽만 고쳐져 어긋난다).
   metrics:
     distribution:
       percentiles-histogram:
