@@ -21,6 +21,7 @@ from .judge5 import (
     replacement_failures, sign_test_p, summarize, to_three,
 )
 from .judge5_cloudflare import done_ids, foreign_lines, result_line
+from .judge5_report import ReportProblem, load_run, scores_of
 from .judge5_export import CASES_SHA, NEW_LABELS, ROOT, labels_ready, make_cases, make_label_file
 from .judge_label_server import LabelRejected, apply_label
 
@@ -356,6 +357,26 @@ def check_notebook_hash_matches_cases_file() -> None:
         assert m.group(1) == CASES_SHA.read_text(encoding="utf-8").split()[0], "노트북 해시를 갱신하라(태스크 7)"
 
 
+def check_load_run_refuses_partial_or_foreign_files() -> None:
+    """🔴 부분 결과로 표를 내지 않는다. 한 번 찍힌 숫자는 꼬리표 없이 인용된다."""
+    with tempfile.TemporaryDirectory() as d:
+        p = Path(d) / "M3_run1.jsonl"
+        p.write_text(json.dumps({"case_id": "aa", "output": "[RESULT] 5", "cases_sha256": "s"}) + "\n")
+        for ids, sha in (({"aa", "bb"}, "s"), ({"aa"}, "다른해시")):
+            try:
+                load_run(p, ids, sha)
+            except ReportProblem:
+                continue
+            raise AssertionError("받으면 안 된다")
+        assert load_run(p, {"aa"}, "s") == {"aa": "[RESULT] 5"}
+
+
+def check_scores_of_counts_each_failure_kind() -> None:
+    scores, kinds = scores_of({"a": "[RESULT] 5", "b": "점수 없음", "c": "[RESULT] 9", "d": "[RESULT] 2 [RESULT] 3"})
+    assert scores == {"a": 5, "b": None, "c": None, "d": None}
+    assert kinds == {"ok": 1, "missing": 1, "out_of_range": 1, "conflict": 1}
+
+
 CHECKS = [
     check_parse_reads_single_result,
     check_parse_keeps_failure_reasons_apart,
@@ -387,6 +408,8 @@ CHECKS = [
     check_prompt_hash_covers_every_part,
     check_notebook_matches_the_module,
     check_notebook_hash_matches_cases_file,
+    check_load_run_refuses_partial_or_foreign_files,
+    check_scores_of_counts_each_failure_kind,
 ]
 
 
