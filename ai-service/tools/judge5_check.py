@@ -22,7 +22,7 @@ from .judge5 import (
 )
 from .judge5_cloudflare import done_ids, foreign_lines, result_line
 from . import judge5_report
-from .judge5_report import ReportProblem, cut_missing, load_run, scores_of
+from .judge5_report import ReportProblem, cut_unread, load_run, scores_of
 from .judge5_export import CASES_SHA, NEW_LABELS, ROOT, labels_ready, make_cases, make_label_file
 from .judge_label_server import LabelRejected, apply_label
 
@@ -146,6 +146,12 @@ def check_parse_strict_on_values() -> None:
     # [RESULT] 는 있는데 값을 못 찾으면 missing 이 아니라 out_of_range 다(스펙 §4-7 표).
     assert parse_result("[RESULT] Score: 4") == (None, "out_of_range")
     assert parse_result("[RESULT] - 4") == (None, "out_of_range")
+    # 만점이 5 가 아닌 분수는 우리 척도의 점수가 아니다(10점 만점의 4 는 우리 4점이 아니다).
+    assert parse_result("[RESULT] 4/10") == (None, "out_of_range")
+    assert parse_result("[RESULT] 4 / 10") == (None, "out_of_range")
+    assert parse_result("[RESULT] 4/5 [RESULT] 4/10") == (None, "out_of_range")
+    # 숫자가 없는 [RESULT] 는 다른 [RESULT] 에 읽을 값이 있으면 무시한다(지시문을 따라 쓴 경우를 살린다).
+    assert parse_result("[RESULT] (an integer number between 1 and 5) [RESULT] 3") == (3, "ok")
     assert parse_result("Feedback: 근거와 같다. [RESULT]") == (None, "out_of_range")   # 뒤에 아무것도 없음
     # 문장 끝 마침표는 소수점이 아니다(뒤에 숫자가 없다).
     assert parse_result("Feedback: 좋다. [RESULT] 4.") == (4, "ok")
@@ -158,6 +164,10 @@ def check_parse_lenient_on_decoration() -> None:
     assert parse_result("[RESULT] **4**") == (4, "ok")
     assert parse_result("**[RESULT]:** 3") == (3, "ok")
     assert parse_result("[RESULT]: (2)") == (2, "ok")
+    # 아래 셋은 출력을 보기 전에 "꾸밈 허용" 으로 정했다(2026-10-02, 스펙 §4-7).
+    assert parse_result("[RESULT] ４") == (4, "ok")        # 전각 숫자
+    assert parse_result("[RESULT] 4/5") == (4, "ok")       # 5점 만점의 4
+    assert parse_result("[RESULT] 05") == (5, "ok")        # 앞의 0
     assert parse_result("**[RESULT]** 4 [RESULT]: 5") == (None, "conflict")
 
 
@@ -427,10 +437,10 @@ def check_scores_of_counts_each_failure_kind() -> None:
 
 
 
-def check_cut_missing_counts_only_truncated() -> None:
+def check_cut_unread_counts_only_truncated() -> None:
     # 잘림은 못 읽음 전체에서 센다. [RESULT] 직후에 잘리면 missing 이 아니라 out_of_range 라서다.
     outs = {"a": "[RESULT] 5", "b": "잘린 출력", "c": "양식 안 지킴", "d": "... [RESULT]"}
-    assert cut_missing(outs, {"a": "length", "b": "length", "c": "stop", "d": "length"}) == 2
+    assert cut_unread(outs, {"a": "length", "b": "length", "c": "stop", "d": "length"}) == 2
 
 
 def check_build_compares_in_the_right_direction() -> None:
@@ -510,7 +520,7 @@ CHECKS = [
     check_notebook_hash_matches_cases_file,
     check_load_run_refuses_partial_or_foreign_files,
     check_scores_of_counts_each_failure_kind,
-    check_cut_missing_counts_only_truncated,
+    check_cut_unread_counts_only_truncated,
     check_build_compares_in_the_right_direction,
 ]
 

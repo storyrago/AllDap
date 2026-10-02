@@ -120,9 +120,12 @@ def build_messages(question: str, sources: list[dict], answer: str) -> list[dict
 #             이것 때문에 못 읽음이 되면 실력과 무관하게 §4-4 의 "못 읽음 0건" 에서 떨어진다.
 #   엄격하게: 값은 부호와 소수점까지 통째로 잡는다(-?\d+(?:\.\d+)?). 4.5 를 4 로 읽으면 근거 없는 점수를 만들고,
 #             -1 을 못 잡으면 out_of_range 가 아니라 missing 으로 섞인다. 정수가 아니면 아래에서 out_of_range 다.
+#   분수: "4/5" 는 5점 만점의 4 라 4 로 읽지만, "4/10" 은 10점 만점의 4 라 우리 4점이 아니다. 그래서 분모도
+#             잡아 두고(두 번째 괄호), 분모가 5 가 아니면 아래에서 out_of_range 다.
 # (?:\*\*)? 는 "** 가 있어도 되고 없어도 된다", :? 는 "콜론 하나가 있어도 된다" 는 뜻이다.
+# 괄호가 두 개라 findall 은 (값, 분모) 튜플 목록을 돌려준다. 분모가 없으면 빈 글자 "" 다.
 _RESULT_RE = re.compile(
-    r"(?:\*\*)?\[RESULT\](?:\*\*)?\s*:?\s*(?:\*\*)?\s*\(?\s*(?:\*\*)?\s*(-?\d+(?:\.\d+)?)"
+    r"(?:\*\*)?\[RESULT\](?:\*\*)?\s*:?\s*(?:\*\*)?\s*\(?\s*(?:\*\*)?\s*(-?\d+(?:\.\d+)?)(?:\s*/\s*(\d+))?"
 )
 
 
@@ -152,13 +155,18 @@ def parse_result(text: str | None) -> tuple[int | None, str]:
     """
     if not text:
         return None, "missing"
-    raw = _RESULT_RE.findall(text)   # 잡힌 값의 글자 목록(예: ["4"], ["4.5"], ["-1"])
-    if not raw:
+    pairs = _RESULT_RE.findall(text)   # (값, 분모) 목록. 예: [("4", "")], [("4.5", "")], [("4", "10")]
+    if not pairs:
         # [RESULT] 는 썼는데 뒤에서 값을 못 찾은 것("[RESULT] Score: 4")은 missing 이 아니다.
         # 스펙 §4-7 표의 missing 은 "[RESULT] 가 없다" 이고, 이 경우는 "값을 읽을 수 없다" 쪽이다.
         # 잘려서 [RESULT] 까지 못 쓴 것과 [RESULT] 까지 쓰고 값 모양이 틀린 것은 고칠 곳이 다르다.
         return None, ("out_of_range" if "[RESULT]" in text else "missing")
-    # str.isdigit(): 0~9 로만 된 글자인지. "4.5" 와 "-1" 은 False 라 정수로 바꾸지 않고 바로 out_of_range 다.
+    # 분모가 있는데 5 가 아니면(4/10) 다른 척도의 점수라 읽지 않는다.
+    if any(den and int(den) != 5 for _, den in pairs):
+        return None, "out_of_range"
+    raw = [x for x, _ in pairs]
+    # str.isdigit(): 숫자 글자로만 된 글자인지. "4.5" 와 "-1" 은 False 라 정수로 바꾸지 않고 바로 out_of_range 다.
+    # 전각 숫자("４")도 숫자 글자라 True 이고 int("４") 는 4 다(꾸밈 허용, 스펙 §4-7).
     if any(not x.isdigit() or int(x) not in SCALE for x in raw):
         return None, "out_of_range"
     found = [int(x) for x in raw]

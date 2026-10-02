@@ -44,7 +44,7 @@ def load_finishes(path: Path) -> dict[str, str | None]:
     return {r["case_id"]: r.get("finish") for r in rows}
 
 
-def cut_missing(outputs: dict[str, str], finishes: dict[str, str | None]) -> int:
+def cut_unread(outputs: dict[str, str], finishes: dict[str, str | None]) -> int:
     """못 읽음 중 finish=length 인 사례 수. 512 는 우리가 정한 값이라 잘려서 못 읽은 것은 모델의 실패와 다르다.
     missing 만 세지 않는 이유: [RESULT] 직후에 잘리면 out_of_range 가 된다(스펙 §4-7).
     판정 규칙(못 읽음으로 센다)은 그대로 두고 표시만 나눈다."""
@@ -133,7 +133,7 @@ def build() -> str:
             continue
         outputs1 = load_run(run1, ids, cases_sha)
         scores[key], kinds[key] = scores_of(outputs1)
-        cuts[key] = cut_missing(outputs1, load_finishes(run1))
+        cuts[key] = cut_unread(outputs1, load_finishes(run1))
         run2 = RESULTS_DIR / f"{key}_run2.jsonl"
         if skip_note:
             repeat[key] = f"계산하지 않음. 실행 2 미완, 건너뜀: {skip_note}"
