@@ -354,12 +354,14 @@ def check_notebook_matches_the_module() -> None:
     assert f"MAX_NEW_TOKENS = {MAX_NEW_TOKENS}" in code
     for key in ("M2", "M3", "M4"):
         assert f'"{key}": "{MODELS[key]}"' in code, key
-    assert "do_sample=False" in code
     # 저장소 기본값의 반복 억제(Qwen 계열 1.05)를 끄고, 4비트가 아닌 부분의 정밀도와 transformers 판을 고정한다.
     # 아래 설정은 주석을 뺀 코드에서 본다. 주석에도 같은 글자가 있어서, 코드에서 지워도 주석 때문에 통과했다.
     # (?!\d): 1.0 뒤에 숫자가 더 붙으면(1.05) 맞지 않게 한다. "1.0" 은 "1.05" 안에도 들어 있다.
     bare = _without_comments(code)
-    assert re.search(r"repetition_penalty=1\.0(?!\d)", bare)
+    # 탐욕적 디코딩과 반복 억제 끄기는 GenerationConfig( ... ) 호출 안에 있어야 실제로 쓰인다.
+    # [^)]* 는 닫는 괄호 전까지(줄바꿈 포함)를 뜻한다. 이 호출 안에는 다른 괄호가 없다.
+    assert re.search(r"GenerationConfig\([^)]*do_sample=False", bare)
+    assert re.search(r"GenerationConfig\([^)]*repetition_penalty=1\.0(?!\d)", bare)
     assert "use_model_defaults=False" in bare   # 4.57 이 저장소 기본값으로 다시 덮는 경로를 막는다
     # (?<!_): bnb_4bit_compute_dtype=torch.float16 안의 같은 글자에 맞지 않게, 앞이 _ 인 것은 뺀다.
     assert re.search(r"(?<!_)dtype=torch\.float16", bare)
