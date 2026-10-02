@@ -2,6 +2,9 @@ package com.alldap.api.global.client;
 
 import com.alldap.api.support.AiServiceStub;
 import com.alldap.api.support.IntegrationTest;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -47,6 +50,9 @@ class AiServiceHealthIntegrationTest {
 
     @Autowired
     AiServiceStub aiService;
+
+    @Autowired
+    MeterRegistry meterRegistry;
 
     // 🔴 상태를 가진 싱글턴이다. 다른 테스트가 열어 둔 서킷이 이 클래스로 새지 않게 매번 비운다.
     @Autowired
@@ -145,19 +151,51 @@ class AiServiceHealthIntegrationTest {
     }
 
     @Test
-    @DisplayName("Python 이 느리면 채팅의 읽기 타임아웃이 아니라 health-timeout(2초)에서 끊고 DOWN 이다")
+    @DisplayName("Python 이 느리면 채팅의 읽기 타임아웃이 아니라 health-timeout 에서 끊고 DOWN 이다")
     void pythonSlow() {
-        // 테스트의 채팅 읽기 타임아웃도 2초라 그것만으로는 둘을 못 가른다. 그래서 시간이 아니라
-        // "DOWN 으로 끝나고, 재시도 없이 한 번만 불렀는가" 를 본다. 재시도(연결 실패 전용)도 여기선 안 탄다.
-        aiService.enqueueSlow(Duration.ofSeconds(4), 200, PYTHON_OK);
+        // 테스트 설정에서 health-timeout 은 500ms, 채팅 읽기 타임아웃은 2초다(TestcontainersConfiguration).
+        // 지연을 그 <사이>인 1초로 두는 것이 핵심이다. 전용 클라이언트면 500ms 에 끊겨 DOWN 이고,
+        // 채팅용 클라이언트를 잘못 쓰면 2초 안에 응답을 받아 UP(200) 이 되어 이 테스트가 깨진다.
+        // 재시도(연결 실패 전용)도 여기선 안 타므로 한 번만 불러야 한다.
+        aiService.enqueueSlow(Duration.ofSeconds(1), 200, PYTHON_OK);
 
         long started = System.nanoTime();
         HttpResponse<String> ai = health("/ai-service");
         Duration took = Duration.ofNanos(System.nanoTime() - started);
 
         assertThat(ai.statusCode()).isEqualTo(503);
-        assertThat(took).isLessThan(Duration.ofSeconds(4));
+        assertThat(took).isLessThan(Duration.ofSeconds(1));
         assertThat(healthProbesSent()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("헬스체크는 alldap.ai.call · alldap.ai.retry 지표에 섞이지 않는다")
+    void healthNotInCallMetrics() {
+        // 태그를 고정하지 않고 <이름이 같은 모든 시계열>을 더한다. 누가 isHealthy 를 call() 로 감싸면
+        // 새 operation 태그로 시계열이 하나 생기는데, 특정 태그만 보면 그걸 놓친다.
+        double callsBefore = callCount();
+        double retriesBefore = retryCount();
+
+        aiService.enqueue(200, PYTHON_OK);
+        health("/ai-service");
+        health("/ai-service");          // 응답이 없으면 500 = 실패 경로도 함께 지난다
+        aiService.enqueueAbort();
+        health("/ai-service");          // 연결이 끊기는 경로(call() 이라면 재시도 대상)
+
+        // 3 이 아니라 "3 이상" 이다. 응답 도중 끊긴 GET 은 JDK HttpClient 가 <스스로> 한 번 더 보낸다
+        // (실측: 끊긴 호출 하나에 요청 2건). 우리 call() 의 재시도와 무관한 전송 계층 동작이라
+        // 지표에도 안 잡힌다. 이 테스트가 보는 것은 "요청이 실제로 Python 에 닿았는가" 까지다.
+        assertThat(healthProbesSent()).isGreaterThanOrEqualTo(3);
+        assertThat(callCount()).isEqualTo(callsBefore);
+        assertThat(retryCount()).isEqualTo(retriesBefore);
+    }
+
+    private double callCount() {
+        return meterRegistry.find("alldap.ai.call").timers().stream().mapToDouble(Timer::count).sum();
+    }
+
+    private double retryCount() {
+        return meterRegistry.find("alldap.ai.retry").counters().stream().mapToDouble(Counter::count).sum();
     }
 
     @Test

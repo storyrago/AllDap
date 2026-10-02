@@ -74,8 +74,12 @@ cd api
 # 🔴 8080 이 아니라 8081 이다. actuator 는 management 포트로 분리돼 있다
 # (api/src/main/resources/application.yaml 의 management.server.port).
 # 운영에서는 이 포트를 호스트에 아예 열지 않아 밖에서 부를 수 없다.
-curl localhost:8081/actuator/health
+# 🔴 루트(/actuator/health)가 아니라 /self 를 본다. 루트에는 Python(aiService)이 들어 있어서,
+# 이 순서(api 먼저, ai-service 는 아직)에서는 루트가 503 DOWN 인 것이 정상이다.
+curl localhost:8081/actuator/health/self
 # → {"status":"UP"}
+# 3단계에서 ai-service 까지 띄운 뒤에는 루트도 UP 이어야 한다:
+#   curl localhost:8081/actuator/health
 ```
 
 > **`api/`의 엔드포인트는 전부 구현돼 있습니다.** 인증·봇 CRUD·문서·관리자 채팅·대화 로그·
