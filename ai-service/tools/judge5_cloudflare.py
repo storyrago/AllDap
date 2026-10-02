@@ -25,7 +25,7 @@ from pathlib import Path
 
 from app import cf
 
-from .judge5 import MAX_NEW_TOKENS, MODELS, build_messages, parse_result, sha256_file
+from .judge5 import MAX_NEW_TOKENS, MODELS, parse_result, sha256_file, smoke_messages
 from .judge5_export import CASES, CASES_SHA, RESULTS_DIR
 
 MODEL_KEY = "M1"
@@ -77,12 +77,8 @@ def _call(messages: list[dict]) -> tuple[str, str | None]:
 
 def smoke() -> int:
     """44건이 아닌 가짜 사례로 연결과 양식만 본다. 순서 규칙(스펙 §4-1) 때문에 따로 둔다."""
-    msgs = build_messages(
-        "연차는 며칠인가요?",
-        [{"filename": "가짜.md", "content": "정규직 직원의 연차는 15일이다."}],
-        "연차는 15일이고, 회사 창립기념일에는 하루 더 쉽니다.",
-    )
-    text, finish = _call(msgs)
+    # 가짜 사례는 judge5.SMOKE_CASE 한 곳에 있다. 코랩 노트북도 같은 사례로 모델마다 먼저 확인한다.
+    text, finish = _call(smoke_messages())
     print(text)
     print(f"\nfinish={finish}  읽은 결과={parse_result(text)}  뉴런={cf.neurons_used()}")
     return 0

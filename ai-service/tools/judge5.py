@@ -119,6 +119,19 @@ def build_messages(question: str, sources: list[dict], answer: str) -> list[dict
 _RESULT_RE = re.compile(r"\[RESULT\]\s*\(?\s*(\d+)")
 
 
+# 동작 확인용 가짜 사례. 44건과 무관하다(순서 규칙, 스펙 §4-1). M1 의 --smoke 와 코랩 노트북이 모두 이것을 쓴다.
+# 답변의 "창립기념일" 은 근거에 없는 사소한 주장 하나라, 채점표대로면 4 가 나와야 한다.
+SMOKE_CASE: dict = {
+    "question": "연차는 며칠인가요?",
+    "sources": [{"filename": "가짜.md", "content": "정규직 직원의 연차는 15일이다."}],
+    "answer": "연차는 15일이고, 회사 창립기념일에는 하루 더 쉽니다.",
+}
+
+
+def smoke_messages() -> list[dict[str, str]]:
+    return build_messages(SMOKE_CASE["question"], SMOKE_CASE["sources"], SMOKE_CASE["answer"])
+
+
 def parse_result(text: str | None) -> tuple[int | None, str]:
     """모델 출력에서 점수를 읽는다. (점수, 상태) 를 돌려준다.
 

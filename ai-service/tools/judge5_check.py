@@ -17,11 +17,12 @@ from pathlib import Path
 
 from .judge5 import (
     CRITERIA, MAX_NEW_TOKENS, MODELS, RUBRIC, SCALE,
-    build_messages, compare, prompt_sha256, linear_weighted_kappa, parse_result, pick_best,
+    build_messages, compare, prompt_sha256, smoke_messages, linear_weighted_kappa, parse_result, pick_best,
     replacement_failures, sign_test_p, summarize, to_three,
 )
 from .judge5_cloudflare import done_ids, foreign_lines, result_line
-from .judge5_report import ReportProblem, load_run, scores_of
+from . import judge5_report
+from .judge5_report import ReportProblem, cut_missing, load_run, scores_of
 from .judge5_export import CASES_SHA, NEW_LABELS, ROOT, labels_ready, make_cases, make_label_file
 from .judge_label_server import LabelRejected, apply_label
 
@@ -347,6 +348,13 @@ def check_notebook_matches_the_module() -> None:
     for key in ("M2", "M3", "M4"):
         assert f'"{key}": "{MODELS[key]}"' in code, key
     assert "do_sample=False" in code
+    # 저장소 기본값의 반복 억제(Qwen 계열 1.05)를 끄고, 4비트가 아닌 부분의 정밀도와 transformers 판을 고정한다.
+    assert "repetition_penalty=1.0" in code
+    assert "dtype=torch.float16" in code
+    assert '"transformers==4.57.6"' in code
+    # 가짜 사례 messages 가 judge5 의 것과 글자까지 같아야 M1 smoke 와 같은 확인이 된다.
+    line = next(l for l in code.splitlines() if l.startswith("SMOKE_MESSAGES = "))
+    assert json.loads(line.split("=", 1)[1]) == smoke_messages()
 
 
 def check_notebook_hash_matches_cases_file() -> None:
@@ -375,6 +383,54 @@ def check_scores_of_counts_each_failure_kind() -> None:
     scores, kinds = scores_of({"a": "[RESULT] 5", "b": "점수 없음", "c": "[RESULT] 9", "d": "[RESULT] 2 [RESULT] 3"})
     assert scores == {"a": 5, "b": None, "c": None, "d": None}
     assert kinds == {"ok": 1, "missing": 1, "out_of_range": 1, "conflict": 1}
+
+
+
+def check_cut_missing_counts_only_truncated() -> None:
+    outs = {"a": "[RESULT] 5", "b": "잘린 출력", "c": "양식 안 지킴"}
+    assert cut_missing(outs, {"a": "length", "b": "length", "c": "stop"}) == 1
+
+
+def check_build_compares_in_the_right_direction() -> None:
+    """보고서 전체를 가짜 결과로 돌려, 비교 쌍과 교체 후보의 인자 순서가 뒤집히지 않았는지 본다.
+    M4 는 사람과 같고, M1 은 전부 4(사람과 거리 1, 그래서 M4 가 10:0 으로 가깝다), M3 는 엉망이며
+    M2 는 올리기 단계에서 건너뛰었다. M1 이 사람과 같으면 모든 비교가 동점이라 방향이 뒤집혀도 모른다."""
+    ids = [f"c{i:02d}" for i in range(10)]
+    human = [5] * 6 + [3] * 4
+    saved = (judge5_report.NEW_LABELS, judge5_report.OLD_LABELS, judge5_report.CASES_SHA, judge5_report.RESULTS_DIR)
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        (d / "new.json").write_text(json.dumps(
+            {"scale": 5, "cases": [{"case_id": c, "label": h} for c, h in zip(ids, human)]}))
+        (d / "old.json").write_text(json.dumps({"cases": [{"case_id": c, "label": 1.0} for c in ids]}))
+        (d / "sha").write_text("s  cases.jsonl\n")
+        res = d / "results"
+        res.mkdir()
+
+        def write(name: str, vals: list[int]) -> None:
+            (res / name).write_text("".join(
+                json.dumps({"case_id": c, "output": f"[RESULT] {v}", "finish": "stop", "cases_sha256": "s"}) + "\n"
+                for c, v in zip(ids, vals)))
+
+        write("M1_run1.jsonl", [4] * 10)
+        write("M4_run1.jsonl", human)
+        write("M3_run1.jsonl", [1] * 10)
+        (res / "M2_skipped.json").write_text(json.dumps({"model": "M2", "stage": "load", "reason": "가짜"}))
+        try:
+            judge5_report.NEW_LABELS, judge5_report.OLD_LABELS = d / "new.json", d / "old.json"
+            judge5_report.CASES_SHA, judge5_report.RESULTS_DIR = d / "sha", res
+            text = judge5_report.build()
+        finally:
+            # 모듈 전역을 바꿨으므로 반드시 되돌린다. 안 그러면 뒤의 검사가 가짜 경로를 읽는다.
+            (judge5_report.NEW_LABELS, judge5_report.OLD_LABELS,
+             judge5_report.CASES_SHA, judge5_report.RESULTS_DIR) = saved
+    assert "- M3: 아님" in text
+    assert "- M4: **교체 후보**" in text
+    # 최선 후보와 M1 의 비교는 (후보, M1) 순서다. 뒤집히면 문장의 앞뒤가 바뀐다.
+    assert "- M4 와 M1 (가장 나은 후보(M4)와 지금 채점 모델): M4 가 더 가까움 10, M1 가 더 가까움 0" in text
+    assert "- M1 와 M2 (돌리는 곳과 4비트): 하지 않음" in text
+    assert "→ **M4 가 사람에 더 가깝다**" in text     # M4 와 M3 비교, 10:0
+    assert "| M2 | 제외: 가짜 (load 단계)" in text
 
 
 CHECKS = [
@@ -410,6 +466,8 @@ CHECKS = [
     check_notebook_hash_matches_cases_file,
     check_load_run_refuses_partial_or_foreign_files,
     check_scores_of_counts_each_failure_kind,
+    check_cut_missing_counts_only_truncated,
+    check_build_compares_in_the_right_direction,
 ]
 
 

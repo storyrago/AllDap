@@ -38,6 +38,19 @@ def load_run(path: Path, case_ids: set[str], cases_sha: str) -> dict[str, str]:
     return {r["case_id"]: r["output"] for r in rows}
 
 
+def load_finishes(path: Path) -> dict[str, str | None]:
+    """사례 번호 → 생성이 끝난 이유(stop, length). 못 읽음 중 우리 상한(512 토큰)에서 잘린 것을 가르는 데 쓴다."""
+    rows = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    return {r["case_id"]: r.get("finish") for r in rows}
+
+
+def cut_missing(outputs: dict[str, str], finishes: dict[str, str | None]) -> int:
+    """missing 중 finish=length 인 사례 수. 512 는 우리가 정한 값이라 잘려서 못 읽은 것은 모델의 실패와 다르다.
+    판정 규칙(못 읽음으로 센다)은 그대로 두고 표시만 나눈다."""
+    return sum(1 for cid, text in outputs.items()
+               if parse_result(text)[1] == "missing" and finishes.get(cid) == "length")
+
+
 def load_ids(path: Path) -> set[str]:
     """결과 파일에 있는 사례 번호. 건너뛴 모델이 몇 건까지 했는지 적는 데만 쓴다."""
     return {json.loads(line)["case_id"] for line in path.read_text(encoding="utf-8").splitlines() if line.strip()}
@@ -61,8 +74,10 @@ def _fmt(x: float | None, nd: int = 3) -> str:
     return f"{0.0 if v == 0 else v:.{nd}f}"
 
 
-def _summary_rows(name: str, s: Summary, kinds: dict[str, int], kappa: float | None) -> str:
+def _summary_rows(name: str, s: Summary, kinds: dict[str, int], kappa: float | None, cut: int = 0) -> str:
     unread = ", ".join(f"{k} {v}" for k, v in sorted(kinds.items()) if k != "ok") or "없음"
+    if cut:
+        unread += f", 그중 {cut}건은 512 토큰에서 잘림"
     return (f"| {name} | {s.exact} | {s.within1} | {_fmt(s.mean_distance)} | {s.generous} | {s.harsh} "
             f"| {s.unread} ({unread}) | {_fmt(kappa)} |")
 
@@ -88,6 +103,7 @@ def build() -> str:
     skipped: dict[str, str] = {}
     repeat: dict[str, str] = {}
     failures: dict[str, int] = {}
+    cuts: dict[str, int] = {}
     for key in MODELS:
         run1 = RESULTS_DIR / f"{key}_run1.jsonl"
         skip = RESULTS_DIR / f"{key}_skipped.json"
@@ -95,19 +111,32 @@ def build() -> str:
         # 호출 실패 기록(지금은 M1 만 쓴다). 결과가 아니라 "몇 번 다시 불렀나" 의 기록이라 따로 센다.
         failures[key] = (sum(1 for line in fail_log.read_text(encoding="utf-8").splitlines() if line.strip())
                          if fail_log.exists() else 0)
-        # 건너뜀 기록을 결과 파일보다 먼저 본다. 코랩에서 채점 도중에 메모리가 모자라면 부분 결과 파일과
-        # 건너뜀 기록이 함께 남는다. 부분 파일을 먼저 읽으면 보고서 전체가 멈춘다(계획 코드가 그랬다).
+        # 코랩에서 채점 도중에 메모리가 모자라면 부분 결과 파일과 건너뜀 기록이 함께 남는다.
+        # 실행 1 이 완전하면(실행 2 에서 모자란 경우) 판정에는 실행 1 을 쓰고 재현 칸에만 적는다.
+        # 실행 1 이 불완전하면 그 모델을 표에서 빼고 몇 건까지 했는지 적는다(부분 결과로 표를 내지 않는다).
+        skip_note = None
         if skip.exists():
-            reason = json.loads(skip.read_text(encoding="utf-8"))["reason"]
-            partial = len(load_ids(run1)) if run1.exists() else 0
-            skipped[key] = reason + (f" (건너뛰기 전에 실행 1 을 {partial}건 채점했다. 표에는 넣지 않는다)" if partial else "")
-            continue
+            sk = json.loads(skip.read_text(encoding="utf-8"))
+            where = f"{sk.get('stage', '단계 모름')} 단계" + (f", 사례 {sk['case_id']}" if sk.get("case_id") else "")
+            skip_note = f"{sk['reason']} ({where})"
+            try:
+                outputs1 = load_run(run1, ids, cases_sha) if run1.exists() else None
+            except ReportProblem:
+                outputs1 = None
+            if outputs1 is None:
+                partial = len(load_ids(run1)) if run1.exists() else 0
+                skipped[key] = skip_note + (f". 건너뛰기 전에 실행 1 을 {partial}건 채점했다. 표에는 넣지 않는다" if partial else "")
+                continue
         if not run1.exists():
             skipped[key] = "결과 파일 없음"
             continue
-        scores[key], kinds[key] = scores_of(load_run(run1, ids, cases_sha))
+        outputs1 = load_run(run1, ids, cases_sha)
+        scores[key], kinds[key] = scores_of(outputs1)
+        cuts[key] = cut_missing(outputs1, load_finishes(run1))
         run2 = RESULTS_DIR / f"{key}_run2.jsonl"
-        if run2.exists():
+        if skip_note:
+            repeat[key] = f"계산하지 않음. 실행 2 미완, 건너뜀: {skip_note}"
+        elif run2.exists():
             # 실행 2 는 재현 확인에만 쓰고 판정에는 쓰지 않는다. 그래서 불완전하면 보고서를 멈추지 않고
             # "불완전" 이라고만 적는다. 부분 결과로 다른 사례 수를 세지는 않는다(숫자가 꼬리표 없이 인용된다).
             try:
@@ -126,7 +155,7 @@ def build() -> str:
            "## 모델마다의 수치 (스펙 §4-2, 실행 1 기준)", "",
            "| 모델 | 정확히 같음 | 거리 1 이하 | 평균 거리 | 후함 | 박함 | 못 읽음 | 선형 가중 카파(보조) | 호출 실패 기록 |",
            "|---|---|---|---|---|---|---|---|---|"]
-    out += [_summary_rows(k, sums[k], kinds[k], kappas[k]) + f" {failures[k]} |" for k in sums]
+    out += [_summary_rows(k, sums[k], kinds[k], kappas[k], cuts[k]) + f" {failures[k]} |" for k in sums]
     for k, why in skipped.items():
         out.append(f"| {k} | 제외: {why} | | | | | | | {failures[k]} |")
     out += ["", "호출 실패 기록은 다시 불러서 받은 사례도 포함한 실패 횟수다. 못 읽음과 다르다"
