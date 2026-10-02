@@ -74,6 +74,12 @@ public class AiServiceClient {
     private final RestClient aiServiceRestClient;
 
     /**
+     * 헬스체크 전용. 위와 주소는 같고 <b>타임아웃만 짧다</b>(RestClientConfig 의 같은 이름 빈).
+     * 여러 {@code RestClient} 빈 가운데 필드 이름(= 생성자 파라미터 이름)으로 골라 주입된다.
+     */
+    private final RestClient aiServiceHealthRestClient;
+
+    /**
      * Python 이 "답변을 완성하지 못했다" 를 표시하는 값. {@code ai-service/app/main.py} 의 chat 503 과
      * <b>짝을 맞춰야 하는 API 컨트랙트</b>다. 한쪽만 고치면 안내가 조용히 옛날로 돌아간다.
      */
@@ -657,17 +663,52 @@ public class AiServiceClient {
     }
 
     /**
-     * Python 서비스 헬스체크.
+     * Python 서비스 헬스체크. {@code GET /health} 가 2xx 이고 본문이 {@code {"status":"ok"}} 이면 true.
      *
-     * <p>TODO(W2): Spring 의 {@code /actuator/health} 에 커스텀 HealthIndicator 로 물릴 것.
-     *   Python 이 죽으면 채팅이 죽으므로, Spring 만 살아있고 health 가 UP 이면 거짓 신호가 된다.
+     * <p>Python 의 {@code /health} 는 프로세스만 보지 않고 DB 에 {@code SELECT 1} 까지 던진다
+     * ({@code ai-service/app/main.py}). 그래서 true 는 "채팅을 받을 준비가 됐다" 에 가깝다.
+     * 외부 LLM(Cloudflare) 까지는 보지 않는다. 그건 매번 돈이 들고, 남의 장애로 우리 health 가 흔들린다.
+     *
+     * <p>🔴 <b>{@link #call} 을 거치지 않는다. 일부러다.</b> 셋을 피하려는 것이다.
+     * <ul>
+     *   <li><b>재시도</b>: 헬스체크는 "지금 대답하는가" 를 묻는다. 재시도해서 붙으면 지금의 사실이 가려진다.</li>
+     *   <li><b>서킷브레이커 실패 횟수</b>: 헬스체크가 실패를 세면 아무도 채팅하지 않는데 서킷이 열린다.
+     *       반대로 성공을 세면, 채팅은 계속 5xx 를 받는데 헬스체크 성공이 연속 실패 수를 0 으로 되돌려
+     *       <b>서킷이 영영 안 열린다.</b> 관측이 관측 대상을 바꾸면 안 된다.</li>
+     *   <li><b>서킷이 열려 있을 때의 차단</b>: 서킷이 열리면 {@code call()} 은 Python 을 부르지도 않고
+     *       503 을 던진다. 헬스체크가 그걸 따르면 "Python 이 되살아났는가" 를 볼 방법이 없어진다.</li>
+     * </ul>
+     * 같은 이유로 {@code alldap.ai.call} 지표에도 넣지 않는다. 그 지표는 "사용자 요청이 Python 에서
+     * 어떻게 끝났나" 를 재는데, 헬스체크가 섞이면 호출 수와 실패율이 사용자와 무관하게 움직인다.
+     *
+     * <p>타임아웃은 채팅의 120초가 아니라 {@code health-timeout}(기본 2초) 이다
+     * ({@code RestClientConfig.aiServiceHealthRestClient}).
+     *
+     * <p>⚠️ 반환값이 boolean 이라 "연결 안 됨" · "느림" · "Python 이 500(DB 장애)" 이 false 하나로 합쳐진다.
+     * 운영 응답은 {@code show-details: never} 라 어차피 상태 하나만 나가므로, 원인은 <b>로그에</b> 가른다.
+     * 상태만 보고 원인을 단정하지 말고 이 메서드의 경고 로그를 볼 것.
      */
     public boolean isHealthy() {
-        // TODO(W2): 구현. GET /health -> {"status":"ok"}
-        throw new UnsupportedOperationException("AiServiceClient.isHealthy 미구현 (W2)");
+        try {
+            JsonNode body = aiServiceHealthRestClient.get()
+                    .uri("/health")
+                    .retrieve()
+                    .body(JsonNode.class);
+            JsonNode status = body == null ? null : body.path("status");
+            boolean ok = status != null && status.isString() && "ok".equals(status.asString());
+            if (!ok) {
+                log.warn("[AI 헬스체크] 2xx 인데 status 가 ok 가 아니다. body={}", body);
+            }
+            return ok;
+        } catch (RestClientResponseException e) {
+            log.warn("[AI 헬스체크] Python 이 {} 로 답했다(대개 Python 쪽 DB 장애). body={}",
+                    e.getStatusCode().value(), e.getResponseBodyAsString());
+            return false;
+        } catch (RestClientException e) {
+            // ResourceAccessException(연결 실패·타임아웃)과 응답 해석 실패가 여기로 온다.
+            log.warn("[AI 헬스체크] Python({}) 에 닿지 못했거나 응답을 읽지 못했다: {}",
+                    aiServiceProperties.baseUrl(), e.toString());
+            return false;
+        }
     }
-
-    // TODO(W3): /internal/eval/* 호출 메서드.
-    //   Python 에 아직 해당 엔드포인트가 없다. W3 에서 Python 을 먼저 만든 뒤 여기에 추가한다.
-    //   지금 시그니처를 미리 만들어두면 존재하지 않는 컨트랙트를 코드로 굳히게 되므로 두지 않는다.
 }

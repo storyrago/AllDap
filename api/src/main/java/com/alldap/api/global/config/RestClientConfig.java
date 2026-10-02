@@ -68,6 +68,31 @@ public class RestClientConfig {
         return buildClient(requestFactory);
     }
 
+    /**
+     * 헬스체크 전용 클라이언트. 위 {@link #aiServiceRestClient()} 와 <b>타임아웃만</b> 다르다.
+     *
+     * <p><b>왜 따로 두는가.</b> 읽기 120초는 LLM 을 기다리는 채팅을 위한 값이다. 헬스체크가 그 값을
+     * 물려받으면, Python 이 연결은 받되 응답을 안 하는(멈춘) 상태에서 {@code /actuator/health} 한 번이
+     * 2분을 매달린다. 헬스체크는 "지금 대답할 수 있는가" 를 묻는 것이라 대답이 늦은 것 자체가 답이다.
+     * 연결·읽기 모두 {@code health-timeout}(기본 2초) 하나로 묶는다.
+     *
+     * <p>Python 의 {@code /health} 는 {@code SELECT 1} 한 번이라 밀리초 단위로 끝난다. 2초는 여유다.
+     * (근거가 얕은 값이다. 실측이 아니라 판단이다)
+     */
+    @Bean
+    public RestClient aiServiceHealthRestClient() {
+        HttpClient httpClient = HttpClient.newBuilder()
+                // HTTP/1.1 고정 이유는 위 aiServiceRestClient 의 주석과 같다(uvicorn 이 h2c 업그레이드를 모른다).
+                .version(HttpClient.Version.HTTP_1_1)
+                .connectTimeout(aiServiceProperties.healthTimeout())
+                .build();
+
+        JdkClientHttpRequestFactory requestFactory = new JdkClientHttpRequestFactory(httpClient);
+        requestFactory.setReadTimeout(aiServiceProperties.healthTimeout());
+
+        return buildClient(requestFactory);
+    }
+
     private RestClient buildClient(ClientHttpRequestFactory requestFactory) {
         return RestClient.builder()
                 .baseUrl(aiServiceProperties.baseUrl())

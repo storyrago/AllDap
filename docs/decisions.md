@@ -1176,3 +1176,20 @@ q16(업무용 vs 개인)은 대상이 다르고 그 낱말이 코퍼스의 다�
 ② 판정 기준을 "고칠 수 있는데 1위가 아닌 문제" 로 바꾼다 → 기각. 그 기준이면 두 번 다 19/71 = 0.268 로 통과했겠지만, 결과를 본 뒤 기준을 바꾸는 것이다.
 ③ 세 번째로 문제를 다시 쓴다 → 기각. 2차 실패 시 종료를 측정 전에 정했다.
 
+
+## 2026-10-02 | Python 상태를 health 루트에는 넣고, 컨테이너 헬스체크(`self` 그룹)에서는 뺀다
+
+**무엇을**: `AiServiceClient.isHealthy()` 를 구현하고 `AiServiceHealthIndicator`(이름 `aiService`)로 `/actuator/health` 에 실었다. health 를 셋으로 나눴다. 루트는 전부(Python 이 죽으면 DOWN, 503), `self` 그룹은 Python 만 뺀 전부(DB 포함), `ai-service` 그룹은 Python 하나. `docker-compose.prod.yml` 의 api 헬스체크는 루트에서 `self` 로 옮겼다. 헬스체크 호출은 `call()` 을 거치지 않아 재시도, 서킷 실패 횟수, 서킷 차단, 호출 지표 어디에도 섞이지 않는다. 타임아웃은 채팅의 120초가 아니라 `health-timeout` 2초다.
+
+**왜 그렇게**
+- 예전 루트는 Python 이 죽어도 UP 이었다. "Spring 이 떴다" 와 "서비스가 된다" 를 한 값으로 뭉갠 것이다. 루트를 정직하게 만드는 것이 이 일의 목적이다.
+- 그런데 compose 의 ai-service 는 `depends_on: api: condition: service_healthy` 다(스키마를 Spring 의 Flyway 가 만든다). 컨테이너 헬스체크가 Python 을 보면 둘이 서로를 기다려 <둘 다 안 뜬다>. 그래서 컨테이너 헬스체크만 Python 을 뺀 `self` 를 본다. `self` 는 예전 루트와 같은 것(DB 포함)을 봐서 배포의 `up -d --wait` 가 잡던 고장은 그대로 잡는다.
+- 헬스체크가 서킷에 성공을 세면 채팅이 계속 5xx 인데 연속 실패 수가 0 으로 돌아가 서킷이 안 열리고, 실패를 세면 아무도 안 쓰는데 서킷이 열린다. 관측이 관측 대상을 바꾸면 안 된다.
+
+**검토한 대안**
+① 루트에 넣고 compose 는 그대로 둔다 → 기각. 위의 교착. 배포가 매번 `dependency failed to start: unhealthy` 로 끝난다.
+② 루트에서 빼고 `ai-service` 그룹에만 둔다 → 기각. Boot 의 루트는 등록된 지표를 전부 모으므로 빼는 설정이 없다. 빼려면 지표를 빈으로 등록하지 않는 우회가 필요하고, 그러면 루트가 계속 거짓 UP 이다.
+③ Python 장애를 DOWN 대신 OUT_OF_SERVICE 로 → 기각. OUT_OF_SERVICE 는 "일부러 내려 둔 점검" 이다. 둘 다 503 이라 상태 코드로 얻는 이득도 없다.
+④ compose 를 Boot 기본 `liveness` 그룹으로 → 기각. liveness 는 DB 를 보지 않아, 지금 컨테이너 헬스체크가 잡는 "Spring 은 떴는데 DB 에 못 붙는다" 를 놓친다.
+
+**대가**: 이 변경 전 이미지로 롤백하면 새 compose 가 부르는 `/actuator/health/self` 가 그 이미지에 없어 404, 즉 영영 unhealthy 다. 8081/8080 어긋남과 같은 모양이라 `docs/DEPLOY.md` §9 에 적었다.

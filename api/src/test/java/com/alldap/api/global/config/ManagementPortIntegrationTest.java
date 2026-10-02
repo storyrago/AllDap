@@ -94,9 +94,12 @@ class ManagementPortIntegrationTest {
     }
 
     @Test
-    @DisplayName("management 포트에서 health 가 UP 을 준다")
+    @DisplayName("management 포트에서 health(self 그룹)가 UP 을 준다")
     void healthIsServedOnManagementPort() {
-        HttpResponse<String> response = get(managementPort, "/actuator/health");
+        // 루트가 아니라 self 를 본다. 루트에는 Python 상태가 들어가는데, 이 테스트의 가짜 Python 은
+        // 응답을 준비하지 않으면 500 이라 루트는 DOWN 이다. 그쪽 동작은 AiServiceHealthIntegrationTest 가 잰다.
+        // self 는 docker-compose.prod.yml 의 컨테이너 헬스체크가 실제로 부르는 경로이고, 인증 없이 열려야 한다.
+        HttpResponse<String> response = get(managementPort, "/actuator/health/self");
 
         assertThat(response.statusCode()).isEqualTo(200);
         assertThat(response.body()).contains("\"status\":\"UP\"");

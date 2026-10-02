@@ -41,7 +41,8 @@ class AiServiceCircuitBreakerTest {
                 2,
                 Duration.ofMillis(1),
                 threshold,
-                OPEN_FOR
+                OPEN_FOR,
+                Duration.ofSeconds(2)
         );
         registry = new SimpleMeterRegistry();
         return new AiServiceCircuitBreaker(props, registry);

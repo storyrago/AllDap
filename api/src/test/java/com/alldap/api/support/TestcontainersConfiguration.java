@@ -108,6 +108,10 @@ public class TestcontainersConfiguration {
             registry.add("app.ai-service.base-url", stub::baseUrl);
             registry.add("app.ai-service.connect-timeout", () -> "1s");
             registry.add("app.ai-service.read-timeout", () -> "2s");
+            // 🔴 헬스체크 타임아웃은 위 읽기 타임아웃(2s)과 <다른 값>이어야 한다. 같으면 isHealthy 가
+            //    전용 클라이언트 대신 채팅용 클라이언트를 써도 느린 Python 테스트가 똑같이 통과해,
+            //    "헬스체크는 전용 타임아웃으로 끊는다" 를 아무 테스트도 고정하지 못한다(PR #158 리뷰).
+            registry.add("app.ai-service.health-timeout", () -> "500ms");
 
             // 위젯 요청 제한을 아주 낮게 잡는다. 운영값(20·60)으로 두면 한도 초과를 재현하려고
             // 테스트에서 수십 번을 호출해야 하는데, 검증 대상은 "20" 이라는 숫자가 아니라

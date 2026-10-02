@@ -146,13 +146,6 @@
 | 트리거 | **다음번에 배포가 깨졌을 때 반드시 생각난다.** 그전에 하는 것이 낫다 |
 | 볼 곳 | `docs/DEPLOY.md` §9 "롤백" |
 
-### 3-2. `AiServiceClient.isHealthy()` 가 미구현이다
-
-호출하면 `UnsupportedOperationException` 을 던진다. Spring 의 `/actuator/health` 에
-커스텀 HealthIndicator 로 물려야 한다. **Python 이 죽으면 채팅이 죽는데 Spring 의 health 가
-UP 이면 그게 거짓 신호다.** 이 저장소가 반복해 낸 "서로 다른 사실을 한 값으로 뭉개는" 부류다.
-`AiServiceClient.java:663`
-
 ### 3-3. `AI_SERVICE_TIMEOUT`(504) 의 안내가 두 사실을 섞는다
 
 "질문을 짧게 줄여서 다시 시도" 라고 안내하는데, 실제로는 **"느려서 못 받았다"** 와
@@ -410,7 +403,6 @@ q16(업무용 vs 개인 노트북) · q17 · q20(둘 다 인턴 문서를 수습
 |---|---|
 | `web/README.md` 가 보일러플레이트다 | `create-next-app` 이 만든 기본형 그대로 |
 | 워크트리 넷이 남아 있다 | `AllDap-pr2` · `AllDap-rollback` · `AllDap-diag` · `AllDap-nocancel`. ⚠️ 지우기 전에 `git merge-base --is-ancestor` 를 쓰면 **스쿼시 머지 함정**에 빠진다 |
-| 낡은 TODO 하나 | `AiServiceClient.java:671` 이 "`/internal/eval/*` 호출 메서드는 아직 없다" 고 말하는데 **같은 파일 533·550·561 줄에 이미 있다.** 지울 것 |
 | 부하테스트 그림 | S3 · S4 그림이 없다(시계열이 없거나 불완전). 5d 한 장뿐 |
 | 판정 사유를 부분 일치로 단언하는 검사 | loadtest 밖에도 있는지 **아무도 안 훑었다.** "정상을 실패로 부르는 검사" 부류의 온상이다 |
 | 봇별 시간대 설정 | 해외 고객이 생기면. `ConversationLogService.java:56` · `web/.../logs/page.tsx:285` |

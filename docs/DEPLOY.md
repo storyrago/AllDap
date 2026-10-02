@@ -316,6 +316,14 @@ nc -zv <RDS엔드포인트> 5432                                # 실패해야 �
 # ⑤ 내부에서는 되는가
 docker compose -f docker-compose.prod.yml exec api curl -s http://ai-service:8001/health
 
+# ⑤-a Spring 의 health 를 <나눠서> 본다. 셋 다 {"status":"UP"} 이어야 정상
+#    루트만 DOWN 이고 self 가 UP 이면 Python 쪽이다(ai-service 가 DOWN 으로 확인된다).
+#    컨테이너 헬스체크는 self 만 보므로, Python 이 죽어도 api 는 healthy 로 남는다(의도한 것이다).
+for p in "" /self /ai-service; do
+  docker compose -f docker-compose.prod.yml exec -T api \
+    curl -s -w " $p\n" "http://localhost:8081/actuator/health$p"
+done
+
 # 🔴 ⑤-b Python 의 API 문서가 <닫혀 있는가>. 반드시 <내부에서> 확인한다
 #    밖에서 보면 ③ 때문에 어차피 연결이 안 되므로 404 인지 아닌지를 알 수 없다.
 #    즉 밖에서 하는 검사는 <걸려야 할 것이 걸리는지>를 영원히 못 본다.
@@ -565,8 +573,10 @@ api 빌드만 실패해도 ai-service 는 밀린다. 그러면 짝이 깨진 SHA
 `git pull --ff-only` 를 돌아 **항상 최신 compose 를 갖고 있다.** 그 상태에서 이미지만 되돌리면
 둘이 어긋난다:
 
-- 최신 `docker-compose.prod.yml` 의 api 헬스체크는 `localhost:8081/actuator/health` 를 찌른다(**8081**)
+- 최신 `docker-compose.prod.yml` 의 api 헬스체크는 `localhost:8081/actuator/health/self` 를 찌른다(**8081**, **`self` 그룹**)
 - 옛 이미지의 actuator 는 **8080** 에 있다 (PR #99 이전. `application-prod.yaml` 에 `management.server` 가 아예 없다)
+- 🔴 8081 인 이미지라도 **`self` 그룹이 생기기 전**(`AiServiceHealthIndicator` 가 없는 이미지)이면
+  `/actuator/health/self` 는 **404** 다. 결과는 위와 같다
 - → 헬스체크가 **영원히 실패**하고, `ai-service` 는 `depends_on: condition: service_healthy` 에
   걸려 **영영 안 뜬다.** 즉 롤백이 <더 큰 장애>가 된다.
 

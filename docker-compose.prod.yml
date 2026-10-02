@@ -60,7 +60,11 @@ services:
       # 🔴 8080 이 아니라 8081 이다. actuator 가 management 포트로 옮겨갔다.
       #    안 고치면 헬스체크가 영원히 실패하고, ai-service 가
       #    depends_on: service_healthy 에 걸려 <영영 안 뜬다.>
-      test: ["CMD-SHELL", "curl -fsS http://localhost:8081/actuator/health || exit 1"]
+      # 🔴 루트가 아니라 /actuator/health/self 다. 루트에는 Python 상태(aiService)가 들어 있어서,
+      #    여기서 루트를 보면 아래 ai-service 의 depends_on 과 서로를 기다려 둘 다 영영 안 뜬다.
+      #    self 는 Python 만 뺀 나머지(DB 포함)라 예전 루트와 같은 것을 본다. 근거는
+      #    api/.../global/client/AiServiceHealthIndicator.java 와 application.yaml 의 health 그룹 주석.
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8081/actuator/health/self || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 40

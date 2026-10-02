@@ -177,7 +177,8 @@ class NotFoundIntegrationTest {
     void management_포트는_영향을_받지_않는다() {
         // management 포트(8081)는 <자식 컨텍스트>다. 이 슬라이스가 그쪽 동작을 바꾸는지 실제로 불러 확인한다.
         // 결과: 바꾸지 않는다. 이유는 그 포트에 "permitAll 인데 매핑이 없는 경로" 가 하나도 없기 때문이다.
-        //   · permitAll 인 것(/actuator/health · /actuator/prometheus · /widget/**)은 전부 <실재>한다
+        //   · permitAll 인 것(/actuator/health · /actuator/health/self · /actuator/health/ai-service ·
+        //     /actuator/prometheus · /widget/**)은 전부 <실재>한다
         //   · 나머지는 SecurityConfig 의 anyRequest().authenticated() 가 <인가 필터에서> 먼저 401 로 끊어
         //     요청이 DispatcherServlet 의 핸들러 탐색까지 가지 않는다 = NoResourceFoundException 이 아예 안 난다
         RestTestClient management = RestTestClient.bindToServer()

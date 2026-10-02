@@ -83,6 +83,19 @@ management:
   endpoint:
     health:
       show-details: never
+      # 🔴 health 를 세 개로 나눠 본다. 하나로 뭉치면 "Spring 이 떴다" 와 "서비스가 된다" 가 섞인다.
+      #   /actuator/health            전부. Python(aiService) 이 죽으면 DOWN(503). "서비스가 되는가" 를 묻는 곳
+      #   /actuator/health/self       Python 을 뺀 전부(DB 포함). docker-compose.prod.yml 의 api 헬스체크가 부른다
+      #   /actuator/health/ai-service Python 하나만. 루트가 DOWN 일 때 원인이 Python 인지 가르는 곳
+      # self 에서 aiService 를 빼는 이유: ai-service 컨테이너가 api 의 healthy 를 기다리므로(depends_on),
+      # 넣으면 서로를 기다려 둘 다 안 뜬다. 자세한 근거는 AiServiceHealthIndicator 주석.
+      # ⚠️ 그룹 경로를 SecurityConfig 의 permitAll 에도 적어야 한다. 빠뜨리면 compose 헬스체크가 401 로 영영 unhealthy 다.
+      group:
+        self:
+          include: "*"
+          exclude: aiService
+        ai-service:
+          include: aiService
   metrics:
     distribution:
       percentiles-histogram:

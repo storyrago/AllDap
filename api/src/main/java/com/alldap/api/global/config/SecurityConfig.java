@@ -102,7 +102,11 @@ public class SecurityConfig {
                         //    그래서 prometheus 를 열지 않으면 Prometheus 스크레이퍼가 401 만 받는다.
                         // ⚠️ 서비스 포트(8080)에는 actuator 가 아예 매핑돼 있지 않으므로
                         //    (management.server.port 로 옮겨갔다) 이 permitAll 이 8080 에 뭔가를 여는 것은 아니다.
-                        .requestMatchers("/actuator/health", "/actuator/prometheus").permitAll()
+                        // /actuator/health/self · /actuator/health/ai-service 는 application.yaml 의 health 그룹이다.
+                        //    self 는 docker-compose.prod.yml 의 컨테이너 헬스체크가 <인증 없이> 부르므로 열어야 한다.
+                        //    /actuator/health/** 로 넓히지 않는다. 그룹 이름을 하나하나 적어야 "무엇을 열었나" 가 읽힌다.
+                        .requestMatchers("/actuator/health", "/actuator/health/self", "/actuator/health/ai-service",
+                                "/actuator/prometheus").permitAll()
                         // 위젯 로더 스크립트. 고객 사이트의 <script> 태그가 <인증 없이> 받아가야 한다.
                         // 열지 않으면 설치 코드를 복사해 붙여도 401 이 떨어져 위젯이 아예 뜨지 않는다.
                         // (실제로 붙여보고 알았다) 정적 파일 하나뿐이라 노출 위험은 없다.
