@@ -146,6 +146,7 @@ def check_parse_strict_on_values() -> None:
     # [RESULT] 는 있는데 값을 못 찾으면 missing 이 아니라 out_of_range 다(스펙 §4-7 표).
     assert parse_result("[RESULT] Score: 4") == (None, "out_of_range")
     assert parse_result("[RESULT] - 4") == (None, "out_of_range")
+    assert parse_result("Feedback: 근거와 같다. [RESULT]") == (None, "out_of_range")   # 뒤에 아무것도 없음
     # 문장 끝 마침표는 소수점이 아니다(뒤에 숫자가 없다).
     assert parse_result("Feedback: 좋다. [RESULT] 4.") == (4, "ok")
 
