@@ -1,0 +1,17 @@
+"""손으로 돌리는 실험·측정 도구와 자체 점검(*_check) 모음.
+
+app/ 과 무엇이 다른가
+─────────────────────────────────────────────────────────────────────────────
+app/   = uvicorn 이 `app.main:app` 으로 실제로 불러오는 서버 코드. 운영 이미지에 실린다.
+tools/ = 사람이(또는 CI 가) `python -m tools.X` 로 돌리는 것. 운영 이미지에 싣지 않는다
+         (Dockerfile 이 `ai-service/app` 만 복사한다).
+
+의존 방향은 tools → app 한쪽뿐이다. app 안의 코드는 tools 를 import 하지 않는다
+(tools.import_boundary_check 가 CI 에서 막는다).
+도구가 서비스와 <같은> 청커·검색·채점을 써야 측정이 운영과 맞기 때문에, 도구를 따로
+떼어 내 복사본을 만들지 않고 app 을 가져다 쓴다.
+
+app/ 에 남긴 도구성 파일 (일부러다)
+- export_reranker : 서버의 local_reranker 가 이 파일의 경로·상수를 import 한다.
+- reembed, rechunk : 운영 DB 의 청크를 고치는 절차다. 운영 컨테이너 안에서도 돌 수 있어야 한다.
+"""

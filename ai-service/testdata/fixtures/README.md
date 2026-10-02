@@ -31,15 +31,15 @@ zip 엔트리 시각, 라이브러리 판 차이). 그러면 점검이 깨졌을
 ## 이 파일들을 쓰는 점검
 
 ```
-cd ai-service && .venv/bin/python -m app.parsers_check      # 파일 → 텍스트 (DB·외부 API 없음, CI 에서 돈다)
-cd ai-service && .venv/bin/python -m app.upload_e2e_check   # 업로드 → ready (진짜 DB·진짜 임베딩)
+cd ai-service && .venv/bin/python -m tools.parsers_check      # 파일 → 텍스트 (DB·외부 API 없음, CI 에서 돈다)
+cd ai-service && .venv/bin/python -m tools.upload_e2e_check   # 업로드 → ready (진짜 DB·진짜 임베딩)
 ```
 
 ## 다시 만들려면
 
 ```
 cd ai-service && .venv/bin/python testdata/make_fixtures.py
-cd ai-service && .venv/bin/python -m app.parsers_check
+cd ai-service && .venv/bin/python -m tools.parsers_check
 ```
 
 파일이 바뀌면 `parsers_check` 의 단언도 함께 봐야 한다. 정답지는 스크립트 상단의

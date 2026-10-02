@@ -13,7 +13,7 @@
 
 세 번째가 가장 중요합니다. 환각을 막지 못하면 이 제품은 의미가 없습니다.
 
-재현: `cd ai-service && .venv/bin/python -m app.fallback_e2e_check`
+재현: `cd ai-service && .venv/bin/python -m tools.fallback_e2e_check`
 
 ⚠️ **대조군이 있어야 합니다.** 문서에 답이 **있는** 질문을 안 섞으면
 "전부 fallback 하는 고장난 봇" 도 10/10 을 받습니다. 현재 대조군 3/3.
@@ -50,7 +50,7 @@
 옛 기록의 "0.33 근처면 작동한다" 는 **반증됐습니다.** 그 숫자는 정답 청크까지의 거리였고,
 판정에 쓰는 최근접 거리(`d1`)의 최대는 0.4026 이라 0.33 으로 자르면 멀쩡한 문항이 잘립니다.
 
-재현: `cd ai-service && .venv/bin/python -m app.answerable_check`
+재현: `cd ai-service && .venv/bin/python -m tools.answerable_check`
 
 ⚠️ **이 값은 코퍼스와 임베딩 모델에 딸려 있습니다.** 둘 중 하나라도 바뀌면 무효입니다.
 
@@ -132,8 +132,8 @@ h2c 업그레이드를 함께 요청하는데, uvicorn(h11)이 그걸 지원하�
 HWPX(`<hp:run>` 3분할 문단)를 넣고 점검 둘을 붙였습니다.
 
 ```bash
-cd ai-service && .venv/bin/python -m app.parsers_check      # 파일 → 텍스트 (DB·외부 API 없음)
-cd ai-service && .venv/bin/python -m app.upload_e2e_check   # 업로드 → ready (진짜 DB·진짜 임베딩)
+cd ai-service && .venv/bin/python -m tools.parsers_check      # 파일 → 텍스트 (DB·외부 API 없음)
+cd ai-service && .venv/bin/python -m tools.upload_e2e_check   # 업로드 → ready (진짜 DB·진짜 임베딩)
 ```
 
 - `parsers_check` 15건은 **CI 에서 돕니다**(DB 도 외부 API 도 안 씁니다). 이 저장소는 짜둔 검사가

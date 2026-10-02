@@ -101,7 +101,7 @@ Source       = { chunk_id, document_id, filename, score, preview }
 막는 데는 한계가 있습니다. 막지 못하니 대신 **잽니다**:
 
 ```bash
-cd ai-service && .venv/bin/python -m app.bot_prompt_check
+cd ai-service && .venv/bin/python -m tools.bot_prompt_check
 ```
 
 봇 지침을 설정하거나 바꾼 뒤 이걸 돌려 깨지는지 보세요.

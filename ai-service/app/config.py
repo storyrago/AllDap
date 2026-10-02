@@ -328,7 +328,7 @@ class Settings(BaseSettings):
     #   ② 비용: 평가 1회 804 뉴런 중 생성이 380.3(47.3%)이다.
     #   ③ 지연: 검색컷에 걸리면 119~170ms, 생성까지 가면 1.5초대다.
     #
-    # ── 2026-09-06 측정 (`python -m app.answerable_check`) ────────────
+    # ── 2026-09-06 측정 (`python -m tools.answerable_check`) ────────────
     #
     #   임계   정답유지   근거없음차단   정답최대(0.4026) 위 여유
     #   0.38   15/16      10/10          -0.023 ← 자른다. 잘리는 "법인카드" 가 현재 1.000 이라
@@ -364,7 +364,7 @@ class Settings(BaseSettings):
     #    거리로는 원리적으로 못 가르는 부류이고 2차 방어선의 몫이다.
     #
     # ⚠️ 이 값은 <코퍼스와 임베딩 모델에 딸려 있다.> 둘 중 하나라도 바뀌면 무효다.
-    #    `python -m app.answerable_check` 로 다시 재고 고를 것.
+    #    `python -m tools.answerable_check` 로 다시 재고 고를 것.
     #    (임베딩을 bge-m3 로 바꿨을 때 1차 방어선이 0/10 → 4/10 으로 살아난 전례가 있다)
     answerable_max_distance: float | None = 0.44
 

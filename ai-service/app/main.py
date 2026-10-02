@@ -95,7 +95,7 @@ async def lifespan(app: FastAPI):
 #    (`upload_document` → "Upload Document"). 즉 빠뜨려도 /docs 가 멀쩡해 보인다.
 #    한국어 설명은 docstring 에서 오는데 그건 <펼쳐야> 보이므로, 목록 화면에서는
 #    아무도 안 쓴 영어만 나란히 선다. "빈칸이 아니라 그럴듯한 값" 이라 눈으로는
-#    못 잡는다 = 검사가 필요하다 (app/openapi_check.py).
+#    못 잡는다 = 검사가 필요하다 (tools/openapi_check.py).
 #
 # 🔴 각 경로에 `description=_NO_DESCRIPTION` 이 붙어 있다. <지우지 말 것.>
 #    FastAPI 는 docstring 을 API 설명(description)으로 자동으로 쓰는데, 데코레이터에
@@ -295,7 +295,7 @@ async def prometheus_metrics() -> Response:
 
     🔴 <async def 여야 한다.> metrics.render() 안의 anyio limiter 조회는 이벤트 루프
        스레드에서만 되고, `def` 로 두면 FastAPI 가 워커 스레드로 넘겨 NoEventLoopError 로
-       500 이 난다 — 하필 부하가 걸린 순간에만. app/metrics_check.py 가 이걸 검사한다.
+       500 이 난다 — 하필 부하가 걸린 순간에만. tools/metrics_check.py 가 이걸 검사한다.
 
     🔴 경로가 /metrics 가 아니라 <b>/internal/metrics</b> 인 이유.
        이 저장소는 "인증 없는 것은 /internal/* 아래에만 둔다" 와 "prod compose 가
@@ -529,7 +529,7 @@ def chat(req: ChatRequest) -> ChatResponse:
        강제하고, 응답에 그 토큰이 오면 fallback 으로 친다.
 
     1번은 코드고 2번은 프롬프트다. 2번은 봇별 지침 한 줄로 뚫릴 수 있다는 것이
-    실측돼 있어서(`app/bot_prompt_check.py`), 1번이 있고 없고가 중요하다.
+    실측돼 있어서(`tools/bot_prompt_check.py`), 1번이 있고 없고가 중요하다.
 
     🔴 <b>fallback 일 때도 이 서비스는 문구를 바꾸지 않는다.</b> `is_fallback=True` 라는
     <사실>만 돌려주고, 봇마다 다른 안내 문구로 치환하는 것은 Spring 이 한다.

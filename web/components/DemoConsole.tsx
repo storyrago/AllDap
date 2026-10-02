@@ -31,7 +31,7 @@ const DEMO_PUBLIC_KEY = process.env.NEXT_PUBLIC_DEMO_PUBLIC_KEY ?? "pk_local_dev
  *    그건 어느 챗봇이나 한다. 이 제품이 다른 지점은 <답할 수 없을 때 거절하는 것>이라,
  *    그 장면을 방문자가 한 번 클릭으로 볼 수 있어야 한다.
  *    (`grounded: false` 질문은 W1 fallback 시험에서 실제로 쓰는 것들이다 —
- *     `ai-service/app/fallback_e2e_check.py`)
+ *     `ai-service/tools/fallback_e2e_check.py`)
  */
 const SUGGESTIONS = [
   { text: "정규직 연차는 며칠인가요?", grounded: true },

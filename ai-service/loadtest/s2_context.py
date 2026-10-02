@@ -259,7 +259,7 @@ def _runtime_snapshot(ai_base: str, spring_metrics: str) -> dict:
 
     🔴 이 블록이 있는 이유가 이 판의 전부다. 이 판이 재려는 변수는 anyio 스레드 상한
        하나이고, 그 값이 실제로 80 인지를 <설정값>으로 확인하면 아무것도 확인한 것이
-       아니다. app/metrics_check.py ⑤ 는 로컬 TestClient 의 lifespan 을 본 것이지
+       아니다. tools/metrics_check.py ⑤ 는 로컬 TestClient 의 lifespan 을 본 것이지
        <요청을 처리하는 uvicorn>을 본 것이 아니다. 그걸 안 가르면
        "80 으로 올리고 쟀다" 가 <틀린 문장으로 리포트에 남는다>.
 

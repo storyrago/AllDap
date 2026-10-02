@@ -164,8 +164,8 @@ PR 이 없으면 CI 는 민 뒤에 돕니다. 깨진 것이 곧바로 `main` 에
 ```bash
 cd web && npx tsc --noEmit && npm run lint
 cd api && ./gradlew test
-cd ai-service && .venv/bin/python -m app.parsers_check     # 파서 (DB·외부 API 없음)
-cd ai-service && .venv/bin/python -m app.retriever_check   # 하이브리드 검색 자체 점검
+cd ai-service && .venv/bin/python -m tools.parsers_check     # 파서 (DB·외부 API 없음)
+cd ai-service && .venv/bin/python -m tools.retriever_check   # 하이브리드 검색 자체 점검
 ```
 
 ## 운영 배포

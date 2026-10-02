@@ -423,8 +423,8 @@ curl -X POST localhost:8001/internal/bots/1/eval/runs
 ```
 # 코퍼스를 먼저 올려야 한다. load 는 <본문이 글자까지 같은 청크>를 찾아 꼬리표를 붙이므로
 # 청크가 없으면 전 문항이 "찾지 못했습니다" 로 떨어진다(의도한 동작이다).
-cd ai-service && .venv/bin/python -m app.eval_set load --bot-id 1
-.venv/bin/python -m app.eval_set_check          # 파일이 거짓말을 하지 않는지. CI 에서도 돈다
+cd ai-service && .venv/bin/python -m tools.eval_set load --bot-id 1
+.venv/bin/python -m tools.eval_set_check          # 파일이 거짓말을 하지 않는지. CI 에서도 돈다
 ```
 
 🔴 그 봇에 질문이 <이미 있으면> load 는 거절한다. `--replace` 를 쓰면 `eval_results` 가
@@ -446,7 +446,7 @@ cd ai-service && .venv/bin/pip install -r requirements-lab.txt
 #  변형 셋을 만든다: local(fp32) · local_int8 · local_int8_pc(채널별 스케일)
 #  🔴 이미 있는 것은 건너뛴다. 덮어쓰려면 --force 인데, 이미 측정에 쓴 산출물을 덮으면
 #     대조군이 사라져 "무엇이 무엇을 바꿨다" 를 주장할 수 없게 된다.
-.venv/bin/python -m app.local_reranker_e2e_check # 진짜 모델로 계약·크기·지연·RSS 확인
+.venv/bin/python -m tools.local_reranker_e2e_check # 진짜 모델로 계약·크기·지연·RSS 확인
 RERANKER_PROVIDER=local_int8 .venv/bin/uvicorn app.main:app --port 8001
 ```
 
@@ -613,14 +613,14 @@ RERANKER_PROVIDER=local_int8 .venv/bin/uvicorn app.main:app --port 8001
 
 한 줄씩만 적는다. 긴 설명과 실측은 [`docs/실측-기록.md`](docs/실측-기록.md) 의 같은 제목 절에 있다.
 
-- 봇별 `system_prompt` 는 전달되지만(Python 이 `bots` 를 직접 읽는다) 봇 지침 한 줄로 `NO_ANSWER` 가 뚫린다. 막지 못하고 잰다: 지침을 바꾼 뒤 `app/bot_prompt_check.py`.
+- 봇별 `system_prompt` 는 전달되지만(Python 이 `bots` 를 직접 읽는다) 봇 지침 한 줄로 `NO_ANSWER` 가 뚫린다. 막지 못하고 잰다: 지침을 바꾼 뒤 `tools/bot_prompt_check.py`.
 - 백그라운드 처리가 FastAPI `BackgroundTasks` 라 프로세스 종료 시 작업이 유실된다. 트래픽이 붙으면 Redis + RQ 로 교체.
 - 구버전 `.hwp` 미지원 (바이너리 포맷).
 - pgvector 는 수백만 벡터 규모에서 전용 벡터DB보다 불리하다. 현재 규모에선 문제없다.
 - 임베딩·답변 생성·채점은 외부 API(Cloudflare)다. 셀프호스팅은 리랭커 추론만 예외다(작업 규칙 7번).
 - 1차 방어선은 `max_distance` 를 낮춰서는 살릴 수 없다(근거가 줄어 오답이 는다). 판정은 별도 값 `answerable_max_distance = 0.44` 가 맡는다.
 - `answerable_max_distance` 를 다시 고를 때 함정 셋: 판정은 top1 거리(`d1`) 기준이지 정답 청크까지의 거리가 아니다 / `answerable_check` 표는 결과가 바뀌는 지점만 보여줘 같은 구간의 값을 놓칠 수 있다(0.44 를 놓칠 뻔했다) / 홀드아웃은 보기 전에 임계값을 고르고, 보고 나서 바꾸지 않는다. 근거는 "판정과 컷의 분리" 절.
-- `answerable_max_distance` 는 코퍼스와 임베딩 모델에 딸려 있다. 둘 중 하나가 바뀌면 `app.answerable_check` 를 다시 돌린다.
+- `answerable_max_distance` 는 코퍼스와 임베딩 모델에 딸려 있다. 둘 중 하나가 바뀌면 `tools.answerable_check` 를 다시 돌린다.
 - Gemini 무료 등급은 입력을 학습에 쓴다. 남은 경로(평가용 질문 생성)로도 고객 문서 청크가 나간다. 파일럿 전에 결제 계정을 연결하거나 제공자를 바꿀 것.
 - Gemini 무료 한도는 모델별 하루 20회다.
 - 측정된 fallback 수치는 그때의 모델 조합 기준이다. 생성 모델이든 임베딩 모델이든 바꾸면 다시 잰다.
