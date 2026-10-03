@@ -409,7 +409,6 @@ q16(업무용 vs 개인 노트북) · q17 · q20(둘 다 인턴 문서를 수습
 | 봇별 시간대 설정 | 해외 고객이 생기면. `ConversationLogService.java:56` · `web/.../logs/page.tsx:285` |
 | `NEXT_PUBLIC_SITE_URL` 주입 | `web/app/layout.tsx:42` |
 | 채점자 사유(`reason`)가 저장되지 않는다 | `judge.score` 가 파싱해 `Scores.reason` 에 담는데 `evalrun.py` 의 INSERT 가 버린다(`eval_results` 에 컬럼이 없다). 저장소 어디에서도 쓰이지 않는다. 있으면 "틀린 것" 과 "거짓 사유를 댄 것" 을 사후에 가를 수 있다. 🔴 추가하려면 Flyway `V10` 이 필요해 별개 PR 이다. 지금은 `judge_agreement report --reasons` 가 불일치분만 다시 불러 메운다. 2026-10-03 채점 모델 비교 실험은 이유를 결과 파일(`testdata/judge5/results/`)에 저장했다. 서비스는 여전히 버린다 |
-| 실험·측정 도구가 서비스 코드와 같은 폴더에 있다 (2026-10-02) | `ai-service/app/` 에 서버 코드(`main`, `retriever`, `chunker`)와 손으로 돌리는 도구(`rank_trace`, `eval_set`, `answerable_check`, `finetune_split_check` 등)가 섞여 있다. 운영 이미지에 도구 파일이 함께 실리고, 처음 보는 사람이 서비스와 도구를 가르기 어렵고, PR #155 의 Graphify 결합도 경고도 이 배치에서 나왔다. 정리 방향: 도구를 `ai-service/tools/` 로 옮겨 `app` 을 가져다 쓰기만 하게 한다(의존 방향 한쪽). 같은 저장소에 두는 것은 유지한다(도구가 서비스와 같은 청커, 검색을 써야 측정이 맞다). 🔴 `refactor/` PR 하나로 따로 한다. 실험 PR 에 섞지 말 것. `python -m app.X` 명령이 바뀌므로 CI 목록, AGENTS.md 실행 명령, 핸드오프의 명령도 함께 고친다 |
 
 ### 6-1. 경쟁 분석에서 <확인 못 한> 것 둘 (2026-09-19)
 
