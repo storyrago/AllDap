@@ -38,6 +38,7 @@ import tempfile
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
+from .judge5 import SCALE
 from .judge_agreement import DEFAULT_PATH, LABELS
 
 
@@ -53,8 +54,13 @@ def apply_label(data: dict, case_id: str, label: float | None, note: str) -> dic
 
     label 이 None 이면 "아직 안 매김" 으로 되돌린다(잘못 눌렀을 때 쓴다).
     """
-    if label is not None and label not in LABELS:
-        raise LabelRejected(f"라벨은 {', '.join(str(v) for v in LABELS)} 중 하나여야 합니다: {label!r}")
+    # 파일에 scale: 5 가 있으면 다섯 칸 라벨 파일이다(tools.judge5_export labels 가 만든다).
+    # 없으면 2026-09-25 의 옛 파일이므로 예전 세 칸 규칙을 그대로 쓴다.
+    # 주의: 파이썬에서 0.5 in (1, 2, 3, 4, 5) 는 False, 4.0 in (1, 2, 3, 4, 5) 는 True 다(4.0 == 4).
+    # 그래서 화면이 보내는 4 와 4.0 은 둘 다 받고 0.5 는 거절한다.
+    allowed = SCALE if data.get("scale") == 5 else LABELS
+    if label is not None and label not in allowed:
+        raise LabelRejected(f"라벨은 {', '.join(str(v) for v in allowed)} 중 하나여야 합니다: {label!r}")
 
     found = False
     cases = []
@@ -156,7 +162,10 @@ def serve(path: str, port: int, open_browser: bool) -> int:
     url = f"http://127.0.0.1:{port}"
     print(f"{path}: {len(data['cases'])}건 중 {done}건이 채워져 있습니다.")
     print(f"브라우저로 {url} 을 여세요. 버튼을 누르면 파일에 바로 저장됩니다.")
-    print("끝나면 Ctrl+C 로 서버를 끄고 `python -m tools.judge_agreement report --reasons` 를 돌리세요.")
+    # 다섯 칸 파일이면 다음 단계가 시험지 만들기다. 옛 파일이면 예전처럼 대조 보고다.
+    nxt = ("python -m tools.judge5_export cases" if data.get("scale") == 5
+           else "python -m tools.judge_agreement report --reasons")
+    print(f"끝나면 Ctrl+C 로 서버를 끄고 `{nxt}` 를 돌리세요.")
     if open_browser:
         webbrowser.open(url)
     server = ThreadingHTTPServer(("127.0.0.1", port), _handler(path))
@@ -181,7 +190,18 @@ PAGE = r"""<!doctype html>
            padding: 12px 24px; display: flex; align-items: center; gap: 16px; }
   .bar { flex: 1; height: 8px; background: #e7e5e4; border-radius: 4px; overflow: hidden; }
   .bar > div { height: 100%; background: #16a34a; width: 0; transition: width .2s; }
-  main { max-width: 900px; margin: 0 auto; padding: 24px; }
+  /* 두 칸: 왼쪽은 읽을 것(질문·답변·근거), 오른쪽은 누를 것(채점표·버튼·메모).
+     근거가 길어 스크롤해 내려가도 버튼과 채점표가 화면에 남도록 오른쪽 칸을 sticky 로 둔다.
+     데스크톱 전용 도구라 좁은 화면 대응은 하지 않았다. */
+  main { max-width: 1320px; margin: 0 auto; padding: 24px;
+         display: grid; grid-template-columns: minmax(0, 1fr) 400px; gap: 20px; align-items: start; }
+  /* top 은 header 높이(약 57px) + 여백. 패널이 화면보다 길면 패널 안에서만 스크롤한다. */
+  aside { position: sticky; top: 76px; max-height: calc(100vh - 92px); overflow-y: auto; }
+  aside .card { margin-bottom: 0; }
+  aside .card { padding: 16px; }
+  aside .rule td { padding: 2px 10px 2px 0; font-size: 13px; line-height: 1.45; }
+  aside .btns { gap: 6px; }
+  aside .btns button { width: 100%; text-align: left; padding: 6px 12px; font-size: 14px; line-height: 1.4; }
   .card { background: #fff; border: 1px solid #e7e5e4; border-radius: 10px; padding: 20px; margin-bottom: 16px; }
   h2 { font-size: 13px; letter-spacing: .04em; color: #78716c; margin: 0 0 8px; font-weight: 600; }
   .q { font-size: 19px; font-weight: 600; }
@@ -194,6 +214,9 @@ PAGE = r"""<!doctype html>
   .src:first-of-type { border-top: 0; padding-top: 0; margin-top: 0; }
   .src .fn { font-size: 12px; color: #78716c; font-family: ui-monospace, monospace; }
   .src .body { white-space: pre-wrap; }
+  /* hidden 속성은 브라우저 기본값 [hidden]{display:none} 으로 숨는데, 아래 .btns 의 display:flex 가
+     그것을 이긴다(작성자 CSS 가 우선). 그래서 다섯 칸 화면에 옛 세 칸 버튼이 함께 보였다. 여기서 되돌린다. */
+  [hidden] { display: none !important; }
   .btns { display: flex; gap: 10px; flex-wrap: wrap; }
   button { font: inherit; padding: 10px 16px; border-radius: 8px; border: 1px solid #d6d3d1;
            background: #fff; cursor: pointer; }
@@ -221,9 +244,11 @@ PAGE = r"""<!doctype html>
   </div>
 </header>
 <main>
+  <div>
   <div class="card">
     <h2>기준</h2>
     <p style="margin:0 0 10px"><strong>답변이 말한 내용이 아래 근거에서 찾아지는가</strong>, 이것만 봅니다.</p>
+    <div id="rule3">
     <table class="rule">
       <tr><td><strong>1.0</strong></td><td>답변이 말한 게 <strong>전부</strong> 근거에 있다</td></tr>
       <tr><td><strong>0.5</strong></td><td>있는 것과 없는 것이 <strong>섞였다</strong> (답변이 여러 가지를 말할 때만 나옵니다)</td></tr>
@@ -247,6 +272,12 @@ PAGE = r"""<!doctype html>
         섞였으므로 0.5 입니다. 답변이 한 가지만 말하면 0.5 가 나올 자리가 없습니다.
       </div>
     </details>
+    </div>
+    <!-- 다섯 칸 파일일 때만 보인다. 표의 글자는 파일의 rubric 에서 그린다(모델이 받는 채점표와 같은 글자). -->
+    <!-- 다섯 줄 채점표(table5)는 오른쪽 고정 패널에 있다. 버튼 바로 위에서 보며 누르게. -->
+    <div id="rule5" hidden>
+      <p class="hint" id="criteria5" style="margin:0"></p>
+    </div>
     <details style="margin-top:8px">
       <summary class="hint" style="cursor:pointer">라벨 파일에 적힌 원문 기준</summary>
       <div class="hint" id="readme" style="margin-top:8px"></div>
@@ -270,19 +301,24 @@ PAGE = r"""<!doctype html>
     <h2>근거</h2>
     <div id="sources"></div>
   </div>
+  </div>
+  <aside>
   <div class="card">
     <h2>충실성</h2>
-    <div class="btns">
+    <table class="rule" id="table5" hidden style="margin-bottom:12px"></table>
+    <div class="btns" id="btns3">
       <button data-v="1">1.0 · 전부 근거에 있다 <span class="hint">(1)</span></button>
       <button data-v="0.5">0.5 · 일부만 있다 <span class="hint">(2)</span></button>
       <button data-v="0">0.0 · 지어냈다 <span class="hint">(3)</span></button>
       <button data-v="">지우기 <span class="hint">(0)</span></button>
     </div>
+    <div class="btns" id="btns5" hidden></div>
     <div style="margin-top:14px">
       <input type="text" id="note" placeholder="메모 (선택). 왜 그렇게 봤는지 한 줄. 입력하면 바로 저장됩니다.">
     </div>
     <div class="hint" id="status" style="margin-top:10px"></div>
   </div>
+  </aside>
 </main>
 <script>
 // 데이터는 서버에서 한 번 받아 메모리에 두고, 라벨을 누를 때마다 서버에 한 건씩 보낸다.
@@ -296,9 +332,47 @@ let data = null, i = 0;
 
 const $ = (id) => document.getElementById(id);
 
+let scale = 3;   // 3 = 옛 파일(0, 0.5, 1), 5 = 새 파일(1~5)
+
 async function boot() {
   data = await (await fetch('/api/data')).json();
   $('readme').textContent = data._readme;
+  if (data.scale === 5) {
+    scale = 5;
+    $('rule3').hidden = true;
+    $('btns3').hidden = true;
+    $('rule5').hidden = false;
+    $('table5').hidden = false;
+    $('btns5').hidden = false;
+    $('criteria5').textContent = data.rubric.criteria;
+    // 5 부터 1 까지 내림차순으로 그린다. 옛 화면도 1.0 을 맨 위에 두었다.
+    // 화면에 채점표를 따로 적지 않고 파일의 rubric 에서 그리는 이유: 모델이 받는 채점표와 글자가 어긋나지 않게.
+    for (let v = 5; v >= 1; v--) {
+      const tr = document.createElement('tr');
+      const a = document.createElement('td'); a.innerHTML = '<strong>' + v + '</strong>';
+      const b = document.createElement('td'); b.textContent = data.rubric.levels[String(v)];
+      tr.append(a, b);
+      $('table5').append(tr);
+      const btn = document.createElement('button');
+      btn.dataset.v = String(v);
+      // 버튼에 뜻을 함께 적는다. 옛 화면에서는 키 1 이 "1.0 전부 근거에 있다" 였는데 여기서는 최악이다.
+      // 같은 사람이 손버릇대로 1 을 누르면 최선 답변이 최악으로 저장된다. 글자로 그 실수를 보이게 한다.
+      btn.textContent = v + ' · ' + data.rubric.levels[String(v)] + ' ';
+      const k = document.createElement('span'); k.className = 'hint'; k.textContent = '(' + v + ')';
+      btn.append(k);
+      $('btns5').append(btn);
+    }
+    $('btns5').style.flexDirection = 'column';   // 뜻이 긴 버튼 다섯 개라 한 줄에 하나씩
+    $('btns5').style.alignItems = 'flex-start';
+    const clear = document.createElement('button');
+    clear.dataset.v = '';
+    clear.innerHTML = '지우기 <span class="hint">(0)</span>';
+    $('btns5').append(clear);
+  }
+  // 버튼은 boot 안에서 만들어지므로 클릭 연결도 boot 안에서 한다(다섯 칸 버튼이 이 시점에 생긴다).
+  document.querySelectorAll('[data-v]').forEach(btn => {
+    btn.onclick = () => setLabel(btn.dataset.v === '' ? null : parseFloat(btn.dataset.v), true);
+  });
   i = firstUnlabeled();
   render();
 }
@@ -343,7 +417,8 @@ function render() {
   $('counter').textContent = `${i + 1} / ${data.cases.length} · 채움 ${done}`;
   $('fill').style.width = (done / data.cases.length * 100) + '%';
   $('question').textContent = c.question;
-  $('gt').textContent = '참고로 둔 정답(질문 생성 때 만든 것): ' + c.ground_truth;
+  // 다섯 칸 파일에는 ground_truth 가 없다(블라인드). 있을 때만 보여준다.
+  $('gt').textContent = c.ground_truth ? '참고로 둔 정답(질문 생성 때 만든 것): ' + c.ground_truth : '';
   renderAnswer(c.generated_answer);
   $('sources').innerHTML = '';
   c.sources.forEach((s, n) => {
@@ -377,13 +452,17 @@ async function setLabel(v, advance) {
   if (!res.ok) { $('status').innerHTML = '<span class="err">저장 실패: ' + out.error + '</span>'; return; }
   c.label = v;
   c.note = $('note').value;
-  if (advance && v !== null && i < data.cases.length - 1) { i++; render(); }
-  else { render(); $('status').textContent = '저장됨'; }
+  // 다섯 칸 모드는 눌러도 다음 건으로 넘기지 않는다. 저장된 점수를 눈으로 확인하고 → 로 넘어간다.
+  // 키 1 의 뜻이 옛 화면과 반대라서, 바로 넘어가면 잘못 누른 것을 볼 틈이 없다.
+  if (advance && scale !== 5 && v !== null && i < data.cases.length - 1) { i++; render(); }
+  else {
+    render();
+    $('status').textContent = (scale === 5 && v !== null)
+      ? '저장됨: ' + v + '점 · ' + data.rubric.levels[String(v)] + '  (다음 건은 → 키)'
+      : '저장됨';
+  }
 }
 
-document.querySelectorAll('[data-v]').forEach(btn => {
-  btn.onclick = () => setLabel(btn.dataset.v === '' ? null : parseFloat(btn.dataset.v), true);
-});
 $('prev').onclick = () => { if (i > 0) { i--; render(); } };
 $('next').onclick = () => { if (i < data.cases.length - 1) { i++; render(); } };
 $('jump').onclick = () => { i = firstUnlabeled(); render(); };
@@ -400,7 +479,9 @@ $('goto').onchange = () => {
 // 키보드: 숫자로 채점, 화살표로 이동. 메모 칸에 있을 때는 가로채지 않는다.
 document.addEventListener('keydown', (e) => {
   if (e.target.tagName === 'INPUT') return;
-  const map = { '1': 1, '2': 0.5, '3': 0, '0': null };
+  const map = scale === 5
+    ? { '1': 1, '2': 2, '3': 3, '4': 4, '5': 5, '0': null }
+    : { '1': 1, '2': 0.5, '3': 0, '0': null };
   if (e.key in map) { e.preventDefault(); setLabel(map[e.key], true); }
   if (e.key === 'ArrowLeft') $('prev').click();
   if (e.key === 'ArrowRight') $('next').click();
