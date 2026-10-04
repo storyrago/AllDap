@@ -1,0 +1,300 @@
+{"qid": "hr-001", "domain": "hr", "question": "정규직의 연차 휴가는 입사 1년에 며칠이 부여되고, 신청은 최소 며칠 전에 해야 하나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "hr-002", "domain": "hr", "question": "정규직이 연차를 연속 5일 이상 쓰려면 팀장 외에 누구의 승인이 추가로 필요한가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "hr-003", "domain": "hr", "question": "반반차는 몇 회를 쓰면 연차 1일로 계산하나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "hr-004", "domain": "hr", "question": "정규직의 코어타임은 몇 시부터 몇 시까지이고, 출근 시각은 몇 시부터 몇 시 사이에서 고를 수 있나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "hr-005", "domain": "hr", "question": "정규직은 재택근무를 주 몇 회까지 신청할 수 있고, 언제까지 신청해야 하나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "hr-006", "domain": "hr", "question": "계약직의 연차 휴가는 1년에 며칠인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "hr-007", "domain": "hr", "question": "계약직의 기본 근무 시간은 주 몇 시간이고, 출근 시각은 몇 시로 고정되나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "hr-008", "domain": "hr", "question": "계약직의 재택근무는 주 몇 회까지 허용되고, 계약 기간이 몇 개월 미만이면 신청할 수 없나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "hr-009", "domain": "hr", "question": "2회 이상 갱신한 계약직의 정규직 전환 심사는 매년 언제 진행하고, 어떤 양식으로 신청하나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "hr-010", "domain": "hr", "question": "인턴의 기본 근무 시간은 주 몇 시간이고, 연차 대신 어떤 휴가를 받나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "hr-011", "domain": "hr", "question": "인턴은 입사 첫 주에 몇 시간의 온보딩 교육을 이수해야 하고, 이수하지 못하면 어떻게 되나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "hr-012", "domain": "hr", "question": "인턴 정규직 전환 심사에서 과제 결과의 비중은 몇 %인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "hr-013", "domain": "hr", "question": "파견인력은 근무 시작 전에 어떤 양식의 보안 서약서를 내야 하고, 사내 문서를 외부로 가져갈 수 있나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "hr-014", "domain": "hr", "question": "직무 관련 온라인 강의는 연간 얼마까지 지원받을 수 있나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "hr-015", "domain": "hr", "question": "컨퍼런스 지원 B-1형을 받으면 참가 후 몇 주 안에 무엇을 해야 하나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "hr-016", "domain": "hr", "question": "해외 컨퍼런스 참가는 연 몇 회까지 지원하나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "hr-017", "domain": "hr", "question": "어학 학원비를 회사에서 지원받을 수 있나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "hr-018", "domain": "hr", "question": "노트북 교체 주기는 몇 년이고, 파손 시 자기부담금은 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "hr-019", "domain": "hr", "question": "의자는 별도 신청하면 얼마 한도로 지원받을 수 있나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "hr-020", "domain": "hr", "question": "만 30세 미만 임직원은 종합건강검진을 얼마마다 지원받나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "hr-021", "domain": "hr", "question": "자녀가 결혼하면 축의금은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "hr-022", "domain": "hr", "question": "형제자매가 결혼하면 경조 휴가를 받을 수 있나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "hr-023", "domain": "hr", "question": "배우자가 다태아를 출산하면 휴가는 며칠인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "hr-024", "domain": "hr", "question": "배우자의 직계가족이 사망하면 조의금과 휴가는 얼마나 받나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "hr-025", "domain": "hr", "question": "형제자매가 사망하면 휴가를 며칠 받나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "hr-026", "domain": "hr", "question": "징계로 정직을 받으면 정직 기간은 최대 몇 개월인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "hr-027", "domain": "hr", "question": "징계 결과에 대한 재심은 통보일로부터 며칠 안에 청구할 수 있나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "hr-028", "domain": "hr", "question": "국내 출장의 숙박비 한도와 일비는 각각 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "hr-029", "domain": "hr", "question": "비행 시간이 8시간 이상인 해외 출장의 항공권 기준은 무엇인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "hr-030", "domain": "hr", "question": "야근 시 저녁 식대는 1회 얼마 한도이고, 어떻게 정산하나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "hr-031", "domain": "hr", "question": "보안 사고 신고를 늦추거나 숨기면 어떻게 다루고, 사고 유발자가 자진 신고하면 어떻게 되나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "hr-032", "domain": "hr", "question": "채용 전형의 각 단계 결과는 며칠 안에 통보되고, 경력직은 어떤 전형을 생략할 수 있나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "hr-033", "domain": "hr", "question": "임직원 추천으로 인턴이 입사하면 추천자가 포상금을 받을 수 있나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "hr-034", "domain": "hr", "question": "신규 입사자의 수습 기간은 몇 개월이고, 수습 기간 중 급여는 얼마나 지급하나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "hr-035", "domain": "hr", "question": "영문 증명서는 인사팀에 요청하면 발급까지 며칠 걸리나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "hr-036", "domain": "hr", "question": "회의실은 한 번에 최대 몇 시간까지 예약할 수 있고, 최대 몇 주 앞까지 예약할 수 있나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "hr-037", "domain": "hr", "question": "4층 라운지는 몇 시 이후에 사용할 수 없나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "hr-038", "domain": "hr", "question": "인사 관련 문서의 보존 기간은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "hr-039", "domain": "hr", "question": "경차는 월 주차료를 몇 % 감면받나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "hr-040", "domain": "hr", "question": "사원증을 분실해 재발급받으면 비용은 얼마이고, 재발급에 며칠이 걸리나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "hr-041", "domain": "hr", "question": "신입사원 멘토는 입사 몇 년 차 이상에서 선정하고, 멘토 수당은 월 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "hr-042", "domain": "hr", "question": "성과평가는 연 몇 회 실시하고, 상반기 평가는 언제 진행하나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "hr-043", "domain": "hr", "question": "선임에서 책임으로 승진하려면 최소 몇 년을 근속해야 하나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "hr-044", "domain": "hr", "question": "급여일은 매월 며칠이고, 그날이 휴일이면 언제 지급하나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "hr-045", "domain": "hr", "question": "실장의 직책수당은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "hr-046", "domain": "hr", "question": "직전 반기 성과평가에서 A등급을 받으면 상여금 지급률은 몇 %인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "hr-047", "domain": "hr", "question": "사직하려면 최종 근무 희망일 며칠 전에 사직서를 내야 하고, 함께 내야 하는 서류는 무엇인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "hr-048", "domain": "hr", "question": "퇴직금은 퇴직일로부터 며칠 이내에 지급하고, 평균임금은 어떻게 계산하나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "hr-049", "domain": "hr", "question": "육아휴직은 자녀 1명당 최대 얼마 동안 쓸 수 있고, 몇 회에 나누어 쓸 수 있나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "hr-050", "domain": "hr", "question": "회사는 육아휴직자에게 정부 급여와 별도로 월 얼마를, 최대 몇 개월 지급하나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "hr-051", "domain": "hr", "question": "가족돌봄휴가는 연간 며칠이고, 유급인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "hr-052", "domain": "hr", "question": "채용 탈락자의 개인정보는 얼마 동안 보유하나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "hr-053", "domain": "hr", "question": "사택의 거주 기간은 몇 년인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "hr-054", "domain": "hr", "question": "근속 10년이 되면 포상금과 유급 휴가를 얼마나 받나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "hr-055", "domain": "hr", "question": "B지역 주재원의 주재 수당은 월 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "hr-056", "domain": "hr", "question": "근무일에 하는 외부 강연은 월 몇 회, 연 몇 회를 넘을 수 없나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "hr-057", "domain": "hr", "question": "직무발명은 며칠 이내에 신고해야 하고, 회사는 승계 여부를 몇 개월 이내에 결정하나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "hr-058", "domain": "hr", "question": "특허가 해외에 등록되면 등록 보상금을 얼마 받나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "hr-059", "domain": "hr", "question": "아이디어 제안이 우수 등급으로 채택되면 포상금은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "hr-060", "domain": "hr", "question": "직장 내 괴롭힘 신고가 접수되면 며칠 이내에 조사에 착수하고, 며칠 이내에 조사를 마치나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "hr-061", "domain": "hr", "question": "실험 장비를 쓰는 과제를 맡은 연구직은 재택근무를 주 몇 회까지 할 수 있나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "hr-062", "domain": "hr", "question": "부설연구소 연구직의 배우자 출산 휴가는 며칠인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "hr-063", "domain": "hr", "question": "생산직 오후조의 출근 시간은 몇 시인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "hr-064", "domain": "hr", "question": "생산직 신규 입사자의 수습 기간은 몇 개월인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "hr-065", "domain": "hr", "question": "해외지사의 현지 자가용 출장비는 어떻게 계산하나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "hr-066", "domain": "hr", "question": "해외지사 근무자의 자녀 결혼 휴가는 며칠인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "hr-067", "domain": "hr", "question": "자회사 올댑랩스 신규 입사자의 수습 기간은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "hr-068", "domain": "hr", "question": "임원의 노트북 교체 주기는 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "hr-069", "domain": "hr", "question": "시간제 근로자의 연차는 연간 최대 며칠인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "hr-070", "domain": "hr", "question": "재택근무 전담자의 코어타임은 몇 시부터 몇 시까지인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "hr-071", "domain": "hr", "question": "촉탁직의 임금은 정년 직전 기본급의 몇 %인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "hr-072", "domain": "hr", "question": "촉탁직에게도 퇴직금을 지급하나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "hr-073", "domain": "hr", "question": "프로젝트 계약직이 프로젝트를 기한 안에 완료하면 완료 보상으로 얼마를 받나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "hr-074", "domain": "hr", "question": "현장실습생의 실습 수당은 월 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "hr-075", "domain": "hr", "question": "비상근 자문역의 건강검진은 몇 년에 1회 지원하나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "shop-001", "domain": "shop", "question": "회원가입은 몇 살부터 할 수 있고, 한 사람이 계정을 몇 개까지 만들 수 있나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "shop-002", "domain": "shop", "question": "신규가입 쿠폰은 얼마짜리이고, 발급일로부터 며칠 동안 쓸 수 있나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "shop-003", "domain": "shop", "question": "신규 회원이 첫 구매를 확정하면 적립금을 얼마 더 받나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "shop-004", "domain": "shop", "question": "생년월일은 1년에 몇 번 바꿀 수 있나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "shop-005", "domain": "shop", "question": "탈퇴하면 남은 적립금은 어떻게 되고, 같은 휴대폰 번호로는 언제 다시 가입할 수 있나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "shop-006", "domain": "shop", "question": "탈퇴한 회원의 주문 기록과 고객 문의 기록은 각각 몇 년간 보관하나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "shop-007", "domain": "shop", "question": "골드 등급이 되려면 직전 6개월 동안 얼마 이상 구매확정해야 하나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "shop-008", "domain": "shop", "question": "VIP 등급의 산정 기준 금액은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "shop-009", "domain": "shop", "question": "등급은 언제 다시 산정되고, 월 중간에 구매확정 금액이 기준을 넘으면 등급이 언제 바뀌나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "shop-010", "domain": "shop", "question": "골드나 VIP 회원의 교환 배송비 면제를 반품 회수비에도 쓸 수 있나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "shop-011", "domain": "shop", "question": "VIP 등급 유지 특례를 받으려면 직전 12개월 구매확정 금액이 얼마 이상이어야 하고, VIP 등급이 몇 개월 유지되나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "shop-012", "domain": "shop", "question": "실버 등급은 일반배송비가 무료가 되려면 얼마 이상 주문해야 하나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "shop-013", "domain": "shop", "question": "골드 등급의 일반배송 무료 기준 금액은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "shop-014", "domain": "shop", "question": "일반 등급 회원은 얼마 이상 사야 일반배송비를 내지 않나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "shop-015", "domain": "shop", "question": "제주 지역으로 배송하면 추가 배송비가 얼마 붙나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "shop-016", "domain": "shop", "question": "제주 외 도서산간 지역의 추가 배송비는 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "shop-017", "domain": "shop", "question": "일반배송은 평일 몇 시 이전에 결제해야 당일 출고되고, 출고 후 도착까지 보통 얼마나 걸리나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "shop-018", "domain": "shop", "question": "배송중 단계가 되면 마이페이지에서 배송지를 바꿀 수 있나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "shop-019", "domain": "shop", "question": "새벽배송은 밤 몇 시 이전에 결제해야 하고, 다음 날 몇 시 이전에 도착하나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "shop-020", "domain": "shop", "question": "토요일 밤 11시 이전에 새벽배송으로 주문하면 언제 도착하나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "shop-021", "domain": "shop", "question": "실버 등급은 새벽배송을 얼마 이상 주문해야 새벽배송비가 무료인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "shop-022", "domain": "shop", "question": "VIP 등급의 새벽배송 무료 기준 금액은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "shop-023", "domain": "shop", "question": "상품준비중 단계에서 취소를 요청하면 누가 승인 여부를 정하고, 며칠 안에 정하나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "shop-024", "domain": "shop", "question": "부분 취소로 남은 금액이 무료배송 기준 아래로 내려가면 환불 금액은 어떻게 되나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "shop-025", "domain": "shop", "question": "무통장입금 주문은 주문일로부터 며칠 안에 입금해야 하고, 입금하지 않으면 어떻게 되나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "shop-026", "domain": "shop", "question": "단순 변심 교환은 받은 날로부터 며칠 안에 신청해야 하고, 하자가 있으면 기한이 며칠인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "shop-027", "domain": "shop", "question": "한 주문에 대해 교환은 몇 번까지 할 수 있나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "shop-028", "domain": "shop", "question": "일반 등급 회원이 단순 변심으로 교환하면 배송비를 얼마 내나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "shop-029", "domain": "shop", "question": "화장품을 개봉했으면 교환할 수 있나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "shop-030", "domain": "shop", "question": "교환 상품은 물류센터 입고 후 며칠 안에 출고되고, 교환할 수 없는 상태로 확인되면 배송비를 얼마 내나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "shop-031", "domain": "shop", "question": "대형 가전을 단순 변심으로 반품하면 회수비가 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "shop-032", "domain": "shop", "question": "일반 상품을 단순 변심으로 반품하면 환불 금액에서 왕복 배송비를 얼마 빼나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "shop-033", "domain": "shop", "question": "반품을 신청하면 기사가 며칠 안에 방문하고, 고객이 직접 다른 택배로 선불로 보내면 그 택배비는 어떻게 되나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "shop-034", "domain": "shop", "question": "신용카드로 결제한 주문은 환불까지 며칠 걸리나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "shop-035", "domain": "shop", "question": "하람페이로 결제한 주문은 환불이 언제 되나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "shop-036", "domain": "shop", "question": "무통장입금으로 결제한 주문의 환불은 며칠 안에 들어오나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "shop-037", "domain": "shop", "question": "휴대폰 결제를 결제한 달이 지나서 취소하면 환불은 어디로, 며칠 안에 들어오나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "shop-038", "domain": "shop", "question": "환불 계좌를 다른 사람 명의로 등록해도 되나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "shop-039", "domain": "shop", "question": "하람몰 사정으로 환불 요청이 3영업일 이상 늦어지면 하루에 얼마를, 무엇으로 보상받나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "shop-040", "domain": "shop", "question": "골드 등급의 구매 적립률은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "shop-041", "domain": "shop", "question": "실버 등급은 결제 금액의 몇 %를 적립받나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "shop-042", "domain": "shop", "question": "구매 적립금은 언제 지급되고, 배송완료 후 며칠이 지나면 자동으로 구매확정되나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "shop-043", "domain": "shop", "question": "적립금은 보유 금액이 얼마 이상일 때부터 쓸 수 있고, 한 주문에서 상품 금액의 최대 몇 %까지 쓸 수 있나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "shop-044", "domain": "shop", "question": "적립금의 유효기간은 얼마이고, 유효기간이 지난 적립금은 언제 소멸하나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "shop-045", "domain": "shop", "question": "반품하면 그 주문으로 받은 구매 적립금은 어떻게 되나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "shop-046", "domain": "shop", "question": "한 주문에 쿠폰을 몇 장까지 함께 쓸 수 있고, 정기배송 주문에도 쿠폰을 쓸 수 있나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "shop-047", "domain": "shop", "question": "VIP 등급의 생일 쿠폰은 얼마이고, 몇 원 이상 주문에 쓸 수 있나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "shop-048", "domain": "shop", "question": "골드 등급은 생일 쿠폰을 얼마짜리로 받나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "shop-049", "domain": "shop", "question": "신용카드 무이자 할부는 얼마 이상 결제할 때 쓸 수 있고, 몇 개월까지 무이자인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "shop-050", "domain": "shop", "question": "휴대폰 결제의 1회 한도와 한 달 한도는 각각 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "shop-051", "domain": "shop", "question": "후기 적립금을 받으려면 구매확정일로부터 며칠 안에 써야 하고, 적립금은 언제 지급되나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "shop-052", "domain": "shop", "question": "사진 후기를 쓰면 적립금을 얼마 받나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "shop-053", "domain": "shop", "question": "동영상 후기의 적립금은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "shop-054", "domain": "shop", "question": "베스트 후기는 매월 몇 편을 뽑고, 작성자에게 적립금을 얼마 더 주나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "shop-055", "domain": "shop", "question": "신선식품에 변질이 있으면 받은 시점부터 몇 시간 안에 신고해야 하고, 상품을 돌려보내야 하나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "shop-056", "domain": "shop", "question": "냉장 신선식품을 금요일에 일반배송으로 주문하면 언제 출고되나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "shop-057", "domain": "shop", "question": "설치배송 상품의 방문 날짜는 몇 번까지 무료로 바꿀 수 있고, 그다음부터는 변경할 때마다 얼마를 내나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "shop-058", "domain": "shop", "question": "해외직구 상품은 결제 후 도착까지 얼마나 걸리고, 새벽배송을 이용할 수 있나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "shop-059", "domain": "shop", "question": "해외직구 상품은 주문 1건의 상품 가격이 얼마를 넘으면 관세와 부가세가 붙나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "shop-060", "domain": "shop", "question": "해외직구 상품을 단순 변심으로 반품하면 반품 배송비가 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "shop-061", "domain": "shop", "question": "정기배송 주문은 상품 금액을 몇 % 할인해 주고, 해지 위약금이 있나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "shop-062", "domain": "shop", "question": "정기배송의 다음 회차는 언제까지 건너뛸 수 있나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "shop-063", "domain": "shop", "question": "선물을 받는 사람이 7일 안에 배송지를 입력하지 않으면 주문은 어떻게 되나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "shop-064", "domain": "shop", "question": "골드 등급은 선물 포장비가 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "shop-065", "domain": "shop", "question": "실버 등급도 가격보상을 받을 수 있나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "shop-066", "domain": "shop", "question": "골드 등급은 결제일로부터 며칠 안에 판매가가 내려가야 가격보상을 받나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "shop-067", "domain": "shop", "question": "가격보상은 한 번에 최대 얼마까지 받을 수 있고, 한 달에 몇 번 신청할 수 있나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "shop-068", "domain": "shop", "question": "채팅 상담은 몇 시부터 몇 시까지 운영하고, 주말에도 운영하나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "shop-069", "domain": "shop", "question": "VIP 등급의 1:1 문의 답변 목표 시간은 어떻게 되나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "shop-070", "domain": "shop", "question": "출고 예정일보다 3영업일 이상 출고가 늦어지면 보상을 받을 수 있나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "shop-071", "domain": "shop", "question": "상품권의 유효기간은 얼마이고, 유효기간이 지나면 남은 금액의 몇 %를 환불받을 수 있나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "shop-072", "domain": "shop", "question": "1만원권 상품권은 금액의 몇 % 이상을 써야 잔액을 환불받을 수 있나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "shop-073", "domain": "shop", "question": "5만원권 상품권의 잔액 환불 기준은 무엇인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "shop-074", "domain": "shop", "question": "현금영수증은 결제일로부터 며칠 안에 마이페이지에서 직접 발급할 수 있고, 며칠이 지나면 발급할 수 없나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "shop-075", "domain": "shop", "question": "세금계산서는 언제까지 신청해야 하나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "manual-001", "domain": "manual", "question": "클린윙 S5의 무게와 최대 흡입력은 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "manual-002", "domain": "manual", "question": "클린윙 S5의 벽걸이 거치대는 바닥에서 몇 cm 높이에 달고, 석고보드 벽에는 어떤 앵커를 쓰나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "manual-003", "domain": "manual", "question": "클린윙 S5 먼지통의 먼지가 MAX 선을 넘으면 흡입력이 얼마나 줄어드나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "manual-004", "domain": "manual", "question": "클린윙 S7의 먼지 센서는 얼마마다 닦고, 무엇으로 닦나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "manual-005", "domain": "manual", "question": "클린윙 S7 충전 거치대는 벽에서 몇 cm 이상 떨어뜨려 두고, 어떤 바닥에 두기를 권하나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "manual-006", "domain": "manual", "question": "클린윙 S5는 일반 모드에서 1회 충전으로 약 몇 분 쓸 수 있나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "manual-007", "domain": "manual", "question": "클린윙 S7을 강 모드로 쓰면 1회 충전으로 약 몇 분 쓸 수 있나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "manual-008", "domain": "manual", "question": "클린윙 S7 배터리를 완전히 충전하는 데 얼마나 걸리나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "manual-009", "domain": "manual", "question": "클린윙 S5용 정품 교체 배터리 가격은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "manual-010", "domain": "manual", "question": "클린윙 배터리는 약 몇 회 충전하면 교체를 권하고, 처음 용량의 몇 % 아래로 떨어지면 교체를 권하나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "manual-011", "domain": "manual", "question": "클린윙 S5와 S7은 배터리를 서로 바꿔 쓸 수 있고, 충전기는 서로 바꿔 쓸 수 있나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "manual-012", "domain": "manual", "question": "클린윙 헤파 필터는 얼마마다 헹구고, 어떤 물로 헹궈야 하나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "manual-013", "domain": "manual", "question": "클린윙 S5는 오류를 어떤 방식으로 알려 주나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "manual-014", "domain": "manual", "question": "클린윙 E1 오류는 무엇을 뜻하고, 어떻게 조치하나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "manual-015", "domain": "manual", "question": "클린윙 S5에서 기본 바닥 브러시를 쓸 때도 E3 오류가 나나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "manual-016", "domain": "manual", "question": "클린윙 청소기가 작동 중에 \"삐\" 소리를 내며 꺼지면 무슨 뜻인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "manual-017", "domain": "manual", "question": "루미봇 R3의 최대 흡입력과 넘을 수 있는 문턱 높이는 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "manual-018", "domain": "manual", "question": "루미봇 R5는 표준 모드로 최대 몇 분 청소하고, 스테이션에서 완전히 충전하는 데 얼마나 걸리나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "manual-019", "domain": "manual", "question": "루미봇 R5의 자동 먼지 비움은 언제, 몇 초 동안 작동하나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "manual-020", "domain": "manual", "question": "루미봇은 어떤 Wi-Fi 대역에만 연결되고, 연결은 몇 분 안에 끝나야 하나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "manual-021", "domain": "manual", "question": "루미봇 R5는 지도를 몇 개 층까지 저장하고, 금지 구역을 최대 몇 곳까지 설정할 수 있나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "manual-022", "domain": "manual", "question": "루미봇 R3는 금지 구역을 최대 몇 곳까지 설정할 수 있나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "manual-023", "domain": "manual", "question": "루미봇 예약 청소는 하루 최대 몇 회 설정할 수 있고, 예약 시각에 배터리가 몇 % 미만이면 건너뛰나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "manual-024", "domain": "manual", "question": "루미봇 R3의 사이드 브러시는 몇 개월마다 교체를 권하나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "manual-025", "domain": "manual", "question": "루미봇 R5의 먼지 필터 교체 주기는 몇 개월인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "manual-026", "domain": "manual", "question": "루미봇 물걸레 패드는 약 몇 개월 쓰면 교체하고, 물통에는 어떤 물만 넣어야 하나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "manual-027", "domain": "manual", "question": "루미봇 R5 스테이션의 먼지봉투는 일반 가정에서 약 며칠마다 교체하게 되나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "manual-028", "domain": "manual", "question": "루미봇 본체 바닥의 낭떠러지 센서는 얼마마다 닦아야 하나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "manual-029", "domain": "manual", "question": "루미봇 E16 오류는 무엇이고, 어느 모델에만 있는 오류인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "manual-030", "domain": "manual", "question": "루미봇이 오류 상태로 몇 분 동안 아무 조작이 없으면 전원이 꺼지나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "manual-031", "domain": "manual", "question": "소리결 B1의 방수 등급은 무엇이고, 샤워할 때 써도 되나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "manual-032", "domain": "manual", "question": "소리결 B2 Pro의 노이즈 캔슬링은 몇 단계가 있고, 적응형은 어떻게 작동하나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "manual-033", "domain": "manual", "question": "소리결 B2 Pro 이어팁은 몇 쌍 묶음이 얼마이고, 소리결 B1 이어팁과 서로 맞나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "manual-034", "domain": "manual", "question": "소리결 B1은 이어폰만으로 최대 몇 시간 음악을 들을 수 있나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "manual-035", "domain": "manual", "question": "소리결 B2 Pro는 노이즈 캔슬링을 끄면 케이스 포함 최대 몇 시간 들을 수 있나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "manual-036", "domain": "manual", "question": "소리결 이어폰의 통화 시간은 이어폰만으로 최대 몇 시간이고, 음량을 70% 이상 올리면 재생 시간이 얼마나 줄어드나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "manual-037", "domain": "manual", "question": "소리결 B2 Pro 케이스를 유선으로 완전히 충전하는 데 얼마나 걸리나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "manual-038", "domain": "manual", "question": "소리결 B1 이어폰을 케이스에 넣고 10분 충전하면 약 몇 시간 재생할 수 있나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "manual-039", "domain": "manual", "question": "소리결 케이스 표시등이 주황색이면 케이스 배터리가 얼마나 남은 건가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "manual-040", "domain": "manual", "question": "소리결 B2 Pro는 어떻게 페어링 모드로 들어가나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "manual-041", "domain": "manual", "question": "숨결 A40의 적용 면적은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "manual-042", "domain": "manual", "question": "숨결 A20의 청정 능력(CADR)은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "manual-043", "domain": "manual", "question": "숨결 공기청정기는 앞면과 양옆을 벽이나 가구에서 몇 cm 이상 띄우고, 가습기와는 몇 m 이상 떨어뜨려야 하나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "manual-044", "domain": "manual", "question": "숨결 A20은 앱 연결을 지원하나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "manual-045", "domain": "manual", "question": "숨결 A20의 일체형 필터는 약 몇 개월마다 교체하고, 정품 교체 필터 가격은 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "manual-046", "domain": "manual", "question": "숨결 A40의 필터 교체 표시등은 실제 사용 시간이 몇 시간이 되면 켜지나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "manual-047", "domain": "manual", "question": "숨결 공기청정기의 프리필터는 얼마마다 청소하고, 물로 씻어도 되나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "manual-048", "domain": "manual", "question": "숨결 공기청정기의 먼지 센서는 얼마마다, 무엇으로 닦나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "manual-049", "domain": "manual", "question": "숨결 공기청정기의 전원 표시등이 주황색으로 깜빡이면 무엇을 해야 하나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "manual-050", "domain": "manual", "question": "촉촉 H10의 물통 용량과 최대 가습량은 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "manual-051", "domain": "manual", "question": "촉촉 가습기에 아로마 오일을 넣어도 되나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "manual-052", "domain": "manual", "question": "촉촉 H20은 가열할 때 물을 몇 도로 데우고, 가열을 켰을 때 소비 전력은 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "manual-053", "domain": "manual", "question": "촉촉 H20의 자동 습도는 목표 습도를 몇 %부터 몇 %까지, 몇 % 단위로 고를 수 있나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "manual-054", "domain": "manual", "question": "촉촉 가습기를 주 1회 세척할 때 구연산은 물 1L에 얼마나 넣고, 몇 분 기다리나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "manual-055", "domain": "manual", "question": "하루핏 W2는 절전 모드에서 약 며칠 쓸 수 있나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "manual-056", "domain": "manual", "question": "하루핏 W1은 화면 항상 켜기(AOD)를 켜면 약 며칠 쓸 수 있나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "manual-057", "domain": "manual", "question": "하루핏 W2에는 GPS가 있고, GPS를 계속 켜고 운동을 기록하면 약 몇 시간 쓸 수 있나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "manual-058", "domain": "manual", "question": "하루핏 W1을 차고 수영해도 되나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "manual-059", "domain": "manual", "question": "하루핏 W1과 W2의 시계줄은 서로 바꿔 끼울 수 있나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "manual-060", "domain": "manual", "question": "하루핏 W2를 0%에서 100%까지 충전하는 데 얼마나 걸리나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "manual-061", "domain": "manual", "question": "하루핏 스마트워치는 하루 몇 시간 이상 자야 수면으로 기록되고, 수면 단계는 언제 볼 수 있나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "manual-062", "domain": "manual", "question": "하루핏 스마트워치는 동기화하지 않은 기록을 최대 며칠치 저장하나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "manual-063", "domain": "manual", "question": "숨결 공기청정기의 팬 모터 무상 보증 기간은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "manual-064", "domain": "manual", "question": "수리한 부품에는 수리일부터 얼마 동안 보증이 따로 붙나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "manual-065", "domain": "manual", "question": "구입일을 증명할 수 없으면 구입일을 어떻게 정하나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "manual-066", "domain": "manual", "question": "온새미전자 고객센터는 토요일에 몇 시부터 몇 시까지 운영하고, 일요일에도 운영하나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "manual-067", "domain": "manual", "question": "루미봇 로봇청소기를 무상 보증 기간이 지난 뒤 방문 수리받으면 출장비가 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "manual-068", "domain": "manual", "question": "소리결 무선 이어폰을 무상 보증 기간이 지난 뒤 택배 수리하면 왕복 택배비가 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "manual-069", "domain": "manual", "question": "택배 수리는 서비스센터에 도착한 날부터 영업일 기준 며칠 안에 수리해 돌려보내고, 소리결 이어폰은 무엇을 함께 보내야 하나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "manual-070", "domain": "manual", "question": "제품을 받은 날부터 10일 안에 하자가 확인되면 어떻게 할 수 있고, 11일째부터 1개월 안에는 어떻게 되나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "manual-071", "domain": "manual", "question": "숨결 공기청정기는 단순 변심 반품을 제품을 받은 날부터 며칠 안에 할 수 있나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "manual-072", "domain": "manual", "question": "하루핏 스마트워치의 단순 변심 반품 기한은 며칠인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "manual-073", "domain": "manual", "question": "촉촉 가습기의 수리용 부품 보유 기간은 생산 종료 후 몇 년인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "manual-074", "domain": "manual", "question": "소리결 무선 이어폰의 수리용 부품은 생산 종료 후 몇 년 동안 보유하나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "manual-075", "domain": "manual", "question": "온새미전자 소모품은 얼마 이상 사면 배송비가 없나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "finance-001", "domain": "finance", "question": "미르솔은행 고객 등급은 무엇으로 정하고, 언제 다시 산정하나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "finance-002", "domain": "finance", "question": "미르솔은행에 처음 가입한 신규 고객은 어떤 등급을 받고, 언제부터 실제 잔액으로 등급을 산정하나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "finance-003", "domain": "finance", "question": "골드 등급이 되려면 직전 3개월 평균 총수신잔액이 얼마 이상이어야 하나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "finance-004", "domain": "finance", "question": "플래티넘 등급의 기준 금액은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "finance-005", "domain": "finance", "question": "솔 자유입출금 통장의 기본 금리는 얼마이고, 급여 이체를 받는 계좌는 잔액 얼마까지 연 1.50%를 받나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "finance-006", "domain": "finance", "question": "한도제한 계좌는 비대면 채널과 창구에서 1일 각각 얼마까지 거래할 수 있나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "finance-007", "domain": "finance", "question": "솔 정기예금은 얼마 이상 얼마 이하로 가입할 수 있나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "finance-008", "domain": "finance", "question": "솔 정기예금 6개월의 기본 금리는 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "finance-009", "domain": "finance", "question": "솔 정기예금 36개월의 기본 금리는 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "finance-010", "domain": "finance", "question": "솔 정기예금을 월이자지급식으로 고르면 기본 금리에서 얼마를 빼나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "finance-011", "domain": "finance", "question": "솔 정기예금의 우대 금리는 최대 얼마이고, 모바일로 가입하면 몇 %p를 더 받나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "finance-012", "domain": "finance", "question": "솔 정기적금의 월 납입액은 얼마부터 얼마까지이고, 1인 몇 계좌까지 가입할 수 있나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "finance-013", "domain": "finance", "question": "솔 정기적금 36개월 정액적립식의 기본 금리는 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "finance-014", "domain": "finance", "question": "솔 정기적금 24개월 정액적립식의 기본 금리는 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "finance-015", "domain": "finance", "question": "솔 정기적금에서 자유적립식을 고르면 정액적립식 금리에서 얼마를 빼나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "finance-016", "domain": "finance", "question": "솔 새싹 적금은 몇 살부터 몇 살까지 가입할 수 있고, 직전 연도 연소득 기준은 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "finance-017", "domain": "finance", "question": "솔 새싹 적금의 가입 기간은 몇 개월이고, 월 납입 한도는 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "finance-018", "domain": "finance", "question": "솔 시니어 예금은 만 몇 세 이상 가입할 수 있고, 1인당 합계 얼마까지 가입할 수 있나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "finance-019", "domain": "finance", "question": "솔 시니어 예금 가입자는 창구 타행 이체 수수료를 월 몇 회 면제받고, 이 면제는 고객 등급에 따른 모바일 이체 면제와 함께 세나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "finance-020", "domain": "finance", "question": "솔 정기예금을 가입 후 3개월 이상 6개월 미만에 해지하면 약정 기본 금리의 몇 %를 적용하나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "finance-021", "domain": "finance", "question": "솔 정기적금을 가입 후 6개월 이상 9개월 미만에 해지하면 기본 금리의 몇 %를 적용하나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "finance-022", "domain": "finance", "question": "만기 후 1개월 이내에 찾지 않은 예금에는 약정 기본 금리의 몇 %를 적용하고, 만기 후 6개월을 넘는 기간에는 몇 %를 적용하나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "finance-023", "domain": "finance", "question": "예적금을 담보로 대출을 받으면 한도와 금리는 어떻게 정하나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "finance-024", "domain": "finance", "question": "솔 직장인 신용대출은 현재 직장에서 몇 개월 이상 재직하고, 연소득이 얼마 이상이어야 신청할 수 있나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "finance-025", "domain": "finance", "question": "내부 신용등급 4~6등급은 솔 직장인 신용대출을 최대 얼마까지 빌릴 수 있나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "finance-026", "domain": "finance", "question": "내부 신용등급 1~3등급의 솔 직장인 신용대출 가산 금리는 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "finance-027", "domain": "finance", "question": "내부 신용등급 7~8등급의 솔 직장인 신용대출 가산 금리는 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "finance-028", "domain": "finance", "question": "솔 직장인 신용대출의 기간은 얼마이고, 연장하면 최장 몇 년까지 쓸 수 있나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "finance-029", "domain": "finance", "question": "솔 사업자 운영자금 대출의 한도는 최근 1년 매출의 몇 % 이내이고, 최대 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "finance-030", "domain": "finance", "question": "솔 사업자 운영자금 대출은 기간을 몇 년 중에서 고르고, 어떤 방식으로 갚나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "finance-031", "domain": "finance", "question": "단독주택도 솔 주택담보대출의 담보가 될 수 있나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "finance-032", "domain": "finance", "question": "생애 최초로 주택을 사는 사람의 솔 주택담보대출 담보인정비율(LTV)은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "finance-033", "domain": "finance", "question": "1주택자가 기존 주택을 담보로 생활자금을 빌리는 경우 담보인정비율은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "finance-034", "domain": "finance", "question": "솔 주택담보대출의 5년 고정 혼합형은 처음 5년 동안 금리가 얼마이고, 그 뒤에는 어떻게 바뀌나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "finance-035", "domain": "finance", "question": "솔 주택담보대출에서 대출 기간 40년은 누가 고를 수 있고, 거치 기간은 최대 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "finance-036", "domain": "finance", "question": "수도권 주택의 솔 전세자금대출 최대 한도는 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "finance-037", "domain": "finance", "question": "솔 전세자금대출의 금리는 얼마이고, 신혼부부는 몇 %p를 깎아 주나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "finance-038", "domain": "finance", "question": "솔 사업자 운영자금 대출의 중도상환 수수료율은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "finance-039", "domain": "finance", "question": "솔 전세자금대출의 중도상환 수수료율은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "finance-040", "domain": "finance", "question": "대출 연체 이자율은 어떻게 정하고, 최고 몇 %인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "finance-041", "domain": "finance", "question": "기한의 이익이 상실된 뒤 상실일부터 며칠 안에 연체 금액을 모두 갚으면 기한의 이익을 되살려 주고, 몇 번까지 되살려 주나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "finance-042", "domain": "finance", "question": "만 18세 미만의 솔 체크카드 1일 이용 한도는 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "finance-043", "domain": "finance", "question": "솔 체크카드는 전월 이용액이 얼마 이상이면 대중교통 요금을 돌려받고, 월 최대 얼마까지 돌려받나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "finance-044", "domain": "finance", "question": "솔 체크카드의 소액 신용 기능은 월 얼마까지 쓸 수 있고, 그 금액을 할부할 수 있나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "finance-045", "domain": "finance", "question": "솔 프리미엄 카드 해외 겸용의 연회비는 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "finance-046", "domain": "finance", "question": "솔 클래식 카드 국내 전용의 연회비는 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "finance-047", "domain": "finance", "question": "솔 신용카드를 발급받은 뒤 14일 안에 쓰지 않고 해지하면 연회비는 어떻게 되나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "finance-048", "domain": "finance", "question": "솔 프리미엄 카드의 포인트 적립률은 얼마이고, 전월 이용액이 얼마 이상이어야 적립되나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "finance-049", "domain": "finance", "question": "솔 신용카드 포인트는 적립 후 몇 년이 지나면 사라지나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "finance-050", "domain": "finance", "question": "솔 신용카드의 결제일 변경은 얼마마다 할 수 있나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "finance-051", "domain": "finance", "question": "카드 할부 기간이 6~9개월이면 할부 수수료율은 연 몇 %인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "finance-052", "domain": "finance", "question": "10~12개월 할부의 할부 수수료율은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "finance-053", "domain": "finance", "question": "솔 프리미엄 카드는 어떤 무이자 할부를 해 주고, 무이자 할부로 결제한 금액에도 포인트가 적립되나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "finance-054", "domain": "finance", "question": "솔 클래식 카드의 현금서비스 최대 한도는 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "finance-055", "domain": "finance", "question": "카드론은 카드를 몇 개월 이상 쓴 사람만 신청할 수 있고, 한도는 최대 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "finance-056", "domain": "finance", "question": "솔 체크카드로 해외에서 결제하면 해외 이용 수수료가 이용 금액의 몇 %인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "finance-057", "domain": "finance", "question": "솔 클래식 카드(해외 겸용)로 해외에서 결제하면 수수료가 몇 %인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "finance-058", "domain": "finance", "question": "솔 체크카드로 해외 ATM에서 현금을 찾으면 수수료가 어떻게 붙나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "finance-059", "domain": "finance", "question": "미르솔은행 ATM에서 영업시간 외에 다른 은행으로 이체하면 수수료가 건당 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "finance-060", "domain": "finance", "question": "미르솔은행 ATM에서 영업시간에 이 은행 카드로 출금하면 수수료가 있나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "finance-061", "domain": "finance", "question": "다른 은행이나 편의점 ATM에서 출금하면 수수료가 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "finance-062", "domain": "finance", "question": "솔 체크카드 혜택으로 돌려받는 금액은 언제 입금되나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "finance-063", "domain": "finance", "question": "미화 5,000달러를 넘는 해외 송금의 수수료는 건당 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "finance-064", "domain": "finance", "question": "OTP를 쓰면 모바일 뱅킹의 1일 이체 한도는 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "finance-065", "domain": "finance", "question": "보안카드를 쓰면 1회 이체 한도는 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "finance-066", "domain": "finance", "question": "지연 이체 서비스를 신청하면 이체가 몇 시간 뒤에 처리되고, 그 사이에 취소할 수 있나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "finance-067", "domain": "finance", "question": "해외 체류 중 이체를 위해 등록하는 체류 기간은 최대 며칠인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "finance-068", "domain": "finance", "question": "잔액이 50만 원 이상인 입출금 계좌는 몇 년 동안 거래가 없으면 거래 중지 계좌가 되나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "finance-069", "domain": "finance", "question": "거래 중지 계좌는 입금을 받을 수 있고, 출금은 할 수 있나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "finance-070", "domain": "finance", "question": "휴면 예금은 마지막 거래일부터 몇 년이 지나면 서민금융 지원 기관에 출연되나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "finance-071", "domain": "finance", "question": "체크카드를 잃어버리면 분실 신고일 기준 며칠 전부터의 부정 사용 금액을 보상하나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "finance-072", "domain": "finance", "question": "분실한 카드를 다시 찾으면 신고일부터 며칠 안에 신고를 풀 수 있고, 통장도 신고를 풀 수 있나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "finance-073", "domain": "finance", "question": "OTP 재발급 수수료는 얼마이고, 누구에게 면제되나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "finance-074", "domain": "finance", "question": "솔 체크카드는 만 몇 세 이상이면 발급받을 수 있나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "finance-075", "domain": "finance", "question": "영업일 오후 4시 이후에 신청한 대출 중도상환은 언제 처리되나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
