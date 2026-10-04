@@ -145,8 +145,10 @@ _TAIL_RE = re.compile(
 
 def _parse_tail(text: str, finish: str | None) -> tuple[int | None, str]:
     """[RESULT] 가 없는 출력에만 쓴다. 읽지 못하면 v1 과 같이 missing 이다(v2 스펙 6-4절)."""
-    if finish == "length":
-        # 최대 출력에서 잘린 출력의 끝은 모델이 점수를 적은 자리가 아니라 토큰이 다 된 자리다.
+    if finish != "stop":
+        # 끝이 정상으로 끝났다고 기록된 출력에만 적용한다. "length" 이면 잘린 출력이라 끝은 모델이 점수를 적은
+        # 자리가 아니라 토큰이 다 된 자리다. None 은 "잘리지 않았다" 가 아니라 "모른다" 다(app/cf.py 의
+        # finish_reason). 모르는 채로 읽으면 잘린 출력에서도 모델이 쓰지 않은 점수를 만들 수 있다.
         return None, "missing"
     m = _TAIL_RE.search(text)
     if not m:
@@ -178,13 +180,13 @@ def parse_result(text: str | None, finish: str | None = None, *, rules: str = RU
 
     상태는 넷이다. 앞의 하나만 점수가 있고 나머지 셋은 서로 다른 실패다.
       ok            점수 하나를 읽었다
-      missing       [RESULT] 가 없다(출력이 잘렸거나 양식을 안 지켰다)
+      missing       [RESULT] 가 없다(출력이 잘렸거나 양식을 안 지켰다. v2: 대괄호 끝 규칙으로도 못 읽었다)
       out_of_range  [RESULT] 는 있는데 뒤의 값이 1~5 정수가 아니다(소수, 음수, 범위 밖, 숫자를 못 찾음)
       conflict      [RESULT] 를 여러 번 쓰고 값이 서로 다르다
     셋을 "못 읽음" 하나로 뭉개지 않는 이유: 원인이 다르면 고칠 곳도 다르다.
     규칙(꾸밈은 너그럽게, 값은 엄격하게)은 스펙 §4-7 에 측정 전에 고정돼 있다.
     rules 가 RULES_V2 이면 [RESULT] 가 없는 출력에 대괄호 끝 규칙(_parse_tail)을 더 적용한다.
-    finish 는 생성이 끝난 이유(stop, length)이고 v2 의 대괄호 끝 규칙만 쓴다.
+    finish 는 생성이 끝난 이유(stop, length, 모르면 None)이고 v2 의 대괄호 끝 규칙만 쓴다. 그 규칙은 stop 일 때만 적용한다.
     """
     if rules not in (RULES_V1, RULES_V2):
         raise ValueError(f"알 수 없는 읽는 규칙 판입니다: {rules}. RULES_V1 또는 RULES_V2 를 주세요.")

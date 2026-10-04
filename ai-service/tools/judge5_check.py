@@ -459,6 +459,7 @@ def check_parse_v2_tail_is_strict() -> None:
 def check_parse_v2_refuses_truncated_tail() -> None:
     """512 토큰에서 잘린 출력의 끝은 모델이 점수를 적은 자리가 아니다(v2 스펙 6-4절 세부 규칙 2)."""
     assert parse_result("이유가 길어서 잘렸다 [2]", "length", rules=RULES_V2) == (None, "missing")
+    assert parse_result("잘렸는지 모른다 [4]", None, rules=RULES_V2) == (None, "missing")   # None 은 "모른다"
 
 
 def check_parse_v2_keeps_result_rules() -> None:
