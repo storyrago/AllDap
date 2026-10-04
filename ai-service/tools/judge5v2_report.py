@@ -17,6 +17,7 @@ from pathlib import Path
 
 from .judge5 import MODELS, RULES_V2, SCALE, Summary, compare, parse_result, replacement_failures, summarize
 from .judge5_report import ReportProblem, load_finishes, load_run
+from .judge5v2_assign import assigned_types
 from .judge5v2_files import (
     ANSWER_KEY, ASSIGNMENT, CASES_SHA, DOMAINS, REPORT, RESULTS_DIR, RETRIEVED, TYPE_NAMES, latest_by_qid, read_json,
     read_jsonl,
@@ -89,6 +90,10 @@ def _pipeline(ak: dict, retrieved: list[dict], assignment: dict) -> list[str]:
     excluded: dict[str, str] = {}
     for rnd in assignment["rounds"]:
         excluded.update(rnd.get("excluded") or {})
+    # 앞 회차가 제외했다가 뒤 회차에서 제외가 풀려 배정된 질문은 합집합에 남아 있다. 그대로 두면 아래 "배정" 에서
+    # 쓴 질문으로도 세고 여기서 제외로도 세어 두 번 들어간다. 마지막 상태는 배정이므로 제외에서 뺀다.
+    for qid in assigned_types(assignment):
+        excluded.pop(qid, None)
     domain_of = {r["qid"]: r["domain"] for r in retrieved}
     out += ["", "검색은 통과했지만 정답이 근거 청크 밖이라 배정 후보에서 뺀 질문(스펙 2-3절, excluded.json):", ""]
     for d in DOMAINS:

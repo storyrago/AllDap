@@ -28,7 +28,7 @@ from .judge5_check import (
     check_parse_v2_tail_is_strict,
 )
 from .judge5v2_assign import (
-    assigned_types, eligible3, eligible4, eligible6, eligible8, replay_round, run_round,
+    EXCLUDE_REASONS, EXCLUDED, assigned_types, eligible3, eligible4, eligible6, eligible8, replay_round, run_round,
 )
 from .judge5v2_export import CASE_KEYS, apply_review, build_cases
 from .judge5v2_files import (
@@ -85,7 +85,8 @@ def retrieved_prefix(raw: bytes, sha: str) -> list[dict] | None:
     return None
 
 
-def assignment_problems(a: dict, questions: list[dict], retrieved_raw: bytes) -> list[str]:
+def assignment_problems(a: dict, questions: list[dict], retrieved_raw: bytes,
+                        excluded_raw: bytes | None = None) -> list[str]:
     """배정 파일(계획 형식 3)이 규칙대로인가.
 
     1. 회차 0 의 후보(pool)는 그 회차를 돌릴 때의 검색 파일에서 검색을 통과하고 멀쩡한 답변이 있는 질문 중
@@ -101,6 +102,14 @@ def assignment_problems(a: dict, questions: list[dict], retrieved_raw: bytes) ->
     2. 각 회차의 후보에는 앞 회차들에서 유형을 받은 질문이 없다(보충 배정, 스펙 7-2절).
     3. 같은 후보, 같은 할당량, 같은 시드로 다시 돌리면 같은 배정이 나온다(스펙 3-3절).
     4. ③, ④, ⑥, ⑧ 을 받은 질문은 그 자격 조건을 만족한다.
+    5. 회차 0 의 제외 기록이 excluded.json 과 맞는다(excluded_raw 는 지금 파일의 바이트, 파일이 없으면 None).
+       1 은 기록의 excluded 를 믿고 후보를 맞춰 보므로, 기록과 후보가 함께 질문을 더 빼면(excluded.json 에 없는
+       질문을 기록에 넣고 후보에서도 뺐다) 1 도 재현도 통과한다. 그래서 기록 자체를 파일과 대조한다.
+       기록된 excluded_sha256 이 지금 파일의 해시와 같으면 {qid: 원인} 이 파일 내용과 정확히 같아야 한다.
+       다르면 파일이 회차 0 뒤에 바뀐 것이고(제외를 더 적었거나 풀었다), 그때는 기록의 질문마다 지금 파일에
+       같은 원인으로 있는지만 본다. 제외를 풀었으면 여기서 실패한다. 풀린 질문은 회차 0 의 후보가 아니었으므로
+       보충 회차로 배정해야 하는데, 그 경우는 아직 없다. 생기면 이 규칙을 그 회차의 기록과 대조하도록 넓힌다.
+       기록된 해시가 null(그때 파일이 없었다)이면 기록의 제외도 비어 있어야 한다. 원인은 EXCLUDE_REASONS 안이다.
     """
     problems: list[str] = []
     by_id = {q["qid"]: q for q in questions}
@@ -121,6 +130,7 @@ def assignment_problems(a: dict, questions: list[dict], retrieved_raw: bytes) ->
                     missing, extra = sorted(set(want[d]) - set(got[d])), sorted(set(got[d]) - set(want[d]))
                     problems.append(f"회차 0 의 {d} 후보가 그때 검색을 통과한 질문과 다르다"
                                     f"(빠짐 {missing[:5]}, 더 있음 {extra[:5]})")
+        problems += _excluded_record_problems(rnd0, excluded_raw)
     used: set[str] = set()
     for no, rnd in enumerate(a["rounds"]):
         pool = {q for d in DOMAINS for q in rnd["pool"].get(d, [])}
@@ -244,12 +254,36 @@ def check_committed_final_cases_rebuild() -> None:
     assert not problems, "\n".join(problems)
 
 
+def _excluded_record_problems(rnd0: dict, excluded_raw: bytes | None) -> list[str]:
+    """assignment_problems 의 5. 회차 0 의 excluded 기록을 지금 excluded.json 바이트와 대조한다."""
+    rec: dict[str, str] = rnd0.get("excluded") or {}
+    rec_sha = rnd0.get("excluded_sha256")
+    out = [f"회차 0 의 제외 {qid}: 원인 {why!r} 는 쓸 수 없다" for qid, why in sorted(rec.items())
+           if why not in EXCLUDE_REASONS]
+    if rec_sha is None:
+        if rec:
+            out.append(f"회차 0 은 excluded.json 이 없었다고 기록했는데(excluded_sha256 이 null) 제외가 있다: {sorted(rec)[:5]}")
+        return out
+    now = {} if excluded_raw is None else {q: e.get("reason") if isinstance(e, dict) else None
+                                           for q, e in json.loads(excluded_raw).items()}
+    if excluded_raw is not None and hashlib.sha256(excluded_raw).hexdigest() == rec_sha:
+        if rec != now:
+            diff = sorted(set(rec.items()) ^ set(now.items()))
+            out.append(f"회차 0 의 excluded 가 같은 해시의 excluded.json 내용과 다르다: {diff[:5]}")
+        return out
+    # 파일이 회차 0 뒤에 바뀌었다(또는 지워졌다). 기록의 질문이 지금 파일에 같은 원인으로 남아 있는지만 본다.
+    if gone := sorted(q for q, why in rec.items() if now.get(q) != why):
+        out.append(f"회차 0 이 제외로 기록한 질문이 지금 excluded.json 에 같은 원인으로 없다: {gone[:5]}")
+    return out
+
+
 def check_committed_assignment_replays_and_is_eligible() -> None:
     """커밋된 배정의 후보, 재현, 자격 조건(assignment_problems)."""
     if not ASSIGNMENT.exists():
         return
     raw = RETRIEVED.read_bytes() if RETRIEVED.exists() else b""
-    problems = assignment_problems(read_json(ASSIGNMENT), read_jsonl(QUESTIONS), raw)
+    ex_raw = EXCLUDED.read_bytes() if EXCLUDED.exists() else None
+    problems = assignment_problems(read_json(ASSIGNMENT), read_jsonl(QUESTIONS), raw, ex_raw)
     assert not problems, "\n".join(problems)
 
 
@@ -284,11 +318,21 @@ def _ok(q: dict) -> dict:
     return {"qid": q["qid"], "domain": q["domain"], "status": "ok", "drop_reason": None}
 
 
+def _excluded_bytes(excluded: dict[str, str]) -> bytes | None:
+    """{qid: 원인} 을 excluded.json 꼴의 바이트로. 비었으면 파일이 없는 것(None)으로 본다."""
+    if not excluded:
+        return None
+    return json.dumps({q: {"reason": why, "note": "픽스처"} for q, why in excluded.items()},
+                      ensure_ascii=False, indent=1, sort_keys=True).encode("utf-8")
+
+
 def _assignment_fixture(n: int = 75, excluded: dict[str, str] | None = None) -> tuple[dict, list[dict], bytes]:
     """분야마다 질문 n 개로 회차 0 을 돌린 배정, 질문, 검색 파일 바이트. 고장 내기 전에는 문제가 없어야 한다.
     hr-075 는 회차 0 때 리랭커 호출이 실패해 버려진 상태라 후보에 없다(뒤늦게 ok 가 되는 정상 경로에 쓴다).
-    excluded 는 {qid: 원인} 이고, 배정 도구처럼 후보에서 빼고 회차 기록에 적는다."""
+    excluded 는 {qid: 원인} 이고, 배정 도구처럼 후보에서 빼고 회차 기록에 적는다. 기록의 excluded_sha256 은
+    _excluded_bytes(excluded) 의 해시다(비었으면 null). assignment_problems 에는 그 바이트를 함께 넘긴다."""
     excluded = excluded or {}
+    ex_raw = _excluded_bytes(excluded)
     questions = [q for d in DOMAINS for q in _questions(d, n)]
     late = "hr-075"
     lines = [_ok(q) if q["qid"] != late else {"qid": late, "domain": "hr", "status": "dropped",
@@ -298,6 +342,7 @@ def _assignment_fixture(n: int = 75, excluded: dict[str, str] | None = None) -> 
              for d in DOMAINS}
     domains = run_round(pools, {d: dict(QUOTA) for d in DOMAINS}, _SEED, 0)
     rnd0 = {"retrieved_sha256": hashlib.sha256(raw).hexdigest(), "excluded": dict(excluded),
+            "excluded_sha256": hashlib.sha256(ex_raw).hexdigest() if ex_raw is not None else None,
             "pool": {d: [q["qid"] for q in pools[d]] for d in DOMAINS},
             "needs": {d: {str(t): n for t, n in QUOTA.items()} for d in DOMAINS}, "domains": domains}
     return {"seed": _SEED, "rounds": [rnd0]}, questions, raw
@@ -366,10 +411,50 @@ def check_assignment_problems_pass_early_supplement_and_exclusion() -> None:
     assert any("-076" in q for q in a["rounds"][0]["pool"]["shop"])
     got = assignment_problems(a, qs, raw)
     assert got == [], got
-    a, qs, raw = _assignment_fixture(excluded={"finance-010": "answer_not_in_top5", "shop-003": "partial_answer_not_in_top5"})
+    ex = {"finance-010": "answer_not_in_top5", "shop-003": "partial_answer_not_in_top5"}
+    a, qs, raw = _assignment_fixture(excluded=ex)
     assert "finance-010" not in a["rounds"][0]["pool"]["finance"]
-    got = assignment_problems(a, qs, raw)
+    got = assignment_problems(a, qs, raw, _excluded_bytes(ex))
     assert got == [], got
+    # 회차 0 뒤에 제외를 하나 더 적었다(파일 해시가 바뀐다). 기록의 질문은 같은 원인으로 남아 있으니 통과한다.
+    got = assignment_problems(a, qs, raw, _excluded_bytes({**ex, "hr-020": "answer_not_in_top5"}))
+    assert got == [], got
+
+
+def check_assignment_problems_catch_excluded_record_mismatch() -> None:
+    """회차 0 의 제외 기록이 excluded.json 과 어긋나면 잡는다. 후보와 기록이 함께 질문을 더 뺀 경우는 후보 대조(1)와
+    재현(3)을 둘 다 통과하므로(기록을 믿고 맞춰 보니까) 이 점검만 잡는다.
+    변이: _excluded_record_problems 를 빈 목록으로 바꾸면 이 점검이 실패한다."""
+    ex = {"finance-010": "answer_not_in_top5"}
+    more = {**ex, "shop-003": "partial_answer_not_in_top5"}
+    a, qs, raw = _assignment_fixture(excluded=more)   # 기록과 후보는 shop-003 까지 일관되게 뺐다
+
+    # 1. 같은 해시인데 내용이 다르다: 기록에 적힌 해시가 shop-003 이 없는 파일의 해시다.
+    b = json.loads(json.dumps(a))
+    b["rounds"][0]["excluded_sha256"] = hashlib.sha256(_excluded_bytes(ex)).hexdigest()
+    got = assignment_problems(b, qs, raw, _excluded_bytes(ex))
+    assert any("같은 해시의 excluded.json 내용과 다르다" in p for p in got), got
+    assert not any("후보" in p or "재현" in p for p in got), got   # 1 과 3 은 통과한다. 그래서 이 점검이 필요하다
+
+    # 2. 파일이 나중에 바뀌었고, 기록의 shop-003 이 지금 파일에 없다(처음부터 없었든 풀었든).
+    got = assignment_problems(a, qs, raw, _excluded_bytes(ex))
+    assert any("같은 원인으로 없다" in p and "shop-003" in p for p in got), got
+    # 같은 질문이 원인만 달라도 잡는다.
+    got = assignment_problems(a, qs, raw, _excluded_bytes({**ex, "shop-003": "answer_not_in_top5"}))
+    assert any("같은 원인으로 없다" in p and "shop-003" in p for p in got), got
+    # 파일이 지워졌다.
+    assert any("같은 원인으로 없다" in p for p in assignment_problems(a, qs, raw, None))
+
+    # 3. 그때 파일이 없었다고(null) 기록했는데 제외가 있다.
+    c = json.loads(json.dumps(a))
+    c["rounds"][0]["excluded_sha256"] = None
+    assert any("excluded_sha256 이 null" in p for p in assignment_problems(c, qs, raw, _excluded_bytes(more)))
+
+    # 4. 원인 이름이 규칙 밖이다. 파일도 같은 내용이라(해시가 같다) 원인 검사만 잡는다.
+    bad = {"finance-010": "typo"}
+    d, qs_d, raw_d = _assignment_fixture(excluded=bad)
+    got = assignment_problems(d, qs_d, raw_d, _excluded_bytes(bad))
+    assert got == ["회차 0 의 제외 finance-010: 원인 'typo' 는 쓸 수 없다"], got
 
 
 def _final_fixture(d: Path) -> tuple[dict, bytes, tuple]:
@@ -443,6 +528,7 @@ OWN = [
     check_assignment_problems_catch_broken_inputs,
     check_assignment_problems_pass_normal_later_lines,
     check_assignment_problems_pass_early_supplement_and_exclusion,
+    check_assignment_problems_catch_excluded_record_mismatch,
     check_cases_and_rebuild_problems_catch_broken_inputs,
 ]
 CHECKS = (judge5v2_search_check.CHECKS + judge5v2_assign_check.CHECKS + judge5v2_export_check.CHECKS
