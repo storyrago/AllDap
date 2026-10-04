@@ -102,3 +102,10 @@ Step 3 의 "200자 이하 근거만 있는 질문" 은 186개로 나왔다. 잘�
 - 최종 시험지 231문항(버린 문항 9개, 모두 ④). SHA-256 `bec2b58e943e3b2c296dec8b664dc78ed2548f1b6d6e67062e3a7684fd535fe2`
 - 동결 커밋 `24ca516ae0758b88beac6bfc715150073ba04e64`. 이 커밋 뒤로 시험지, 정답 파일, 입력 파일을 바꾸지 않는다.
 - 점검: `judge5_check` 44가지, `judge5v2_check` 66가지 통과.
+
+## 코랩 채점 M3, M4 (2026-10-04~05)
+
+- 사용자가 코랩(Tesla T4)에서 돌렸다. torch 2.11.0+cu130, transformers 4.57.6(노트북 고정 판과 같다), bitsandbytes 0.50.2, Python 3.13.15.
+- M3 `Unbabel/M-Prometheus-14B` @ `f790ee74`, M4 `Qwen/Qwen2.5-14B-Instruct` @ `cf98f3b3`. 둘 다 231/231건, 모든 줄의 `cases_sha256` 이 동결본과 같고 `domain` 이 있다. 건너뛴 모델 없음.
+- 생성 설정: 두 모델 모두 `do_sample=False`, `repetition_penalty=1.0`(smoke 파일의 `generation`).
+- 시각(zip 안의 파일 시각, UTC 로 보인다): M3 14:26~15:44, M4 15:56~16:45. 한국 시각으로는 2026-10-04 23:26 ~ 10-05 01:45 다. zip 을 내려받은 시각이 한국 시각 01:45 라서 그렇게 읽었다.
