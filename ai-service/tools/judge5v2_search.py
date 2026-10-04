@@ -62,13 +62,29 @@ def nondefault_settings(current: dict) -> dict[str, dict]:
 
     기준을 config.py 의 기본값으로 둔 이유: 스펙 2-3절의 "기본 설정" 은 서비스의 기본값이다. .env 가 같은 값을
     다시 적는 것(TOP_K=5 등)은 통과하고, 셸 환경변수든 .env 든 기본값과 다르면 출처와 관계없이 걸린다.
-    model_fields[k].default 는 Settings 클래스에 적힌 기본값이다(환경변수를 읽기 전의 값).
+    get_default(call_default_factory=True) 는 Settings 클래스에 적힌 기본값이다(환경변수를 읽기 전의 값).
+    .default 대신 쓰는 이유: 기본값을 default_factory(함수)로 적은 필드는 .default 가 빈 표시값이라 늘 다르다고 나온다.
     """
     out = {}
     for k, v in current.items():
-        default = Settings.model_fields[k].default
+        default = Settings.model_fields[k].get_default(call_default_factory=True)
         if v != default:
             out[k] = {"default": default, "actual": v}
+    return out
+
+
+def settings_conflicts(rows: list[dict], current: dict) -> list[str]:
+    """이미 있는 검색 줄 중 지금 설정과 다른 설정으로 뽑은 줄. "qid: 키(줄의 값 -> 지금 값)" 목록이다.
+
+    판정이 정해진 질문(settled_qids)은 다시 검색하지 않는다. 그래서 --allow-nondefault 로 끝낸 질문이 있으면
+    기본 설정으로 다시 돌려도 그 질문은 건너뛰어져, 한 파일에 서로 다른 설정의 근거가 섞인다. 섞이기 전에 멈춘다.
+    """
+    out = []
+    for r in rows:
+        got = r.get("settings") or {}
+        keys = [k for k in current if got.get(k) != current[k]]
+        if keys:
+            out.append(f"{r['qid']}: " + ", ".join(f"{k}({got.get(k)!r} -> {current[k]!r})" for k in keys))
     return out
 
 
@@ -221,7 +237,14 @@ def main(argv: list[str] | None = None) -> int:
     if dup:
         print(f"questions.jsonl 에 같은 qid 가 두 번 있습니다: {dup[:5]}. 고친 뒤 다시 실행하세요.")
         return 1
-    done = settled_qids(read_jsonl(RETRIEVED))
+    existing = read_jsonl(RETRIEVED)
+    if conflicts := settings_conflicts(existing, settings):
+        print(f"retrieved.jsonl 에 지금과 다른 검색 설정으로 뽑은 줄이 {len(conflicts)}개 있습니다. 섞이지 않게 멈춥니다:")
+        for c in conflicts[:10]:
+            print(f"  - {c}")
+        print("설정을 그 줄들과 같게 맞추거나, 그 줄들을 다른 이름의 파일로 옮긴 뒤 다시 실행하세요(지우지 말고 옮기세요).")
+        return 1
+    done = settled_qids(existing)
     todo = [q for q in questions if q["domain"] in bots and q["qid"] not in done][: args.limit]
     # 기본값과 다르게 돌린 실행은 줄마다 표시한다. 나중에 이 줄로 만든 문항이 기본 설정이 아니었음을 알 수 있게.
     extra = {"nondefault": diff} if diff else {}

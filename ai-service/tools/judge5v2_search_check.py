@@ -13,8 +13,8 @@ from app import retriever
 from app.schemas import Source
 
 from .judge5v2_search import (
-    SETTING_KEYS, check_bots_file, drop_reason, nondefault_settings, parse_bots, search_one, settled_qids,
-    warning_reason,
+    SETTING_KEYS, check_bots_file, drop_reason, nondefault_settings, parse_bots, search_one, search_settings,
+    settings_conflicts, settled_qids, warning_reason,
 )
 
 
@@ -129,13 +129,27 @@ def check_bots_file_must_match() -> None:
 def check_nondefault_settings_compares_with_config_defaults() -> None:
     """기준은 config.py 의 기본값이다. 셸에 남은 RERANKER_PROVIDER=local_int8 같은 값을 잡아야 한다."""
     from app.config import Settings
-    defaults = {k: Settings.model_fields[k].default for k in SETTING_KEYS}
+    defaults = {k: Settings.model_fields[k].get_default(call_default_factory=True) for k in SETTING_KEYS}
+    # 스펙 2-3절이 글로 정한 값을 직접 못박는다. config.py 의 기본값이 바뀌면 위 비교는 따라 바뀌지만 이 줄은 실패한다.
+    assert defaults["hybrid_enabled"] is True and defaults["reranker_enabled"] is True
+    assert defaults["reranker_provider"] == "cloudflare"
     assert nondefault_settings(defaults) == {}
     changed = dict(defaults, reranker_provider="local_int8", top_k=8)
     assert nondefault_settings(changed) == {
         "reranker_provider": {"default": "cloudflare", "actual": "local_int8"},
         "top_k": {"default": defaults["top_k"], "actual": 8},
     }
+
+
+def check_settings_conflicts_refuses_mixed_runs() -> None:
+    """--allow-nondefault 로 뽑은 줄이 있으면 기본 설정으로 다시 돌릴 때 멈춘다. 같은 설정이면 통과한다."""
+    now = search_settings()
+    same = [{"qid": "a", "settings": dict(now)}, {"qid": "b", "settings": dict(now)}]
+    assert settings_conflicts(same, now) == []
+    mixed = same + [{"qid": "c", "settings": dict(now, reranker_provider="local_int8")}]
+    got = settings_conflicts(mixed, now)
+    assert len(got) == 1 and got[0].startswith("c: reranker_provider('local_int8' -> ")
+    assert settings_conflicts([{"qid": "d", "settings": {}}], now)       # 설정이 비어 있는 줄도 다른 설정이다
 
 
 def check_warning_reason_prefers_rerank() -> None:
@@ -164,6 +178,7 @@ CHECKS = [
     check_parse_bots_refuses_duplicates,
     check_bots_file_must_match,
     check_nondefault_settings_compares_with_config_defaults,
+    check_settings_conflicts_refuses_mixed_runs,
     check_warning_reason_prefers_rerank,
     check_settled_qids_retries_call_failures,
 ]
