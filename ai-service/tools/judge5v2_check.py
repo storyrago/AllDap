@@ -88,10 +88,14 @@ def retrieved_prefix(raw: bytes, sha: str) -> list[dict] | None:
 def assignment_problems(a: dict, questions: list[dict], retrieved_raw: bytes) -> list[str]:
     """배정 파일(계획 형식 3)이 규칙대로인가.
 
-    1. 회차 0 의 후보(pool)는 그 회차를 돌릴 때의 검색 파일에서 검색을 통과하고 멀쩡한 답변이 있는 질문 전부다
+    1. 회차 0 의 후보(pool)는 그 회차를 돌릴 때의 검색 파일에서 검색을 통과하고 멀쩡한 답변이 있는 질문 중
+       그 회차가 제외한 질문(회차 기록의 excluded, 스펙 2-3절의 "정답이 근거 청크 밖")을 뺀 전부다
        (pool_for 와 같은 조건). 그때의 검색 파일은 회차에 기록된 retrieved_sha256 으로 지금 파일에서 찾는다.
-       지금 파일 전체로 정답을 만들면 회차 0 뒤에 다시 검색해 ok 가 된 질문(호출 실패로 버렸던 질문)이
-       거짓 실패를 낸다. 번호(75 이하)로 거르는 것은 보충 질문(076 이후)만 막고 이 경우를 막지 못한다.
+       제외 목록도 excluded.json 을 다시 읽지 않고 회차 기록을 쓴다. 파일이 나중에 바뀌어도 그 회차가 무엇을
+       뺐는지는 기록에 남아 있기 때문이다.
+       옛 판(지금 파일 전체로 정답을 만들고 번호 75 이하로 거름)은 두 경우에 거짓 실패했다: 회차 0 의 후보에
+       든 076 이후 질문(E5 전 보충)과, 회차 0 뒤에 다시 검색해 ok 가 된 질문. 회차 0 뒤에 덧붙인 076 이후
+       질문(E10 보충)은 번호로 걸러져 통과했다. 두 리뷰어의 재현이 갈린 것은 이 두 보충 경로 때문이다.
        후보에서 질문 하나를 빼고 돌려도 재현 점검은
        통과하므로(그 후보로 다시 돌리니까) 후보 자체를 따로 본다.
     2. 각 회차의 후보에는 앞 회차들에서 유형을 받은 질문이 없다(보충 배정, 스펙 7-2절).
@@ -107,7 +111,9 @@ def assignment_problems(a: dict, questions: list[dict], retrieved_raw: bytes) ->
             problems.append("회차 0 에 기록된 retrieved_sha256 과 같은 앞부분이 지금 retrieved.jsonl 에 없다. "
                             "앞 줄이 고쳐졌거나 지워졌다(이 파일은 덧붙이기만 한다)")
         else:
-            ok = [r for r in latest_by_qid(prefix) if r["status"] == "ok" and by_id.get(r["qid"], {}).get("answer")]
+            excluded = set(rnd0.get("excluded") or {})   # 기록에 키가 없거나 null 이면 제외가 없는 것이다
+            ok = [r for r in latest_by_qid(prefix) if r["status"] == "ok" and by_id.get(r["qid"], {}).get("answer")
+                  and r["qid"] not in excluded]
             want = {d: sorted(r["qid"] for r in ok if r["domain"] == d) for d in DOMAINS}
             got = {d: sorted(rnd0["pool"].get(d, [])) for d in DOMAINS}
             for d in DOMAINS:
@@ -278,17 +284,20 @@ def _ok(q: dict) -> dict:
     return {"qid": q["qid"], "domain": q["domain"], "status": "ok", "drop_reason": None}
 
 
-def _assignment_fixture() -> tuple[dict, list[dict], bytes]:
-    """분야마다 질문 75개로 회차 0 을 돌린 배정, 질문, 검색 파일 바이트. 고장 내기 전에는 문제가 없어야 한다.
-    hr-075 는 회차 0 때 리랭커 호출이 실패해 버려진 상태라 후보에 없다(뒤늦게 ok 가 되는 정상 경로에 쓴다)."""
-    questions = [q for d in DOMAINS for q in _questions(d)]
+def _assignment_fixture(n: int = 75, excluded: dict[str, str] | None = None) -> tuple[dict, list[dict], bytes]:
+    """분야마다 질문 n 개로 회차 0 을 돌린 배정, 질문, 검색 파일 바이트. 고장 내기 전에는 문제가 없어야 한다.
+    hr-075 는 회차 0 때 리랭커 호출이 실패해 버려진 상태라 후보에 없다(뒤늦게 ok 가 되는 정상 경로에 쓴다).
+    excluded 는 {qid: 원인} 이고, 배정 도구처럼 후보에서 빼고 회차 기록에 적는다."""
+    excluded = excluded or {}
+    questions = [q for d in DOMAINS for q in _questions(d, n)]
     late = "hr-075"
     lines = [_ok(q) if q["qid"] != late else {"qid": late, "domain": "hr", "status": "dropped",
                                              "drop_reason": "rerank_failed"} for q in questions]
     raw = _lines(lines)
-    pools = {d: [q for q in questions if q["domain"] == d and q["qid"] != late] for d in DOMAINS}
+    pools = {d: [q for q in questions if q["domain"] == d and q["qid"] != late and q["qid"] not in excluded]
+             for d in DOMAINS}
     domains = run_round(pools, {d: dict(QUOTA) for d in DOMAINS}, _SEED, 0)
-    rnd0 = {"retrieved_sha256": hashlib.sha256(raw).hexdigest(),
+    rnd0 = {"retrieved_sha256": hashlib.sha256(raw).hexdigest(), "excluded": dict(excluded),
             "pool": {d: [q["qid"] for q in pools[d]] for d in DOMAINS},
             "needs": {d: {str(t): n for t, n in QUOTA.items()} for d in DOMAINS}, "domains": domains}
     return {"seed": _SEED, "rounds": [rnd0]}, questions, raw
@@ -339,12 +348,27 @@ def check_assignment_problems_catch_broken_inputs() -> None:
 
 def check_assignment_problems_pass_normal_later_lines() -> None:
     """회차 0 뒤에 검색 파일에 줄이 덧붙는 정상 경로 둘은 통과해야 한다.
-    1. 보충 질문(076 이후)을 쓰고 검색했다. 2. 호출 실패로 버린 질문(hr-075)을 다시 검색해 ok 가 됐다.
-    번호로 거르던 옛 판은 1 은 통과하고 2 에서 거짓 실패했다. 1 은 앞부분 방식으로 바꿔도 깨지지 않는지 보려고 둔다."""
+    1. 회차 0 뒤에 보충 질문(076 이후, E10 보충)을 쓰고 검색했다. 2. 호출 실패로 버린 질문(hr-075)을 다시 검색해 ok 가 됐다.
+    옛 판은 1 은 번호로 걸러 통과하고 2 에서 거짓 실패했다. 1 은 앞부분 방식으로 바꿔도 깨지지 않는지 보려고 둔다."""
     a, qs, raw = _assignment_fixture()
     extra = [q for d in DOMAINS for q in _questions(d, 3, start=76)]
     later = raw + _lines([_ok(q) for q in extra]) + _lines([{**_ok(qs[0]), "qid": "hr-075"}])
     got = assignment_problems(a, qs + extra, later)
+    assert got == [], got
+
+
+def check_assignment_problems_pass_early_supplement_and_exclusion() -> None:
+    """회차 0 전에 생기는 정상 경로 둘도 통과해야 한다.
+    1. E5 전 보충: 회차 0 의 질문과 검색 줄에 076 이후 질문이 처음부터 들어 있고 후보에도 들었다. 번호 75 이하로
+       거르던 옛 판은 이 질문들을 정답에서 빼서 "더 있음" 으로 거짓 실패했다.
+    2. 제외: 회차 0 이 excluded 로 질문을 뺐다(스펙 2-3절). 그 질문은 검색을 통과했고 답변도 있지만 후보가 아니다."""
+    a, qs, raw = _assignment_fixture(n=78)
+    assert any("-076" in q for q in a["rounds"][0]["pool"]["shop"])
+    got = assignment_problems(a, qs, raw)
+    assert got == [], got
+    a, qs, raw = _assignment_fixture(excluded={"finance-010": "answer_not_in_top5", "shop-003": "partial_answer_not_in_top5"})
+    assert "finance-010" not in a["rounds"][0]["pool"]["finance"]
+    got = assignment_problems(a, qs, raw)
     assert got == [], got
 
 
@@ -418,6 +442,7 @@ OWN = [
     check_committed_assignment_replays_and_is_eligible,
     check_assignment_problems_catch_broken_inputs,
     check_assignment_problems_pass_normal_later_lines,
+    check_assignment_problems_pass_early_supplement_and_exclusion,
     check_cases_and_rebuild_problems_catch_broken_inputs,
 ]
 CHECKS = (judge5v2_search_check.CHECKS + judge5v2_assign_check.CHECKS + judge5v2_export_check.CHECKS
