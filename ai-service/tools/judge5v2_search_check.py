@@ -12,7 +12,10 @@ import logging
 from app import retriever
 from app.schemas import Source
 
-from .judge5v2_search import drop_reason, parse_bots, search_one, settled_qids, warning_reason
+from .judge5v2_search import (
+    SETTING_KEYS, check_bots_file, drop_reason, nondefault_settings, parse_bots, search_one, settled_qids,
+    warning_reason,
+)
 
 
 def _src(cid: int) -> Source:
@@ -102,6 +105,39 @@ def check_parse_bots_refuses_protected() -> None:
         raise AssertionError(bad)
 
 
+def check_parse_bots_refuses_duplicates() -> None:
+    """같은 분야를 두 번, 같은 번호를 두 분야에 주면 거절한다. answerable 판정은 다시 검색하지 않아 굳기 때문이다."""
+    for bad in (["hr=12", "hr=13"], ["hr=12", "shop=12"]):
+        try:
+            parse_bots(bad)
+        except SystemExit:
+            continue
+        raise AssertionError(bad)
+
+
+def check_bots_file_must_match() -> None:
+    recorded = {"hr": 12, "shop": 13, "manual": 14, "finance": 15}
+    check_bots_file({"hr": 12, "shop": 13}, recorded)                    # 일부 분야만 줘도 된다
+    for bad in ({"hr": 13}, {"shop": 12}, {"hr": 12, "manual": 99}):
+        try:
+            check_bots_file(bad, recorded)
+        except SystemExit:
+            continue
+        raise AssertionError(bad)
+
+
+def check_nondefault_settings_compares_with_config_defaults() -> None:
+    """기준은 config.py 의 기본값이다. 셸에 남은 RERANKER_PROVIDER=local_int8 같은 값을 잡아야 한다."""
+    from app.config import Settings
+    defaults = {k: Settings.model_fields[k].default for k in SETTING_KEYS}
+    assert nondefault_settings(defaults) == {}
+    changed = dict(defaults, reranker_provider="local_int8", top_k=8)
+    assert nondefault_settings(changed) == {
+        "reranker_provider": {"default": "cloudflare", "actual": "local_int8"},
+        "top_k": {"default": defaults["top_k"], "actual": 8},
+    }
+
+
 def check_warning_reason_prefers_rerank() -> None:
     assert warning_reason([]) is None
     assert warning_reason(["키워드 검색 실패(...)", "리랭킹 실패(...)"]) == "rerank_failed"
@@ -125,6 +161,9 @@ CHECKS = [
     check_empty_result_reasons,
     check_missing_content_is_an_error,
     check_parse_bots_refuses_protected,
+    check_parse_bots_refuses_duplicates,
+    check_bots_file_must_match,
+    check_nondefault_settings_compares_with_config_defaults,
     check_warning_reason_prefers_rerank,
     check_settled_qids_retries_call_failures,
 ]

@@ -14,6 +14,13 @@
 2. 리랭커와 키워드 검색의 실패 경고를 붙잡는다. 둘 다 실패해도 search 는 결과를 돌려주므로,
    경고를 보지 않으면 설정과 다른 순서의 근거가 시험지에 들어간다.
 3. search 가 돌려준 앞 200자(preview)가 아니라 fetch_contents 로 전문을 읽는다.
+
+검색 전에 두 가지를 확인하고 다르면 멈춘다.
+- 검색 설정이 config.py 의 기본값과 같은가(스펙 2-3절의 "기본 설정 그대로"). 셸에 RERANKER_PROVIDER=local_int8
+  같은 값이 남아 있으면 시험지에는 Cloudflare 리랭커로 뽑았다고 적히지만 실제는 다르다. 기본값과 다르게
+  돌려야 하면 --allow-nondefault 를 주고, 그때는 결과 줄마다 다른 값을 nondefault 에 남긴다.
+- --bot 의 분야와 번호가 testdata/judge5v2/bots.json(E1 이 만든 기록)과 같은가. answerable 로 버린 질문은
+  다시 검색하지 않으므로, 분야와 봇을 잘못 짝지은 결과는 다시 돌려도 고쳐지지 않는다.
 """
 from __future__ import annotations
 
@@ -24,11 +31,12 @@ from collections import Counter
 from unittest import mock
 
 from app import cf, retriever
-from app.config import get_settings
+from app.config import Settings, get_settings
 from app.db import cursor
 
 from .judge5v2_files import (
-    DOMAINS, PROTECTED_BOTS, QUESTIONS, RETRIEVED, SETTLED_DROPS, append_jsonl, latest_by_qid, read_jsonl,
+    BOTS, DOMAINS, PROTECTED_BOTS, QUESTIONS, RETRIEVED, SETTLED_DROPS, append_jsonl, latest_by_qid, read_json,
+    read_jsonl,
 )
 
 # 시험지에 적을 검색 설정(스펙 2-3절). 검색 결과를 바꾸는 값만 고른다.
@@ -47,6 +55,29 @@ KEYWORD_FAIL = "키워드 검색 실패"
 def search_settings() -> dict:
     s = get_settings()
     return {k: getattr(s, k) for k in SETTING_KEYS}
+
+
+def nondefault_settings(current: dict) -> dict[str, dict]:
+    """current(search_settings 의 결과) 중 config.py 의 기본값과 다른 값. {키: {"default": 기본값, "actual": 실제 값}}.
+
+    기준을 config.py 의 기본값으로 둔 이유: 스펙 2-3절의 "기본 설정" 은 서비스의 기본값이다. .env 가 같은 값을
+    다시 적는 것(TOP_K=5 등)은 통과하고, 셸 환경변수든 .env 든 기본값과 다르면 출처와 관계없이 걸린다.
+    model_fields[k].default 는 Settings 클래스에 적힌 기본값이다(환경변수를 읽기 전의 값).
+    """
+    out = {}
+    for k, v in current.items():
+        default = Settings.model_fields[k].default
+        if v != default:
+            out[k] = {"default": default, "actual": v}
+    return out
+
+
+def check_bots_file(bots: dict[str, int], recorded: dict) -> None:
+    """--bot 으로 받은 짝이 bots.json 의 기록과 같은지 본다. 다르면 멈춘다."""
+    wrong = [f"{d}={n}(기록은 {recorded.get(d)})" for d, n in bots.items() if recorded.get(d) != n]
+    if wrong:
+        raise SystemExit(f"--bot 이 testdata/judge5v2/bots.json 과 다릅니다: {', '.join(wrong)}. "
+                         f"bots.json 의 번호를 그대로 주세요(계획 E3 Step 1 의 BOTS 변수).")
 
 
 def drop_reason(n_sources: int, top1: float | None, answerable: float | None) -> str | None:
@@ -141,7 +172,7 @@ def settled_qids(rows: list[dict]) -> set[str]:
 
 
 def parse_bots(items: list[str]) -> dict[str, int]:
-    """--bot hr=12 꼴을 {"hr": 12} 로 바꾼다. 보호한 봇 번호는 거절한다."""
+    """--bot hr=12 꼴을 {"hr": 12} 로 바꾼다. 보호한 봇 번호, 같은 분야를 두 번, 같은 번호를 두 분야에 준 것을 거절한다."""
     out: dict[str, int] = {}
     for item in items:
         domain, _, num = item.partition("=")   # partition 은 첫 "=" 에서 셋으로 자른다
@@ -151,6 +182,10 @@ def parse_bots(items: list[str]) -> dict[str, int]:
         if bot_id in PROTECTED_BOTS:
             raise SystemExit(f"봇 {bot_id}번은 이 실험에서 쓰지 않습니다(데모 봇과 리랭커 실험 봇). "
                              f"testdata/judge5v2/bots.json 의 번호를 주세요.")
+        if domain in out:
+            raise SystemExit(f"--bot 에 분야 {domain} 이 두 번 있습니다. 분야마다 한 번씩 주세요.")
+        if bot_id in out.values():
+            raise SystemExit(f"봇 {bot_id}번이 두 분야에 있습니다. 분야마다 다른 봇입니다(스펙 2-2절).")
         out[domain] = bot_id
     return out
 
@@ -159,8 +194,26 @@ def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description="질문마다 실제 검색으로 근거 청크 전문을 뽑는다")
     p.add_argument("--bot", action="append", required=True, help="분야=봇 번호. 분야마다 한 번씩")
     p.add_argument("--limit", type=int, default=None, help="이번 실행에서 검색할 최대 질문 수")
+    p.add_argument("--allow-nondefault", action="store_true",
+                   help="검색 설정이 기본값과 달라도 돌린다. 다른 값은 결과 줄의 nondefault 에 남는다")
     args = p.parse_args(argv)
     bots = parse_bots(args.bot)
+    if not BOTS.exists():
+        print("testdata/judge5v2/bots.json 이 없습니다. 계획 E1 이 봇을 만들고 남기는 파일입니다. E1 을 먼저 하세요.")
+        return 1
+    check_bots_file(bots, read_json(BOTS))
+    settings = search_settings()
+    diff = nondefault_settings(settings)
+    if diff and not args.allow_nondefault:
+        print("검색 설정이 config.py 의 기본값과 다릅니다(스펙 2-3절은 기본 설정 그대로 검색한다):")
+        for k, d in diff.items():
+            print(f"  - {k}: 기본값 {d['default']!r}, 지금 {d['actual']!r}")
+        print("셸에 남은 환경변수(예: RERANKER_PROVIDER)나 .env 를 확인하세요. "
+              "일부러 다르게 돌리려면 --allow-nondefault 를 주고 run_log.md 에 이유를 적으세요.")
+        return 1
+    if diff:
+        print("기본값과 다른 설정으로 돌립니다(--allow-nondefault). 결과 줄마다 nondefault 에 남깁니다: "
+              + ", ".join(f"{k}={d['actual']!r}" for k, d in diff.items()))
 
     questions = read_jsonl(QUESTIONS)
     ids = [q["qid"] for q in questions]
@@ -170,12 +223,13 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     done = settled_qids(read_jsonl(RETRIEVED))
     todo = [q for q in questions if q["domain"] in bots and q["qid"] not in done][: args.limit]
-    settings = search_settings()
+    # 기본값과 다르게 돌린 실행은 줄마다 표시한다. 나중에 이 줄로 만든 문항이 기본 설정이 아니었음을 알 수 있게.
+    extra = {"nondefault": diff} if diff else {}
     counts: Counter = Counter()
     for q in todo:
         row = search_one(bots[q["domain"]], q["question"])
         append_jsonl(RETRIEVED, {"qid": q["qid"], "domain": q["domain"], "bot_id": bots[q["domain"]],
-                                 "settings": settings, **row})
+                                 "settings": settings, **extra, **row})
         counts[(q["domain"], row["drop_reason"] or "ok")] += 1
     for (domain, reason), n in sorted(counts.items()):
         print(f"{domain}: {reason} {n}")
