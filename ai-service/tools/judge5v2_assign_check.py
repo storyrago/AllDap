@@ -277,6 +277,24 @@ def check_supplement_stops_with_code_2_when_eighth_moved() -> None:
     assert run(strip_contrast=False) == (0, 2, 0)
     assert run(strip_contrast=True) == (2, 2, 2)   # 회차는 덧붙였고(파일은 남는다) ⑧ 두 개가 ⑥ 으로 갔다
 
+    # 이미 유형을 받은 질문(회차 0 의 shop ①)을 제외에 적으면 회차를 덧붙이지 않고 종료 1 로 멈춘다.
+    taken = sorted(q for q, t in rnd0["domains"]["shop"]["types"].items() if t == 1)[0]
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        paths = {"ASSIGNMENT": d / "a.json", "QUESTIONS": d / "q.jsonl", "RETRIEVED": d / "r.jsonl",
+                 "ANSWER_KEY": d / "k.json", "REVIEW": d / "v.jsonl", "EXCLUDED": d / "x.json"}
+        write_json(paths["ASSIGNMENT"], {"seed": 20261005, "rounds": [rnd0]})
+        write_json(paths["ANSWER_KEY"], key)
+        write_jsonl(paths["REVIEW"], review)
+        write_jsonl(paths["QUESTIONS"], questions)
+        write_jsonl(paths["RETRIEVED"], [{"qid": q["qid"], "status": "ok", "sources": src} for q in questions])
+        write_json(paths["EXCLUDED"], {taken: {"reason": "answer_not_in_top5", "note": "top5 밖"}})
+        out = io.StringIO()
+        with mock.patch.multiple(judge5v2_assign, **paths), contextlib.redirect_stdout(out):
+            code = judge5v2_assign.cmd_supplement()
+        assert code == 1 and len(read_json(paths["ASSIGNMENT"])["rounds"]) == 1
+        assert taken in out.getvalue() and "검수에서 drop 한다(계획 E6, E9)" in out.getvalue()
+
 
 
 def _excluded_inputs() -> tuple[list[dict], list[dict]]:

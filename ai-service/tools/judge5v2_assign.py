@@ -331,6 +331,12 @@ def cmd_supplement() -> int:
         print("보충할 할당량이 없습니다. 관문이 할당량 밖의 이유로 실패했다면 사용자에게 알리고 멈춥니다.")
         return 1
     excluded, excluded_sha = load_excluded()
+    # 이미 유형을 받은 질문을 제외에 적으면, 그 질문은 앞 회차의 배정으로 시험지에 남으면서 이번 회차의 기록에는
+    # 제외로 적힌다. 같은 질문이 서로 다른 두 사실로 기록되므로 멈춘다. 그런 질문은 검수에서 drop 한다.
+    if both := sorted(set(excluded) & set(assigned_types(assignment))):
+        print(f"excluded.json 에 이미 배정된 질문이 있습니다: {', '.join(both[:10])}. "
+              "이미 배정된 질문은 제외에 적지 않고 검수에서 drop 한다(계획 E6, E9). excluded.json 에서 지운 뒤 다시 실행하세요.")
+        return 1
     try:
         pools = supplement_pools(pool_for(questions, read_jsonl(RETRIEVED), excluded), assignment)
     except ValueError as e:
