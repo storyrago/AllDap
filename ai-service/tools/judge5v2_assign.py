@@ -250,7 +250,7 @@ def _round_doc(no: int, pools: dict[str, list[dict]], needs: dict[str, dict[int,
         "questions_sha256": sha256_file(QUESTIONS),
         "retrieved_sha256": sha256_file(RETRIEVED),
         # 이 회차가 쓴 제외. 파일이 나중에 바뀌어도 이 회차의 후보가 무엇을 뺀 것인지 기록에서 알 수 있게
-        # 해시(파일이 없었으면 null)와 질문별 원인, 분야별 원인 수를 함께 적는다. 보고서는 excluded_counts 를 읽는다.
+        # 해시(파일이 없었으면 null)와 질문별 원인, 분야별 원인 수를 함께 적는다. 보고서는 회차들의 excluded 를 합쳐 센다. excluded_counts 는 회차별 기록용이고 더하면 회차 수만큼 중복된다.
         "excluded_sha256": excluded_sha,
         "excluded": {qid: e["reason"] for qid, e in sorted(excluded.items())},
         "excluded_counts": counts,
