@@ -4057,7 +4057,7 @@ if __name__ == "__main__":
 - [ ] **Step 2: 점검이 통과하는지 본다**
 
 Run: `cd /Users/cheonjamin/projects/AllDap-judge-v2/ai-service && $PY -m tools.judge5v2_check | tail -1`
-Expected: `63가지 전부 통과.` (도구 점검 50 + 이 파일 13. 처음 계획은 31 + 8 = 39 였다. 도구 점검은 `e228b67`, `f17877a`, `4980edf`, `217048d`, `d368ba5`, `a0557d2`, `0ccf49c`, `02c4b5e`, `36fa197` 에서, 이 파일의 점검은 `71a99ae`, `3b494c5`, `1e35626` 에서 늘었다)
+Expected: `66가지 전부 통과.` (도구 점검 52 + 이 파일 14. 처음 계획은 31 + 8 = 39 였다. 도구 점검은 `e228b67`, `f17877a`, `4980edf`, `217048d`, `d368ba5`, `a0557d2`, `0ccf49c`, `02c4b5e`, `36fa197`, `a95e863`, `05d8c9d` 에서, 이 파일의 점검은 `71a99ae`, `3b494c5`, `1e35626`, `a95e863` 에서 늘었다)
 
 - [ ] **Step 3: CI 에 더한다** (`.github/workflows/ci.yml`)
 
@@ -4076,7 +4076,7 @@ Expected: `63가지 전부 통과.` (도구 점검 50 + 이 파일 13. 처음 �
 - [ ] **Step 4: 앞 실험 점검도 함께 돌려 본다**
 
 Run: `$PY -m tools.judge5_check | tail -1 && $PY -m tools.judge5v2_check | tail -1`
-Expected: `44가지 전부 통과.` 그리고 `63가지 전부 통과.`
+Expected: `44가지 전부 통과.` 그리고 `66가지 전부 통과.`
 
 - [ ] **Step 5: 커밋한다**
 
@@ -4411,7 +4411,7 @@ Expected: 분야마다 `배정 60, 쓰지 않음 N, ⑧ 을 ⑥ 으로 0`, 종�
 $PY -m tools.judge5v2_check 2>&1 | grep -E 'replays|전부 통과'
 ```
 
-Expected: `✅ check_committed_assignment_replays_and_is_eligible` 와 `63가지 전부 통과.` 이 점검은 회차 0 의 후보가 그 회차를 돌릴 때의 검색 파일(기록된 `retrieved_sha256` 의 앞부분)에서 검색을 통과하고 멀쩡한 답변이 있는 질문 중 그 회차가 제외한 질문(회차 기록의 `excluded`)을 뺀 전부인지도 본다(`3b494c5`, `1e35626`). E5 뒤에 줄이 덧붙는 것(보충 질문, 다시 검색)은 괜찮고, 앞 줄을 고치거나 지우면 실패한다.
+Expected: `✅ check_committed_assignment_replays_and_is_eligible` 와 `66가지 전부 통과.` 이 점검은 회차 0 의 후보가 그 회차를 돌릴 때의 검색 파일(기록된 `retrieved_sha256` 의 앞부분)에서 검색을 통과하고 멀쩡한 답변이 있는 질문 중 그 회차가 제외한 질문(회차 기록의 `excluded`)을 뺀 전부인지도 본다(`3b494c5`, `1e35626`). E5 뒤에 줄이 덧붙는 것(보충 질문, 다시 검색)은 괜찮고, 앞 줄을 고치거나 지우면 실패한다.
 
 - [ ] **Step 3: 커밋한다**
 
@@ -4755,7 +4755,7 @@ EOF
 $PY -m tools.judge5_check | tail -1 && $PY -m tools.judge5v2_check | tail -1
 ```
 
-Expected: `44가지 전부 통과.` 그리고 `63가지 전부 통과.`
+Expected: `44가지 전부 통과.` 그리고 `66가지 전부 통과.`
 
 - [ ] **Step 4: 동결 커밋을 한다**
 
