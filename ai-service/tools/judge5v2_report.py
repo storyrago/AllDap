@@ -66,9 +66,18 @@ def _row(name: str, s: Summary, e: Errors, note: str = "") -> str:
 
 
 def _pipeline(ak: dict, retrieved: list[dict], assignment: dict) -> list[str]:
+    # 검색 도구의 --allow-nondefault 로 돌린 줄은 nondefault 키를 가진다. 시도 기록까지 모두 센다(마지막 줄만이 아니다).
+    nondefault = sum(1 for r in retrieved if "nondefault" in r)
     # 호출 실패로 다시 검색한 질문은 줄이 여럿이다. 질문마다 마지막 줄이 판정이다(계획 형식 2).
     retrieved = latest_by_qid(retrieved)
-    out = ["## 문항이 줄어든 경위", "", "검색에서 버린 질문(스펙 2-3절, 다시 검색한 뒤의 판정):", ""]
+    # 시험지의 search_settings 는 그 질문의 마지막 검색 줄의 settings 를 그대로 옮긴 것이다(judge5v2_export).
+    # 그래서 시험지 파일을 따로 읽지 않고 여기서 센다. dict 는 집합에 못 넣어서 키를 고정한 JSON 글자로 바꾼다.
+    in_cases = {c["qid"] for c in ak["cases"].values()}
+    kinds = {json.dumps(r.get("settings"), ensure_ascii=False, sort_keys=True) for r in retrieved if r["qid"] in in_cases}
+    out = ["## 문항이 줄어든 경위", "",
+           f"검색 설정: 기본값과 다른 설정으로 돌린 검색 줄(nondefault) {nondefault}개, "
+           f"최종 시험지의 검색 설정 {len(kinds)}가지(스펙 2-3절은 모두 기본 설정 한 가지다)", "",
+           "검색에서 버린 질문(스펙 2-3절, 다시 검색한 뒤의 판정):", ""]
     for d in DOMAINS:
         rows = [r for r in retrieved if r["domain"] == d]
         drops = Counter(r["drop_reason"] for r in rows if r["status"] != "ok")
@@ -128,6 +137,7 @@ def build(answer_key: Path = ANSWER_KEY, cases_sha: Path = CASES_SHA, results_di
     scores: dict[str, dict[str, int | None]] = {}
     kinds: dict[str, dict[str, int]] = {}
     cuts: dict[str, int] = {}
+    no_finish: dict[str, int] = {}
     skipped: dict[str, str] = {}
     for m in MODEL_KEYS:
         run1, skip = results_dir / f"{m}_run1.jsonl", results_dir / f"{m}_skipped.json"
@@ -141,6 +151,9 @@ def build(answer_key: Path = ANSWER_KEY, cases_sha: Path = CASES_SHA, results_di
         finishes = load_finishes(run1)
         scores[m], kinds[m] = read_scores(outputs, finishes)
         cuts[m] = sum(1 for c in ids if scores[m][c] is None and finishes.get(c) == "length")
+        # finish 기록이 없는 못 읽음. v2 규칙은 finish 가 stop 이 아니면 대괄호 끝을 읽지 않으므로(스펙 6-4절 세부 규칙 2)
+        # 잘림과 따로 센다. 이 수가 크면 모델이 못한 것이 아니라 결과 파일에 finish 를 적지 않은 것일 수 있다.
+        no_finish[m] = sum(1 for c in ids if scores[m][c] is None and finishes.get(c) is None)
 
     sums = {m: summarize([(key[c], scores[m][c]) for c in ids]) for m in scores}
     errs = {m: error_counts([(key[c], scores[m][c]) for c in ids]) for m in scores}
@@ -157,7 +170,8 @@ def build(answer_key: Path = ANSWER_KEY, cases_sha: Path = CASES_SHA, results_di
             "|---|---|---|---|---|---|---|---|"]
     for m in scores:
         detail = ", ".join(f"{k} {v}" for k, v in sorted(kinds[m].items()) if k != "ok")
-        note = (f" ({detail}" + (f", 그중 {cuts[m]}개는 512 토큰에서 잘림" if cuts[m] else "") + ")") if detail else ""
+        why = [f"{n}개는 {label}" for n, label in ((cuts[m], "512 토큰에서 잘림"), (no_finish[m], "finish 기록 없음")) if n]
+        note = (f" ({detail}" + (", 그중 " + ", ".join(why) if why else "") + ")") if detail else ""
         out.append(_row(m, sums[m], errs[m], note))
     for m, why in skipped.items():
         out.append(f"| {m} | 제외: {why} | | | | | | |")

@@ -63,6 +63,26 @@ def check_build_compares_in_the_right_direction() -> None:
     assert "| 늘 4점 |" in text                                          # 가짜 모델 행
 
 
+def check_build_counts_no_finish_and_nondefault() -> None:
+    """못 읽음 중 512 잘림과 finish 기록 없음을 따로 센다. 검색 줄의 nondefault 수와 시험지의 검색 설정 종류를 적는다."""
+    with tempfile.TemporaryDirectory() as tmp:
+        paths = _write_inputs(Path(tmp))
+        m4 = paths["results_dir"] / "M4_run1.jsonl"
+        rows = [json.loads(l) for l in m4.read_text().splitlines()]
+        for i, r in enumerate(rows):
+            r["finish"] = None if i < 3 else "length" if i < 5 else "stop"    # 대괄호 끝은 stop 일 때만 읽는다
+        m4.write_text("".join(json.dumps(r) + "\n" for r in rows))
+        with paths["retrieved"].open("a") as f:   # q0 를 다른 설정으로 다시 검색한 줄
+            f.write(json.dumps({"qid": "q0", "domain": "shop", "status": "ok", "drop_reason": None,
+                                "settings": {"top_k": 8}, "nondefault": {"top_k": {"default": 5, "actual": 8}}}) + "\n")
+            # 시험지에 없는 질문(qy)의 줄은 시험지의 설정 종류에 세지 않는다.
+            f.write(json.dumps({"qid": "qy", "domain": "hr", "status": "dropped", "drop_reason": "max_distance",
+                                "settings": {"top_k": 3}}) + "\n")
+        text = build(**paths)
+    assert "(missing 5, 그중 2개는 512 토큰에서 잘림, 3개는 finish 기록 없음)" in text, text
+    assert "검색 줄(nondefault) 1개, 최종 시험지의 검색 설정 2가지" in text
+
+
 def check_build_refuses_draft_key() -> None:
     from .judge5_report import ReportProblem
     with tempfile.TemporaryDirectory() as tmp:
@@ -76,7 +96,8 @@ def check_build_refuses_draft_key() -> None:
     raise AssertionError("검수 전 정답 파일로는 보고서를 만들지 않는다")
 
 
-CHECKS = [check_error_counts_follow_spec, check_build_compares_in_the_right_direction, check_build_refuses_draft_key]
+CHECKS = [check_error_counts_follow_spec, check_build_compares_in_the_right_direction, check_build_counts_no_finish_and_nondefault,
+          check_build_refuses_draft_key]
 
 
 def main() -> None:
