@@ -7,13 +7,20 @@
 """
 from __future__ import annotations
 
+import contextlib
+import io
 import random
+import tempfile
 from collections import Counter
+from pathlib import Path
+from unittest import mock
 
+from . import judge5v2_assign
 from .judge5v2_assign import (
-    Shortfall, assign_domain, assigned_types, pool_for, replay_round, run_round, supplement_needs, valid_contrast,
+    Shortfall, assign_domain, assigned_types, pool_for, replay_round, run_round, supplement_needs, supplement_pools,
+    valid_contrast,
 )
-from .judge5v2_files import DOMAINS, QUOTA
+from .judge5v2_files import DOMAINS, QUOTA, write_jsonl
 
 _CONTRAST = {"asked": {"target": "골드", "value": "10,000원"}, "other": {"target": "실버", "value": "20,000원"},
              "chunk_ids": [1]}
@@ -73,7 +80,9 @@ def check_assign_sixth_and_eighth_need_single_answer() -> None:
     pool = _pool()
     for i, q in enumerate(pool):
         q["two_part"], q["contrast"] = i < 65, None  # 답이 하나인 질문은 마지막 10개(65~74번, 주장 1개)뿐이다
-    pool[0]["contrast"] = _CONTRAST                  # 답이 두 가지인 질문의 contrast 는 ⑧ 자격이 아니다
+    # 답이 두 가지인 질문의 contrast 는 ⑧ 자격이 아니다. 주장 1개인 질문(50번)에 붙인다. 주장 2개인 질문에 붙이면
+    # ④ 가 먼저 가져갈 수 있어서, ⑧ 이 two_part 를 거절하지 않아도 이 점검이 통과해 버린다.
+    pool[50]["contrast"] = _CONTRAST
     res, short = assign_domain(pool, dict(QUOTA), random.Random("s"))
     counts = Counter(res["types"].values())
     assert counts[8] == 0 and res["eighth_to_sixth"] == QUOTA[8]
@@ -136,11 +145,83 @@ def check_pool_for_uses_last_search_and_refuses_two_part_contrast() -> None:
              {"qid": "shop-001", "status": "ok", "drop_reason": None, "sources": src}]
     assert [x["qid"] for x in pool_for([q], tried)["shop"]] == ["shop-001"]   # 다시 검색해 성공했다
     assert pool_for([q], tried[::-1])["shop"] == []                          # 마지막 시도가 호출 실패다
-    try:
-        pool_for([dict(q, two_part=True)], tried)
-    except ValueError:
-        return
-    raise AssertionError("답이 두 가지인 질문의 contrast 는 거절해야 한다")
+    for bad in (dict(q, two_part=True),                                      # 답이 두 가지인 질문의 contrast
+                dict(q, contrast=None, claims=True)):                        # true 는 int 이기도 하지만 주장 수가 아니다
+        try:
+            pool_for([bad], tried)
+        except ValueError:
+            continue
+        raise AssertionError(bad)
+
+
+def check_assign_order_fourth_eighth_third_sixth() -> None:
+    """뽑는 순서 ④ → ⑧ → ③ → ⑥ 을 고정한다(스펙 3-3절 3).
+
+    ⑧ 자격 질문 6개가 모두 주장 3개다. ③ 이 ⑧ 보다 먼저 뽑으면 그중 일부를 ③ 으로 가져가 ⑧ 이 모자라고,
+    ⑥ 이 ⑧ 보다 먼저 뽑으면 답이 하나인 질문 중에서 ⑧ 자격 질문을 가져간다. 어느 쪽이든 eighth_to_sixth 가 0 이 아니게 된다.
+    """
+    out = []
+    for i in range(75):
+        # 0~8: 주장 2, 답 두 가지(④ 몫) / 9~23: 주장 3, 답 하나(9~14 가 ⑧ 자격) / 24~30: 주장 1, 답 하나(⑥ 몫) / 나머지: 주장 1, 답 두 가지
+        claims, two_part = (2, True) if i < 9 else (3, False) if i < 24 else (1, False) if i < 31 else (1, True)
+        out.append({"qid": f"shop-{i:03d}", "domain": "shop", "answer": "답", "claims": claims, "two_part": two_part,
+                    "contrast": _CONTRAST if 9 <= i < 15 else None})
+    res, short = assign_domain(out, dict(QUOTA), random.Random("s"))
+    assert short == {} and res["eighth_to_sixth"] == 0
+    assert {q for q, t in res["types"].items() if t == 8} == {f"shop-{i:03d}" for i in range(9, 15)}
+    assert {q for q, t in res["types"].items() if t == 6} == {f"shop-{i:03d}" for i in range(24, 31)}
+
+
+def check_supplement_needs_with_eighth_moved_to_sixth() -> None:
+    """⑧ 을 ⑥ 으로 돌린 회차 뒤의 보충은 돌린 ⑧ 을 다시 요구하지 않는다(스펙 3-3절 5, 7-2절 끝의 경우 2)."""
+    pool = _pool(contrast_every=10**6)
+    pool[60]["contrast"] = _CONTRAST                     # ⑧ 자격이 하나뿐이라 5개가 ⑥ 으로 간다
+    res, _ = assign_domain(pool, dict(QUOTA), random.Random("s"))
+    assert res["eighth_to_sixth"] == QUOTA[8] - 1
+    empty = {"types": {}, "unused": [], "eighth_to_sixth": 0}
+    assignment = {"seed": 1, "rounds": [{"domains": {"shop": res, "hr": empty, "manual": empty, "finance": empty}}]}
+    domain_of = {q: "shop" for q in res["types"]}
+    zero = {t: 0 for t in QUOTA}
+    assert supplement_needs(assignment, set(), domain_of)["shop"] == zero
+    sixth = sorted(q for q, t in res["types"].items() if t == 6)[0]
+    eighth = next(q for q, t in res["types"].items() if t == 8)
+    assert supplement_needs(assignment, {sixth}, domain_of)["shop"] == {**zero, 6: 1}
+    assert supplement_needs(assignment, {eighth}, domain_of)["shop"] == {**zero, 8: 1}
+
+
+def check_supplement_pools_skip_used_keep_unused() -> None:
+    """보충 후보는 앞 회차에서 유형을 받은 질문을 빼고, 받지 않은 질문과 새 질문은 남긴다(스펙 7-2절)."""
+    pool = _pool()
+    res, _ = assign_domain(pool, dict(QUOTA), random.Random("s"))
+    empty = {"types": {}, "unused": [], "eighth_to_sixth": 0}
+    assignment = {"seed": 1, "rounds": [{"domains": {"shop": res, "hr": empty, "manual": empty, "finance": empty}}]}
+    new = dict(pool[0], qid="shop-075")
+    got = supplement_pools({"shop": pool + [new], "hr": []}, assignment)
+    assert sorted(q["qid"] for q in got["shop"]) == sorted(res["unused"] + ["shop-075"])
+    assert got["hr"] == []
+
+
+def check_first_stops_with_code_2_when_eighth_moved() -> None:
+    """⑧ 을 ⑥ 으로 돌린 분야가 있으면 first 는 파일을 남기고 종료 코드 2 로 멈춘다(계획 E5).
+    질문 파일에 잘못된 줄이 있으면 traceback 이 아니라 한국어 안내와 종료 코드 1 이다."""
+    src = [{"chunk_id": 1, "content": "골드 10,000원 / 실버 20,000원"}]
+
+    def run(questions: list[dict]) -> tuple[int, bool]:
+        with tempfile.TemporaryDirectory() as tmp:
+            d = Path(tmp)
+            paths = {"ASSIGNMENT": d / "a.json", "QUESTIONS": d / "q.jsonl", "RETRIEVED": d / "r.jsonl"}
+            write_jsonl(paths["QUESTIONS"], questions)
+            write_jsonl(paths["RETRIEVED"], [{"qid": q["qid"], "status": "ok", "sources": src} for q in questions])
+            # mock.patch.multiple: 모듈 전역(경로 상수)을 with 블록 안에서만 바꾸고 끝나면 되돌린다.
+            with mock.patch.multiple(judge5v2_assign, **paths), contextlib.redirect_stdout(io.StringIO()):
+                code = judge5v2_assign.cmd_first()
+            return code, paths["ASSIGNMENT"].exists()
+
+    assert run([q for d in DOMAINS for q in _pool(d)]) == (0, True)
+    moved = [q for d in DOMAINS for q in _pool(d, contrast_every=10**6)]
+    moved[60]["contrast"] = _CONTRAST
+    assert run(moved) == (2, True)
+    assert run([dict(q, claims=True) for d in DOMAINS for q in _pool(d)]) == (1, False)
 
 
 CHECKS = [
@@ -153,6 +234,10 @@ CHECKS = [
     check_supplement_needs_counts_only_drops,
     check_valid_contrast,
     check_pool_for_uses_last_search_and_refuses_two_part_contrast,
+    check_assign_order_fourth_eighth_third_sixth,
+    check_supplement_needs_with_eighth_moved_to_sixth,
+    check_supplement_pools_skip_used_keep_unused,
+    check_first_stops_with_code_2_when_eighth_moved,
 ]
 
 

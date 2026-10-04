@@ -7,10 +7,16 @@
 """
 from __future__ import annotations
 
+import contextlib
+import io
 import json
+import tempfile
+from pathlib import Path
+from unittest import mock
 
+from . import judge5v2_export
 from .judge5 import build_messages
-from .judge5v2_export import CASE_KEYS, ExportProblem, apply_review, build_cases, case_id_of
+from .judge5v2_export import CASE_KEYS, ExportProblem, apply_review, build_cases, case_id_of, fence_for
 
 _SRC = [{"chunk_id": 1, "filename": "a.md",
          "content": "골드 10,000원 / 실버 20,000원 / 브론즈 30,000원. 이 문장은 200자보다 길 수 있다."}]
@@ -32,7 +38,7 @@ def _inputs():
     variants = [{"qid": "shop-001", "type": 8, "answer": "골드는 20,000원 이상이면 무료입니다.", "note": ""},
                 {"qid": "shop-002", "type": 1, "answer": "실버는 20,000원 이상이면 무료입니다.", "note": ""},
                 {"qid": "shop-003", "type": 6, "answer": "브론즈는 35,000원 이상이면 무료입니다.", "note": "",
-                 "new_value": "35,000원"}]
+                 "new_value": "35,000원", "old_value": "30,000원"}]
     return questions, retrieved, types, variants
 
 
@@ -77,6 +83,10 @@ def check_build_refuses_bad_variants() -> None:
         [v[0], v[1], sixth_in_source],                                             # ⑥ 의 값이 근거에 있다
         [v[0], v[1], {k: x for k, x in v[2].items() if k != "new_value"}],         # ⑥ 에 new_value 가 없다
         [v[0], v[1], dict(v[2], new_value="40,000원")],                           # ⑥ 의 new_value 가 답변에 없다
+        [v[0], v[1], dict(v[2], answer="브론즈는 35,000원 이상이면 무료입니다. 기존 기준은 30,000원입니다.")],  # ⑥ 에 옛 값이 남았다
+        [v[0], v[1], {k: x for k, x in v[2].items() if k != "old_value"}],         # ⑥ 에 old_value 가 없다
+        [v[0], v[1], dict(v[2], old_value="25,000원")],                           # ⑥ 의 old_value 가 멀쩡한 답변에 없다
+        [dict(v[0], answer="골드는 10,000원, 실버는 20,000원입니다."), v[1], v[2]],  # ⑧ 이 두 대상의 값을 다 썼다
     ]
     for variants in bad_cases:
         try:
@@ -103,7 +113,8 @@ def check_values_are_matched_with_boundaries() -> None:
           "two_part": False, "contrast": None}]
     r = [{"qid": x["qid"], "status": "ok", "settings": _SETTINGS, "sources": src} for x in q]
     v = [{"qid": "fin-001", "type": 8, "answer": "12,000원입니다.", "note": ""},
-         {"qid": "fin-002", "type": 6, "answer": "35,000원입니다.", "note": "", "new_value": "35,000원"}]
+         {"qid": "fin-002", "type": 6, "answer": "35,000원입니다.", "note": "", "new_value": "35,000원",
+          "old_value": "135,000원"}]    # 옛 값 135,000원 은 변형 답변의 35,000원 안에 있지 않다(값 경계)
     rows, _ = build_cases(q, r, {"fin-001": 8, "fin-002": 6}, v)
     assert len(rows) == 2
 
@@ -128,6 +139,51 @@ def check_apply_review_paths() -> None:
     assert any(x.startswith("e:") for x in p2)                     # 검수 점수가 없는 문항
     _, _, p3 = apply_review(key, [dict(reviews[2], reason="")] + reviews[:2] + reviews[3:4] + [reviews[0] | {"case_id": "e"}])
     assert any(x.startswith("c:") for x in p3)                     # 고친 점수에 이유가 없다
+    ok = reviews[:4] + [reviews[0] | {"case_id": "e"}]               # 문제가 없는 검수 줄 다섯
+    _, _, p4 = apply_review(key, [dict(ok[1], reason="  ")] + ok[:1] + ok[2:])
+    assert [x[:2] for x in p4] == ["b:"]                           # 대응표대로 둔다는 판단에도 이유가 있어야 한다
+    _, _, p5 = apply_review(key, ok + [{"case_id": "z", "review_score": 3}])
+    assert [x[:2] for x in p5] == ["z:"]                           # 시험지에 없는 문항의 검수 줄
+
+
+def check_build_uses_last_search_line() -> None:
+    """검색 줄은 질문마다 마지막 줄이 판정이다(계획 형식 2). 첫 줄을 쓰면 버린 시도의 근거로 시험지를 만든다."""
+    q, r, t, v = _inputs()
+    old = dict(r[1], settings={"top_k": 3}, sources=[{"chunk_id": 9, "filename": "old.md", "content": "옛 시도"}])
+    rows, key = build_cases(q, [old] + r, t, v)
+    cid = next(c for c, k in key.items() if k["qid"] == "shop-002")
+    row = next(x for x in rows if x["case_id"] == cid)
+    assert row["search_settings"] == _SETTINGS and "옛 시도" not in json.dumps(row, ensure_ascii=False)
+    failed_last = dict(r[1], status="dropped", drop_reason="rerank_failed")
+    try:
+        build_cases(q, r + [failed_last], t, v)                    # 첫 줄은 ok 지만 마지막 시도가 실패했다
+    except ExportProblem:
+        return
+    raise AssertionError("마지막 검색 줄이 실패면 그 질문으로 시험지를 만들지 않아야 한다")
+
+
+def check_mismatch_fence_outlasts_inner_backticks() -> None:
+    """근거 청크 안의 백틱 셋이 mismatches.md 의 코드 블록을 일찍 닫지 않게 울타리를 더 길게 만든다."""
+    tick = "`"
+    assert fence_for("평범한 글") == tick * 3
+    body = "앞\n" + tick * 3 + "python\nx = 1\n" + tick * 3 + "\n뒤 " + tick * 5
+    assert fence_for(body) == tick * 6
+
+
+def check_draft_refuses_to_overwrite_final() -> None:
+    """동결된 최종 정답 파일을 draft 로 덮지 않는다. 덮으면 M1 채점이 검수 전 시험지로 돈다."""
+    with tempfile.TemporaryDirectory() as tmp:
+        ak = Path(tmp) / "answer_key.json"
+        ak.write_text(json.dumps({"stage": "final", "cases": {}}), encoding="utf-8")
+        before = ak.read_text(encoding="utf-8")
+
+        def must_not_build():
+            raise AssertionError("final 이 있으면 시험지를 다시 만들기 전에 멈춰야 한다")
+
+        with mock.patch.multiple(judge5v2_export, ANSWER_KEY=ak, load_and_build=must_not_build), \
+                contextlib.redirect_stdout(io.StringIO()):
+            assert judge5v2_export.cmd_draft() == 1
+        assert ak.read_text(encoding="utf-8") == before
 
 
 CHECKS = [
@@ -138,6 +194,9 @@ CHECKS = [
     check_build_refuses_bad_variants,
     check_values_are_matched_with_boundaries,
     check_apply_review_paths,
+    check_build_uses_last_search_line,
+    check_mismatch_fence_outlasts_inner_backticks,
+    check_draft_refuses_to_overwrite_final,
 ]
 
 

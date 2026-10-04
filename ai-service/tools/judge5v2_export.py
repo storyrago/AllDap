@@ -13,6 +13,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import random
+import re
 import sys
 
 from .judge5 import SCALE, build_messages, prompt_sha256, sha256_file
@@ -23,8 +24,17 @@ from .judge5v2_files import (
 )
 
 CASE_KEYS = frozenset({"case_id", "domain", "messages", "search_settings"})
-# 마크다운 코드 울타리(백틱 셋). 글자 그대로 적으면 이 파일을 담은 문서의 코드 블록이 거기서 끝나 버려서 곱셈으로 만든다.
-FENCE = "`" * 3
+
+
+def fence_for(text: str) -> str:
+    """text 를 감쌀 마크다운 코드 울타리. text 안에서 가장 긴 백틱 연속보다 하나 길게(최소 셋) 만든다.
+
+    고정 길이 셋이면 근거 청크(마크다운 문서)에 들어 있는 백틱 셋이 울타리를 일찍 닫아, mismatches.md 에서
+    그 뒤의 내용이 코드 블록 밖으로 나와 제목이나 목록으로 그려진다. 마크다운은 여는 울타리보다 짧은 백틱 줄로는
+    닫지 않는다. 백틱을 곱셈으로 만드는 이유: 글자 그대로 적으면 이 코드를 담은 문서의 코드 블록이 거기서 끝난다.
+    """
+    longest = max((len(run) for run in re.findall(r"`+", text)), default=0)
+    return "`" * max(3, longest + 1)
 
 
 class ExportProblem(RuntimeError):
@@ -83,6 +93,14 @@ def build_cases(questions: list[dict], retrieved: list[dict], types: dict[str, i
                 problems.append(f"{qid}: ⑥ 은 바꿔 넣은 값을 new_value 에 답변의 글자 그대로 적어야 한다")
             elif any(value_in(new, s["content"]) for s in r["sources"]):
                 problems.append(f"{qid}: ⑥ 의 새 값({new})이 근거 청크에 글자로 있다. 근거 어디에도 없는 값으로 바꾼다")
+            # 바꾸기 전 값(old_value)이 변형 답변에 남으면 근거와 맞는 주장과 반대인 주장이 함께 있는 답변이 된다
+            # ("35,000원 이상이면 무료입니다. 기존 기준은 30,000원입니다."). 1점(반대)과 3점(섞임) 사이에서 정답 점수가
+            # 하나로 정해지지 않는다(스펙 3-2절의 원칙). 그래서 옛 값이 멀쩡한 답변에는 있고 변형 답변에는 없는지 본다.
+            old = v.get("old_value") or ""
+            if not old or not value_in(old, q["answer"]):
+                problems.append(f"{qid}: ⑥ 은 바꾸기 전 값을 old_value 에 멀쩡한 답변의 글자 그대로 적어야 한다")
+            elif value_in(old, v["answer"]):
+                problems.append(f"{qid}: ⑥ 의 변형 답변에 바꾸기 전 값({old})이 남아 있다. 옛 값을 답변에서 지운다")
         cid = case_id_of(q["domain"], q["question"], v["answer"])
         if cid in key:
             problems.append(f"{qid}: 다른 문항과 문항 id 가 같다({cid})")
@@ -153,6 +171,12 @@ def _write(rows: list[dict], doc: dict) -> str:
 
 
 def cmd_draft() -> int:
+    # 동결(E11) 뒤에 draft 를 다시 만들면 최종 시험지와 정답 파일을 검수 전 판으로 덮는다. M1 채점 도구는 단계를
+    # 보지 않고 같은 폴더의 해시만 대조하므로, 그대로 E12 를 돌리면 검수 전 시험지에 뉴런을 쓴다. 그래서 거절한다.
+    if ANSWER_KEY.exists() and read_json(ANSWER_KEY).get("stage") == "final":
+        print(f"{ANSWER_KEY.name} 가 이미 최종본(final)입니다. draft 로 덮지 않습니다. "
+              "보충으로 다시 만들어야 하면 사용자에게 알린 뒤 final 커밋을 되돌리고 다시 실행하세요.")
+        return 1
     rows, key = load_and_build()
     sha = _write(rows, {"stage": "draft", "seed": SEED, "cases": key, "dropped": {}})
     reviewed = {r["case_id"] for r in read_jsonl(REVIEW)}
@@ -174,11 +198,13 @@ def cmd_mismatches() -> int:
         if r is None or r.get("review_score") == k["table_score"] or r.get("user_decision"):
             continue
         n += 1
+        body = by_id[cid]["messages"][1]["content"]
+        fence = fence_for(body)
         out += [f"## {cid}", "",
                 f"- 분야 {k['domain']}, {TYPE_NAMES[k['type']]}, 대응표 점수 {k['table_score']}, 검수 점수 {r['review_score']}",
                 f"- 검수 메모: {r.get('review_note', '')}",
                 f"- 출제 메모: {notes.get(k['qid'], '')}", "",
-                FENCE, by_id[cid]["messages"][1]["content"], FENCE, ""]
+                fence, body, fence, ""]
     MISMATCHES.write_text("\n".join(out) + "\n", encoding="utf-8")
     print(f"사용자 판단이 필요한 문항 {n}개. 목록: {MISMATCHES}")
     return 0

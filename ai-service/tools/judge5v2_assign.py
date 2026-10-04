@@ -148,7 +148,8 @@ def pool_for(questions: list[dict], retrieved: list[dict]) -> dict[str, list[dic
         r = ok.get(q["qid"])
         if r is None:
             continue
-        if not q.get("answer") or not isinstance(q.get("claims"), int) or q["claims"] < 1:
+        # type(x) is int: isinstance(True, int) 는 True 라서 claims 에 true 를 적어도 1 로 통과한다. bool 을 막으려고 정확히 int 만 받는다.
+        if not q.get("answer") or type(q.get("claims")) is not int or q["claims"] < 1:
             problems.append(f"{q['qid']}: answer 또는 claims 가 비었다")
             continue
         if not isinstance(q.get("two_part"), bool):
@@ -180,6 +181,13 @@ def supplement_needs(assignment: dict, dropped_qids: set[str], domain_of: dict[s
     return {d: {t: max(0, target[d][t] - kept[d][t]) for t in QUOTA} for d in DOMAINS}
 
 
+def supplement_pools(pools: dict[str, list[dict]], assignment: dict) -> dict[str, list[dict]]:
+    """보충 회차의 후보. 앞 회차들에서 유형을 받은 질문은 빼고, 받지 않은 질문(unused)은 남긴다(스펙 7-2절).
+    버린 문항의 질문도 뺀다. 같은 질문에 다른 유형을 붙여 다시 쓰면 그 질문의 검수 판단이 두 번 쓰이기 때문이다."""
+    used = set(assigned_types(assignment))
+    return {d: [q for q in ps if q["qid"] not in used] for d, ps in pools.items()}
+
+
 def _round_doc(no: int, pools: dict[str, list[dict]], needs: dict[str, dict[int, int]], domains: dict) -> dict:
     return {
         "round": no,
@@ -204,7 +212,11 @@ def cmd_first() -> int:
     if ASSIGNMENT.exists():
         print(f"{ASSIGNMENT.name} 가 이미 있습니다. 보충은 supplement 를 쓰세요. 덮어쓰지 않습니다.")
         return 1
-    pools = pool_for(read_jsonl(QUESTIONS), read_jsonl(RETRIEVED))
+    try:
+        pools = pool_for(read_jsonl(QUESTIONS), read_jsonl(RETRIEVED))
+    except ValueError as e:
+        print(e)   # pool_for 의 메시지가 이미 한국어로 고칠 곳을 줄마다 적는다
+        return 1
     needs = {d: dict(QUOTA) for d in DOMAINS}
     try:
         domains = run_round(pools, needs, SEED, 0)
@@ -215,6 +227,14 @@ def cmd_first() -> int:
     for d in DOMAINS:
         res = domains[d]
         print(f"{d}: 배정 {len(res['types'])}, 쓰지 않음 {len(res['unused'])}, ⑧ 을 ⑥ 으로 {res['eighth_to_sixth']}")
+    moved = {d: domains[d]["eighth_to_sixth"] for d in DOMAINS if domains[d]["eighth_to_sixth"]}
+    if moved:
+        # 계획 E5: 이 경우 커밋하지 않고 사용자 판단을 받는다. 출력 한 줄로는 지나치기 쉬워서 종료 코드를 따로 둔다.
+        # 1(배정 못 함)과 나누는 이유: 파일은 만들어졌다. 사용자가 그대로 가기로 하면 이 파일을 그대로 쓴다.
+        print("멈춘다: 계획 E5. ⑧ 을 ⑥ 으로 돌린 분야가 있다("
+              + ", ".join(f"{d} {n}개" for d, n in moved.items())
+              + f"). {ASSIGNMENT.name} 는 남겼지만 커밋하지 않는다. 사용자에게 보충할지 그대로 갈지 묻는다.")
+        return 2
     return 0
 
 
@@ -230,8 +250,11 @@ def cmd_supplement() -> int:
     if not any(n for s in needs.values() for n in s.values()):
         print("보충할 할당량이 없습니다. 관문이 할당량 밖의 이유로 실패했다면 사용자에게 알리고 멈춥니다.")
         return 1
-    used = set(assigned_types(assignment))
-    pools = {d: [q for q in ps if q["qid"] not in used] for d, ps in pool_for(questions, read_jsonl(RETRIEVED)).items()}
+    try:
+        pools = supplement_pools(pool_for(questions, read_jsonl(RETRIEVED)), assignment)
+    except ValueError as e:
+        print(e)
+        return 1
     no = len(assignment["rounds"])
     try:
         domains = run_round(pools, needs, assignment["seed"], no)
