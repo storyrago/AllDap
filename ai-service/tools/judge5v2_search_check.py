@@ -7,11 +7,18 @@
 """
 from __future__ import annotations
 
+import contextlib
+import io
+import json
 import logging
+import tempfile
+from pathlib import Path
+from unittest import mock
 
 from app import retriever
 from app.schemas import Source
 
+from . import judge5v2_search
 from .judge5v2_search import (
     SETTING_KEYS, check_bots_file, drop_reason, nondefault_settings, parse_bots, search_one, search_settings,
     settings_conflicts, settled_qids, warning_reason,
@@ -152,6 +159,34 @@ def check_settings_conflicts_refuses_mixed_runs() -> None:
     assert settings_conflicts([{"qid": "d", "settings": {}}], now)       # 설정이 비어 있는 줄도 다른 설정이다
 
 
+def check_main_stops_on_mixed_settings_before_searching() -> None:
+    """main 이 실제로 settings_conflicts 를 부르는가. 다른 설정의 줄이 섞인 파일이면 검색 전에 종료 코드 1 로 멈춘다.
+
+    search_one 은 부르면 실패하는 가짜로 바꾼다. 멈추지 않고 검색으로 넘어가면 이 점검이 그 자리에서 실패한다.
+    --allow-nondefault 를 줘도 멈춰야 한다(그 인자는 지금 설정을 허락할 뿐, 섞이는 것을 허락하지 않는다).
+    """
+    now = search_settings()
+
+    def must_not_search(*_a, **_k):
+        raise AssertionError("설정이 섞였는데 검색까지 갔다")
+
+    for extra in ([], ["--allow-nondefault"]):
+        with tempfile.TemporaryDirectory() as tmp:
+            d = Path(tmp)
+            (d / "bots.json").write_text(json.dumps({"hr": 12}), encoding="utf-8")
+            (d / "q.jsonl").write_text(json.dumps({"qid": "hr-001", "domain": "hr", "question": "질문"}) + "\n",
+                                       encoding="utf-8")
+            rows = [{"qid": "hr-002", "settings": dict(now, reranker_provider="local_int8"),
+                     "status": "ok", "drop_reason": None}]
+            (d / "r.jsonl").write_text("".join(json.dumps(r) + "\n" for r in rows), encoding="utf-8")
+            out = io.StringIO()
+            with mock.patch.multiple(judge5v2_search, BOTS=d / "bots.json", QUESTIONS=d / "q.jsonl",
+                                     RETRIEVED=d / "r.jsonl", search_one=must_not_search), \
+                    contextlib.redirect_stdout(out):
+                code = judge5v2_search.main(["--bot", "hr=12", "--limit", "0", *extra])
+        assert code == 1 and "다른 검색 설정" in out.getvalue(), (extra, code, out.getvalue())
+
+
 def check_warning_reason_prefers_rerank() -> None:
     assert warning_reason([]) is None
     assert warning_reason(["키워드 검색 실패(...)", "리랭킹 실패(...)"]) == "rerank_failed"
@@ -179,6 +214,7 @@ CHECKS = [
     check_bots_file_must_match,
     check_nondefault_settings_compares_with_config_defaults,
     check_settings_conflicts_refuses_mixed_runs,
+    check_main_stops_on_mixed_settings_before_searching,
     check_warning_reason_prefers_rerank,
     check_settled_qids_retries_call_failures,
 ]

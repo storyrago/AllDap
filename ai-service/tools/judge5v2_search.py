@@ -211,7 +211,8 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--bot", action="append", required=True, help="분야=봇 번호. 분야마다 한 번씩")
     p.add_argument("--limit", type=int, default=None, help="이번 실행에서 검색할 최대 질문 수")
     p.add_argument("--allow-nondefault", action="store_true",
-                   help="검색 설정이 기본값과 달라도 돌린다. 다른 값은 결과 줄의 nondefault 에 남는다")
+                   help="검색 설정이 기본값과 달라도 돌린다. 다른 값은 결과 줄의 nondefault 에 남는다. "
+                        "이미 다른 설정의 줄이 retrieved.jsonl 에 있으면 이 인자를 줘도 멈춘다")
     args = p.parse_args(argv)
     bots = parse_bots(args.bot)
     if not BOTS.exists():
@@ -242,7 +243,8 @@ def main(argv: list[str] | None = None) -> int:
         print(f"retrieved.jsonl 에 지금과 다른 검색 설정으로 뽑은 줄이 {len(conflicts)}개 있습니다. 섞이지 않게 멈춥니다:")
         for c in conflicts[:10]:
             print(f"  - {c}")
-        print("설정을 그 줄들과 같게 맞추거나, 그 줄들을 다른 이름의 파일로 옮긴 뒤 다시 실행하세요(지우지 말고 옮기세요).")
+        print("설정을 그 줄들과 같게 맞추세요. 줄을 옮기거나 지우려면 그 전에 오케스트레이터에 알리세요. "
+              "옮기면 그 질문들을 다시 검색해 뉴런을 쓰고, 배정(E5) 뒤라면 배정 점검이 깨집니다.")
         return 1
     done = settled_qids(existing)
     todo = [q for q in questions if q["domain"] in bots and q["qid"] not in done][: args.limit]
