@@ -20,10 +20,11 @@ from .judge5 import (
     build_messages, compare, prompt_sha256, smoke_messages, linear_weighted_kappa, parse_result, pick_best,
     replacement_failures, sha256_file, sign_test_p, summarize, to_three,
 )
+from . import judge5_cloudflare
 from .judge5_cloudflare import done_ids, foreign_lines, result_line
 from . import judge5_report
 from .judge5_report import ReportProblem, cut_unread, load_run, scores_of
-from .judge5_export import CASES_SHA, NEW_LABELS, ROOT, labels_ready, make_cases, make_label_file
+from .judge5_export import CASES, CASES_SHA, NEW_LABELS, RESULTS_DIR, ROOT, labels_ready, make_cases, make_label_file
 from .judge_label_server import LabelRejected, apply_label
 
 _SOURCES = [
@@ -487,6 +488,32 @@ def check_verdict_basis_and_severe_criterion() -> None:
     assert replacement_failures(s, s, lose, basis="대응표") == ["부호 검정에서 M1 이 대응표에 더 가깝다(p = 0.0020)"]
 
 
+def check_cloudflare_defaults_are_v1_paths() -> None:
+    """인자 없이 부르면 앞 실험과 같은 시험지와 결과 폴더다(v2 스펙 8-3절)."""
+    args = judge5_cloudflare._parser().parse_args([])
+    assert args.cases == CASES and args.results_dir == RESULTS_DIR
+    assert judge5_cloudflare.sha_path(CASES) == CASES.parent / "cases.sha256"
+
+
+def check_cloudflare_run_all_takes_paths_and_copies_domain() -> None:
+    """v2 시험지로 돌리면 결과 줄에 분야가 옮겨진다. 분야가 없는 줄(앞 실험)에는 domain 키를 만들지 않는다."""
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        cases = d / "cases.jsonl"
+        cases.write_text(
+            json.dumps({"case_id": "aa", "domain": "shop", "messages": []}) + "\n"
+            + json.dumps({"case_id": "bb", "messages": []}) + "\n", encoding="utf-8")
+        (d / "cases.sha256").write_text(f"{sha256_file(cases)}  cases.jsonl\n", encoding="utf-8")
+        saved = judge5_cloudflare._call
+        judge5_cloudflare._call = lambda messages: ("[RESULT] 5", "stop")   # 외부 API 대신 가짜 응답
+        try:
+            assert judge5_cloudflare.run_all(None, cases, d / "res") == 0
+        finally:
+            judge5_cloudflare._call = saved   # 모듈 전역을 바꿨으므로 반드시 되돌린다
+        rows = [json.loads(l) for l in (d / "res" / "M1_run1.jsonl").read_text(encoding="utf-8").splitlines()]
+    assert rows[0]["domain"] == "shop" and "domain" not in rows[1]
+
+
 def check_scores_of_counts_each_failure_kind() -> None:
     scores, kinds = scores_of({"a": "[RESULT] 5", "b": "점수 없음", "c": "[RESULT] 9", "d": "[RESULT] 2 [RESULT] 3"})
     assert scores == {"a": 5, "b": None, "c": None, "d": None}
@@ -585,6 +612,8 @@ CHECKS = [
     check_parse_v2_refuses_truncated_tail,
     check_parse_v2_keeps_result_rules,
     check_verdict_basis_and_severe_criterion,
+    check_cloudflare_defaults_are_v1_paths,
+    check_cloudflare_run_all_takes_paths_and_copies_domain,
 ]
 
 
