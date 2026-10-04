@@ -8,6 +8,20 @@
 
 **Tech Stack:** Python 3.12, 표준 라이브러리(`random`, `hashlib`, `logging`, `unittest.mock`), 기존 `app.retriever`, `app.cf`, `tools.judge5`, Spring API(봇 생성과 업로드에만), 코랩 T4.
 
+## 리뷰 반영으로 바뀐 것
+
+코드 태스크 1~10 은 모두 끝났다. 끝난 뒤 리뷰를 반영하면서 코드가 처음 계획과 달라졌다. 이 계획의 코드 블록과 기대 출력은 리뷰 반영 뒤의 커밋된 파일에 맞춰 고쳤다. 따라서 코드 태스크의 코드 블록은 구현 지시가 아니라 구현 기록이다. 바뀐 것과 그 커밋은 아래와 같다.
+
+| 커밋 | 바뀐 것 | 영향을 받는 곳 |
+|---|---|---|
+| `adc2aea`, `4aca1d7` | v2 대괄호 끝 규칙을 `finish` 가 `stop` 일 때만 적용한다. `length` 와 `None`(잘렸는지 모른다)은 missing 이다. 스펙 6-4절 세부 규칙 2 도 같게 고쳤다 | 태스크 2, E12 |
+| `e228b67` | 검색 도구가 검색 설정이 `config.py` 의 기본값과 다르면 멈춘다(`--allow-nondefault` 로 돌리면 결과 줄에 `nondefault` 가 생긴다). `--bot` 을 `bots.json` 과 대조한다. 노트북 머리말에 두 문장, 주석 한 줄. 검색 점검 9가지에서 12가지 | 형식 2, 태스크 4, 9, E3 |
+| `71a99ae` | 점검 입구가 회차 0 의 후보가 검색을 통과한 질문 전부인지, 회차마다 후보에 앞 회차에서 쓴 질문이 없는지 본다. 최종 시험지를 입력에서 다시 만들어 바이트 대조한다. draft 시험지의 키도 본다. 자체 점검 8가지에서 11가지 | 태스크 10, E3, E5, E11 |
+| `f17877a` | ⑥ 줄에 `old_value`(바꾸기 전 값)를 적는다. `first` 는 ⑧ 을 ⑥ 으로 돌린 분야가 있으면 종료 코드 2 로 멈춘다. 보충 후보를 `supplement_pools` 로 꺼냈다. `draft` 는 정답 파일이 이미 최종본이면 거절한다. 배정 점검 9가지에서 13가지, 내보내기 점검 7가지에서 10가지 | 형식 4, 태스크 5, 6, E5, E6 |
+| `1a84798` | E1 이 끝나 봇 번호가 정해졌다: 인사 규정 9, 쇼핑몰 10, 설명서 11, 금융 12 | 데이터 표, E1 |
+
+점검 개수는 이렇다. `judge5_check` 44가지(태스크 3 뒤), `judge5v2_check` 52가지(도구 점검 41가지와 자체 점검 11가지. 도구 점검은 검색 12, 배정 13, 내보내기 10, 관문 3, 보고서 3).
+
 ## Global Constraints
 
 모든 태스크가 아래를 지킨다. 값은 스펙에서 그대로 옮겼다.
@@ -67,7 +81,7 @@
 
 | 파일 | 만드는 태스크 | 한 줄(또는 한 덩어리)의 모양 |
 |---|---|---|
-| `bots.json` | E1 | `{"hr": 12, "shop": 13, "manual": 14, "finance": 15}` (번호는 예시) |
+| `bots.json` | E1 | `{"hr": 9, "shop": 10, "manual": 11, "finance": 12}` (E1 커밋 `1a84798` 의 실제 번호) |
 | `run_log.md` | E1, E3, E8, E10, E12 | 뉴런 기록, 검수 모델의 이름과 판, 관문 결과. 단계마다 한 절 |
 | `hr_targets.md` | E2 | 인사 규정의 대상별 규정 표(다른 세 분야의 README 표에 해당) |
 | `questions.jsonl` | E2, E4 | 아래 형식 1 |
@@ -97,7 +111,7 @@
 - `answer`: 멀쩡한 답변. `claims`: 멀쩡한 답변의 주장 수(1 이상 정수).
 - `contrast`: ⑧ 조건을 만족하지 않으면 `null`. 만족하면 `{"asked": {"target": "골드", "value": "10,000원"}, "other": {"target": "실버", "value": "20,000원"}, "chunk_ids": [123]}`. `asked` 는 질문이 묻는 대상, `other` 는 근거 청크에 함께 있는 다른 대상이다. `chunk_ids` 는 두 값이 글자 그대로 적힌 근거 청크의 id 다. `two_part` 가 `true` 인 질문에는 적지 않는다(⑧ 은 답이 하나인 질문에만 만든다).
 - `answer_note`: 출제 세션의 메모(선택).
-- **값을 글자로 찾는 규칙.** 도구가 값(`contrast` 의 두 값, ⑥ 의 `new_value`)이 어떤 글 안에 있는지 볼 때는 단순 포함이 아니라 `judge5v2_files.value_in` 을 쓴다. 값의 첫 글자가 숫자이면 바로 앞에 숫자나 "숫자 + 쉼표/점" 이 오지 않아야 하고, 값의 끝 글자가 숫자이면 바로 뒤에 숫자나 "쉼표/점 + 숫자" 가 오지 않아야 한다. 이유: 단순 포함으로는 `10,000원` 이 `110,000원` 안에 있다고 판정된다. 금융 분야의 수수료처럼 자릿수만 다른 값이 실제로 있다.
+- **값을 글자로 찾는 규칙.** 도구가 값(`contrast` 의 두 값, ⑥ 의 `new_value` 와 `old_value`)이 어떤 글 안에 있는지 볼 때는 단순 포함이 아니라 `judge5v2_files.value_in` 을 쓴다. 값의 첫 글자가 숫자이면 바로 앞에 숫자나 "숫자 + 쉼표/점" 이 오지 않아야 하고, 값의 끝 글자가 숫자이면 바로 뒤에 숫자나 "쉼표/점 + 숫자" 가 오지 않아야 한다. 이유: 단순 포함으로는 `10,000원` 이 `110,000원` 안에 있다고 판정된다. 금융 분야의 수수료처럼 자릿수만 다른 값이 실제로 있다.
 - **E5 뒤로 고치지 않는 줄.** 어느 배정 회차의 `pool` 에 든 질문의 줄은 그 회차를 커밋한 뒤 고치지 않는다(E6 의 규칙). 배정을 다시 돌려 보는 점검(CI)이 이 줄들을 입력으로 쓰기 때문이다.
 
 **형식 2. `retrieved.jsonl`** (E3)
@@ -109,6 +123,7 @@
 ```
 
 - `status` 는 `ok` 또는 `dropped`. `drop_reason` 은 `null`, `answerable`(근거 유무 판정), `max_distance`(검색용 컷), `rerank_failed`, `keyword_failed` 중 하나다.
+- `nondefault` 는 검색 도구를 `--allow-nondefault` 로 돌렸을 때만 생긴다. `{키: {"default": 기본값, "actual": 실제 값}}` 꼴로, 검색 설정 중 `config.py` 의 기본값과 다른 것을 적는다. 이 키가 있는 줄로 만든 문항은 스펙 2-3절의 기본 설정으로 검색한 것이 아니다. 이 실험의 계획대로라면 이 키는 생기지 않는다.
 - `keyword_failed` 는 스펙 2-3절에 없다. 키워드 검색이 실패해도 `search` 는 경고만 남기고 벡터 결과로 계속한다. 그러면 시험지에 하이브리드를 켠 설정이 적히지만 실제 순서는 벡터 순서다. 리랭커 실패와 같은 이유로 그 질문을 뺀다.
 - **한 질문에 줄이 여럿일 수 있다.** 버림 원인은 두 종류다. `answerable`, `max_distance` 는 검색 결과가 정해진 원인이라 다시 검색해도 같다. `rerank_failed`, `keyword_failed` 는 호출 실패라서 다시 부르면 풀릴 수 있다. 그래서 검색 도구는 앞의 두 원인과 `ok` 인 질문만 끝난 것으로 보고, 호출 실패로 버린 질문은 다음 실행에서 다시 검색한다. 앞의 줄은 지우지 않고 시도 기록으로 남기며 새 줄을 덧붙인다. **질문마다 마지막 줄이 그 질문의 판정이다.** 이 파일을 읽는 도구는 모두 `judge5v2_files.latest_by_qid` 로 마지막 줄만 본다.
 
@@ -131,10 +146,11 @@
 
 ```json
 {"qid": "shop-001", "type": 8, "answer": "실버 등급은 20,000원 이상이면 무료입니다.", "note": "골드 값을 실버 값으로 바꿨다"}
-{"qid": "shop-017", "type": 6, "answer": "골드 등급은 35,000원 이상이면 무료입니다.", "note": "핵심 값을 바꿨다", "new_value": "35,000원"}
+{"qid": "shop-017", "type": 6, "answer": "골드 등급은 35,000원 이상이면 무료입니다.", "note": "핵심 값을 바꿨다", "new_value": "35,000원", "old_value": "10,000원"}
 ```
 
 - `new_value`: ⑥ 줄에만 있다. 핵심 답 자리에 바꿔 넣은 값을 답변에 적힌 글자 그대로 적는다. 내보내기 도구가 이 값이 답변에 있고 그 질문의 근거 청크 전문 어디에도 없는지 확인한다(스펙 3-2절의 ⑥ 조건).
+- `old_value`: ⑥ 줄에만 있다(`f17877a` 에서 더했다). 바꾸기 전의 핵심 값을 멀쩡한 답변에 적힌 글자 그대로 적는다. 내보내기 도구가 이 값이 멀쩡한 답변에는 있고 변형 답변에는 없는지 확인한다. 이유: 변형 답변에 옛 값이 남으면("35,000원 이상이면 무료입니다. 기존 기준은 10,000원입니다.") 근거와 맞는 주장과 반대인 주장이 함께 있는 답변이 된다. 그러면 정답 점수가 1점(반대)과 3점(섞임) 사이에서 하나로 정해지지 않는다.
 
 **형식 5. `cases.jsonl`** (E7, E11). 키는 정확히 넷이다.
 
@@ -442,6 +458,7 @@ def check_parse_v2_tail_is_strict() -> None:
 def check_parse_v2_refuses_truncated_tail() -> None:
     """512 토큰에서 잘린 출력의 끝은 모델이 점수를 적은 자리가 아니다(v2 스펙 6-4절 세부 규칙 2)."""
     assert parse_result("이유가 길어서 잘렸다 [2]", "length", rules=RULES_V2) == (None, "missing")
+    assert parse_result("잘렸는지 모른다 [4]", None, rules=RULES_V2) == (None, "missing")   # None 은 "모른다"
 
 
 def check_parse_v2_keeps_result_rules() -> None:
@@ -498,8 +515,10 @@ _TAIL_RE = re.compile(
 
 def _parse_tail(text: str, finish: str | None) -> tuple[int | None, str]:
     """[RESULT] 가 없는 출력에만 쓴다. 읽지 못하면 v1 과 같이 missing 이다(v2 스펙 6-4절)."""
-    if finish == "length":
-        # 최대 출력에서 잘린 출력의 끝은 모델이 점수를 적은 자리가 아니라 토큰이 다 된 자리다.
+    if finish != "stop":
+        # 끝이 정상으로 끝났다고 기록된 출력에만 적용한다. "length" 이면 잘린 출력이라 끝은 모델이 점수를 적은
+        # 자리가 아니라 토큰이 다 된 자리다. None 은 "잘리지 않았다" 가 아니라 "모른다" 다(app/cf.py 의
+        # finish_reason). 모르는 채로 읽으면 잘린 출력에서도 모델이 쓰지 않은 점수를 만들 수 있다.
         return None, "missing"
     m = _TAIL_RE.search(text)
     if not m:
@@ -521,12 +540,13 @@ def parse_result(text: str | None, finish: str | None = None, *, rules: str = RU
 
     상태는 넷이다. 앞의 하나만 점수가 있고 나머지 셋은 서로 다른 실패다.
       ok            점수 하나를 읽었다
-      missing       [RESULT] 가 없다(출력이 잘렸거나 양식을 안 지켰다)
+      missing       [RESULT] 가 없다(출력이 잘렸거나 양식을 안 지켰다. v2: 대괄호 끝 규칙으로도 못 읽었다)
       out_of_range  [RESULT] 는 있는데 뒤의 값이 1~5 정수가 아니다(소수, 음수, 범위 밖, 숫자를 못 찾음)
       conflict      [RESULT] 를 여러 번 쓰고 값이 서로 다르다
     셋을 "못 읽음" 하나로 뭉개지 않는 이유: 원인이 다르면 고칠 곳도 다르다.
+    규칙(꾸밈은 너그럽게, 값은 엄격하게)은 스펙 §4-7 에 측정 전에 고정돼 있다.
     rules 가 RULES_V2 이면 [RESULT] 가 없는 출력에 대괄호 끝 규칙(_parse_tail)을 더 적용한다.
-    finish 는 생성이 끝난 이유(stop, length)이고 v2 의 대괄호 끝 규칙만 쓴다.
+    finish 는 생성이 끝난 이유(stop, length, 모르면 None)이고 v2 의 대괄호 끝 규칙만 쓴다. 그 규칙은 stop 일 때만 적용한다.
     """
     if rules not in (RULES_V1, RULES_V2):
         raise ValueError(f"알 수 없는 읽는 규칙 판입니다: {rules}. RULES_V1 또는 RULES_V2 를 주세요.")
@@ -540,6 +560,8 @@ def parse_result(text: str | None, finish: str | None = None, *, rules: str = RU
             return None, "out_of_range"
         return _parse_tail(text, finish) if rules == RULES_V2 else (None, "missing")
 ```
+
+위 조각은 리뷰 반영(`adc2aea`) 뒤의 모습이다. 처음 계획은 `finish == "length"` 일 때만 막았다. 커밋된 파일은 기존 독스트링의 두 줄(스펙 §4-7 고정 문장, `[RESULT]` 를 못 쓴 것과 값 모양이 틀린 것은 고칠 곳이 다르다는 주석)도 그대로 남겼다.
 
 `Comparison.verdict` 를 바꾼다.
 
@@ -740,8 +762,8 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>" -- ai-service/tools/jud
 - Create: `ai-service/tools/judge5v2_search_check.py`
 
 **Interfaces:**
-- Consumes: 태스크 1 의 `DOMAINS`, `PROTECTED_BOTS`, `QUESTIONS`, `RETRIEVED`, `SETTLED_DROPS`, `append_jsonl`, `read_jsonl`, `latest_by_qid`. 서비스의 `retriever.search`, `retriever.embed_one`, `retriever.fetch_contents`, `app.db.cursor`, `app.cf.neurons_used`
-- Produces: `search_one(bot_id: int, question: str, *, embed=None, search=None, fetch=None, top1=None) -> dict` (형식 2 의 `status`, `drop_reason`, `top1_distance`, `warnings`, `sources`), `drop_reason(n_sources: int, top1: float | None, answerable: float | None) -> str | None`, `warning_reason(messages: list[str]) -> str | None`, `parse_bots(items: list[str]) -> dict[str, int]`, `search_settings() -> dict`, `settled_qids(rows: list[dict]) -> set[str]`. 명령 `python -m tools.judge5v2_search --bot hr=N --bot shop=N --bot manual=N --bot finance=N [--limit K]`
+- Consumes: 태스크 1 의 `BOTS`, `DOMAINS`, `PROTECTED_BOTS`, `QUESTIONS`, `RETRIEVED`, `SETTLED_DROPS`, `append_jsonl`, `read_json`, `read_jsonl`, `latest_by_qid`. 서비스의 `app.config.Settings`(기본값), `retriever.search`, `retriever.embed_one`, `retriever.fetch_contents`, `app.db.cursor`, `app.cf.neurons_used`
+- Produces: `search_one(bot_id: int, question: str, *, embed=None, search=None, fetch=None, top1=None) -> dict` (형식 2 의 `status`, `drop_reason`, `top1_distance`, `warnings`, `sources`), `drop_reason(n_sources: int, top1: float | None, answerable: float | None) -> str | None`, `warning_reason(messages: list[str]) -> str | None`, `parse_bots(items: list[str]) -> dict[str, int]`, `search_settings() -> dict`, `nondefault_settings(current: dict) -> dict[str, dict]`, `check_bots_file(bots: dict[str, int], recorded: dict) -> None`, `settled_qids(rows: list[dict]) -> set[str]`. 명령 `python -m tools.judge5v2_search --bot hr=N --bot shop=N --bot manual=N --bot finance=N [--limit K] [--allow-nondefault]`. 검색 설정이 기본값과 다르거나 `--bot` 이 `bots.json` 과 다르면 종료 코드 1 로 멈춘다(`e228b67`)
 
 - [ ] **Step 1: 실패하는 점검을 쓴다** (`judge5v2_search_check.py`)
 
@@ -760,7 +782,10 @@ import logging
 from app import retriever
 from app.schemas import Source
 
-from .judge5v2_search import drop_reason, parse_bots, search_one, settled_qids, warning_reason
+from .judge5v2_search import (
+    SETTING_KEYS, check_bots_file, drop_reason, nondefault_settings, parse_bots, search_one, settled_qids,
+    warning_reason,
+)
 
 
 def _src(cid: int) -> Source:
@@ -850,6 +875,39 @@ def check_parse_bots_refuses_protected() -> None:
         raise AssertionError(bad)
 
 
+def check_parse_bots_refuses_duplicates() -> None:
+    """같은 분야를 두 번, 같은 번호를 두 분야에 주면 거절한다. answerable 판정은 다시 검색하지 않아 굳기 때문이다."""
+    for bad in (["hr=12", "hr=13"], ["hr=12", "shop=12"]):
+        try:
+            parse_bots(bad)
+        except SystemExit:
+            continue
+        raise AssertionError(bad)
+
+
+def check_bots_file_must_match() -> None:
+    recorded = {"hr": 12, "shop": 13, "manual": 14, "finance": 15}
+    check_bots_file({"hr": 12, "shop": 13}, recorded)                    # 일부 분야만 줘도 된다
+    for bad in ({"hr": 13}, {"shop": 12}, {"hr": 12, "manual": 99}):
+        try:
+            check_bots_file(bad, recorded)
+        except SystemExit:
+            continue
+        raise AssertionError(bad)
+
+
+def check_nondefault_settings_compares_with_config_defaults() -> None:
+    """기준은 config.py 의 기본값이다. 셸에 남은 RERANKER_PROVIDER=local_int8 같은 값을 잡아야 한다."""
+    from app.config import Settings
+    defaults = {k: Settings.model_fields[k].default for k in SETTING_KEYS}
+    assert nondefault_settings(defaults) == {}
+    changed = dict(defaults, reranker_provider="local_int8", top_k=8)
+    assert nondefault_settings(changed) == {
+        "reranker_provider": {"default": "cloudflare", "actual": "local_int8"},
+        "top_k": {"default": defaults["top_k"], "actual": 8},
+    }
+
+
 def check_warning_reason_prefers_rerank() -> None:
     assert warning_reason([]) is None
     assert warning_reason(["키워드 검색 실패(...)", "리랭킹 실패(...)"]) == "rerank_failed"
@@ -873,6 +931,9 @@ CHECKS = [
     check_empty_result_reasons,
     check_missing_content_is_an_error,
     check_parse_bots_refuses_protected,
+    check_parse_bots_refuses_duplicates,
+    check_bots_file_must_match,
+    check_nondefault_settings_compares_with_config_defaults,
     check_warning_reason_prefers_rerank,
     check_settled_qids_retries_call_failures,
 ]
@@ -913,6 +974,13 @@ Expected: `ModuleNotFoundError: No module named 'tools.judge5v2_search'`
 2. 리랭커와 키워드 검색의 실패 경고를 붙잡는다. 둘 다 실패해도 search 는 결과를 돌려주므로,
    경고를 보지 않으면 설정과 다른 순서의 근거가 시험지에 들어간다.
 3. search 가 돌려준 앞 200자(preview)가 아니라 fetch_contents 로 전문을 읽는다.
+
+검색 전에 두 가지를 확인하고 다르면 멈춘다.
+- 검색 설정이 config.py 의 기본값과 같은가(스펙 2-3절의 "기본 설정 그대로"). 셸에 RERANKER_PROVIDER=local_int8
+  같은 값이 남아 있으면 시험지에는 Cloudflare 리랭커로 뽑았다고 적히지만 실제는 다르다. 기본값과 다르게
+  돌려야 하면 --allow-nondefault 를 주고, 그때는 결과 줄마다 다른 값을 nondefault 에 남긴다.
+- --bot 의 분야와 번호가 testdata/judge5v2/bots.json(E1 이 만든 기록)과 같은가. answerable 로 버린 질문은
+  다시 검색하지 않으므로, 분야와 봇을 잘못 짝지은 결과는 다시 돌려도 고쳐지지 않는다.
 """
 from __future__ import annotations
 
@@ -923,11 +991,12 @@ from collections import Counter
 from unittest import mock
 
 from app import cf, retriever
-from app.config import get_settings
+from app.config import Settings, get_settings
 from app.db import cursor
 
 from .judge5v2_files import (
-    DOMAINS, PROTECTED_BOTS, QUESTIONS, RETRIEVED, SETTLED_DROPS, append_jsonl, latest_by_qid, read_jsonl,
+    BOTS, DOMAINS, PROTECTED_BOTS, QUESTIONS, RETRIEVED, SETTLED_DROPS, append_jsonl, latest_by_qid, read_json,
+    read_jsonl,
 )
 
 # 시험지에 적을 검색 설정(스펙 2-3절). 검색 결과를 바꾸는 값만 고른다.
@@ -946,6 +1015,29 @@ KEYWORD_FAIL = "키워드 검색 실패"
 def search_settings() -> dict:
     s = get_settings()
     return {k: getattr(s, k) for k in SETTING_KEYS}
+
+
+def nondefault_settings(current: dict) -> dict[str, dict]:
+    """current(search_settings 의 결과) 중 config.py 의 기본값과 다른 값. {키: {"default": 기본값, "actual": 실제 값}}.
+
+    기준을 config.py 의 기본값으로 둔 이유: 스펙 2-3절의 "기본 설정" 은 서비스의 기본값이다. .env 가 같은 값을
+    다시 적는 것(TOP_K=5 등)은 통과하고, 셸 환경변수든 .env 든 기본값과 다르면 출처와 관계없이 걸린다.
+    model_fields[k].default 는 Settings 클래스에 적힌 기본값이다(환경변수를 읽기 전의 값).
+    """
+    out = {}
+    for k, v in current.items():
+        default = Settings.model_fields[k].default
+        if v != default:
+            out[k] = {"default": default, "actual": v}
+    return out
+
+
+def check_bots_file(bots: dict[str, int], recorded: dict) -> None:
+    """--bot 으로 받은 짝이 bots.json 의 기록과 같은지 본다. 다르면 멈춘다."""
+    wrong = [f"{d}={n}(기록은 {recorded.get(d)})" for d, n in bots.items() if recorded.get(d) != n]
+    if wrong:
+        raise SystemExit(f"--bot 이 testdata/judge5v2/bots.json 과 다릅니다: {', '.join(wrong)}. "
+                         f"bots.json 의 번호를 그대로 주세요(계획 E3 Step 1 의 BOTS 변수).")
 
 
 def drop_reason(n_sources: int, top1: float | None, answerable: float | None) -> str | None:
@@ -1040,7 +1132,7 @@ def settled_qids(rows: list[dict]) -> set[str]:
 
 
 def parse_bots(items: list[str]) -> dict[str, int]:
-    """--bot hr=12 꼴을 {"hr": 12} 로 바꾼다. 보호한 봇 번호는 거절한다."""
+    """--bot hr=12 꼴을 {"hr": 12} 로 바꾼다. 보호한 봇 번호, 같은 분야를 두 번, 같은 번호를 두 분야에 준 것을 거절한다."""
     out: dict[str, int] = {}
     for item in items:
         domain, _, num = item.partition("=")   # partition 은 첫 "=" 에서 셋으로 자른다
@@ -1050,6 +1142,10 @@ def parse_bots(items: list[str]) -> dict[str, int]:
         if bot_id in PROTECTED_BOTS:
             raise SystemExit(f"봇 {bot_id}번은 이 실험에서 쓰지 않습니다(데모 봇과 리랭커 실험 봇). "
                              f"testdata/judge5v2/bots.json 의 번호를 주세요.")
+        if domain in out:
+            raise SystemExit(f"--bot 에 분야 {domain} 이 두 번 있습니다. 분야마다 한 번씩 주세요.")
+        if bot_id in out.values():
+            raise SystemExit(f"봇 {bot_id}번이 두 분야에 있습니다. 분야마다 다른 봇입니다(스펙 2-2절).")
         out[domain] = bot_id
     return out
 
@@ -1058,8 +1154,26 @@ def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description="질문마다 실제 검색으로 근거 청크 전문을 뽑는다")
     p.add_argument("--bot", action="append", required=True, help="분야=봇 번호. 분야마다 한 번씩")
     p.add_argument("--limit", type=int, default=None, help="이번 실행에서 검색할 최대 질문 수")
+    p.add_argument("--allow-nondefault", action="store_true",
+                   help="검색 설정이 기본값과 달라도 돌린다. 다른 값은 결과 줄의 nondefault 에 남는다")
     args = p.parse_args(argv)
     bots = parse_bots(args.bot)
+    if not BOTS.exists():
+        print("testdata/judge5v2/bots.json 이 없습니다. 계획 E1 이 봇을 만들고 남기는 파일입니다. E1 을 먼저 하세요.")
+        return 1
+    check_bots_file(bots, read_json(BOTS))
+    settings = search_settings()
+    diff = nondefault_settings(settings)
+    if diff and not args.allow_nondefault:
+        print("검색 설정이 config.py 의 기본값과 다릅니다(스펙 2-3절은 기본 설정 그대로 검색한다):")
+        for k, d in diff.items():
+            print(f"  - {k}: 기본값 {d['default']!r}, 지금 {d['actual']!r}")
+        print("셸에 남은 환경변수(예: RERANKER_PROVIDER)나 .env 를 확인하세요. "
+              "일부러 다르게 돌리려면 --allow-nondefault 를 주고 run_log.md 에 이유를 적으세요.")
+        return 1
+    if diff:
+        print("기본값과 다른 설정으로 돌립니다(--allow-nondefault). 결과 줄마다 nondefault 에 남깁니다: "
+              + ", ".join(f"{k}={d['actual']!r}" for k, d in diff.items()))
 
     questions = read_jsonl(QUESTIONS)
     ids = [q["qid"] for q in questions]
@@ -1069,12 +1183,13 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     done = settled_qids(read_jsonl(RETRIEVED))
     todo = [q for q in questions if q["domain"] in bots and q["qid"] not in done][: args.limit]
-    settings = search_settings()
+    # 기본값과 다르게 돌린 실행은 줄마다 표시한다. 나중에 이 줄로 만든 문항이 기본 설정이 아니었음을 알 수 있게.
+    extra = {"nondefault": diff} if diff else {}
     counts: Counter = Counter()
     for q in todo:
         row = search_one(bots[q["domain"]], q["question"])
         append_jsonl(RETRIEVED, {"qid": q["qid"], "domain": q["domain"], "bot_id": bots[q["domain"]],
-                                 "settings": settings, **row})
+                                 "settings": settings, **extra, **row})
         counts[(q["domain"], row["drop_reason"] or "ok")] += 1
     for (domain, reason), n in sorted(counts.items()):
         print(f"{domain}: {reason} {n}")
@@ -1100,7 +1215,7 @@ if __name__ == "__main__":
 - [ ] **Step 4: 점검이 통과하는지 본다**
 
 Run: `$PY -m tools.judge5v2_search_check | tail -1`
-Expected: `9가지 전부 통과.`
+Expected: `12가지 전부 통과.` (처음 계획은 9가지. `e228b67` 이 셋을 더했다)
 
 - [ ] **Step 5: 커밋한다**
 
@@ -1132,8 +1247,9 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>" -- ai-service/tools/jud
   - `pool_for(questions: list[dict], retrieved: list[dict]) -> dict[str, list[dict]]`
   - `valid_contrast(contrast: dict, sources: list[dict]) -> str | None`
   - `supplement_needs(assignment: dict, dropped_qids: set[str], domain_of: dict[str, str]) -> dict[str, dict[int, int]]`
+  - `supplement_pools(pools: dict[str, list[dict]], assignment: dict) -> dict[str, list[dict]]` (보충 후보. 앞 회차에서 유형을 받은 질문을 빼고, 받지 않은 질문과 새 질문은 남긴다. `f17877a`)
   - `class Shortfall(Exception)` with `.short: dict[str, dict[int, int]]`
-  - 명령 `python -m tools.judge5v2_assign first`, `python -m tools.judge5v2_assign supplement`
+  - 명령 `python -m tools.judge5v2_assign first`, `python -m tools.judge5v2_assign supplement`. 종료 코드: 0 배정함, 1 배정하지 못함(`first` 는 파일을 만들지 않고, `supplement` 는 파일을 고치지 않는다), 2 `first` 가 배정했지만 ⑧ 을 ⑥ 으로 돌린 분야가 있다(파일은 남는다. E5 의 멈춤, `f17877a`)
 
 - [ ] **Step 1: 실패하는 점검을 쓴다** (`judge5v2_assign_check.py`)
 
@@ -1147,13 +1263,20 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>" -- ai-service/tools/jud
 """
 from __future__ import annotations
 
+import contextlib
+import io
 import random
+import tempfile
 from collections import Counter
+from pathlib import Path
+from unittest import mock
 
+from . import judge5v2_assign
 from .judge5v2_assign import (
-    Shortfall, assign_domain, assigned_types, pool_for, replay_round, run_round, supplement_needs, valid_contrast,
+    Shortfall, assign_domain, assigned_types, pool_for, replay_round, run_round, supplement_needs, supplement_pools,
+    valid_contrast,
 )
-from .judge5v2_files import DOMAINS, QUOTA
+from .judge5v2_files import DOMAINS, QUOTA, write_jsonl
 
 _CONTRAST = {"asked": {"target": "골드", "value": "10,000원"}, "other": {"target": "실버", "value": "20,000원"},
              "chunk_ids": [1]}
@@ -1213,7 +1336,9 @@ def check_assign_sixth_and_eighth_need_single_answer() -> None:
     pool = _pool()
     for i, q in enumerate(pool):
         q["two_part"], q["contrast"] = i < 65, None  # 답이 하나인 질문은 마지막 10개(65~74번, 주장 1개)뿐이다
-    pool[0]["contrast"] = _CONTRAST                  # 답이 두 가지인 질문의 contrast 는 ⑧ 자격이 아니다
+    # 답이 두 가지인 질문의 contrast 는 ⑧ 자격이 아니다. 주장 1개인 질문(50번)에 붙인다. 주장 2개인 질문에 붙이면
+    # ④ 가 먼저 가져갈 수 있어서, ⑧ 이 two_part 를 거절하지 않아도 이 점검이 통과해 버린다.
+    pool[50]["contrast"] = _CONTRAST
     res, short = assign_domain(pool, dict(QUOTA), random.Random("s"))
     counts = Counter(res["types"].values())
     assert counts[8] == 0 and res["eighth_to_sixth"] == QUOTA[8]
@@ -1276,11 +1401,83 @@ def check_pool_for_uses_last_search_and_refuses_two_part_contrast() -> None:
              {"qid": "shop-001", "status": "ok", "drop_reason": None, "sources": src}]
     assert [x["qid"] for x in pool_for([q], tried)["shop"]] == ["shop-001"]   # 다시 검색해 성공했다
     assert pool_for([q], tried[::-1])["shop"] == []                          # 마지막 시도가 호출 실패다
-    try:
-        pool_for([dict(q, two_part=True)], tried)
-    except ValueError:
-        return
-    raise AssertionError("답이 두 가지인 질문의 contrast 는 거절해야 한다")
+    for bad in (dict(q, two_part=True),                                      # 답이 두 가지인 질문의 contrast
+                dict(q, contrast=None, claims=True)):                        # true 는 int 이기도 하지만 주장 수가 아니다
+        try:
+            pool_for([bad], tried)
+        except ValueError:
+            continue
+        raise AssertionError(bad)
+
+
+def check_assign_order_fourth_eighth_third_sixth() -> None:
+    """뽑는 순서 ④ → ⑧ → ③ → ⑥ 을 고정한다(스펙 3-3절 3).
+
+    ⑧ 자격 질문 6개가 모두 주장 3개다. ③ 이 ⑧ 보다 먼저 뽑으면 그중 일부를 ③ 으로 가져가 ⑧ 이 모자라고,
+    ⑥ 이 ⑧ 보다 먼저 뽑으면 답이 하나인 질문 중에서 ⑧ 자격 질문을 가져간다. 어느 쪽이든 eighth_to_sixth 가 0 이 아니게 된다.
+    """
+    out = []
+    for i in range(75):
+        # 0~8: 주장 2, 답 두 가지(④ 몫) / 9~23: 주장 3, 답 하나(9~14 가 ⑧ 자격) / 24~30: 주장 1, 답 하나(⑥ 몫) / 나머지: 주장 1, 답 두 가지
+        claims, two_part = (2, True) if i < 9 else (3, False) if i < 24 else (1, False) if i < 31 else (1, True)
+        out.append({"qid": f"shop-{i:03d}", "domain": "shop", "answer": "답", "claims": claims, "two_part": two_part,
+                    "contrast": _CONTRAST if 9 <= i < 15 else None})
+    res, short = assign_domain(out, dict(QUOTA), random.Random("s"))
+    assert short == {} and res["eighth_to_sixth"] == 0
+    assert {q for q, t in res["types"].items() if t == 8} == {f"shop-{i:03d}" for i in range(9, 15)}
+    assert {q for q, t in res["types"].items() if t == 6} == {f"shop-{i:03d}" for i in range(24, 31)}
+
+
+def check_supplement_needs_with_eighth_moved_to_sixth() -> None:
+    """⑧ 을 ⑥ 으로 돌린 회차 뒤의 보충은 돌린 ⑧ 을 다시 요구하지 않는다(스펙 3-3절 5, 7-2절 끝의 경우 2)."""
+    pool = _pool(contrast_every=10**6)
+    pool[60]["contrast"] = _CONTRAST                     # ⑧ 자격이 하나뿐이라 5개가 ⑥ 으로 간다
+    res, _ = assign_domain(pool, dict(QUOTA), random.Random("s"))
+    assert res["eighth_to_sixth"] == QUOTA[8] - 1
+    empty = {"types": {}, "unused": [], "eighth_to_sixth": 0}
+    assignment = {"seed": 1, "rounds": [{"domains": {"shop": res, "hr": empty, "manual": empty, "finance": empty}}]}
+    domain_of = {q: "shop" for q in res["types"]}
+    zero = {t: 0 for t in QUOTA}
+    assert supplement_needs(assignment, set(), domain_of)["shop"] == zero
+    sixth = sorted(q for q, t in res["types"].items() if t == 6)[0]
+    eighth = next(q for q, t in res["types"].items() if t == 8)
+    assert supplement_needs(assignment, {sixth}, domain_of)["shop"] == {**zero, 6: 1}
+    assert supplement_needs(assignment, {eighth}, domain_of)["shop"] == {**zero, 8: 1}
+
+
+def check_supplement_pools_skip_used_keep_unused() -> None:
+    """보충 후보는 앞 회차에서 유형을 받은 질문을 빼고, 받지 않은 질문과 새 질문은 남긴다(스펙 7-2절)."""
+    pool = _pool()
+    res, _ = assign_domain(pool, dict(QUOTA), random.Random("s"))
+    empty = {"types": {}, "unused": [], "eighth_to_sixth": 0}
+    assignment = {"seed": 1, "rounds": [{"domains": {"shop": res, "hr": empty, "manual": empty, "finance": empty}}]}
+    new = dict(pool[0], qid="shop-075")
+    got = supplement_pools({"shop": pool + [new], "hr": []}, assignment)
+    assert sorted(q["qid"] for q in got["shop"]) == sorted(res["unused"] + ["shop-075"])
+    assert got["hr"] == []
+
+
+def check_first_stops_with_code_2_when_eighth_moved() -> None:
+    """⑧ 을 ⑥ 으로 돌린 분야가 있으면 first 는 파일을 남기고 종료 코드 2 로 멈춘다(계획 E5).
+    질문 파일에 잘못된 줄이 있으면 traceback 이 아니라 한국어 안내와 종료 코드 1 이다."""
+    src = [{"chunk_id": 1, "content": "골드 10,000원 / 실버 20,000원"}]
+
+    def run(questions: list[dict]) -> tuple[int, bool]:
+        with tempfile.TemporaryDirectory() as tmp:
+            d = Path(tmp)
+            paths = {"ASSIGNMENT": d / "a.json", "QUESTIONS": d / "q.jsonl", "RETRIEVED": d / "r.jsonl"}
+            write_jsonl(paths["QUESTIONS"], questions)
+            write_jsonl(paths["RETRIEVED"], [{"qid": q["qid"], "status": "ok", "sources": src} for q in questions])
+            # mock.patch.multiple: 모듈 전역(경로 상수)을 with 블록 안에서만 바꾸고 끝나면 되돌린다.
+            with mock.patch.multiple(judge5v2_assign, **paths), contextlib.redirect_stdout(io.StringIO()):
+                code = judge5v2_assign.cmd_first()
+            return code, paths["ASSIGNMENT"].exists()
+
+    assert run([q for d in DOMAINS for q in _pool(d)]) == (0, True)
+    moved = [q for d in DOMAINS for q in _pool(d, contrast_every=10**6)]
+    moved[60]["contrast"] = _CONTRAST
+    assert run(moved) == (2, True)
+    assert run([dict(q, claims=True) for d in DOMAINS for q in _pool(d)]) == (1, False)
 
 
 CHECKS = [
@@ -1293,6 +1490,10 @@ CHECKS = [
     check_supplement_needs_counts_only_drops,
     check_valid_contrast,
     check_pool_for_uses_last_search_and_refuses_two_part_contrast,
+    check_assign_order_fourth_eighth_third_sixth,
+    check_supplement_needs_with_eighth_moved_to_sixth,
+    check_supplement_pools_skip_used_keep_unused,
+    check_first_stops_with_code_2_when_eighth_moved,
 ]
 
 
@@ -1465,7 +1666,8 @@ def pool_for(questions: list[dict], retrieved: list[dict]) -> dict[str, list[dic
         r = ok.get(q["qid"])
         if r is None:
             continue
-        if not q.get("answer") or not isinstance(q.get("claims"), int) or q["claims"] < 1:
+        # type(x) is int: isinstance(True, int) 는 True 라서 claims 에 true 를 적어도 1 로 통과한다. bool 을 막으려고 정확히 int 만 받는다.
+        if not q.get("answer") or type(q.get("claims")) is not int or q["claims"] < 1:
             problems.append(f"{q['qid']}: answer 또는 claims 가 비었다")
             continue
         if not isinstance(q.get("two_part"), bool):
@@ -1497,6 +1699,13 @@ def supplement_needs(assignment: dict, dropped_qids: set[str], domain_of: dict[s
     return {d: {t: max(0, target[d][t] - kept[d][t]) for t in QUOTA} for d in DOMAINS}
 
 
+def supplement_pools(pools: dict[str, list[dict]], assignment: dict) -> dict[str, list[dict]]:
+    """보충 회차의 후보. 앞 회차들에서 유형을 받은 질문은 빼고, 받지 않은 질문(unused)은 남긴다(스펙 7-2절).
+    버린 문항의 질문도 뺀다. 같은 질문에 다른 유형을 붙여 다시 쓰면 그 질문의 검수 판단이 두 번 쓰이기 때문이다."""
+    used = set(assigned_types(assignment))
+    return {d: [q for q in ps if q["qid"] not in used] for d, ps in pools.items()}
+
+
 def _round_doc(no: int, pools: dict[str, list[dict]], needs: dict[str, dict[int, int]], domains: dict) -> dict:
     return {
         "round": no,
@@ -1521,7 +1730,11 @@ def cmd_first() -> int:
     if ASSIGNMENT.exists():
         print(f"{ASSIGNMENT.name} 가 이미 있습니다. 보충은 supplement 를 쓰세요. 덮어쓰지 않습니다.")
         return 1
-    pools = pool_for(read_jsonl(QUESTIONS), read_jsonl(RETRIEVED))
+    try:
+        pools = pool_for(read_jsonl(QUESTIONS), read_jsonl(RETRIEVED))
+    except ValueError as e:
+        print(e)   # pool_for 의 메시지가 이미 한국어로 고칠 곳을 줄마다 적는다
+        return 1
     needs = {d: dict(QUOTA) for d in DOMAINS}
     try:
         domains = run_round(pools, needs, SEED, 0)
@@ -1532,6 +1745,14 @@ def cmd_first() -> int:
     for d in DOMAINS:
         res = domains[d]
         print(f"{d}: 배정 {len(res['types'])}, 쓰지 않음 {len(res['unused'])}, ⑧ 을 ⑥ 으로 {res['eighth_to_sixth']}")
+    moved = {d: domains[d]["eighth_to_sixth"] for d in DOMAINS if domains[d]["eighth_to_sixth"]}
+    if moved:
+        # 계획 E5: 이 경우 커밋하지 않고 사용자 판단을 받는다. 출력 한 줄로는 지나치기 쉬워서 종료 코드를 따로 둔다.
+        # 1(배정 못 함)과 나누는 이유: 파일은 만들어졌다. 사용자가 그대로 가기로 하면 이 파일을 그대로 쓴다.
+        print("멈춘다: 계획 E5. ⑧ 을 ⑥ 으로 돌린 분야가 있다("
+              + ", ".join(f"{d} {n}개" for d, n in moved.items())
+              + f"). {ASSIGNMENT.name} 는 남겼지만 커밋하지 않는다. 사용자에게 보충할지 그대로 갈지 묻는다.")
+        return 2
     return 0
 
 
@@ -1547,8 +1768,11 @@ def cmd_supplement() -> int:
     if not any(n for s in needs.values() for n in s.values()):
         print("보충할 할당량이 없습니다. 관문이 할당량 밖의 이유로 실패했다면 사용자에게 알리고 멈춥니다.")
         return 1
-    used = set(assigned_types(assignment))
-    pools = {d: [q for q in ps if q["qid"] not in used] for d, ps in pool_for(questions, read_jsonl(RETRIEVED)).items()}
+    try:
+        pools = supplement_pools(pool_for(questions, read_jsonl(RETRIEVED)), assignment)
+    except ValueError as e:
+        print(e)
+        return 1
     no = len(assignment["rounds"])
     try:
         domains = run_round(pools, needs, assignment["seed"], no)
@@ -1575,7 +1799,7 @@ if __name__ == "__main__":
 - [ ] **Step 4: 점검이 통과하는지 본다**
 
 Run: `$PY -m tools.judge5v2_assign_check | tail -1`
-Expected: `9가지 전부 통과.`
+Expected: `13가지 전부 통과.` (처음 계획은 9가지. `f17877a` 가 넷을 더했다)
 
 - [ ] **Step 5: 커밋한다**
 
@@ -1600,12 +1824,13 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>" -- ai-service/tools/jud
 - Consumes: 태스크 1 의 상수와 `latest_by_qid`, `value_in`, 태스크 5 의 `assigned_types`, `judge5.build_messages`, `judge5.prompt_sha256`, `judge5.sha256_file`, `judge5.SCALE`
 - Produces:
   - `CASE_KEYS = frozenset({"case_id", "domain", "messages", "search_settings"})`
+  - `fence_for(text: str) -> str` (`mismatches.md` 의 코드 울타리. 본문 안의 가장 긴 백틱 연속보다 하나 길다. `f17877a`)
   - `case_id_of(domain: str, question: str, answer: str) -> str` (12자)
   - `build_cases(questions, retrieved, types: dict[str, int], variants) -> tuple[list[dict], dict[str, dict]]` (시험지 줄 목록, `case_id` 별 정답 정보)
   - `load_and_build() -> tuple[list[dict], dict[str, dict]]`
   - `apply_review(key: dict[str, dict], reviews: list[dict]) -> tuple[dict, dict, list[str]]` (남긴 문항, 버린 문항, 문제 목록)
   - `class ExportProblem(RuntimeError)` with `.problems: list[str]`
-  - 명령 `python -m tools.judge5v2_export draft | mismatches | final`
+  - 명령 `python -m tools.judge5v2_export draft | mismatches | final`. `draft` 는 `answer_key.json` 이 이미 `final` 이면 거절한다(`f17877a`)
 
 - [ ] **Step 1: 실패하는 점검을 쓴다** (`judge5v2_export_check.py`)
 
@@ -1619,10 +1844,16 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>" -- ai-service/tools/jud
 """
 from __future__ import annotations
 
+import contextlib
+import io
 import json
+import tempfile
+from pathlib import Path
+from unittest import mock
 
+from . import judge5v2_export
 from .judge5 import build_messages
-from .judge5v2_export import CASE_KEYS, ExportProblem, apply_review, build_cases, case_id_of
+from .judge5v2_export import CASE_KEYS, ExportProblem, apply_review, build_cases, case_id_of, fence_for
 
 _SRC = [{"chunk_id": 1, "filename": "a.md",
          "content": "골드 10,000원 / 실버 20,000원 / 브론즈 30,000원. 이 문장은 200자보다 길 수 있다."}]
@@ -1644,7 +1875,7 @@ def _inputs():
     variants = [{"qid": "shop-001", "type": 8, "answer": "골드는 20,000원 이상이면 무료입니다.", "note": ""},
                 {"qid": "shop-002", "type": 1, "answer": "실버는 20,000원 이상이면 무료입니다.", "note": ""},
                 {"qid": "shop-003", "type": 6, "answer": "브론즈는 35,000원 이상이면 무료입니다.", "note": "",
-                 "new_value": "35,000원"}]
+                 "new_value": "35,000원", "old_value": "30,000원"}]
     return questions, retrieved, types, variants
 
 
@@ -1689,6 +1920,10 @@ def check_build_refuses_bad_variants() -> None:
         [v[0], v[1], sixth_in_source],                                             # ⑥ 의 값이 근거에 있다
         [v[0], v[1], {k: x for k, x in v[2].items() if k != "new_value"}],         # ⑥ 에 new_value 가 없다
         [v[0], v[1], dict(v[2], new_value="40,000원")],                           # ⑥ 의 new_value 가 답변에 없다
+        [v[0], v[1], dict(v[2], answer="브론즈는 35,000원 이상이면 무료입니다. 기존 기준은 30,000원입니다.")],  # ⑥ 에 옛 값이 남았다
+        [v[0], v[1], {k: x for k, x in v[2].items() if k != "old_value"}],         # ⑥ 에 old_value 가 없다
+        [v[0], v[1], dict(v[2], old_value="25,000원")],                           # ⑥ 의 old_value 가 멀쩡한 답변에 없다
+        [dict(v[0], answer="골드는 10,000원, 실버는 20,000원입니다."), v[1], v[2]],  # ⑧ 이 두 대상의 값을 다 썼다
     ]
     for variants in bad_cases:
         try:
@@ -1715,7 +1950,8 @@ def check_values_are_matched_with_boundaries() -> None:
           "two_part": False, "contrast": None}]
     r = [{"qid": x["qid"], "status": "ok", "settings": _SETTINGS, "sources": src} for x in q]
     v = [{"qid": "fin-001", "type": 8, "answer": "12,000원입니다.", "note": ""},
-         {"qid": "fin-002", "type": 6, "answer": "35,000원입니다.", "note": "", "new_value": "35,000원"}]
+         {"qid": "fin-002", "type": 6, "answer": "35,000원입니다.", "note": "", "new_value": "35,000원",
+          "old_value": "135,000원"}]    # 옛 값 135,000원 은 변형 답변의 35,000원 안에 있지 않다(값 경계)
     rows, _ = build_cases(q, r, {"fin-001": 8, "fin-002": 6}, v)
     assert len(rows) == 2
 
@@ -1740,6 +1976,51 @@ def check_apply_review_paths() -> None:
     assert any(x.startswith("e:") for x in p2)                     # 검수 점수가 없는 문항
     _, _, p3 = apply_review(key, [dict(reviews[2], reason="")] + reviews[:2] + reviews[3:4] + [reviews[0] | {"case_id": "e"}])
     assert any(x.startswith("c:") for x in p3)                     # 고친 점수에 이유가 없다
+    ok = reviews[:4] + [reviews[0] | {"case_id": "e"}]               # 문제가 없는 검수 줄 다섯
+    _, _, p4 = apply_review(key, [dict(ok[1], reason="  ")] + ok[:1] + ok[2:])
+    assert [x[:2] for x in p4] == ["b:"]                           # 대응표대로 둔다는 판단에도 이유가 있어야 한다
+    _, _, p5 = apply_review(key, ok + [{"case_id": "z", "review_score": 3}])
+    assert [x[:2] for x in p5] == ["z:"]                           # 시험지에 없는 문항의 검수 줄
+
+
+def check_build_uses_last_search_line() -> None:
+    """검색 줄은 질문마다 마지막 줄이 판정이다(계획 형식 2). 첫 줄을 쓰면 버린 시도의 근거로 시험지를 만든다."""
+    q, r, t, v = _inputs()
+    old = dict(r[1], settings={"top_k": 3}, sources=[{"chunk_id": 9, "filename": "old.md", "content": "옛 시도"}])
+    rows, key = build_cases(q, [old] + r, t, v)
+    cid = next(c for c, k in key.items() if k["qid"] == "shop-002")
+    row = next(x for x in rows if x["case_id"] == cid)
+    assert row["search_settings"] == _SETTINGS and "옛 시도" not in json.dumps(row, ensure_ascii=False)
+    failed_last = dict(r[1], status="dropped", drop_reason="rerank_failed")
+    try:
+        build_cases(q, r + [failed_last], t, v)                    # 첫 줄은 ok 지만 마지막 시도가 실패했다
+    except ExportProblem:
+        return
+    raise AssertionError("마지막 검색 줄이 실패면 그 질문으로 시험지를 만들지 않아야 한다")
+
+
+def check_mismatch_fence_outlasts_inner_backticks() -> None:
+    """근거 청크 안의 백틱 셋이 mismatches.md 의 코드 블록을 일찍 닫지 않게 울타리를 더 길게 만든다."""
+    tick = "`"
+    assert fence_for("평범한 글") == tick * 3
+    body = "앞\n" + tick * 3 + "python\nx = 1\n" + tick * 3 + "\n뒤 " + tick * 5
+    assert fence_for(body) == tick * 6
+
+
+def check_draft_refuses_to_overwrite_final() -> None:
+    """동결된 최종 정답 파일을 draft 로 덮지 않는다. 덮으면 M1 채점이 검수 전 시험지로 돈다."""
+    with tempfile.TemporaryDirectory() as tmp:
+        ak = Path(tmp) / "answer_key.json"
+        ak.write_text(json.dumps({"stage": "final", "cases": {}}), encoding="utf-8")
+        before = ak.read_text(encoding="utf-8")
+
+        def must_not_build():
+            raise AssertionError("final 이 있으면 시험지를 다시 만들기 전에 멈춰야 한다")
+
+        with mock.patch.multiple(judge5v2_export, ANSWER_KEY=ak, load_and_build=must_not_build), \
+                contextlib.redirect_stdout(io.StringIO()):
+            assert judge5v2_export.cmd_draft() == 1
+        assert ak.read_text(encoding="utf-8") == before
 
 
 CHECKS = [
@@ -1750,6 +2031,9 @@ CHECKS = [
     check_build_refuses_bad_variants,
     check_values_are_matched_with_boundaries,
     check_apply_review_paths,
+    check_build_uses_last_search_line,
+    check_mismatch_fence_outlasts_inner_backticks,
+    check_draft_refuses_to_overwrite_final,
 ]
 
 
@@ -1789,6 +2073,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import random
+import re
 import sys
 
 from .judge5 import SCALE, build_messages, prompt_sha256, sha256_file
@@ -1799,8 +2084,17 @@ from .judge5v2_files import (
 )
 
 CASE_KEYS = frozenset({"case_id", "domain", "messages", "search_settings"})
-# 마크다운 코드 울타리(백틱 셋). 글자 그대로 적으면 이 파일을 담은 문서의 코드 블록이 거기서 끝나 버려서 곱셈으로 만든다.
-FENCE = "`" * 3
+
+
+def fence_for(text: str) -> str:
+    """text 를 감쌀 마크다운 코드 울타리. text 안에서 가장 긴 백틱 연속보다 하나 길게(최소 셋) 만든다.
+
+    고정 길이 셋이면 근거 청크(마크다운 문서)에 들어 있는 백틱 셋이 울타리를 일찍 닫아, mismatches.md 에서
+    그 뒤의 내용이 코드 블록 밖으로 나와 제목이나 목록으로 그려진다. 마크다운은 여는 울타리보다 짧은 백틱 줄로는
+    닫지 않는다. 백틱을 곱셈으로 만드는 이유: 글자 그대로 적으면 이 코드를 담은 문서의 코드 블록이 거기서 끝난다.
+    """
+    longest = max((len(run) for run in re.findall(r"`+", text)), default=0)
+    return "`" * max(3, longest + 1)
 
 
 class ExportProblem(RuntimeError):
@@ -1859,6 +2153,14 @@ def build_cases(questions: list[dict], retrieved: list[dict], types: dict[str, i
                 problems.append(f"{qid}: ⑥ 은 바꿔 넣은 값을 new_value 에 답변의 글자 그대로 적어야 한다")
             elif any(value_in(new, s["content"]) for s in r["sources"]):
                 problems.append(f"{qid}: ⑥ 의 새 값({new})이 근거 청크에 글자로 있다. 근거 어디에도 없는 값으로 바꾼다")
+            # 바꾸기 전 값(old_value)이 변형 답변에 남으면 근거와 맞는 주장과 반대인 주장이 함께 있는 답변이 된다
+            # ("35,000원 이상이면 무료입니다. 기존 기준은 30,000원입니다."). 1점(반대)과 3점(섞임) 사이에서 정답 점수가
+            # 하나로 정해지지 않는다(스펙 3-2절의 원칙). 그래서 옛 값이 멀쩡한 답변에는 있고 변형 답변에는 없는지 본다.
+            old = v.get("old_value") or ""
+            if not old or not value_in(old, q["answer"]):
+                problems.append(f"{qid}: ⑥ 은 바꾸기 전 값을 old_value 에 멀쩡한 답변의 글자 그대로 적어야 한다")
+            elif value_in(old, v["answer"]):
+                problems.append(f"{qid}: ⑥ 의 변형 답변에 바꾸기 전 값({old})이 남아 있다. 옛 값을 답변에서 지운다")
         cid = case_id_of(q["domain"], q["question"], v["answer"])
         if cid in key:
             problems.append(f"{qid}: 다른 문항과 문항 id 가 같다({cid})")
@@ -1929,6 +2231,12 @@ def _write(rows: list[dict], doc: dict) -> str:
 
 
 def cmd_draft() -> int:
+    # 동결(E11) 뒤에 draft 를 다시 만들면 최종 시험지와 정답 파일을 검수 전 판으로 덮는다. M1 채점 도구는 단계를
+    # 보지 않고 같은 폴더의 해시만 대조하므로, 그대로 E12 를 돌리면 검수 전 시험지에 뉴런을 쓴다. 그래서 거절한다.
+    if ANSWER_KEY.exists() and read_json(ANSWER_KEY).get("stage") == "final":
+        print(f"{ANSWER_KEY.name} 가 이미 최종본(final)입니다. draft 로 덮지 않습니다. "
+              "보충으로 다시 만들어야 하면 사용자에게 알린 뒤 final 커밋을 되돌리고 다시 실행하세요.")
+        return 1
     rows, key = load_and_build()
     sha = _write(rows, {"stage": "draft", "seed": SEED, "cases": key, "dropped": {}})
     reviewed = {r["case_id"] for r in read_jsonl(REVIEW)}
@@ -1950,11 +2258,13 @@ def cmd_mismatches() -> int:
         if r is None or r.get("review_score") == k["table_score"] or r.get("user_decision"):
             continue
         n += 1
+        body = by_id[cid]["messages"][1]["content"]
+        fence = fence_for(body)
         out += [f"## {cid}", "",
                 f"- 분야 {k['domain']}, {TYPE_NAMES[k['type']]}, 대응표 점수 {k['table_score']}, 검수 점수 {r['review_score']}",
                 f"- 검수 메모: {r.get('review_note', '')}",
                 f"- 출제 메모: {notes.get(k['qid'], '')}", "",
-                FENCE, by_id[cid]["messages"][1]["content"], FENCE, ""]
+                fence, body, fence, ""]
     MISMATCHES.write_text("\n".join(out) + "\n", encoding="utf-8")
     print(f"사용자 판단이 필요한 문항 {n}개. 목록: {MISMATCHES}")
     return 0
@@ -1995,7 +2305,7 @@ if __name__ == "__main__":
 - [ ] **Step 4: 점검이 통과하는지 본다**
 
 Run: `$PY -m tools.judge5v2_export_check | tail -1`
-Expected: `7가지 전부 통과.`
+Expected: `10가지 전부 통과.` (처음 계획은 7가지. `f17877a` 가 셋을 더했다)
 
 - [ ] **Step 5: 커밋한다**
 
@@ -2006,7 +2316,7 @@ git commit -m "feat: 채점 모델 비교 v2 의 시험지와 정답 파일을 �
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>" -- ai-service/tools/judge5v2_export.py ai-service/tools/judge5v2_export_check.py
 ```
 
-**리뷰 포인트:** 시험지 줄에 `qid`, 유형, 정답 점수 중 어느 것도 들어가지 않는가. 사용자 판단이 없는 불일치 문항이 조용히 남거나 버려지지 않고 멈추는가. ⑥ 의 `new_value` 를 근거 청크 전부에서 찾는가(질문과 관계없는 청크 포함).
+**리뷰 포인트:** 시험지 줄에 `qid`, 유형, 정답 점수 중 어느 것도 들어가지 않는가. 사용자 판단이 없는 불일치 문항이 조용히 남거나 버려지지 않고 멈추는가. ⑥ 의 `new_value` 를 근거 청크 전부에서 찾는가(질문과 관계없는 청크 포함). ⑥ 의 `old_value` 가 변형 답변에 남지 않았는지 보는가.
 
 ---
 
@@ -2559,7 +2869,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>" -- ai-service/tools/jud
 
 - [ ] **Step 1: 복사하고 바꾸는 스크립트를 돌린다**
 
-바꿀 곳은 스펙 8-3절의 일곱(Drive 폴더, 시험지 해시, 모델 목록, 4번 칸의 반복문, 실행 번호, 결과 zip 이름, 머리말의 44건)과 결과 줄의 분야, 그리고 두 번 채점과 M2 를 말하는 주석 둘이다. 각 바꿀 글자가 원본에 몇 번 있는지 확인하면서 바꾼다. 개수가 다르면 원본이 바뀐 것이므로 멈춘다.
+바꿀 곳은 스펙 8-3절의 일곱(Drive 폴더, 시험지 해시, 모델 목록, 4번 칸의 반복문, 실행 번호, 결과 zip 이름, 머리말의 44건)과 결과 줄의 분야, 두 번 채점과 M2 를 말하는 주석 둘, 그리고 노트북을 대조하는 점검의 이름을 말하는 주석 하나다(`e228b67`). 각 바꿀 글자가 원본에 몇 번 있는지 확인하면서 바꾼다. 개수가 다르면 원본이 바뀐 것이므로 멈춘다.
 
 ```bash
 cd /Users/cheonjamin/projects/AllDap-judge-v2/ai-service
@@ -2586,9 +2896,9 @@ HEADER = """# AllDap 채점 모델 비교 v2 (M3, M4)
 
 이번 실험은 시험지를 **한 번만** 채점한다(v2 스펙 5절). 앞 실험에서 두 번 채점한 결과가 M3, M4 모두 같았기 때문이다. M2 는 앞 실험에서 T4 메모리에 올라가지 않아 뺐다.
 
-모델 하나가 메모리에 안 올라가면 그 모델은 건너뛰고 이유를 `{모델}_skipped.json` 에 남긴다. 다른 모델로 바꿔 끼우지 않는다. 다시 시도하려면 그 파일을 지운다.
+모델 하나가 메모리에 안 올라가면 그 모델은 건너뛰고 이유를 `{모델}_skipped.json` 에 남긴다. 다른 모델로 바꿔 끼우지 않는다. 건너뜀 기록이 있는 모델은 다시 실행해도 건너뛴다(탐욕적 디코딩이라 다시 해도 같은 곳에서 모자란다). 다시 시도하려면 그 파일을 지운다.
 
-모델마다 시험 문항 전에 가짜 문항 하나로 먼저 확인하고 출력을 `{모델}_smoke.json` 에 남긴다. 출력이 비어 있으면 멈춘다.
+모델마다 시험 문항 전에 가짜 문항 하나로 먼저 확인하고 출력을 `{모델}_smoke.json` 에 남긴다. 출력이 비어 있으면 멈춘다. `[RESULT]` 가 없는 것만으로는 멈추지 않는다. 양식을 안 따르는 것도 그 모델의 성적이고, 보고서가 못 읽음으로 센다.
 
 디스크: 원본 가중치가 M3, M4 각 약 30GB 라 모델 하나를 끝낼 때마다 그 모델의 내려받은 파일을 지운다."""
 
@@ -2608,6 +2918,7 @@ REPL = [
     ("smoke, run1, run2 중 하나다.", "smoke, run1 중 하나다(v2 는 한 번만 채점한다).", 1),
     ("한국어 입력이 잘못 쪼개지면 M2 의 결과가 오염되므로 켠다.",
      "한국어 입력이 잘못 쪼개지면 Mistral 계열의 결과가 오염되므로 켠다(v2 는 M2 를 돌리지 않지만 앞 노트북과 같게 둔다).", 1),
+    ("# tools.judge5_check 가 같은지 확인한다.", "# tools.judge5v2_check 가 같은지 확인한다.", 1),
 ]
 
 code_cells = [c for c in nb["cells"] if c["cell_type"] == "code"]
@@ -2682,13 +2993,20 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>" -- ai-service/notebooks
 실행:  cd ai-service && python -m tools.judge5v2_check
 
 도구마다 점검 파일이 따로 있다(도구를 서로 다른 세션이 동시에 만들었기 때문이다). 이 파일은 그것들을 모두
-부르고, 도구 하나로는 볼 수 없는 것 셋을 더 본다: 노트북이 judge5 와 같은 값을 쓰는가, 커밋된 최종 시험지에
-정답이 새지 않았는가, 커밋된 배정이 시드로 재현되는가(스펙 8-3절의 judge5v2_check 항목).
+부르고, 도구 하나로는 볼 수 없는 것을 더 본다: 노트북이 judge5 와 같은 값을 쓰는가, 커밋된 시험지에
+정답이 새지 않았는가(draft 와 final 모두), 커밋된 최종 시험지가 커밋된 입력에서 그대로 다시 만들어지는가,
+커밋된 배정이 시드로 재현되고 후보 목록이 규칙대로인가(스펙 8-3절의 judge5v2_check 항목).
+
+커밋된 파일을 보는 점검은 파일이 아직 없으면 아무것도 보지 않고 통과한다. 그래서 그 점검마다 같은 판정 함수를
+일부러 고장 낸 입력에 먹여 실패하는지 보는 점검을 짝으로 둔다. 짝이 없으면 판정 함수가 늘 빈 목록을 돌려줘도
+CI 는 초록이다.
 """
 from __future__ import annotations
 
 import json
 import re
+import tempfile
+from pathlib import Path
 
 from . import (judge5v2_assign_check, judge5v2_export_check, judge5v2_gate_check, judge5v2_report_check,
                judge5v2_search_check)
@@ -2697,9 +3015,16 @@ from .judge5_check import (
     check_parse_v2_keeps_result_rules, check_parse_v2_reads_bracket_tail, check_parse_v2_refuses_truncated_tail,
     check_parse_v2_tail_is_strict,
 )
-from .judge5v2_assign import assigned_types, eligible3, eligible4, eligible6, eligible8, replay_round
-from .judge5v2_export import CASE_KEYS
-from .judge5v2_files import ANSWER_KEY, ASSIGNMENT, CASES, CASES_SHA, QUESTIONS, ROOT, read_json, read_jsonl
+from .judge5v2_assign import (
+    assigned_types, eligible3, eligible4, eligible6, eligible8, replay_round, run_round,
+)
+from .judge5v2_assign_check import _pool
+from .judge5v2_export import CASE_KEYS, apply_review, build_cases
+from .judge5v2_export_check import _inputs
+from .judge5v2_files import (
+    ANSWER_KEY, ASSIGNMENT, CASES, CASES_SHA, DOMAINS, QUESTIONS, QUESTIONS_PER_DOMAIN, QUOTA, RETRIEVED, REVIEW,
+    ROOT, VARIANTS, latest_by_qid, read_json, read_jsonl, write_jsonl,
+)
 
 NOTEBOOK = ROOT / "notebooks" / "judge5v2_colab.ipynb"
 
@@ -2716,6 +3041,109 @@ def _final_key() -> dict | None:
     ak = read_json(ANSWER_KEY)
     return ak if ak.get("stage") == "final" else None
 
+
+# ---------------------------------------------------------------------------------------------------------------
+# 판정 함수. 파일을 읽지 않고 내용만 받는다. 커밋된 파일과 일부러 고장 낸 입력에 똑같이 쓰기 위해서다.
+# 모두 문제 목록을 돌려준다. 빈 목록이면 통과다(assert 하나로 멈추지 않고 문제를 전부 보여 주려는 것이다).
+# ---------------------------------------------------------------------------------------------------------------
+
+def _qno(qid: str) -> int:
+    # "shop-007" 에서 7. rsplit("-", 1) 은 오른쪽에서 한 번만 자른다.
+    return int(qid.rsplit("-", 1)[1])
+
+
+def assignment_problems(a: dict, questions: list[dict], retrieved: list[dict]) -> list[str]:
+    """배정 파일(계획 형식 3)이 규칙대로인가.
+
+    1. 회차 0 의 후보(pool)는 처음 쓴 질문(번호 1~75) 중 검색을 통과한 것 전부다. 검색 줄은 질문마다 마지막 줄이
+       판정이다(계획 형식 2). 후보에서 질문 하나를 빼고 돌려도 재현 점검은 통과하므로(그 후보로 다시 돌리니까)
+       후보 자체를 따로 본다.
+    2. 각 회차의 후보에는 앞 회차들에서 유형을 받은 질문이 없다(보충 배정, 스펙 7-2절).
+    3. 같은 후보, 같은 할당량, 같은 시드로 다시 돌리면 같은 배정이 나온다(스펙 3-3절).
+    4. ③, ④, ⑥, ⑧ 을 받은 질문은 그 자격 조건을 만족한다.
+    """
+    problems: list[str] = []
+    by_id = {q["qid"]: q for q in questions}
+    if a["rounds"]:
+        latest = latest_by_qid(retrieved)
+        want = {d: sorted(r["qid"] for r in latest if r["domain"] == d and r["status"] == "ok"
+                          and _qno(r["qid"]) <= QUESTIONS_PER_DOMAIN) for d in DOMAINS}
+        got = {d: sorted(a["rounds"][0]["pool"].get(d, [])) for d in DOMAINS}
+        for d in DOMAINS:
+            if got[d] != want[d]:
+                missing, extra = sorted(set(want[d]) - set(got[d])), sorted(set(got[d]) - set(want[d]))
+                problems.append(f"회차 0 의 {d} 후보가 검색을 통과한 질문과 다르다(빠짐 {missing[:5]}, 더 있음 {extra[:5]})")
+    used: set[str] = set()
+    for no, rnd in enumerate(a["rounds"]):
+        pool = {q for d in DOMAINS for q in rnd["pool"].get(d, [])}
+        if again := sorted(pool & used):
+            problems.append(f"회차 {no} 의 후보에 앞 회차에서 쓴 질문이 있다: {again[:5]}")
+        try:
+            if replay_round(rnd, by_id, a["seed"], no) != rnd["domains"]:
+                problems.append(f"회차 {no} 가 같은 시드로 재현되지 않는다")
+        except Exception as e:  # noqa: BLE001 - 질문이 없거나 할당량을 못 채우면 재현이 아니라 실패로 센다
+            problems.append(f"회차 {no} 를 다시 돌리지 못했다: {type(e).__name__}: {e}")
+        used |= {q for res in rnd["domains"].values() for q in res["types"]}
+    rules = {3: eligible3, 4: eligible4, 6: eligible6, 8: eligible8}
+    for qid, t in assigned_types(a).items():
+        if t in rules and (qid not in by_id or not rules[t](by_id[qid])):
+            problems.append(f"{qid}: 유형 {t} 의 자격 조건을 만족하지 않는다")
+    return problems
+
+
+def cases_problems(ak: dict, rows: list[dict], file_sha: str, recorded_sha: str) -> list[str]:
+    """시험지 파일에 정답이 새지 않았고 해시 셋이 맞는가. draft 와 final 모두 본다.
+
+    draft 도 보는 이유: 검수 세션(Codex)이 draft 시험지를 읽는다. 거기에 유형이나 정답 점수가 있으면 검수가
+    대응표를 베끼게 되어 두 모델이 함께 놓친 실수만 통과시킨다는 검수의 뜻이 없어진다(스펙 4절).
+    """
+    problems: list[str] = []
+    for r in rows:
+        if set(r) != CASE_KEYS:
+            problems.append(f"{r.get('case_id')}: 시험지 줄의 키가 {sorted(set(r) ^ CASE_KEYS)} 만큼 다르다")
+    if not file_sha == ak.get("cases_sha256") == recorded_sha:
+        problems.append(f"해시가 다르다: 파일 {file_sha}, 정답 파일 {ak.get('cases_sha256')}, 해시 파일 {recorded_sha}")
+    if {r["case_id"] for r in rows} != set(ak["cases"]):
+        problems.append("시험지의 문항 id 와 정답 파일의 문항 id 가 다르다")
+    if ak.get("stage") == "final":
+        if bad := [c for c, v in ak["cases"].items() if v.get("score") not in SCALE]:
+            problems.append(f"정답 점수가 1~5 가 아닌 문항: {bad[:5]}")
+        if both := sorted(set(ak["cases"]) & set(ak.get("dropped", {}))):
+            problems.append(f"남긴 문항과 버린 문항에 함께 있다: {both[:5]}")
+    return problems
+
+
+def rebuild_problems(ak: dict, cases_bytes: bytes, questions: list[dict], retrieved: list[dict], assignment: dict,
+                     variants: list[dict], reviews: list[dict]) -> list[str]:
+    """커밋된 입력으로 최종 시험지를 다시 만들면 커밋된 시험지와 바이트까지 같은가.
+
+    cases_problems 는 시험지와 해시가 서로 맞는지만 본다. 시험지를 만든 뒤 변형 답변이나 검수 판단을 고치고
+    final 을 다시 돌리지 않으면 셋은 여전히 서로 맞지만 입력과는 어긋난다. 그걸 여기서 잡는다.
+    아래 세 줄은 judge5v2_export.cmd_final 과 같은 순서다(그 함수는 파일을 쓰므로 여기서 부르지 않는다).
+    두 곳이 갈라지면 이 점검이 실패하므로 조용히 어긋나지는 않는다.
+    """
+    try:
+        rows, key = build_cases(questions, retrieved, assigned_types(assignment), variants)
+    except Exception as e:  # noqa: BLE001 - ExportProblem 등. 다시 만들지 못한 것도 문제로 센다
+        return [f"최종 시험지를 다시 만들지 못했다: {type(e).__name__}: {e}"]
+    kept, dropped, review_problems = apply_review(key, reviews)
+    problems = [f"검수 반영: {p}" for p in review_problems[:5]]
+    rows = [r for r in rows if r["case_id"] in kept]
+    # 같은 함수(write_jsonl)로 써야 같은 바이트가 나온다. 직렬화 규칙을 여기 한 번 더 적으면 두 곳이 갈라질 수 있다.
+    with tempfile.TemporaryDirectory() as tmp:
+        p = Path(tmp) / "cases.jsonl"
+        write_jsonl(p, rows)
+        rebuilt = p.read_bytes()
+    if rebuilt != cases_bytes:
+        problems.append("커밋된 입력으로 다시 만든 시험지가 커밋된 cases.jsonl 과 다르다. tools.judge5v2_export final 을 다시 실행하라")
+    if kept != ak["cases"] or dropped != ak.get("dropped", {}):
+        problems.append("커밋된 입력으로 다시 만든 정답 점수나 버린 문항이 answer_key.json 과 다르다")
+    return problems
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# 점검
+# ---------------------------------------------------------------------------------------------------------------
 
 def check_v2_notebook_matches_the_module() -> None:
     """노트북은 judge5 를 import 하지 못한다(코랩에는 이 저장소가 없다). 그래서 글자가 같은지 여기서 본다."""
@@ -2744,36 +3172,121 @@ def check_v2_notebook_hash_matches_final_cases() -> None:
         assert m.group(1) == ak["cases_sha256"], "노트북 해시를 최종 시험지 해시로 갱신하라(계획 E11)"
 
 
-def check_committed_final_cases_are_blind() -> None:
-    """최종 시험지에는 변형 유형, 정답 점수, qid 가 없어야 한다. 해시 셋(파일, 해시 파일, 정답 파일)이 같아야 한다."""
+def check_committed_cases_are_blind() -> None:
+    """커밋된 시험지(draft 든 final 이든)에 유형, 정답 점수, qid 가 없고 해시 셋이 맞는다."""
+    if not ANSWER_KEY.exists():
+        return
+    ak = read_json(ANSWER_KEY)
+    problems = cases_problems(ak, read_jsonl(CASES), sha256_file(CASES), CASES_SHA.read_text(encoding="utf-8").split()[0])
+    assert not problems, "\n".join(problems)
+
+
+def check_committed_final_cases_rebuild() -> None:
+    """최종 시험지가 있으면 커밋된 입력으로 다시 만들어 바이트까지 대조한다."""
     ak = _final_key()
     if ak is None:
         return
-    rows = read_jsonl(CASES)
-    assert all(set(r) == CASE_KEYS for r in rows)
-    assert sha256_file(CASES) == ak["cases_sha256"] == CASES_SHA.read_text(encoding="utf-8").split()[0]
-    assert {r["case_id"] for r in rows} == set(ak["cases"])
-    assert all(c["score"] in SCALE for c in ak["cases"].values())
-    assert not set(ak["cases"]) & set(ak.get("dropped", {}))
+    problems = rebuild_problems(ak, CASES.read_bytes(), read_jsonl(QUESTIONS), read_jsonl(RETRIEVED),
+                                read_json(ASSIGNMENT), read_jsonl(VARIANTS), read_jsonl(REVIEW))
+    assert not problems, "\n".join(problems)
 
 
 def check_committed_assignment_replays_and_is_eligible() -> None:
-    """같은 입력과 같은 시드로 다시 돌리면 같은 배정이 나와야 한다(스펙 3-3절). ③, ④, ⑥, ⑧ 은 자격 조건을 만족해야 한다."""
+    """커밋된 배정의 후보, 재현, 자격 조건(assignment_problems)."""
     if not ASSIGNMENT.exists():
         return
-    a = read_json(ASSIGNMENT)
-    by_id = {q["qid"]: q for q in read_jsonl(QUESTIONS)}
-    for no, rnd in enumerate(a["rounds"]):
-        assert replay_round(rnd, by_id, a["seed"], no) == rnd["domains"], f"회차 {no} 가 재현되지 않는다"
-    for qid, t in assigned_types(a).items():
-        if t == 4:
-            assert eligible4(by_id[qid]), qid
-        if t == 3:
-            assert eligible3(by_id[qid]), qid
-        if t == 6:
-            assert eligible6(by_id[qid]), qid     # 답이 하나인 질문(스펙 3-2절)
-        if t == 8:
-            assert eligible8(by_id[qid]), qid
+    problems = assignment_problems(read_json(ASSIGNMENT), read_jsonl(QUESTIONS), read_jsonl(RETRIEVED))
+    assert not problems, "\n".join(problems)
+
+
+def _assignment_fixture() -> tuple[dict, list[dict], list[dict]]:
+    """분야마다 질문 75개(번호 0~74)로 회차 0 을 돌린 배정과 그 입력. 고장 내기 전에는 문제가 없어야 한다."""
+    pools = {d: _pool(d) for d in DOMAINS}
+    questions = [q for d in DOMAINS for q in pools[d]]
+    retrieved = [{"qid": q["qid"], "domain": q["domain"], "status": "ok"} for q in questions]
+    needs = {d: {str(t): n for t, n in QUOTA.items()} for d in DOMAINS}
+    seed = 20261005
+    domains = run_round(pools, {d: dict(QUOTA) for d in DOMAINS}, seed, 0)
+    rnd0 = {"pool": {d: [q["qid"] for q in pools[d]] for d in DOMAINS}, "needs": needs, "domains": domains}
+    return {"seed": seed, "rounds": [rnd0]}, questions, retrieved
+
+
+def check_assignment_problems_catch_broken_inputs() -> None:
+    """assignment_problems 가 고장 하나하나를 잡는가. 커밋된 파일이 없을 때도 이 점검은 실제로 돈다."""
+    a, qs, rs = _assignment_fixture()
+    assert assignment_problems(a, qs, rs) == []
+
+    # 회차 0 의 후보에서 질문 하나를 뺐다. 재현 점검만으로는 못 잡는 경우다(빠진 후보로 다시 돌리면 같게 나올 수 있다).
+    b = json.loads(json.dumps(a))   # 깊은 복사. 고장 낸 것이 다음 경우에 새지 않게 한다
+    b["rounds"][0]["pool"]["shop"].remove(sorted(b["rounds"][0]["domains"]["shop"]["unused"])[0])
+    assert any("회차 0 의 shop 후보" in p for p in assignment_problems(b, qs, rs))
+
+    # 검색을 다시 해서 마지막 줄이 버림이 된 질문이 후보에 남아 있다.
+    dropped = rs + [{"qid": "hr-010", "domain": "hr", "status": "dropped", "drop_reason": "answerable"}]
+    assert any("회차 0 의 hr 후보" in p for p in assignment_problems(a, qs, dropped))
+
+    # 보충 회차의 후보에 회차 0 에서 쓴 질문이 있다. 그 후보로 배정을 실제로 돌려 재현은 맞게 만든다.
+    used_q = sorted(a["rounds"][0]["domains"]["manual"]["types"])[0]
+    pools1 = {d: [q for q in qs if q["domain"] == d][:3] for d in DOMAINS}
+    pools1["manual"].append(next(q for q in qs if q["qid"] == used_q))
+    needs1 = {d: {t: (1 if t == 1 else 0) for t in QUOTA} for d in DOMAINS}
+    rnd1 = {"pool": {d: [q["qid"] for q in pools1[d]] for d in DOMAINS},
+            "needs": {d: {str(t): n for t, n in needs1[d].items()} for d in DOMAINS},
+            "domains": run_round(pools1, needs1, a["seed"], 1)}
+    c = {"seed": a["seed"], "rounds": a["rounds"] + [rnd1]}
+    got = assignment_problems(c, qs, rs)
+    assert any("회차 1 의 후보에 앞 회차에서 쓴 질문" in p for p in got), got
+
+    # 시드가 바뀌었다.
+    assert any("재현되지 않는다" in p for p in assignment_problems(dict(a, seed=1), qs, rs))
+
+    # ④ 를 받은 질문의 주장 수를 홀수로 바꿨다.
+    q4 = next(q for q, t in assigned_types(a).items() if t == 4)
+    qs4 = [dict(q, claims=3) if q["qid"] == q4 else q for q in qs]
+    assert any(p.startswith(f"{q4}: 유형 4") for p in assignment_problems(a, qs4, rs))
+
+
+def _final_fixture(d: Path) -> tuple[dict, bytes, tuple]:
+    """judge5v2_export_check 의 입력 셋으로 최종 시험지를 만든다. 검수는 모두 정답 점수와 같다고 둔다."""
+    questions, retrieved, types, variants = _inputs()
+    assignment = {"seed": 1, "rounds": [{"domains": {"shop": {"types": types}}}]}
+    rows, key = build_cases(questions, retrieved, types, variants)
+    reviews = [{"case_id": c, "review_score": k["table_score"]} for c, k in key.items()]
+    kept, dropped, _ = apply_review(key, reviews)
+    p = d / "cases.jsonl"
+    write_jsonl(p, [r for r in rows if r["case_id"] in kept])
+    ak = {"stage": "final", "cases_sha256": sha256_file(p), "cases": kept, "dropped": dropped}
+    return ak, p.read_bytes(), (questions, retrieved, assignment, variants, reviews)
+
+
+def check_cases_and_rebuild_problems_catch_broken_inputs() -> None:
+    """cases_problems 와 rebuild_problems 가 고장 하나하나를 잡는가."""
+    with tempfile.TemporaryDirectory() as tmp:
+        ak, raw, inputs = _final_fixture(Path(tmp))
+        rows = [json.loads(l) for l in raw.decode("utf-8").splitlines()]
+        sha = ak["cases_sha256"]
+        assert cases_problems(ak, rows, sha, sha) == []
+        assert rebuild_problems(ak, raw, *inputs) == []
+
+        # 시험지 줄에 유형이 샜다. draft 단계에서도 잡아야 한다.
+        leaked = [dict(rows[0], type=8)] + rows[1:]
+        for stage in ("draft", "final"):
+            assert any("키가" in p for p in cases_problems(dict(ak, stage=stage), leaked, sha, sha)), stage
+        # 해시 파일이 다른 시험지의 것이다.
+        assert any("해시가 다르다" in p for p in cases_problems(ak, rows, sha, "0" * 64))
+        # 남긴 문항과 버린 문항에 함께 있다.
+        both = dict(ak, dropped={next(iter(ak["cases"])): {}})
+        assert any("함께 있다" in p for p in cases_problems(both, rows, sha, sha))
+
+        questions, retrieved, assignment, variants, reviews = inputs
+        # 시험지를 만든 뒤 변형 답변을 고쳤다. 시험지와 해시는 여전히 서로 맞으므로 cases_problems 는 못 잡는다.
+        v2 = [dict(v, answer=v["answer"] + " 감사합니다.") if v["type"] == 6 else v for v in variants]
+        assert any("다시 만든 시험지" in p for p in rebuild_problems(ak, raw, questions, retrieved, assignment, v2, reviews))
+        # 시험지를 만든 뒤 검수 판단을 고쳤다(한 문항을 사용자가 3점으로 고침).
+        cid = next(c for c, k in ak["cases"].items() if k["table_score"] == 5)
+        r2 = [dict(r, review_score=3, user_decision="override", override_score=3, reason="다시 봤다")
+              if r["case_id"] == cid else r for r in reviews]
+        assert any("정답 점수나 버린 문항" in p for p in rebuild_problems(ak, raw, questions, retrieved, assignment, variants, r2))
 
 
 OWN = [
@@ -2783,8 +3296,11 @@ OWN = [
     check_parse_v2_keeps_result_rules,
     check_v2_notebook_matches_the_module,
     check_v2_notebook_hash_matches_final_cases,
-    check_committed_final_cases_are_blind,
+    check_committed_cases_are_blind,
+    check_committed_final_cases_rebuild,
     check_committed_assignment_replays_and_is_eligible,
+    check_assignment_problems_catch_broken_inputs,
+    check_cases_and_rebuild_problems_catch_broken_inputs,
 ]
 CHECKS = (judge5v2_search_check.CHECKS + judge5v2_assign_check.CHECKS + judge5v2_export_check.CHECKS
           + judge5v2_gate_check.CHECKS + judge5v2_report_check.CHECKS + OWN)
@@ -2804,7 +3320,7 @@ if __name__ == "__main__":
 - [ ] **Step 2: 점검이 통과하는지 본다**
 
 Run: `cd /Users/cheonjamin/projects/AllDap-judge-v2/ai-service && $PY -m tools.judge5v2_check | tail -1`
-Expected: `39가지 전부 통과.` (도구 점검 31 + 이 파일 8)
+Expected: `52가지 전부 통과.` (도구 점검 41 + 이 파일 11. 처음 계획은 31 + 8 = 39 였다. 도구 점검은 `e228b67`, `f17877a` 에서, 이 파일의 점검은 `71a99ae` 에서 늘었다)
 
 - [ ] **Step 3: CI 에 더한다** (`.github/workflows/ci.yml`)
 
@@ -2823,7 +3339,7 @@ Expected: `39가지 전부 통과.` (도구 점검 31 + 이 파일 8)
 - [ ] **Step 4: 앞 실험 점검도 함께 돌려 본다**
 
 Run: `$PY -m tools.judge5_check | tail -1 && $PY -m tools.judge5v2_check | tail -1`
-Expected: `44가지 전부 통과.` 그리고 `39가지 전부 통과.`
+Expected: `44가지 전부 통과.` 그리고 `52가지 전부 통과.`
 
 - [ ] **Step 5: 커밋한다**
 
@@ -3050,7 +3566,9 @@ EOF
 
 `rerank_failed` 나 `keyword_failed` 가 하나라도 있으면 수와 관계없이 Step 2 의 명령을 **한 번 더** 돌린다. 검색 도구는 그 질문만 다시 검색한다(형식 2). 다시 해도 실패한 질문은 그 줄을 판정으로 두고 시험지에서 뺀다. 첫 시도의 실패 수와 다시 한 뒤의 실패 수를 둘 다 `run_log.md` 에 적는다. 줄을 손으로 지우지 않는다. 다시 해도 실패가 분야마다 5개 이상이면 Cloudflare 상태를 확인하고 오케스트레이터에 알린다.
 
-보충 때(E4 Step 3, E10) 이 명령을 다시 돌리면 새 질문과 함께, 앞서 호출 실패로 남은 질문도 다시 검색된다. 그 질문이 이번에 `ok` 가 되면 E4 에서 그 질문의 멀쩡한 답변도 쓴다. 배정 도구가 답변이 빈 질문을 거절하기 때문이다.
+**이 다시 하기는 E5(배정) 전에 끝낸다.** 이유: CI 의 배정 점검(`71a99ae`)은 회차 0 의 후보가 "질문 001~075 중 검색 마지막 줄이 `ok` 인 질문 전부" 와 같은지 본다. E5 뒤에 다시 검색해 001~075 의 질문 하나가 `ok` 로 바뀌면 그 질문은 회차 0 의 후보에 없으므로 이 점검이 실패한다.
+
+보충 때(E4 Step 3, E10) 이 명령을 다시 돌리면 새 질문과 함께, 앞서 호출 실패로 남은 질문도 다시 검색된다. 검색 도구에는 이것을 막는 인자가 없다. 그 질문이 번호 001~075 이고 E5 뒤에 `ok` 가 되면 위 이유로 배정 점검이 실패한다. **보충 검색 뒤에는 `$PY -m tools.judge5v2_check` 를 돌리고, 회차 0 의 후보가 다르다는 실패가 나오면 멈추고 오케스트레이터에 알린다.** 이 경우의 처리(그 줄을 남길지, 점검을 고칠지)는 아직 정하지 않았다. 번호 076 이후의 보충 질문이 `ok` 가 되면 E4 에서 그 질문의 멀쩡한 답변을 쓴다. 배정 도구가 답변이 빈 질문을 거절하기 때문이다.
 
 - [ ] **Step 4: 커밋한다**
 
@@ -3061,7 +3579,9 @@ git commit -m "test: 채점 모델 비교 v2 의 질문마다 근거 청크를 �
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>" -- ai-service/testdata/judge5v2/retrieved.jsonl ai-service/testdata/judge5v2/run_log.md
 ```
 
-**리뷰 포인트:** `settings` 가 모든 줄에서 같은가, 그리고 `reranker_enabled`, `hybrid_enabled` 가 `true` 인가. 근거 전문이 앞 200자로 잘리지 않았는가(Step 3 의 둘째 줄).
+Step 1, 2 의 명령이 "검색 설정이 config.py 의 기본값과 다릅니다" 로 멈추면 셸에 남은 환경변수나 `.env` 를 고친 뒤 다시 실행한다. `--allow-nondefault` 는 쓰지 않는다(쓰면 결과 줄에 `nondefault` 가 남고, 그 줄로 만든 문항은 기본 설정의 검색이 아니다). "--bot 이 testdata/judge5v2/bots.json 과 다릅니다" 로 멈추면 Step 1 의 `BOTS` 변수를 다시 만든다.
+
+**리뷰 포인트:** `settings` 가 모든 줄에서 같은가, 그리고 `reranker_enabled`, `hybrid_enabled` 가 `true` 인가. `nondefault` 키가 있는 줄이 없는가. 근거 전문이 앞 200자로 잘리지 않았는가(Step 3 의 둘째 줄).
 
 ---
 
@@ -3134,7 +3654,13 @@ cd /Users/cheonjamin/projects/AllDap-judge-v2/ai-service
 $PY -m tools.judge5v2_assign first
 ```
 
-Expected: 분야마다 `배정 60, 쓰지 않음 N, ⑧ 을 ⑥ 으로 0`. 할당량을 채우지 못했다는 출력이 나오면 그 출력을 세션 가(출제)에 넘겨 E4 Step 3 의 보충을 하게 하고, 끝난 뒤 다시 돌린다. 이때는 `assignment.json` 이 만들어지지 않는다.
+Expected: 분야마다 `배정 60, 쓰지 않음 N, ⑧ 을 ⑥ 으로 0`, 종료 코드 0. 종료 코드로 다음 할 일이 갈린다(`echo $?` 로 본다).
+
+- 0: Step 2 로 간다.
+- 1: 배정하지 못했다. `assignment.json` 은 만들어지지 않는다. 질문 파일에 잘못된 줄이 있으면 고칠 줄이 한국어로 나온다. 그 출력을 세션 가에 넘겨 E4 에서 고치게 한다.
+- 2: 배정은 했지만 `멈춘다: 계획 E5.` 로 시작하는 줄이 나온다. ⑧ 을 ⑥ 으로 돌린 분야가 있다는 뜻이다. `assignment.json` 은 남아 있다. 아래 굵은 글씨 문단대로 한다.
+
+할당량을 채우지 못했다는 출력이 나오면 그 출력을 세션 가(출제)에 넘겨 E4 Step 3 의 보충을 하게 하고, 끝난 뒤 다시 돌린다. 이때는 `assignment.json` 이 만들어지지 않는다.
 
 **`⑧ 을 ⑥ 으로` 가 0 이 아닌 분야가 있으면 멈춘다.** 커밋하지 않고, 오케스트레이터가 사용자에게 분야별 수를 보인다. E4 Step 3 의 하한을 넘었어도 먼저 뽑는 ④ 가 ⑧ 자격 질문(주장이 2개인 답이 하나인 질문)을 가져가면 이 일이 생길 수 있다. 사용자가 보충을 고르면 `assignment.json` 을 지우고(아직 커밋 전이고 변형 답변도 없다) E4 Step 3 의 ⑧ 보충을 한 뒤 `first` 를 다시 돌린다. 사용자가 그대로 가기로 하면 네 분야의 ⑧ 합이 관문 4 의 15 이상인지 확인하고, 그 판단을 `run_log.md` 에 적는다. 그대로 가는 것은 E9 에서 ⑧ 이 버려져 관문 4 가 실패할 위험을 받아들이는 것이다.
 
@@ -3144,7 +3670,7 @@ Expected: 분야마다 `배정 60, 쓰지 않음 N, ⑧ 을 ⑥ 으로 0`. 할�
 $PY -m tools.judge5v2_check 2>&1 | grep -E 'replays|전부 통과'
 ```
 
-Expected: `✅ check_committed_assignment_replays_and_is_eligible` 와 `전부 통과`.
+Expected: `✅ check_committed_assignment_replays_and_is_eligible` 와 `52가지 전부 통과.` 이 점검은 회차 0 의 후보가 검색을 통과한 질문 전부인지도 본다. 실패하면 E3 의 다시 하기가 E5 뒤에 일어났는지 확인한다.
 
 - [ ] **Step 3: 커밋한다**
 
@@ -3177,9 +3703,9 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>" -- ai-service/testdata/
 - ③ 사소한 말 하나 추가: 멀쩡한 답변 끝에 **근거 청크 전체 어디에도 다뤄지지 않는 주제** 의 사소한 문장 하나를 더한다. 근거가 다루는 주제(예: 신청 방법, 수수료)를 다른 값으로 덧붙이면 근거와 반대로 읽혀 1점이 될 수 있다. 질문의 핵심 답은 건드리지 않는다.
 - ④ 절반 바꾸기: 주장의 정확히 절반을 근거 청크 전체가 다루지 않는 주제의 주장으로 바꾼다. 주장 2개면 1개, 4개면 2개다. 남는 주장은 글자 그대로 둔다.
 - ⑤ 대부분 지어냄: 근거에 있는 주장 하나만 남기고, 근거에 없는 주장을 셋 이상 더한다. 더하는 주장도 근거가 다루지 않는 주제여야 한다.
-- ⑥ 핵심을 근거와 반대로: 질문의 핵심 답을 **근거 청크 어디에도 없는 다른 값** 으로 바꾼다. 숫자는 크기와 관계없이 다른 숫자면 된다. 바꾼 값이 근거의 다른 청크(옛 값, 다른 대상의 값)에 글자로 있으면 안 된다. 바꿔 넣은 값은 `new_value` 에 답변의 글자 그대로 적는다(형식 4). 내보내기 도구가 그 값이 답변에 있고 `sources` 전문 어디에도 없는지 확인한다. ⑥ 은 답이 하나인 질문에만 배정된다(배정 도구가 보장한다).
+- ⑥ 핵심을 근거와 반대로: 질문의 핵심 답을 **근거 청크 어디에도 없는 다른 값** 으로 바꾼다. 숫자는 크기와 관계없이 다른 숫자면 된다. 바꾼 값이 근거의 다른 청크(옛 값, 다른 대상의 값)에 글자로 있으면 안 된다. 바꿔 넣은 값은 `new_value` 에 답변의 글자 그대로 적고, 바꾸기 전의 값은 `old_value` 에 멀쩡한 답변의 글자 그대로 적는다(형식 4). 내보내기 도구가 `new_value` 는 답변에 있고 `sources` 전문 어디에도 없는지, `old_value` 는 멀쩡한 답변에 있고 변형 답변에는 없는지 확인한다. 옛 값을 "기존 기준은 ..." 처럼 답변에 남기지 않는다. `old_value` 가 없는 ⑥ 줄은 E7 에서 거절된다. ⑥ 은 답이 하나인 질문에만 배정된다(배정 도구가 보장한다).
 - ⑦ 통째로 지어냄: 근거와 관계없는 절차와 숫자로 그럴듯하게 답한다. 근거 청크 전체가 다루는 주제를 쓰지 않는다.
-- ⑧ 다른 대상의 규정 끌어오기: 묻는 대상의 값(`contrast.asked.value`) 자리에 다른 대상의 값(`contrast.other.value`)을 글자 그대로 넣는다. 묻는 대상의 값은 답변에 남기지 않는다. 말투와 나머지 문장은 멀쩡한 답변과 같게 둔다. ⑧ 도 답이 하나인 질문에만 배정된다.
+- ⑧ 다른 대상의 규정 끌어오기: 묻는 대상의 값(`contrast.asked.value`) 자리에 다른 대상의 값(`contrast.other.value`)을 글자 그대로 넣는다. 묻는 대상의 값은 답변에 남기지 않는다("골드는 10,000원, 실버는 20,000원입니다" 처럼 두 값을 다 쓰면 거절된다). 말투와 나머지 문장은 멀쩡한 답변과 같게 둔다. ⑧ 도 답이 하나인 질문에만 배정된다.
 
 만들지 않는 것: 질문의 핵심이 아닌 부가 정보만 근거와 반대로 바꾸는 변형(스펙 3-2절 끝). 이런 변형이 되어 버리면 다른 방식으로 다시 쓴다.
 
@@ -3206,7 +3732,7 @@ git commit -m "test: 채점 모델 비교 v2 의 변형 답변을 쓴다
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>" -- ai-service/testdata/judge5v2/variants.jsonl
 ```
 
-**리뷰 포인트:** ⑥ 의 `new_value` 가 실제로 핵심 답 자리의 값인지 다섯 개를 골라 본다(근거에 없는지는 내보내기 도구가 확인한다). ③, ④, ⑤ 에서 더한 주장이 근거가 다루는 주제가 아닌지 본다. `questions.jsonl` 이 이 태스크에서 바뀌지 않았는가(`git diff --stat`).
+**리뷰 포인트:** ⑥ 의 `new_value` 가 실제로 핵심 답 자리의 값이고 `old_value` 가 멀쩡한 답변의 핵심 값인지 다섯 개를 골라 본다(근거에 없는지, 옛 값이 남았는지는 내보내기 도구가 확인한다). ③, ④, ⑤ 에서 더한 주장이 근거가 다루는 주제가 아닌지 본다. `questions.jsonl` 이 이 태스크에서 바뀌지 않았는가(`git diff --stat`).
 
 ---
 
@@ -3447,7 +3973,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>" -- ai-service/testdata/
 
 ### Task E11: 최종 시험지를 만들고 동결 커밋을 한다
 
-이 커밋 뒤에 모델을 돌린다(스펙 8-1절 9단계). 판정 규칙(스펙 6절)과 읽는 규칙 코드(태스크 2)는 이미 커밋돼 있다.
+이 커밋 뒤에 모델을 돌린다(스펙 8-1절 9단계). 이 커밋 뒤로는 `judge5v2_export draft` 가 거절된다(정답 파일이 최종본이라서. `f17877a`). 판정 규칙(스펙 6절)과 읽는 규칙 코드(태스크 2)는 이미 커밋돼 있다.
 
 **Files:**
 - Create: `ai-service/testdata/judge5v2/cases.jsonl`, `cases.sha256`, `answer_key.json`
@@ -3488,7 +4014,7 @@ EOF
 $PY -m tools.judge5_check | tail -1 && $PY -m tools.judge5v2_check | tail -1
 ```
 
-Expected: `44가지 전부 통과.` 그리고 `39가지 전부 통과.`
+Expected: `44가지 전부 통과.` 그리고 `52가지 전부 통과.`
 
 - [ ] **Step 4: 동결 커밋을 한다**
 
@@ -3538,7 +4064,17 @@ $PY -m tools.judge5_cloudflare --cases testdata/judge5v2/cases.jsonl --results-d
 $PY -m tools.judge5_cloudflare --cases testdata/judge5v2/cases.jsonl --results-dir testdata/judge5v2/results
 ```
 
-Expected: `M1_run1.jsonl: N/N건. ... 뉴런 {...}`. 빠진 문항이 있으면 같은 명령을 다시 실행한다(빠진 문항만 부른다). 여러 번 다시 불러도 받지 못한 문항이 남으면 보고서를 만들지 않고 오케스트레이터에 알린다(스펙 6-5절).
+Expected: `M1_run1.jsonl: N/N건. ... 뉴런 {...}`. 끝나면 결과 줄의 `finish` 값을 센다.
+
+```bash
+$PY -c "
+import json, collections
+rows = [json.loads(l) for l in open('testdata/judge5v2/results/M1_run1.jsonl', encoding='utf-8') if l.strip()]
+print(collections.Counter(r['finish'] for r in rows))
+"
+```
+
+세 값(`stop`, `length`, `None`)의 수를 `run_log.md` 에 적는다. 이유: v2 의 대괄호 끝 규칙은 `finish` 가 `stop` 인 출력에만 적용된다(`adc2aea`, 스펙 6-4절 세부 규칙 2). Cloudflare 가 응답 형식에 따라 `finish` 를 주지 않으면 `None` 으로 남고, 그 출력은 `[RESULT]` 가 없을 때 끝이 `[4]` 여도 못 읽음이 된다. `None` 이 있다고 해서 다시 돌리거나 규칙을 바꾸지 않는다(규칙은 출력을 보기 전에 고정됐다). 보고서와 결과 문서에 그 수를 적는다. 빠진 문항이 있으면 같은 명령을 다시 실행한다(빠진 문항만 부른다). 여러 번 다시 불러도 받지 못한 문항이 남으면 보고서를 만들지 않고 오케스트레이터에 알린다(스펙 6-5절).
 
 - [ ] **Step 4: 뉴런과 끝난 시각을 적고 커밋한다**
 
