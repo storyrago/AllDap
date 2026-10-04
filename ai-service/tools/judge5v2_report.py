@@ -83,6 +83,18 @@ def _pipeline(ak: dict, retrieved: list[dict], assignment: dict) -> list[str]:
         drops = Counter(r["drop_reason"] for r in rows if r["status"] != "ok")
         parts = ", ".join(f"{reason} {n}" for reason, n in sorted(drops.items())) or "없음"
         out.append(f"- {d}: 검색한 질문 {len(rows)}개 중 버림 {parts}")
+    # 검색은 통과했지만 정답이 근거 청크 밖이라 배정 후보에서 뺀 질문(스펙 2-3절). 회차마다 그때의 excluded.json
+    # 전체를 기록하므로(judge5v2_assign 의 _round_doc) 회차의 excluded_counts 를 더하면 같은 질문을 회차 수만큼
+    # 센다. 그래서 회차들의 excluded({qid: 원인})를 합친 뒤 한 번씩 센다. 분야는 검색 줄에서 읽는다.
+    excluded: dict[str, str] = {}
+    for rnd in assignment["rounds"]:
+        excluded.update(rnd.get("excluded") or {})
+    domain_of = {r["qid"]: r["domain"] for r in retrieved}
+    out += ["", "검색은 통과했지만 정답이 근거 청크 밖이라 배정 후보에서 뺀 질문(스펙 2-3절, excluded.json):", ""]
+    for d in DOMAINS:
+        reasons = Counter(why for q, why in excluded.items() if domain_of.get(q) == d)
+        parts = ", ".join(f"{reason} {n}" for reason, n in sorted(reasons.items())) or "없음"
+        out.append(f"- {d}: {parts}")
     assigned: dict[str, int] = {}
     moved: Counter = Counter()
     for rnd in assignment["rounds"]:
@@ -91,10 +103,11 @@ def _pipeline(ak: dict, retrieved: list[dict], assignment: dict) -> list[str]:
             moved[d] += res["eighth_to_sixth"]
     out += ["", "배정(스펙 3-3절):", ""]
     for d in DOMAINS:
-        ok = [r["qid"] for r in retrieved if r["domain"] == d and r["status"] == "ok"]
+        # 제외한 질문은 위에서 따로 셌으므로 여기서는 빼고 센다. 빼지 않으면 "쓰지 않은 질문" 에 한 번 더 들어간다.
+        ok = [r["qid"] for r in retrieved if r["domain"] == d and r["status"] == "ok" and r["qid"] not in excluded]
         unused = sum(1 for q in ok if q not in assigned)
         # 보충 회차는 앞 회차에서 쓰지 않은 질문도 다시 뽑는다(스펙 3-3절 6). 그래서 모든 회차를 거친 뒤의 수를 적는다.
-        out.append(f"- {d}: 검색을 통과한 질문 {len(ok)}개 중 모든 회차 뒤에도 쓰지 않은 질문 {unused}개, "
+        out.append(f"- {d}: 검색을 통과하고 제외되지 않은 질문 {len(ok)}개 중 모든 회차 뒤에도 쓰지 않은 질문 {unused}개, "
                    f"⑧ 이 모자라 ⑥ 으로 돌린 문항 {moved[d]}개")
     dec = Counter(c["decision"] for c in ak["cases"].values())
     out += ["", "검수(스펙 4절):", "",

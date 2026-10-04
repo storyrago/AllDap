@@ -98,6 +98,26 @@ def check_settings_kinds_use_last_search_line() -> None:
     assert "최종 시험지의 검색 설정 1가지" in text, text
 
 
+def check_build_counts_excluded_once() -> None:
+    """정답이 근거 청크 밖이라 뺀 질문을 분야, 원인별로 한 번씩 센다. 회차마다 같은 제외가 기록돼도 두 번 세지 않고,
+    "쓰지 않은 질문" 에도 다시 넣지 않는다."""
+    with tempfile.TemporaryDirectory() as tmp:
+        paths = _write_inputs(Path(tmp))
+        with paths["retrieved"].open("a") as f:   # 검색은 통과했지만 제외한 shop 질문 둘
+            for q in ("qe1", "qe2"):
+                f.write(json.dumps({"qid": q, "domain": "shop", "status": "ok", "drop_reason": None}) + "\n")
+        doc = json.loads(paths["assignment"].read_text())
+        ex = {"qe1": "answer_not_in_top5", "qe2": "partial_answer_not_in_top5"}
+        rnd = doc["rounds"][0]
+        empty = {"types": {}, "unused": [], "eighth_to_sixth": 0}
+        doc["rounds"] = [dict(rnd, excluded=ex), {"domains": {"shop": empty}, "excluded": ex}]   # 두 회차가 같은 제외를 기록
+        paths["assignment"].write_text(json.dumps(doc))
+        text = build(**paths)
+    assert "- shop: answer_not_in_top5 1, partial_answer_not_in_top5 1" in text, text
+    assert "- hr: 없음" in text
+    assert "- shop: 검색을 통과하고 제외되지 않은 질문 10개 중 모든 회차 뒤에도 쓰지 않은 질문 0개" in text, text
+
+
 def check_build_refuses_draft_key() -> None:
     from .judge5_report import ReportProblem
     with tempfile.TemporaryDirectory() as tmp:
@@ -112,7 +132,7 @@ def check_build_refuses_draft_key() -> None:
 
 
 CHECKS = [check_error_counts_follow_spec, check_build_compares_in_the_right_direction, check_build_counts_no_finish_and_nondefault,
-          check_settings_kinds_use_last_search_line, check_build_refuses_draft_key]
+          check_settings_kinds_use_last_search_line, check_build_counts_excluded_once, check_build_refuses_draft_key]
 
 
 def main() -> None:
