@@ -128,6 +128,37 @@ _RESULT_RE = re.compile(
     r"(?:\*\*)?\[RESULT\](?:\*\*)?\s*:?\s*(?:\*\*)?\s*\(?\s*(?:\*\*)?\s*(-?\d+(?:\.\d+)?)(?:\s*/\s*(\d+))?"
 )
 
+# 점수 읽기 규칙의 판. v1 은 앞 실험(2026-10-02) 그대로이고 기본값이다. v2 는 v1 에 대괄호 끝 규칙 하나를 더한다
+# (v2 스펙 6-4절). 기본값을 v1 로 두는 이유: judge5_report 와 judge5_check 가 인자 없이 앞 실험과 같은 결과를
+# 내야 한다. 앞 실험의 M4 출력을 v2 로 다시 읽으면 못 읽음 41건이 점수로 바뀐다.
+RULES_V1 = "v1"
+RULES_V2 = "v2"
+
+# v2 의 대괄호 끝 규칙. 출력의 맨 끝(뒤 공백 제외)이 [4] 꼴이면 그 값을 읽는다.
+# 받는 꾸밈은 _RESULT_RE 와 같다: 굵게(**[4]**, [**4**]), 괄호 안 공백([ 4 ]), 앞의 0([05]), 전각 숫자([４]),
+# 5점 만점 분수([4/5]). 값은 부호와 소수점까지 잡아 두고 아래에서 1~5 정수인지 따진다.
+# \Z 는 "문자열의 진짜 끝" 이다. 그래서 맨 끝의 대괄호 하나만 맞고, 앞쪽의 근거 번호([1])는 맞지 않는다.
+_TAIL_RE = re.compile(
+    r"(?:\*\*)?\[\s*(?:\*\*)?\s*(-?\d+(?:\.\d+)?)(?:\s*/\s*(\d+))?\s*(?:\*\*)?\s*\](?:\*\*)?\s*\Z"
+)
+
+
+def _parse_tail(text: str, finish: str | None) -> tuple[int | None, str]:
+    """[RESULT] 가 없는 출력에만 쓴다. 읽지 못하면 v1 과 같이 missing 이다(v2 스펙 6-4절)."""
+    if finish == "length":
+        # 최대 출력에서 잘린 출력의 끝은 모델이 점수를 적은 자리가 아니라 토큰이 다 된 자리다.
+        return None, "missing"
+    m = _TAIL_RE.search(text)
+    if not m:
+        return None, "missing"
+    val, den = m.groups()
+    if den and int(den) != 5:
+        return None, "missing"
+    # isdigit(): "4.5", "-1" 은 False 다. 전각 숫자 "４" 는 True 이고 int("４") 는 4 다.
+    if not val.isdigit() or int(val) not in SCALE:
+        return None, "missing"
+    return int(val), "ok"
+
 
 # 동작 확인용 가짜 사례. 44건과 무관하다(순서 규칙, 스펙 §4-1). M1 의 --smoke 와 코랩 노트북이 모두 이것을 쓴다.
 # 답변의 "창립기념일" 은 근거에 없는 사소한 주장 하나라, 채점표대로면 4 가 나와야 한다.
@@ -142,7 +173,7 @@ def smoke_messages() -> list[dict[str, str]]:
     return build_messages(SMOKE_CASE["question"], SMOKE_CASE["sources"], SMOKE_CASE["answer"])
 
 
-def parse_result(text: str | None) -> tuple[int | None, str]:
+def parse_result(text: str | None, finish: str | None = None, *, rules: str = RULES_V1) -> tuple[int | None, str]:
     """모델 출력에서 점수를 읽는다. (점수, 상태) 를 돌려준다.
 
     상태는 넷이다. 앞의 하나만 점수가 있고 나머지 셋은 서로 다른 실패다.
@@ -152,7 +183,11 @@ def parse_result(text: str | None) -> tuple[int | None, str]:
       conflict      [RESULT] 를 여러 번 쓰고 값이 서로 다르다
     셋을 "못 읽음" 하나로 뭉개지 않는 이유: 원인이 다르면 고칠 곳도 다르다.
     규칙(꾸밈은 너그럽게, 값은 엄격하게)은 스펙 §4-7 에 측정 전에 고정돼 있다.
+    rules 가 RULES_V2 이면 [RESULT] 가 없는 출력에 대괄호 끝 규칙(_parse_tail)을 더 적용한다.
+    finish 는 생성이 끝난 이유(stop, length)이고 v2 의 대괄호 끝 규칙만 쓴다.
     """
+    if rules not in (RULES_V1, RULES_V2):
+        raise ValueError(f"알 수 없는 읽는 규칙 판입니다: {rules}. RULES_V1 또는 RULES_V2 를 주세요.")
     if not text:
         return None, "missing"
     pairs = _RESULT_RE.findall(text)   # (값, 분모) 목록. 예: [("4", "")], [("4.5", "")], [("4", "10")]
@@ -160,7 +195,9 @@ def parse_result(text: str | None) -> tuple[int | None, str]:
         # [RESULT] 는 썼는데 뒤에서 값을 못 찾은 것("[RESULT] Score: 4")은 missing 이 아니다.
         # 스펙 §4-7 표의 missing 은 "[RESULT] 가 없다" 이고, 이 경우는 "값을 읽을 수 없다" 쪽이다.
         # 잘려서 [RESULT] 까지 못 쓴 것과 [RESULT] 까지 쓰고 값 모양이 틀린 것은 고칠 곳이 다르다.
-        return None, ("out_of_range" if "[RESULT]" in text else "missing")
+        if "[RESULT]" in text:
+            return None, "out_of_range"
+        return _parse_tail(text, finish) if rules == RULES_V2 else (None, "missing")
     # 분모가 있는데 5 가 아니면(4/10) 다른 척도의 점수라 읽지 않는다.
     if any(den and int(den) != 5 for _, den in pairs):
         return None, "out_of_range"
@@ -227,11 +264,14 @@ class Comparison:
     ties: int
     p_value: float
 
-    def verdict(self, a: str, b: str) -> str:
-        """스펙 §4-3 의 판정 문장. p < 0.05 일 때만 더 가까운 쪽을 말한다."""
+    def verdict(self, a: str, b: str, basis: str = "사람") -> str:
+        """스펙 §4-3 의 판정 문장. p < 0.05 일 때만 더 가까운 쪽을 말한다.
+
+        basis 는 무엇과 대조했는가다. 앞 실험은 사람 라벨이고, v2 는 대응표다(v2 스펙 1-3절).
+        """
         if self.p_value < 0.05 and self.a_closer != self.b_closer:
             closer = a if self.a_closer > self.b_closer else b
-            return f"{closer} 가 사람에 더 가깝다"
+            return f"{closer} 가 {basis}에 더 가깝다"
         return "구별되지 않음"
 
 
@@ -292,10 +332,13 @@ def pick_best(summaries: dict[str, Summary]) -> str | None:
     return sorted(summaries, key=key)[0]
 
 
-def replacement_failures(cand: Summary, m1: Summary, vs_m1: Comparison) -> list[str]:
-    """교체 후보 기준(스펙 §4-4)에서 어긋난 항목을 돌려준다. 빈 목록이면 교체 후보다.
+def replacement_failures(cand: Summary, m1: Summary, vs_m1: Comparison, *,
+                         basis: str = "사람", severe: tuple[int, int] | None = None) -> list[str]:
+    """교체 후보 기준(스펙 §4-4, v2 스펙 6-3절)에서 어긋난 항목을 돌려준다. 빈 목록이면 교체 후보다.
 
-    vs_m1 은 compare(사람, 후보, M1) 의 결과여야 한다(a 가 후보, b 가 M1).
+    vs_m1 은 compare(정답, 후보, M1) 의 결과여야 한다(a 가 후보, b 가 M1).
+    severe 는 (후보의 심각한 놓침, M1 의 심각한 놓침) 이다. v2 만 넘긴다. None 이면 기준 4를 보지 않는다.
+    앞 실험의 보고서가 바뀌지 않게 하려고 기본값을 None 으로 둔다.
     """
     out = []
     if cand.within1 < m1.within1:
@@ -303,7 +346,9 @@ def replacement_failures(cand: Summary, m1: Summary, vs_m1: Comparison) -> list[
     if cand.unread > 0:
         out.append(f"못 읽음 사례가 {cand.unread}건 있다")
     if vs_m1.p_value < 0.05 and vs_m1.b_closer > vs_m1.a_closer:
-        out.append(f"부호 검정에서 M1 이 사람에 더 가깝다(p = {vs_m1.p_value:.4f})")
+        out.append(f"부호 검정에서 M1 이 {basis}에 더 가깝다(p = {vs_m1.p_value:.4f})")
+    if severe is not None and severe[0] > severe[1]:
+        out.append(f"심각한 놓침이 M1 보다 많다({severe[0]} > {severe[1]})")
     return out
 
 
