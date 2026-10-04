@@ -64,13 +64,15 @@ def check_build_compares_in_the_right_direction() -> None:
 
 
 def check_build_counts_no_finish_and_nondefault() -> None:
-    """못 읽음 중 512 잘림과 finish 기록 없음을 따로 센다. 검색 줄의 nondefault 수와 시험지의 검색 설정 종류를 적는다."""
+    """못 읽음 중 512 잘림, finish 기록 없음, 그 밖의 finish 값을 따로 센다. 검색 줄의 nondefault 수와 시험지의
+    검색 설정 종류를 적는다."""
     with tempfile.TemporaryDirectory() as tmp:
         paths = _write_inputs(Path(tmp))
         m4 = paths["results_dir"] / "M4_run1.jsonl"
         rows = [json.loads(l) for l in m4.read_text().splitlines()]
         for i, r in enumerate(rows):
-            r["finish"] = None if i < 3 else "length" if i < 5 else "stop"    # 대괄호 끝은 stop 일 때만 읽는다
+            # 대괄호 끝은 stop 일 때만 읽는다. content_filter 는 stop, length, 기록 없음이 아닌 그 밖의 값의 예다.
+            r["finish"] = None if i < 3 else "length" if i < 5 else "content_filter" if i == 5 else "stop"
         m4.write_text("".join(json.dumps(r) + "\n" for r in rows))
         with paths["retrieved"].open("a") as f:   # q0 를 다른 설정으로 다시 검색한 줄
             f.write(json.dumps({"qid": "q0", "domain": "shop", "status": "ok", "drop_reason": None,
@@ -79,8 +81,21 @@ def check_build_counts_no_finish_and_nondefault() -> None:
             f.write(json.dumps({"qid": "qy", "domain": "hr", "status": "dropped", "drop_reason": "max_distance",
                                 "settings": {"top_k": 3}}) + "\n")
         text = build(**paths)
-    assert "(missing 5, 그중 2개는 512 토큰에서 잘림, 3개는 finish 기록 없음)" in text, text
+    assert "(missing 6, 그중 2개는 512 토큰에서 잘림, 3개는 finish 기록 없음, 1개는 finish 가 그 밖의 값)" in text, text
     assert "검색 줄(nondefault) 1개, 최종 시험지의 검색 설정 2가지" in text
+
+
+def check_settings_kinds_use_last_search_line() -> None:
+    """시험지 문항의 앞 검색 줄이 다른 설정이어도 마지막 줄이 기본이면 설정은 1가지다. 시험지는 마지막 줄의
+    settings 를 옮기므로(judge5v2_export), 앞 줄까지 세면 시험지에 없는 설정을 섞였다고 잘못 적는다."""
+    with tempfile.TemporaryDirectory() as tmp:
+        paths = _write_inputs(Path(tmp))
+        base = paths["retrieved"].read_text()
+        earlier = json.dumps({"qid": "q1", "domain": "shop", "status": "dropped", "drop_reason": "rerank_failed",
+                              "settings": {"top_k": 8}}) + "\n"
+        paths["retrieved"].write_text(earlier + base)   # q1 의 앞 줄은 다른 설정, 마지막 줄은 다른 문항과 같은 설정
+        text = build(**paths)
+    assert "최종 시험지의 검색 설정 1가지" in text, text
 
 
 def check_build_refuses_draft_key() -> None:
@@ -97,7 +112,7 @@ def check_build_refuses_draft_key() -> None:
 
 
 CHECKS = [check_error_counts_follow_spec, check_build_compares_in_the_right_direction, check_build_counts_no_finish_and_nondefault,
-          check_build_refuses_draft_key]
+          check_settings_kinds_use_last_search_line, check_build_refuses_draft_key]
 
 
 def main() -> None:

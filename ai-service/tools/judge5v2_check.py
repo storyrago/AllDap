@@ -90,8 +90,9 @@ def assignment_problems(a: dict, questions: list[dict], retrieved_raw: bytes) ->
 
     1. 회차 0 의 후보(pool)는 그 회차를 돌릴 때의 검색 파일에서 검색을 통과하고 멀쩡한 답변이 있는 질문 전부다
        (pool_for 와 같은 조건). 그때의 검색 파일은 회차에 기록된 retrieved_sha256 으로 지금 파일에서 찾는다.
-       지금 파일 전체로 정답을 만들면, 회차 0 뒤에 덧붙은 정상적인 줄(보충 질문 076 이후, 호출 실패 뒤
-       다시 검색해 ok 가 된 질문)이 거짓 실패를 낸다. 후보에서 질문 하나를 빼고 돌려도 재현 점검은
+       지금 파일 전체로 정답을 만들면 회차 0 뒤에 다시 검색해 ok 가 된 질문(호출 실패로 버렸던 질문)이
+       거짓 실패를 낸다. 번호(75 이하)로 거르는 것은 보충 질문(076 이후)만 막고 이 경우를 막지 못한다.
+       후보에서 질문 하나를 빼고 돌려도 재현 점검은
        통과하므로(그 후보로 다시 돌리니까) 후보 자체를 따로 본다.
     2. 각 회차의 후보에는 앞 회차들에서 유형을 받은 질문이 없다(보충 배정, 스펙 7-2절).
     3. 같은 후보, 같은 할당량, 같은 시드로 다시 돌리면 같은 배정이 나온다(스펙 3-3절).
@@ -338,7 +339,8 @@ def check_assignment_problems_catch_broken_inputs() -> None:
 
 def check_assignment_problems_pass_normal_later_lines() -> None:
     """회차 0 뒤에 검색 파일에 줄이 덧붙는 정상 경로 둘은 통과해야 한다.
-    1. 보충 질문(076 이후)을 쓰고 검색했다. 2. 호출 실패로 버린 질문(hr-075)을 다시 검색해 ok 가 됐다."""
+    1. 보충 질문(076 이후)을 쓰고 검색했다. 2. 호출 실패로 버린 질문(hr-075)을 다시 검색해 ok 가 됐다.
+    번호로 거르던 옛 판은 1 은 통과하고 2 에서 거짓 실패했다. 1 은 앞부분 방식으로 바꿔도 깨지지 않는지 보려고 둔다."""
     a, qs, raw = _assignment_fixture()
     extra = [q for d in DOMAINS for q in _questions(d, 3, start=76)]
     later = raw + _lines([_ok(q) for q in extra]) + _lines([{**_ok(qs[0]), "qid": "hr-075"}])

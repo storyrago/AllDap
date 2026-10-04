@@ -138,6 +138,7 @@ def build(answer_key: Path = ANSWER_KEY, cases_sha: Path = CASES_SHA, results_di
     kinds: dict[str, dict[str, int]] = {}
     cuts: dict[str, int] = {}
     no_finish: dict[str, int] = {}
+    other_finish: dict[str, int] = {}
     skipped: dict[str, str] = {}
     for m in MODEL_KEYS:
         run1, skip = results_dir / f"{m}_run1.jsonl", results_dir / f"{m}_skipped.json"
@@ -154,6 +155,9 @@ def build(answer_key: Path = ANSWER_KEY, cases_sha: Path = CASES_SHA, results_di
         # finish 기록이 없는 못 읽음. v2 규칙은 finish 가 stop 이 아니면 대괄호 끝을 읽지 않으므로(스펙 6-4절 세부 규칙 2)
         # 잘림과 따로 센다. 이 수가 크면 모델이 못한 것이 아니라 결과 파일에 finish 를 적지 않은 것일 수 있다.
         no_finish[m] = sum(1 for c in ids if scores[m][c] is None and finishes.get(c) is None)
+        # stop, length, 기록 없음이 아닌 값(예: 제공자의 내용 거름). 스펙 6-4절 세부 규칙 2 에 따라 이것도 대괄호 끝을
+        # 읽지 않는다. 셋 중 어디에도 안 세면 못 읽음의 원인 일부가 표에서 사라진다.
+        other_finish[m] = sum(1 for c in ids if scores[m][c] is None and finishes.get(c) not in (None, "stop", "length"))
 
     sums = {m: summarize([(key[c], scores[m][c]) for c in ids]) for m in scores}
     errs = {m: error_counts([(key[c], scores[m][c]) for c in ids]) for m in scores}
@@ -170,7 +174,8 @@ def build(answer_key: Path = ANSWER_KEY, cases_sha: Path = CASES_SHA, results_di
             "|---|---|---|---|---|---|---|---|"]
     for m in scores:
         detail = ", ".join(f"{k} {v}" for k, v in sorted(kinds[m].items()) if k != "ok")
-        why = [f"{n}개는 {label}" for n, label in ((cuts[m], "512 토큰에서 잘림"), (no_finish[m], "finish 기록 없음")) if n]
+        why = [f"{n}개는 {label}" for n, label in ((cuts[m], "512 토큰에서 잘림"), (no_finish[m], "finish 기록 없음"),
+                                                   (other_finish[m], "finish 가 그 밖의 값")) if n]
         note = (f" ({detail}" + (", 그중 " + ", ".join(why) if why else "") + ")") if detail else ""
         out.append(_row(m, sums[m], errs[m], note))
     for m, why in skipped.items():
