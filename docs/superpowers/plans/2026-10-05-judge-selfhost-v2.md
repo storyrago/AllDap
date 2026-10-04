@@ -2177,6 +2177,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>" -- ai-service/tools/jud
   - `case_id_of(domain: str, question: str, answer: str) -> str` (12자)
   - `build_cases(questions, retrieved, types: dict[str, int], variants) -> tuple[list[dict], dict[str, dict]]` (시험지 줄 목록, `case_id` 별 정답 정보)
   - `load_and_build() -> tuple[list[dict], dict[str, dict]]`
+  - `used_alone(value: str, rival: str | None, text: str) -> bool` (⑧ 판정용. rival 이 value 를 품으면 rival 이 나온 자리를 빼고 value 를 찾는다)
   - `apply_review(key: dict[str, dict], reviews: list[dict]) -> tuple[dict, dict, list[str]]` (남긴 문항, 버린 문항, 문제 목록)
   - `class ExportProblem(RuntimeError)` with `.problems: list[str]`
   - 명령 `python -m tools.judge5v2_export draft | mismatches | final`. `draft` 는 `answer_key.json` 이 이미 `final` 이면 거절한다(`f17877a`)
@@ -2306,6 +2307,31 @@ def check_values_are_matched_with_boundaries() -> None:
     assert len(rows) == 2
 
 
+def check_eighth_with_nested_values() -> None:
+    """⑧ 의 두 값이 서로를 품을 때. "약 1시간" 은 숫자로 끝나지 않아 value_in 이 뒤 경계를 걸지 않으므로
+    다른 대상 값 "약 1시간 30분" 안에서도 찾힌다. 그 자리를 빼지 않으면 다른 대상 값으로만 답한 정상 ⑧ 을
+    "묻는 값을 썼다" 로 거절한다. 묻는 값이 더 긴 반대 경우와, 두 값을 다 쓴 답변의 거절도 함께 본다."""
+    short, long_ = "약 1시간", "약 1시간 30분"
+    src = [{"chunk_id": 1, "filename": "a.md", "content": f"일반 {short}, 특급 {long_}"}]
+    r = [{"qid": "ops-001", "status": "ok", "settings": _SETTINGS, "sources": src}]
+
+    def build(asked: str, other: str, answer: str) -> bool:
+        q = [{"qid": "ops-001", "domain": "ops", "question": "걸리는 시간은?", "answer": f"{asked} 걸립니다.",
+              "claims": 1, "two_part": False, "contrast": {"asked": {"target": "가", "value": asked},
+                                                           "other": {"target": "나", "value": other}, "chunk_ids": [1]}}]
+        v = [{"qid": "ops-001", "type": 8, "answer": answer, "note": ""}]
+        try:
+            build_cases(q, r, {"ops-001": 8}, v)
+        except ExportProblem:
+            return False
+        return True
+
+    for asked, other in ((short, long_), (long_, short)):
+        assert build(asked, other, f"{other} 걸립니다."), (asked, other)                    # 다른 대상 값만 썼다
+        assert not build(asked, other, f"가는 {asked}, 나는 {other} 걸립니다."), (asked, other)  # 두 값을 다 썼다
+        assert not build(asked, other, f"{asked} 걸립니다. 다시 말해 {asked}."), (asked, other)  # 묻는 값만 썼다
+
+
 def check_apply_review_paths() -> None:
     """스펙 4절: 같으면 통과, 다르면 사용자 판단(keep, override, drop). 판단이 없으면 멈춘다."""
     key = {c: {"qid": c, "domain": "shop", "type": 3, "table_score": 4} for c in ("a", "b", "c", "d", "e")}
@@ -2380,6 +2406,7 @@ CHECKS = [
     check_rows_are_shuffled_but_fixed,
     check_build_refuses_bad_variants,
     check_values_are_matched_with_boundaries,
+    check_eighth_with_nested_values,
     check_apply_review_paths,
     check_build_uses_last_search_line,
     check_mismatch_fence_outlasts_inner_backticks,
@@ -2460,6 +2487,31 @@ def case_id_of(domain: str, question: str, answer: str) -> str:
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:12]
 
 
+def _value_spans(value: str, text: str) -> list[tuple[int, int]]:
+    """text 에서 value 가 나온 자리들. 경계 규칙은 judge5v2_files.value_in 과 같다(그 함수는 참/거짓만 돌려준다).
+
+    두 함수의 규칙이 어긋나면 used_alone 이 value_in 과 다른 자리를 지운다. 규칙을 고칠 때는 둘을 함께 고친다.
+    """
+    head = r"(?<!\d)(?<!\d[,.])" if value[0].isdigit() else ""
+    tail = r"(?!\d|[,.]\d)" if value[-1].isdigit() else ""
+    return [m.span() for m in re.finditer(head + re.escape(value) + tail, text)]
+
+
+def used_alone(value: str, rival: str | None, text: str) -> bool:
+    """value 가 rival 의 일부로서가 아니라 따로 text 에 나오는가(⑧ 의 묻는 값과 다른 대상 값을 가르는 데 쓴다).
+
+    값이 "약 1시간" 처럼 숫자가 아닌 글자로 끝나면 value_in 은 뒤 경계를 걸지 않는다. 그래서 다른 대상의 값
+    "약 1시간 30분" 으로만 답한 정상 ⑧ 에서도 묻는 값 "약 1시간" 을 썼다고 판정한다. 이를 막으려고 rival 이
+    value 를 품을 때(rival 이 더 길 때)만 rival 이 나온 자리를 먼저 지우고 value 를 찾는다.
+    반대로 value 가 더 길면 지우지 않는다. 지우면 "약 1시간 30분" 안의 "약 1시간" 을 지워 긴 값을 쓴 답변을
+    못 알아본다. 지운 자리는 널 문자 하나로 채운다. 숫자도 쉼표도 점도 아니라 경계 규칙에 새 일치를 만들지 않는다.
+    """
+    if rival and value != rival and value in rival:
+        for s, e in reversed(_value_spans(rival, text)):
+            text = text[:s] + "\0" + text[e:]
+    return value_in(value, text)
+
+
 def build_cases(questions: list[dict], retrieved: list[dict], types: dict[str, int],
                 variants: list[dict]) -> tuple[list[dict], dict[str, dict]]:
     """배정된 질문마다 문항 하나를 만든다. 형식이 하나라도 틀리면 ExportProblem 으로 전부 알린다."""
@@ -2493,7 +2545,7 @@ def build_cases(questions: list[dict], retrieved: list[dict], types: dict[str, i
         if t == 8:
             c = q.get("contrast") or {}
             other, asked = c.get("other", {}).get("value"), c.get("asked", {}).get("value")
-            if not other or not value_in(other, v["answer"]) or (asked and value_in(asked, v["answer"])):
+            if not other or not used_alone(other, asked, v["answer"]) or (asked and used_alone(asked, other, v["answer"])):
                 problems.append(f"{qid}: ⑧ 은 다른 대상의 값({other})으로 답하고 묻는 대상의 값({asked})은 쓰지 않아야 한다")
         if t == 6:
             # 스펙 3-2절: 바꿔 넣은 값이 근거 청크 전문 어디에도 없어야 한다. 옛 값이나 다른 대상의 값이 근거에
@@ -2658,7 +2710,7 @@ if __name__ == "__main__":
 - [ ] **Step 4: 점검이 통과하는지 본다**
 
 Run: `$PY -m tools.judge5v2_export_check | tail -1`
-Expected: `10가지 전부 통과.` (처음 계획은 7가지. `f17877a` 가 셋을 더했다)
+Expected: `11가지 전부 통과.` (처음 계획은 7가지. `f17877a` 가 셋을, ⑧ 의 값이 서로를 품는 경우를 고친 커밋이 하나를 더했다)
 
 - [ ] **Step 5: 커밋한다**
 

@@ -50,6 +50,31 @@ def case_id_of(domain: str, question: str, answer: str) -> str:
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:12]
 
 
+def _value_spans(value: str, text: str) -> list[tuple[int, int]]:
+    """text 에서 value 가 나온 자리들. 경계 규칙은 judge5v2_files.value_in 과 같다(그 함수는 참/거짓만 돌려준다).
+
+    두 함수의 규칙이 어긋나면 used_alone 이 value_in 과 다른 자리를 지운다. 규칙을 고칠 때는 둘을 함께 고친다.
+    """
+    head = r"(?<!\d)(?<!\d[,.])" if value[0].isdigit() else ""
+    tail = r"(?!\d|[,.]\d)" if value[-1].isdigit() else ""
+    return [m.span() for m in re.finditer(head + re.escape(value) + tail, text)]
+
+
+def used_alone(value: str, rival: str | None, text: str) -> bool:
+    """value 가 rival 의 일부로서가 아니라 따로 text 에 나오는가(⑧ 의 묻는 값과 다른 대상 값을 가르는 데 쓴다).
+
+    값이 "약 1시간" 처럼 숫자가 아닌 글자로 끝나면 value_in 은 뒤 경계를 걸지 않는다. 그래서 다른 대상의 값
+    "약 1시간 30분" 으로만 답한 정상 ⑧ 에서도 묻는 값 "약 1시간" 을 썼다고 판정한다. 이를 막으려고 rival 이
+    value 를 품을 때(rival 이 더 길 때)만 rival 이 나온 자리를 먼저 지우고 value 를 찾는다.
+    반대로 value 가 더 길면 지우지 않는다. 지우면 "약 1시간 30분" 안의 "약 1시간" 을 지워 긴 값을 쓴 답변을
+    못 알아본다. 지운 자리는 널 문자 하나로 채운다. 숫자도 쉼표도 점도 아니라 경계 규칙에 새 일치를 만들지 않는다.
+    """
+    if rival and value != rival and value in rival:
+        for s, e in reversed(_value_spans(rival, text)):
+            text = text[:s] + "\0" + text[e:]
+    return value_in(value, text)
+
+
 def build_cases(questions: list[dict], retrieved: list[dict], types: dict[str, int],
                 variants: list[dict]) -> tuple[list[dict], dict[str, dict]]:
     """배정된 질문마다 문항 하나를 만든다. 형식이 하나라도 틀리면 ExportProblem 으로 전부 알린다."""
@@ -83,7 +108,7 @@ def build_cases(questions: list[dict], retrieved: list[dict], types: dict[str, i
         if t == 8:
             c = q.get("contrast") or {}
             other, asked = c.get("other", {}).get("value"), c.get("asked", {}).get("value")
-            if not other or not value_in(other, v["answer"]) or (asked and value_in(asked, v["answer"])):
+            if not other or not used_alone(other, asked, v["answer"]) or (asked and used_alone(asked, other, v["answer"])):
                 problems.append(f"{qid}: ⑧ 은 다른 대상의 값({other})으로 답하고 묻는 대상의 값({asked})은 쓰지 않아야 한다")
         if t == 6:
             # 스펙 3-2절: 바꿔 넣은 값이 근거 청크 전문 어디에도 없어야 한다. 옛 값이나 다른 대상의 값이 근거에

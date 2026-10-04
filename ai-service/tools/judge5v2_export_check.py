@@ -120,6 +120,31 @@ def check_values_are_matched_with_boundaries() -> None:
     assert len(rows) == 2
 
 
+def check_eighth_with_nested_values() -> None:
+    """⑧ 의 두 값이 서로를 품을 때. "약 1시간" 은 숫자로 끝나지 않아 value_in 이 뒤 경계를 걸지 않으므로
+    다른 대상 값 "약 1시간 30분" 안에서도 찾힌다. 그 자리를 빼지 않으면 다른 대상 값으로만 답한 정상 ⑧ 을
+    "묻는 값을 썼다" 로 거절한다. 묻는 값이 더 긴 반대 경우와, 두 값을 다 쓴 답변의 거절도 함께 본다."""
+    short, long_ = "약 1시간", "약 1시간 30분"
+    src = [{"chunk_id": 1, "filename": "a.md", "content": f"일반 {short}, 특급 {long_}"}]
+    r = [{"qid": "ops-001", "status": "ok", "settings": _SETTINGS, "sources": src}]
+
+    def build(asked: str, other: str, answer: str) -> bool:
+        q = [{"qid": "ops-001", "domain": "ops", "question": "걸리는 시간은?", "answer": f"{asked} 걸립니다.",
+              "claims": 1, "two_part": False, "contrast": {"asked": {"target": "가", "value": asked},
+                                                           "other": {"target": "나", "value": other}, "chunk_ids": [1]}}]
+        v = [{"qid": "ops-001", "type": 8, "answer": answer, "note": ""}]
+        try:
+            build_cases(q, r, {"ops-001": 8}, v)
+        except ExportProblem:
+            return False
+        return True
+
+    for asked, other in ((short, long_), (long_, short)):
+        assert build(asked, other, f"{other} 걸립니다."), (asked, other)                    # 다른 대상 값만 썼다
+        assert not build(asked, other, f"가는 {asked}, 나는 {other} 걸립니다."), (asked, other)  # 두 값을 다 썼다
+        assert not build(asked, other, f"{asked} 걸립니다. 다시 말해 {asked}."), (asked, other)  # 묻는 값만 썼다
+
+
 def check_apply_review_paths() -> None:
     """스펙 4절: 같으면 통과, 다르면 사용자 판단(keep, override, drop). 판단이 없으면 멈춘다."""
     key = {c: {"qid": c, "domain": "shop", "type": 3, "table_score": 4} for c in ("a", "b", "c", "d", "e")}
@@ -194,6 +219,7 @@ CHECKS = [
     check_rows_are_shuffled_but_fixed,
     check_build_refuses_bad_variants,
     check_values_are_matched_with_boundaries,
+    check_eighth_with_nested_values,
     check_apply_review_paths,
     check_build_uses_last_search_line,
     check_mismatch_fence_outlasts_inner_backticks,
