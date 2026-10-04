@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import contextlib
+import hashlib
 import io
 import random
 import tempfile
@@ -135,6 +136,8 @@ def check_valid_contrast() -> None:
     assert valid_contrast({**_CONTRAST, "chunk_ids": [9]}, src) is not None   # 근거 청크가 아니다
     near = [{"chunk_id": 1, "content": "골드 110,000원 / 실버 20,000원"}]
     assert valid_contrast(_CONTRAST, near) is not None   # 10,000원 은 110,000원 의 일부일 뿐이다(값 경계)
+    number = {**_CONTRAST, "asked": {"target": "골드", "value": 10000}}
+    assert "따옴표" in valid_contrast(number, src)       # 숫자로 적은 값은 TypeError 가 아니라 안내로 거절한다
 
 
 def check_pool_for_uses_last_search_and_refuses_two_part_contrast() -> None:
@@ -209,12 +212,17 @@ def check_first_stops_with_code_2_when_eighth_moved() -> None:
     def run(questions: list[dict]) -> tuple[int, bool]:
         with tempfile.TemporaryDirectory() as tmp:
             d = Path(tmp)
-            paths = {"ASSIGNMENT": d / "a.json", "QUESTIONS": d / "q.jsonl", "RETRIEVED": d / "r.jsonl"}
+            # EXCLUDED 도 돌린다. 돌리지 않으면 실제 excluded.json 을 읽고, 가짜 질문 번호가 실제 제외 qid 와 겹친다.
+            paths = {"ASSIGNMENT": d / "a.json", "QUESTIONS": d / "q.jsonl", "RETRIEVED": d / "r.jsonl",
+                     "EXCLUDED": d / "x.json"}
             write_jsonl(paths["QUESTIONS"], questions)
             write_jsonl(paths["RETRIEVED"], [{"qid": q["qid"], "status": "ok", "sources": src} for q in questions])
             # mock.patch.multiple: 모듈 전역(경로 상수)을 with 블록 안에서만 바꾸고 끝나면 되돌린다.
-            with mock.patch.multiple(judge5v2_assign, **paths), contextlib.redirect_stdout(io.StringIO()):
+            out = io.StringIO()
+            with mock.patch.multiple(judge5v2_assign, **paths), contextlib.redirect_stdout(out):
                 code = judge5v2_assign.cmd_first()
+            if code == 2:
+                assert "멈춘다: 계획 E5." in out.getvalue() and "git checkout" not in out.getvalue()
             return code, paths["ASSIGNMENT"].exists()
 
     assert run([q for d in DOMAINS for q in _pool(d)]) == (0, True)
@@ -250,19 +258,113 @@ def check_supplement_stops_with_code_2_when_eighth_moved() -> None:
         with tempfile.TemporaryDirectory() as tmp:
             d = Path(tmp)
             paths = {"ASSIGNMENT": d / "a.json", "QUESTIONS": d / "q.jsonl", "RETRIEVED": d / "r.jsonl",
-                     "ANSWER_KEY": d / "k.json", "REVIEW": d / "v.jsonl"}
+                     "ANSWER_KEY": d / "k.json", "REVIEW": d / "v.jsonl", "EXCLUDED": d / "x.json"}
             write_json(paths["ASSIGNMENT"], {"seed": 20261005, "rounds": [rnd0]})
             write_json(paths["ANSWER_KEY"], key)
             write_jsonl(paths["REVIEW"], review)
             write_jsonl(paths["QUESTIONS"], qs)
             write_jsonl(paths["RETRIEVED"], [{"qid": q["qid"], "status": "ok", "sources": src} for q in qs])
-            with mock.patch.multiple(judge5v2_assign, **paths), contextlib.redirect_stdout(io.StringIO()):
+            out = io.StringIO()
+            with mock.patch.multiple(judge5v2_assign, **paths), contextlib.redirect_stdout(out):
                 code = judge5v2_assign.cmd_supplement()
             rounds = read_json(paths["ASSIGNMENT"])["rounds"]
+        if code == 2:   # 보충의 멈춤은 E10 의 것이고, 덧붙인 회차를 되돌리는 명령을 함께 보인다
+            text = out.getvalue()
+            assert "멈춘다: 계획 E10, 스펙 7-2절 경우 2." in text and "git checkout -- ai-service/testdata/judge5v2/assignment.json" in text
+            assert "관문 4" in text
         return code, len(rounds), rounds[-1]["domains"]["shop"]["eighth_to_sixth"]
 
     assert run(strip_contrast=False) == (0, 2, 0)
     assert run(strip_contrast=True) == (2, 2, 2)   # 회차는 덧붙였고(파일은 남는다) ⑧ 두 개가 ⑥ 으로 갔다
+
+
+
+def _excluded_inputs() -> tuple[list[dict], list[dict]]:
+    """질문 넷(shop-001~004)과 검색 줄. shop-003 은 검색에서 버렸다. shop-004 는 답변이 비었다(제외할 질문)."""
+    src = [{"chunk_id": 1, "content": "근거"}]
+    qs = [{"qid": f"shop-00{i}", "domain": "shop", "answer": None if i == 4 else "답", "claims": 1,
+           "two_part": False, "contrast": None} for i in range(1, 5)]
+    rs = [{"qid": q["qid"], "domain": "shop", "status": "dropped" if q["qid"] == "shop-003" else "ok",
+           "drop_reason": "answerable" if q["qid"] == "shop-003" else None, "sources": src} for q in qs]
+    return qs, rs
+
+
+def check_pool_for_skips_excluded_questions() -> None:
+    """제외한 질문은 후보에서 빠진다. 답변이 비어 있어도 멈추지 않는다(근거로 답을 쓸 수 없는 질문이다)."""
+    qs, rs = _excluded_inputs()
+    ex = {"shop-004": {"reason": "answer_not_in_top5", "note": "정답 청크가 top5 밖"},
+          "shop-002": {"reason": "partial_answer_not_in_top5", "note": "한쪽이 top5 밖"}}
+    assert [q["qid"] for q in pool_for(qs, rs, ex)["shop"]] == ["shop-001"]
+    try:
+        pool_for(qs, rs)                       # 제외가 없으면 shop-004 의 빈 답변 때문에 멈춘다
+    except ValueError:
+        return
+    raise AssertionError("제외하지 않은 질문의 빈 답변은 거절해야 한다")
+
+
+def check_pool_for_refuses_bad_excluded() -> None:
+    """원인이 정해진 둘이 아니거나, 없는 질문이거나, 검색에서 이미 버린 질문이면 멈춘다."""
+    qs, rs = _excluded_inputs()
+    ok = {"shop-004": {"reason": "answer_not_in_top5", "note": ""}}
+    # 검색 줄에는 있지만 questions.jsonl 에는 없는 질문(shop-099). 검색 줄까지 없으면 다음 검사가 대신 잡아 버려서
+    # "없는 질문" 검사가 빠져도 이 점검이 통과한다.
+    stray = rs + [dict(rs[0], qid="shop-099")]
+    bad = [   # (제외 내용, 검색 줄, 오류에 나와야 하는 말)
+        ({"shop-004": {"reason": "too_hard", "note": ""}}, rs, "too_hard"),              # 정해지지 않은 원인
+        ({"shop-004": "answer_not_in_top5"}, rs, "None"),                                 # 원인을 객체에 담지 않았다
+        ({**ok, "shop-099": {"reason": "answer_not_in_top5", "note": ""}}, stray, "questions.jsonl 에 없는"),
+        ({**ok, "shop-003": {"reason": "answer_not_in_top5", "note": ""}}, rs, "이미 버린"),
+        (ok, rs[:3], "검색하지 않은"),                                                    # shop-004 의 검색 줄이 없다
+    ]
+    for ex, rows, says in bad:
+        try:
+            pool_for(qs, rows, ex)
+        except ValueError as e:
+            assert "excluded.json" in str(e) and says in str(e), (says, str(e))
+            continue
+        raise AssertionError(says)
+
+
+def check_first_records_excluded_and_replay_refuses_mixed() -> None:
+    """first 는 회차 0 에 excluded.json 의 해시, 질문별 원인, 분야별 원인 수를 적는다. 파일이 없으면 해시는 null 이다.
+    회차의 후보에 그 회차가 제외한 질문이 들어 있으면 replay 가 멈춘다."""
+    src = [{"chunk_id": 1, "content": "골드 10,000원 / 실버 20,000원"}]
+    questions = [q for d in DOMAINS for q in _pool(d, n=80)]          # 75 + 5: 제외 다섯을 빼도 할당량을 채운다
+    ex = {f"hr-07{i}": {"reason": "answer_not_in_top5", "note": "top5 밖"} for i in range(5, 8)}
+    ex["shop-079"] = {"reason": "partial_answer_not_in_top5", "note": "한쪽이 top5 밖"}
+
+    def run(write_ex: bool) -> dict:
+        with tempfile.TemporaryDirectory() as tmp:
+            d = Path(tmp)
+            paths = {"ASSIGNMENT": d / "a.json", "QUESTIONS": d / "q.jsonl", "RETRIEVED": d / "r.jsonl",
+                     "EXCLUDED": d / "x.json"}
+            write_jsonl(paths["QUESTIONS"], questions)
+            write_jsonl(paths["RETRIEVED"], [{"qid": q["qid"], "status": "ok", "sources": src} for q in questions])
+            if write_ex:
+                write_json(paths["EXCLUDED"], ex)
+            with mock.patch.multiple(judge5v2_assign, **paths), contextlib.redirect_stdout(io.StringIO()):
+                assert judge5v2_assign.cmd_first() == 0
+            rnd = read_json(paths["ASSIGNMENT"])["rounds"][0]
+            sha = hashlib.sha256(paths["EXCLUDED"].read_bytes()).hexdigest() if write_ex else None
+        assert rnd["excluded_sha256"] == sha
+        return rnd
+
+    rnd = run(write_ex=True)
+    assert rnd["excluded"] == {q: e["reason"] for q, e in ex.items()}
+    assert rnd["excluded_counts"] == {"hr": {"answer_not_in_top5": 3}, "shop": {"partial_answer_not_in_top5": 1},
+                                      "manual": {}, "finance": {}}
+    assert not set(rnd["pool"]["hr"] + rnd["pool"]["shop"]) & set(ex)
+    by_id = {q["qid"]: q for q in questions}
+    assert replay_round(rnd, by_id, 20261005, 0) == rnd["domains"]
+    mixed = dict(rnd, pool=dict(rnd["pool"], hr=rnd["pool"]["hr"] + ["hr-075"]))
+    try:
+        replay_round(mixed, by_id, 20261005, 0)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("후보에 제외한 질문이 있으면 replay 가 멈춰야 한다")
+    empty = run(write_ex=False)
+    assert empty["excluded"] == {} and empty["excluded_counts"] == {d: {} for d in DOMAINS}
 
 
 CHECKS = [
@@ -280,6 +382,9 @@ CHECKS = [
     check_supplement_pools_skip_used_keep_unused,
     check_first_stops_with_code_2_when_eighth_moved,
     check_supplement_stops_with_code_2_when_eighth_moved,
+    check_pool_for_skips_excluded_questions,
+    check_pool_for_refuses_bad_excluded,
+    check_first_records_excluded_and_replay_refuses_mixed,
 ]
 
 
