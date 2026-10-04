@@ -20,7 +20,7 @@ from .judge5v2_assign import (
     Shortfall, assign_domain, assigned_types, pool_for, replay_round, run_round, supplement_needs, supplement_pools,
     valid_contrast,
 )
-from .judge5v2_files import DOMAINS, QUOTA, write_jsonl
+from .judge5v2_files import DOMAINS, QUOTA, read_json, write_json, write_jsonl
 
 _CONTRAST = {"asked": {"target": "골드", "value": "10,000원"}, "other": {"target": "실버", "value": "20,000원"},
              "chunk_ids": [1]}
@@ -224,6 +224,47 @@ def check_first_stops_with_code_2_when_eighth_moved() -> None:
     assert run([dict(q, claims=True) for d in DOMAINS for q in _pool(d)]) == (1, False)
 
 
+
+def check_supplement_stops_with_code_2_when_eighth_moved() -> None:
+    """보충 회차에서 ⑧ 을 ⑥ 으로 돌리면 supplement 도 회차를 덧붙인 뒤 종료 코드 2 로 멈춘다(스펙 7-2절 끝의 경우 2).
+
+    재현: 검수에서 shop 의 ⑧ 두 문항을 버리고, shop 에 남은 질문의 contrast 를 지운 뒤 보충한다. 보충할 ⑧ 2개를
+    채울 질문이 없어 ⑥ 으로 돌아간다. 같은 입력에서 contrast 를 남기면 ⑧ 으로 채워져 종료 코드 0 이다.
+    """
+    src = [{"chunk_id": 1, "content": "골드 10,000원 / 실버 20,000원"}]
+    # contrast_every=3: 답이 하나인 질문의 셋에 하나가 ⑧ 자격이다. 회차 0 에서 쓰지 않은 질문에도 ⑧ 자격이 남아야
+    # 대조(contrast 를 남긴 실행)에서 보충 ⑧ 을 채울 수 있다.
+    questions = [q for d in DOMAINS for q in _pool(d, contrast_every=3)]
+    pools = {d: [q for q in questions if q["domain"] == d] for d in DOMAINS}
+    needs = {d: dict(QUOTA) for d in DOMAINS}
+    rnd0 = {"round": 0, "pool": {d: [q["qid"] for q in pools[d]] for d in DOMAINS},
+            "needs": {d: {str(t): n for t, n in QUOTA.items()} for d in DOMAINS},
+            "domains": run_round(pools, needs, 20261005, 0)}
+    eighth = sorted(q for q, t in rnd0["domains"]["shop"]["types"].items() if t == 8)[:2]
+    key = {"stage": "draft", "cases": {f"c{i}": {"qid": q} for i, q in enumerate(eighth)}, "dropped": {}}
+    review = [{"case_id": c, "review_score": 3, "user_decision": "drop", "reason": "애매하다"} for c in key["cases"]]
+
+    def run(strip_contrast: bool) -> tuple[int, int, int]:
+        qs = [dict(q, contrast=None) if strip_contrast and q["domain"] == "shop" and q["qid"] not in eighth else q
+              for q in questions]
+        with tempfile.TemporaryDirectory() as tmp:
+            d = Path(tmp)
+            paths = {"ASSIGNMENT": d / "a.json", "QUESTIONS": d / "q.jsonl", "RETRIEVED": d / "r.jsonl",
+                     "ANSWER_KEY": d / "k.json", "REVIEW": d / "v.jsonl"}
+            write_json(paths["ASSIGNMENT"], {"seed": 20261005, "rounds": [rnd0]})
+            write_json(paths["ANSWER_KEY"], key)
+            write_jsonl(paths["REVIEW"], review)
+            write_jsonl(paths["QUESTIONS"], qs)
+            write_jsonl(paths["RETRIEVED"], [{"qid": q["qid"], "status": "ok", "sources": src} for q in qs])
+            with mock.patch.multiple(judge5v2_assign, **paths), contextlib.redirect_stdout(io.StringIO()):
+                code = judge5v2_assign.cmd_supplement()
+            rounds = read_json(paths["ASSIGNMENT"])["rounds"]
+        return code, len(rounds), rounds[-1]["domains"]["shop"]["eighth_to_sixth"]
+
+    assert run(strip_contrast=False) == (0, 2, 0)
+    assert run(strip_contrast=True) == (2, 2, 2)   # 회차는 덧붙였고(파일은 남는다) ⑧ 두 개가 ⑥ 으로 갔다
+
+
 CHECKS = [
     check_assign_meets_quota_and_eligibility,
     check_assign_is_reproducible_and_order_free,
@@ -238,6 +279,7 @@ CHECKS = [
     check_supplement_needs_with_eighth_moved_to_sixth,
     check_supplement_pools_skip_used_keep_unused,
     check_first_stops_with_code_2_when_eighth_moved,
+    check_supplement_stops_with_code_2_when_eighth_moved,
 ]
 
 

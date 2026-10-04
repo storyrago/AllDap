@@ -88,7 +88,11 @@ def build_cases(questions: list[dict], retrieved: list[dict], types: dict[str, i
         if t == 6:
             # 스펙 3-2절: 바꿔 넣은 값이 근거 청크 전문 어디에도 없어야 한다. 옛 값이나 다른 대상의 값이 근거에
             # 글자로 있으면 ⑥ 이 아니라 근거에 적힌 값으로 답한 것이 된다.
-            new = v.get("new_value") or ""
+            new, old = v.get("new_value") or "", v.get("old_value") or ""
+            if not isinstance(new, str) or not isinstance(old, str):
+                # 35000 처럼 숫자로 적으면 value_in 의 글자 비교가 TypeError 로 멈춘다. 원인을 바로 알려 준다.
+                problems.append(f"{qid}: ⑥ 의 old_value/new_value 는 따옴표로 감싼 글자로 적는다")
+                continue
             if not new or not value_in(new, v["answer"]):
                 problems.append(f"{qid}: ⑥ 은 바꿔 넣은 값을 new_value 에 답변의 글자 그대로 적어야 한다")
             elif any(value_in(new, s["content"]) for s in r["sources"]):
@@ -96,7 +100,6 @@ def build_cases(questions: list[dict], retrieved: list[dict], types: dict[str, i
             # 바꾸기 전 값(old_value)이 변형 답변에 남으면 근거와 맞는 주장과 반대인 주장이 함께 있는 답변이 된다
             # ("35,000원 이상이면 무료입니다. 기존 기준은 30,000원입니다."). 1점(반대)과 3점(섞임) 사이에서 정답 점수가
             # 하나로 정해지지 않는다(스펙 3-2절의 원칙). 그래서 옛 값이 멀쩡한 답변에는 있고 변형 답변에는 없는지 본다.
-            old = v.get("old_value") or ""
             if not old or not value_in(old, q["answer"]):
                 problems.append(f"{qid}: ⑥ 은 바꾸기 전 값을 old_value 에 멀쩡한 답변의 글자 그대로 적어야 한다")
             elif value_in(old, v["answer"]):

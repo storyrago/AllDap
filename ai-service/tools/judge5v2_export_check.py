@@ -86,6 +86,7 @@ def check_build_refuses_bad_variants() -> None:
         [v[0], v[1], dict(v[2], answer="브론즈는 35,000원 이상이면 무료입니다. 기존 기준은 30,000원입니다.")],  # ⑥ 에 옛 값이 남았다
         [v[0], v[1], {k: x for k, x in v[2].items() if k != "old_value"}],         # ⑥ 에 old_value 가 없다
         [v[0], v[1], dict(v[2], old_value="25,000원")],                           # ⑥ 의 old_value 가 멀쩡한 답변에 없다
+        [v[0], v[1], dict(v[2], new_value=35000)],                               # ⑥ 의 값을 글자가 아닌 숫자로 적었다
         [dict(v[0], answer="골드는 10,000원, 실버는 20,000원입니다."), v[1], v[2]],  # ⑧ 이 두 대상의 값을 다 썼다
     ]
     for variants in bad_cases:

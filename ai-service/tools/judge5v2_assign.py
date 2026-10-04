@@ -208,6 +208,19 @@ def _print_short(e: Shortfall) -> None:
     print("유형 4는 주장 수 2 이상의 짝수, 유형 3은 주장 수 2 이상, 유형 6은 답이 하나인(two_part false) 질문이 필요하다.")
 
 
+def _stop_if_eighth_moved(domains: dict[str, dict]) -> int:
+    """이번 회차에서 ⑧ 을 ⑥ 으로 돌린 분야가 있으면 알리고 2, 없으면 0 을 돌려준다. first 와 supplement 가 같이 쓴다."""
+    moved = {d: domains[d]["eighth_to_sixth"] for d in DOMAINS if domains[d]["eighth_to_sixth"]}
+    if not moved:
+        return 0
+    # 계획 E5: 이 경우 커밋하지 않고 사용자 판단을 받는다. 출력 한 줄로는 지나치기 쉬워서 종료 코드를 따로 둔다.
+    # 1(배정 못 함)과 나누는 이유: 파일은 만들어졌다. 사용자가 그대로 가기로 하면 이 파일을 그대로 쓴다.
+    print("멈춘다: 계획 E5. ⑧ 을 ⑥ 으로 돌린 분야가 있다("
+          + ", ".join(f"{d} {n}개" for d, n in moved.items())
+          + f"). {ASSIGNMENT.name} 는 남겼지만 커밋하지 않는다. 사용자에게 보충할지 그대로 갈지 묻는다.")
+    return 2
+
+
 def cmd_first() -> int:
     if ASSIGNMENT.exists():
         print(f"{ASSIGNMENT.name} 가 이미 있습니다. 보충은 supplement 를 쓰세요. 덮어쓰지 않습니다.")
@@ -227,15 +240,7 @@ def cmd_first() -> int:
     for d in DOMAINS:
         res = domains[d]
         print(f"{d}: 배정 {len(res['types'])}, 쓰지 않음 {len(res['unused'])}, ⑧ 을 ⑥ 으로 {res['eighth_to_sixth']}")
-    moved = {d: domains[d]["eighth_to_sixth"] for d in DOMAINS if domains[d]["eighth_to_sixth"]}
-    if moved:
-        # 계획 E5: 이 경우 커밋하지 않고 사용자 판단을 받는다. 출력 한 줄로는 지나치기 쉬워서 종료 코드를 따로 둔다.
-        # 1(배정 못 함)과 나누는 이유: 파일은 만들어졌다. 사용자가 그대로 가기로 하면 이 파일을 그대로 쓴다.
-        print("멈춘다: 계획 E5. ⑧ 을 ⑥ 으로 돌린 분야가 있다("
-              + ", ".join(f"{d} {n}개" for d, n in moved.items())
-              + f"). {ASSIGNMENT.name} 는 남겼지만 커밋하지 않는다. 사용자에게 보충할지 그대로 갈지 묻는다.")
-        return 2
-    return 0
+    return _stop_if_eighth_moved(domains)
 
 
 def cmd_supplement() -> int:
@@ -264,7 +269,9 @@ def cmd_supplement() -> int:
     assignment["rounds"].append(_round_doc(no, pools, needs, domains))
     write_json(ASSIGNMENT, assignment)
     print(f"회차 {no}: " + ", ".join(f"{d} {len(domains[d]['types'])}문항" for d in DOMAINS))
-    return 0
+    # 보충 회차에서 ⑧ 을 ⑥ 으로 돌리면 스펙 7-2절 끝의 경우 2 다. 보충 배정은 돌린 ⑧ 을 다시 요구하지 않으므로
+    # 다음 보충으로도 ⑧ 이 늘지 않는다. 그래서 first 와 같이 멈추고 사용자에게 보인다.
+    return _stop_if_eighth_moved(domains)
 
 
 def main(argv: list[str] | None = None) -> int:
