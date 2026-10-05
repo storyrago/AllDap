@@ -10,7 +10,7 @@
 
 **Tech Stack:** Python 3.12, 표준 라이브러리(`random`, `hashlib`, `string`, `unittest.mock`), 기존 `app.retriever`, `app.cf`, `tools.judge5`, `tools.judge5v2_*`(가져다 쓰기만), Spring API(봇 생성과 업로드에만), 코랩 T4(torch, transformers 4.57.6, bitsandbytes 0.50.2, peft 0.17.1, accelerate 1.10.1).
 
-## Global Constraints
+## 모든 태스크가 지키는 것
 
 모든 태스크가 아래를 지킨다. 값은 스펙에서 그대로 옮겼다.
 
@@ -26,7 +26,7 @@
 - 분야를 늘리는 기준: 시험용 ⑧ 자격 질문 72개 미만, 학습용 합계 240개 미만. 시험용 2개, 학습용 3개까지(스펙 3-3절).
 - 검수 뒤 새 시험지 조건: ⑧ 54 이상, ①과 ② 합쳐 15 이상, 대상이 둘인 질문의 ①과 ② 10 이상(스펙 4-4절).
 - 학습 설정: LoRA rank 16, alpha 32, dropout 0.05, 일곱 projection, 학습률 0.0002, cosine, warmup 3%, 2바퀴, 배치 1, 기울기 누적 8, paged AdamW 8비트, float16 혼합 정밀도와 loss scaling, LoRA 가중치 float32, 최대 길이 자르지 않음, loss 는 모범 답안과 끝 토큰만, 채점에는 마지막 체크포인트, 체크포인트는 최근 둘만 보관(스펙 6절).
-- 관문 (a): 학습 전 M3 의 새 시험지 ⑧ 심각한 놓침이 (⑧ 수에서 못 읽음을 뺀 수)의 10% 이상. 실행이 여럿이면 비율이 가장 낮은 실행으로 판정(스펙 7-1절).
+- 관문 (a): 학습 전 M3 의 새 시험지 ⑧(정답 점수가 1 인 문항) 심각한 놓침이 (그 수에서 못 읽음을 뺀 수)의 10% 이상. 실행이 여럿이면 비율이 가장 낮은 실행으로 판정(스펙 7-1절). 보고서의 ⑧ 심각한 놓침과 ⑧ 만의 짝 부호 검정도 같은 범위다.
 - 교체 후보 기준 넷과 실행이 여럿일 때의 규칙(학습 후 M3 는 가장 나쁜 값, 비교 상대는 가장 좋은 값)은 스펙 8-4절 그대로다. 결과를 본 뒤 규칙이나 코드를 바꾸지 않는다.
 - **새 시험지의 문항별 결과는 학습이 끝날 때까지 열어 보지 않는다**(스펙 6-5절). 관문 (a) 의 도구는 개수만 낸다. 결과 zip 은 풀어서 커밋할 뿐 줄을 읽지 않는다.
 - 공통 지시문, 채점표, 생성 설정(탐욕적 디코딩, 최대 출력 512 토큰, repetition_penalty 1.0)은 `tools/judge5.py` 와 v2 노트북의 것을 그대로 쓴다.
@@ -59,13 +59,13 @@
 | `ai-service/tools/judgeft_assign.py` | ⑧ 자격 세기, 시험용과 학습용 배정, 보충 | 4 |
 | `ai-service/testdata/judgeft/templates.json` | 모범 답안의 영어 문장 틀. 묶음 아홉, 묶음마다 셋 | 5 |
 | `ai-service/tools/judgeft_rationale.py` | 변경 기록과 문장 틀로 모범 답안을 만든다 | 5 |
-| `ai-service/tools/judgeft_export.py` | 새 시험지(검수 전, 불일치 목록, 최종)와 학습 데이터, 누출 확인 | 6 |
+| `ai-service/tools/judgeft_export.py` | 새 시험지(검수 전, 불일치 목록, 최종, 보충 뒤 검수할 문항만 뽑기와 검수 결과 덧붙이기)와 학습 데이터, 누출 확인(글 전체, 20자 이상 문장의 두 방향, 금지 값) | 6 |
 | `ai-service/tools/judgeft_labels.py` | 학습 문항 하나를 토큰으로 바꾸는 함수. 노트북이 글자 그대로 담는다 | 7 |
 | `ai-service/tools/judgeft_tokcheck.py` | 실제 M3 토크나이저로 끝 토큰 위치를 확인하고, loss 계산 방식이 같은 값을 내는지 작은 모델로 확인한다(CI 밖) | 7 |
 | `ai-service/tools/judgeft_determinism.py` | 결정성 확인과 모델마다 쓸 결과 파일 목록 | 8 |
 | `ai-service/tools/judgeft_gate.py` | 검수 뒤 세 조건, 학습 전 관문 (a) | 8 |
-| `ai-service/tools/judgeft_cloudflare.py` | M1 으로 새 시험지를 실행 번호 1~3 으로 채점한다 | 9 |
-| `ai-service/tools/judgeft_report.py` | 스펙 8절의 수치, 비교, 기준 | 10 |
+| `ai-service/tools/judgeft_cloudflare.py` | M1 으로 새 시험지를 실행 번호 1~3 으로 채점한다. 관문 (a), (b) 를 모두 통과한 뒤에만 돈다 | 9 |
+| `ai-service/tools/judgeft_report.py` | 스펙 7절의 관문 결과, 학습 기록, 8절의 수치(혼동행렬, 유형별 표, 못 읽음의 원인), 비교, 기준, 9-3절의 검수 결과. 관문에서 끝나도 만든다 | 10 |
 | `ai-service/tools/judgeft_notebooks.py` | 학습 노트북과 채점 노트북을 만든다 | 11 |
 | `ai-service/notebooks/judgeft_train_colab.ipynb` | 관문 (b), 학습, 체크포인트 이어 하기 | 11 |
 | `ai-service/notebooks/judgeft_eval_colab.ipynb` | 학습 전 M3, 학습 후 M3 채점 | 11 |
@@ -135,7 +135,7 @@ v2 계획의 형식 1~7 을 그대로 쓰고, 아래 다섯을 더한다.
 ```
 
 - `target`: 질문의 대상. 대상이 따로 없으면 `null`. ⑧ 은 `questions.jsonl` 의 `contrast.asked.target` 과 같아야 한다.
-- `evidence`: 근거에 있는 주장마다 근거 번호(`source`, 지시문의 `[근거 i]` 와 같이 1 부터)와 근거 원문의 구절(`quote`). 구절은 그 근거 청크의 전문에 글자 그대로 있어야 한다(스펙 5-2절 확인 1). ⑦ 은 비워도 된다. ⑥ 은 바꾸기 전 값이 적힌 구절, ⑧ 은 질문의 대상의 값이 적힌 구절이다.
+- `evidence`: 근거에 있는 주장마다 근거 번호(`source`, 지시문의 `[근거 i]` 와 같이 1 부터)와 근거 원문의 구절(`quote`). 구절은 그 근거 청크의 전문에 글자 그대로 있어야 한다(스펙 5-2절 확인 1). ⑦ 은 비워도 된다. ⑥ 은 바꾸기 전 값이 적힌 구절이다. **⑧ 은 멀쩡한 답변의 주장마다 하나씩, 질문의 `claims` 수만큼 적고, 첫째는 질문의 대상의 값(`contrast.asked.value`)이 적힌 구절이다.** ⑧ 의 모범 답안은 첫째만 인용하고, 짝 문항의 5점 모범 답안은 모두를 인용한다("every claim" 이라고 쓰므로 인용이 주장마다 있어야 한다). 둘 다 `record_problems` 가 확인한다.
 - `other`: ⑧ 에만. 바꿔 넣은 값이 원래 붙어 있는 다른 대상의 이름, 근거 번호, 구절.
 - `added`: ③, ④, ⑤ 에만. 더하거나 바꿔 넣은 근거에 없는 주장을 답변의 글자 그대로.
 - `gist`: ⑦ 에만. 지어낸 내용의 요지를 답변에서 옮긴 짧은 구절.
@@ -155,12 +155,12 @@ v2 계획의 형식 1~7 을 그대로 쓰고, 아래 다섯을 더한다.
 **형식 D. `determinism.json`** (E12, E16)
 
 ```json
-{"pre": {"env_same": true, "env_diff": {}, "compared": ["frozen M3pre_run1", "v2 M3_run1"], "same": 231, "diff": 0,
-         "diff_ids": [], "runs": 1},
+{"pre": {"env_same": true, "env_diff": {}, "vs_v2": {"same": 231, "diff": 0}, "compared": ["frozen M3pre_run1", "v2 M3_run1"],
+         "same": 231, "diff": 0, "diff_ids": [], "use_v2": true, "runs": 1},
  "post": {"compared": ["new M3ft_run1", "new M3ft_run2"], "same": 118, "diff": 0, "diff_ids": [], "runs": 1}}
 ```
 
-`runs` 가 1 이면 코랩 모델을 시험지마다 한 번, 3 이면 세 번 돌린다(스펙 8-1절). 어느 파일을 쓰는지는 `judgeft_determinism.runs_for` 가 정한다.
+`runs` 가 1 이면 코랩 모델을 시험지마다 한 번, 3 이면 세 번 돌린다(스펙 8-1절). 어느 파일을 쓰는지는 `judgeft_determinism.runs_for` 가 정한다. `use_v2` 는 학습 전 M3 의 동결 시험지 값에 v2 의 `M3_run1` 을 쓰는가다. 판(GPU, torch, transformers, bitsandbytes)이 v2 와 같고 v2 의 run1 과 줄마다 같을 때만 `true` 다. 판이 같은데 다르면 새 환경의 run2 와 대조해 `compared` 에 적고, `vs_v2` 에 v2 와의 차이를 남긴다.
 
 **형식 E. `gate_a.json`** (E13)
 
@@ -202,12 +202,12 @@ v2 계획의 형식 1~7 을 그대로 쓰고, 아래 다섯을 더한다.
 | E14 학습 전 관문 (b) | 실행 | E13 통과 | 없음 | **사용자**(코랩) |
 | E15 학습 | 실행 | E14 통과 | 없음 | **사용자**(코랩) |
 | E16 학습 후 M3 채점과 결정성 | 실행 | E15 | 없음 | **사용자**(코랩) |
-| E17 M1 의 새 시험지 채점 세 번 | 실행 | 9, E13 통과 | **쓴다**(회당 약 4,500) | |
+| E17 M1 의 새 시험지 채점 세 번 | 실행 | 9, E13 통과, E14 통과 | **쓴다**(회당 약 4,500) | |
 | E18 보고서, 결과 문서, PR | 실행 | 10, E16, E17 | 없음 | PR 은 #160 머지 뒤 |
 
 **순서에 담긴 규칙 셋.**
 1. **동결 커밋(E11)이 학습 전 관문 (a)(E13)보다 먼저다.** 새 시험지, 정답 파일, 학습 데이터, 문장 틀, 학습 설정이 담긴 노트북을 모두 커밋한 뒤에 처음으로 모델을 돌린다. 관문 (a) 의 결과를 본 뒤 학습 데이터를 고치는 일을 막는다(스펙 6-5절).
-2. **관문 (a) 를 통과하지 못하면 E14 부터 E17 까지 하지 않는다.** E18 의 짧은 판(관문에서 끝난 결과 문서)으로 간다. M1 의 뉴런도 쓰지 않는다.
+2. **관문 (a) 를 통과하지 못하면 E14 부터 E17 까지 하지 않는다.** E18 의 짧은 판(관문에서 끝난 결과 문서)으로 간다. M1 의 뉴런도 쓰지 않는다. **M1(E17)은 관문 (b)(E14)까지 통과한 뒤에 돌린다.** (b) 에서 메모리가 모자라면 사용자가 새 실험으로 돌릴 수 있고, 그러면 이 실험의 M1 결과는 쓰이지 않는다. `judgeft_cloudflare` 가 `gate_a.json` 과 `gate_b.json` 을 모두 확인한다.
 3. **새 시험지의 문항별 결과는 E16 이 끝날 때까지 아무도 열지 않는다.** E13 과 E16 의 결과 파일은 zip 을 풀어 커밋할 뿐이고, 개수는 도구가 낸다. 보고서(E18)가 처음으로 문항별 결과를 읽는다.
 
 ### 세션에 나누는 제안
@@ -450,6 +450,7 @@ from .judge5v2_files import (  # noqa: F401 - 다른 judgeft 도구가 이 모�
 from .judge5v2_files import ANSWER_KEY as V2_ANSWER_KEY  # noqa: F401
 from .judge5v2_files import BOTS as V2_BOTS  # noqa: F401
 from .judge5v2_files import CASES as V2_CASES  # noqa: F401
+from .judge5v2_files import CORPUS_DIRS as V2_CORPUS_DIRS  # noqa: F401
 from .judge5v2_files import QUESTIONS as V2_QUESTIONS  # noqa: F401
 from .judge5v2_files import RESULTS_DIR as V2_RESULTS_DIR  # noqa: F401
 
@@ -476,6 +477,9 @@ ANSWER_KEY = FT / "answer_key.json"
 MISMATCHES = FT / "mismatches.md"
 GATE = FT / "gate.md"
 GATE_A = FT / "gate_a.json"
+GATE_B = FT / "gate_b.json"                 # 학습 노트북이 Drive 에 쓴 것을 옮긴다(계획 E14)
+TRAINING_LOG = FT / "training_log.jsonl"    # 같다(E15). 세션마다 session_start 줄, 단계마다 step 줄
+TRAIN_DONE = FT / "train_done.json"         # 같다(E15). 어댑터 해시
 DETERMINISM = FT / "determinism.json"
 RESULTS_DIR = FT / "results"
 REPORT = FT / "report.md"
@@ -513,6 +517,10 @@ MIN_FIVE_AFTER_REVIEW = 15
 MIN_CONTRAST_FIVE_AFTER_REVIEW = 10
 # 스펙 7-1절. 관문 (a) 의 비율.
 GATE_A_RATIO = 0.10
+
+# 스펙 4-5절. 설계 문서의 모범 답안 예에만 쓰는 동결 시험지 문항의 값이다. 학습 데이터, 문장 틀, 노트북에 나오면
+# 동결 시험지의 답이 학습에 샌 것이다. 점검이 글자로 찾는다.
+FORBIDDEN_VALUES: tuple[str, ...] = ("OTP", "보안카드", "1일 5억 원", "1,000만 원")
 
 # 스펙 6-1절, 6-2절. 바탕 모델과 학습 설정. 노트북 생성 도구가 이 값을 노트북에 그대로 넣는다.
 M3_REPO = "Unbabel/M-Prometheus-14B"
@@ -908,7 +916,7 @@ import random
 
 from .judge5v2_assign import eligible3, eligible4, eligible6, eligible8
 from .judgeft_assign import (
-    Shortfall, assign_test, assign_train, pools_by_sheet, qualified_counts, replay, run_round, supplement_needs,
+    Shortfall, assign_test, assign_train, dry_run, pools_by_sheet, qualified_counts, replay, run_round, supplement_needs,
 )
 from .judgeft_files import CONTRAST_FIVE, PAIRS, SEED, TEST_QUOTA, TRAIN_QUOTA
 
@@ -1014,9 +1022,37 @@ def check_supplement_needs_refill_to_quota() -> None:
     assert tp["needs"][8] == 2 and tp["pair_needs"] == 2 and len(tp["pair_from"]) == 120
 
 
+def check_count_runs_first_assignment_not_just_qualified_total() -> None:
+    """⑧ 자격이 기준(72)과 같아도, 주장 2 인 ⑧ 자격을 ④ 가 먼저 가져가면 첫 배정은 모자란다.
+    count 의 판정(dry_run)은 첫 배정을 그대로 돌려 보므로 이 모자람을 미리 낸다. 결과는 first 와 같아야 한다."""
+    qs, rs = [], []
+    for i in range(150):
+        if i < 72:                                   # ⑧ 자격 72, 그중 24 는 주장 2 라 ④ 의 자격도 있다
+            q, r = _q("school", i, two=False, claims=2 if i < 24 else 1, contrast=True)
+        elif i < 112:                                # 답이 두 가지(④, ③ 후보)
+            q, r = _q("school", i, two=True, claims=2, contrast=False)
+        else:                                        # 답이 하나, ⑧ 조건 없음(⑥ 후보)
+            q, r = _q("school", i, two=False, claims=1, contrast=False)
+        qs.append(q)
+        rs.append(r)
+    pool = pools_by_sheet(qs, rs, {}, DOC)["test"]
+    assert sum(1 for q in pool if eligible8(q)) == 72
+    d = dry_run("test", pool, SEED)
+    assert d["eighth_left"] < 72 and set(d["short"]) & {"8", "contrast1", "contrast2"}, d
+    try:
+        assign_test(pool, TEST_QUOTA, CONTRAST_FIVE, random.Random(f"{SEED}:test:0"))
+    except Shortfall as e:
+        assert e.short == d["short"], (e.short, d["short"])
+    else:
+        raise AssertionError("dry_run 은 모자란다고 했는데 첫 배정이 통과했다")
+    qs2, rs2 = _data()                               # 넉넉한 입력에서는 모자람이 없다
+    assert dry_run("test", pools_by_sheet(qs2, rs2, {}, DOC)["test"], SEED)["short"] == {}
+
+
 CHECKS = [check_pools_split_by_sheet_and_skip_reserve, check_test_assignment_meets_quota_and_eligibility,
           check_train_assignment_has_pairs_from_eighth, check_shortfall_stops_instead_of_moving,
-          check_replay_reproduces_and_catches_tampering, check_supplement_needs_refill_to_quota]
+          check_replay_reproduces_and_catches_tampering, check_supplement_needs_refill_to_quota,
+          check_count_runs_first_assignment_not_just_qualified_total]
 
 
 def main() -> None:
@@ -1046,7 +1082,7 @@ Expected: `ModuleNotFoundError: No module named 'tools.judgeft_assign'`
 
 실행:
     cd ai-service
-    $PY -m tools.judgeft_assign count                 # ⑧ 자격 질문 수를 분야별로 센다(스펙 3-3절, 계획 E3, E5)
+    $PY -m tools.judgeft_assign count                 # ⑧ 자격 수를 세고 첫 배정을 돌려 본다(스펙 3-3절, 계획 E3, E5)
     $PY -m tools.judgeft_assign first                 # 첫 배정. 시험용과 학습용을 한 번에 한다
     $PY -m tools.judgeft_assign supplement test       # 검수 뒤 조건(스펙 4-4절)을 채우지 못했을 때
     $PY -m tools.judgeft_assign supplement train      # 글자 확인으로 학습 문항이 빠졌을 때(스펙 4-4절)
@@ -1250,10 +1286,39 @@ def _load() -> tuple[list[dict], dict, dict[str, list[dict]]]:
     return questions, excluded, pools
 
 
+FIELD_SHORT = ("8", "contrast1", "contrast2", "pairs")   # 분야를 늘려서 채우는 모자람(스펙 3-3절). 나머지는 질문을 더 쓴다
+
+
+def dry_run(sheet: str, pool: list[dict], seed: int) -> dict:
+    """첫 배정(회차 0)을 저장하지 않고 그대로 돌려 본다. {"short": 모자란 수, "eighth_left": ④ 를 뽑은 뒤 남은 ⑧ 자격 수}.
+
+    ⑧ 자격 질문 수만 세면 모자람을 놓친다. 배정은 ④ 를 ⑧ 보다 먼저 뽑는데, 주장이 2 인 ⑧ 자격 질문은 ④ 의
+    자격도 있어 ④ 가 먼저 가져갈 수 있기 때문이다. 그래서 같은 시드, 같은 순서로 배정을 끝까지 돌려
+    first 가 성공할지를 그대로 본다. 같은 Random 을 같은 순서로 쓰므로 first 와 결과가 같다.
+    """
+    rnd = {"round": 0, "needs": {str(t): n for t, n in (TEST_QUOTA if sheet == "test" else TRAIN_QUOTA).items()},
+           "contrast_needs": {str(t): n for t, n in CONTRAST_FIVE.items()}, "pair_needs": PAIRS, "pair_from": []}
+    try:
+        run_round(sheet, pool, rnd, seed)
+        short: dict[str, int] = {}
+    except Shortfall as e:
+        short = e.short
+    # ④ 가 가져간 뒤의 ⑧ 자격 수. run_round 와 같은 Random 으로 ④ 만 뽑아 본다(④ 가 늘 첫 뽑기다).
+    p = _Picker(pool, random.Random(f"{seed}:{sheet}:0"))
+    four = set(p.take(4, int(rnd["needs"].get("4", 0)), eligible4))
+    left = sum(1 for q in pool if eligible8(q) and q["qid"] not in four)
+    return {"short": short, "eighth_left": left}
+
+
 def cmd_count() -> int:
+    """분야마다 ⑧ 비율(계획 E3)과, 시험지마다 첫 배정을 돌려 본 판정(계획 E5)을 낸다.
+
+    종료 코드: 0 둘 다 충분, 2 분야를 늘려야 한다, 3 질문을 더 써야 한다(④, ③, ⑥ 등). 분야와 질문이 둘 다 모자라면 2.
+    """
     _, _, pools = _load()
     counts = qualified_counts(pools)
     doc = fields_doc()
+    more_fields = more_questions = False
     for sheet, need in (("test", TEST_MIN_QUALIFIED), ("train", TRAIN_MIN_QUALIFIED)):
         fields = doc[sheet]
         total = sum(counts.get(f, {}).get("qualified", 0) for f in fields)
@@ -1261,9 +1326,20 @@ def cmd_count() -> int:
             c = counts.get(f, {"pool": 0, "qualified": 0})
             ratio = c["qualified"] / c["pool"] if c["pool"] else 0.0
             print(f"{sheet} {f}: 후보 {c['pool']}개, ⑧ 자격 {c['qualified']}개({ratio:.0%})")
-        verdict = "충분" if total >= need else "모자람(스펙 3-3절대로 분야를 늘린다)"
-        print(f"{sheet} 합계 ⑧ 자격 {total}개, 기준 {need}개 이상: {verdict}")
-    return 0
+        d = dry_run(sheet, pools[sheet], SEED)
+        field_short = {k: v for k, v in d["short"].items() if k in FIELD_SHORT}
+        other_short = {k: v for k, v in d["short"].items() if k not in FIELD_SHORT}
+        print(f"{sheet} 합계 ⑧ 자격 {total}개(기준 {need}개 이상), ④ 를 뽑은 뒤 남은 ⑧ 자격 {d['eighth_left']}개")
+        if total < need or field_short:
+            more_fields = True
+            verdict = f"모자람(스펙 3-3절대로 분야를 늘린다. 첫 배정을 돌려 본 모자람: {field_short})"
+        elif other_short:
+            more_questions = True
+            verdict = f"모자람(그 분야의 질문을 더 쓴다. 첫 배정을 돌려 본 모자람: {other_short})"
+        else:
+            verdict = "충분(첫 배정을 그대로 돌려 봤다)"
+        print(f"{sheet} 판정: {verdict}")
+    return 2 if more_fields else 3 if more_questions else 0
 
 
 def _report_short(e: Shortfall, sheet: str) -> int:
@@ -1371,7 +1447,7 @@ if __name__ == "__main__":
 $PY -m tools.judgeft_assign_check | tail -1
 ```
 
-Expected: `6가지 전부 통과.`(보충 명령은 태스크 6 의 함수를 늦게 불러오므로, 태스크 6 전에는 `supplement` 명령만 쓸 수 없다. 점검은 그 함수를 부르지 않는다)
+Expected: `7가지 전부 통과.`(보충 명령은 태스크 6 의 함수를 늦게 불러오므로, 태스크 6 전에는 `supplement` 명령만 쓸 수 없다. 점검은 그 함수를 부르지 않는다)
 
 - [ ] **Step 5: 커밋한다**
 
@@ -1473,11 +1549,26 @@ def check_record_problems_catch_bad_quotes_and_targets() -> None:
                            QUESTION, SOURCES)
     assert record_problems(3, {"evidence": [{"source": 1, "quote": "월 10GB"}]}, QUESTION, SOURCES)
     assert record_problems(7, {}, QUESTION, SOURCES)
+    swapped = {**REC8, "evidence": [{"source": 2, "quote": "월 30GB"}]}            # 첫째 인용이 다른 대상의 값
+    assert any("첫째" in p for p in record_problems(8, swapped, QUESTION, SOURCES))
+    two = dict(QUESTION, claims=2)                                                # 주장이 둘인데 인용이 하나
+    assert any("2개 적는다" in p for p in record_problems(8, REC8, two, SOURCES))
+    assert record_problems(8, {**REC8, "evidence": REC8["evidence"] + [{"source": 1, "quote": "데이터를"}]}, two,
+                           SOURCES) == []
+
+
+def check_eighth_cites_asked_value_and_pair_cites_all() -> None:
+    """⑧ 의 모범 답안은 첫째 인용(질문 대상의 값)만, 짝 문항은 모든 인용을 쓴다."""
+    tpl = load_templates()
+    rec = {**REC8, "evidence": REC8["evidence"] + [{"source": 1, "quote": "데이터를"}]}
+    eight = render(8, rec, QUESTION, "id-8", tpl)
+    pair = render(1, {"target": rec["target"], "evidence": rec["evidence"]}, QUESTION, "id-p", tpl)
+    assert "\"데이터를\"" not in eight and "\"데이터를\"" in pair and "\"월 10GB\"" in pair
 
 
 CHECKS = [check_committed_templates_follow_rules, check_template_problems_catch_broken_files,
           check_every_type_renders_and_parses_to_table_score, check_render_is_seeded_by_item_id,
-          check_record_problems_catch_bad_quotes_and_targets]
+          check_record_problems_catch_bad_quotes_and_targets, check_eighth_cites_asked_value_and_pair_cites_all]
 
 
 def main() -> None:
@@ -1570,7 +1661,7 @@ import random
 import re
 import string
 
-from .judgeft_files import SEED, TABLE_SCORE, TEMPLATES, read_json
+from .judgeft_files import SEED, TABLE_SCORE, TEMPLATES, read_json, value_in
 
 # 틀 묶음마다 쓸 수 있는 빈칸과 반드시 있어야 하는 빈칸(스펙 4-5절의 "유형마다 담는 판단" 표).
 SLOTS: dict[str, tuple[frozenset[str], frozenset[str]]] = {
@@ -1645,6 +1736,13 @@ def record_problems(t: int, rec: dict, question: dict, sources: list[dict]) -> l
         other = rec.get("other") or {}
         if rec.get("target") != (c.get("asked") or {}).get("target"):
             out.append("⑧ 의 target 이 질문의 대상(contrast.asked.target)과 다르다")
+        # 첫째 인용은 질문 대상의 값이다. ⑧ 의 모범 답안은 이것만, 짝 문항의 모범 답안은 전부를 인용한다.
+        asked_value = (c.get("asked") or {}).get("value")
+        if ev and not (isinstance(ev[0].get("quote"), str) and asked_value and value_in(asked_value, ev[0]["quote"])):
+            out.append("⑧ 의 evidence 첫째는 질문 대상의 값(contrast.asked.value)이 적힌 구절이다")
+        # 짝 문항의 5점 모범 답안은 "모든 주장이 근거에 있다" 고 쓰므로, 인용이 멀쩡한 답변의 주장마다 있어야 한다(스펙 4-3절).
+        if type(question.get("claims")) is int and len(ev) != question["claims"]:
+            out.append(f"⑧ 의 evidence 는 멀쩡한 답변의 주장마다 하나씩, {question['claims']}개 적는다(지금 {len(ev)}개)")
         if other.get("target") != (c.get("other") or {}).get("target"):
             out.append("⑧ 의 other.target 이 contrast.other.target 과 다르다")
     if t in (3, 4, 5) and not rec.get("added"):
@@ -1664,7 +1762,8 @@ def render(t: int, rec: dict, question: dict, item_id: str, templates: dict, see
     c = question.get("contrast") or {}
     values = {
         "target": rec.get("target"),
-        "evidence": _quote_list(rec.get("evidence") or []),
+        # ⑧ 은 질문 대상의 값(첫째 인용)만 인용한다. 나머지 인용은 짝 문항이 쓴다.
+        "evidence": _quote_list((rec.get("evidence") or [])[:1] if t == 8 else rec.get("evidence") or []),
         "value": rec.get("new_value") if t == 6 else (c.get("other") or {}).get("value"),
         "other_target": (rec.get("other") or {}).get("target"),
         "other_evidence": _quote_list([rec["other"]]) if rec.get("other") else None,
@@ -1686,7 +1785,7 @@ def load_templates() -> dict:
 $PY -m tools.judgeft_rationale_check | tail -1
 ```
 
-Expected: `5가지 전부 통과.`
+Expected: `6가지 전부 통과.`
 
 - [ ] **Step 6: 커밋한다**
 
@@ -1723,7 +1822,13 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>" -- ai-service/testdata/
 from __future__ import annotations
 
 from .judge5 import RULES_V2, parse_result
-from .judgeft_export import build_train, leak_problems, split_val
+from .judge5v2_export import apply_review
+from .judge5 import build_messages
+from .judgeft_export import (
+    build_train, forbidden_problems, leak_problems, merge_reviews, overlap_problems, pending_rows, split_val,
+    train_short,
+)
+from .judgeft_files import PAIRS, TRAIN_QUOTA
 from .judgeft_rationale import load_templates
 
 SRC = [{"chunk_id": 1, "filename": "plan.md", "content": "베이직 요금제는 데이터를 월 10GB 준다. 프리미엄 요금제는 데이터를 월 30GB 준다."},
@@ -1791,8 +1896,66 @@ def check_leak_problems_find_overlaps() -> None:
     assert leak_problems(items, qs, rs, [items[0]["target"]])                      # 모범 답안이 겹침
 
 
+def check_sentence_overlap_both_ways_and_forbidden_values() -> None:
+    """문장 하나만 겹쳐도 두 방향 모두에서 찾는다. 공통 지시문의 문장은 겹쳐도 세지 않는다."""
+    template = "\n".join(m["content"] for m in build_messages("", [], ""))
+    shared = "프리미엄 요금제는 해외 로밍 데이터를 하루 1GB 까지 무료로 준다."
+    train = {"학습 문서 a": "첫 문장은 학습 쪽에만 있는 충분히 긴 문장이다. " + shared}
+    test = {"시험 문서 b": "시험 쪽 문서의 첫 문장은 여기에만 있는 긴 문장이다.\n" + shared + " 뒤에 더 붙은 말"}
+    found = overlap_problems(train, test, template)
+    assert len(found) == 2 and any(f.startswith("학습 쪽") for f in found) and any(f.startswith("시험 쪽") for f in found)
+    common = {"x": template + "\n학습 쪽 고유의 문장은 이렇게 충분히 길게 쓴다."}
+    assert overlap_problems(common, {"y": template + "\n시험 쪽 고유의 문장도 이렇게 충분히 길게 쓴다."}, template) == []
+    assert forbidden_problems({"문장 틀": "The response gives {asked_value}."}) == []
+    assert forbidden_problems({"학습 문항 1": "이체 한도는 \"1일 5억 원\" 이다"}) == ["학습 문항 1: 금지 값 '1일 5억 원' 가 있다(스펙 4-5절)"]
+
+
+def check_train_refuses_duplicate_variants_and_counts_quota() -> None:
+    """같은 질문의 변형 줄이 둘이면 멈추고, 할당량 모자람은 남은 문항으로 센다."""
+    qs, rs, a, vs = _fixture()
+    try:
+        build_train(qs, rs, a, vs + [dict(vs[2], answer="다른 답")], load_templates())
+    except ValueError as e:
+        assert "travel-003" in str(e)
+    else:
+        raise AssertionError("변형 줄이 둘인데 조용히 하나를 골랐다")
+    full = [{"kind": "main", "type": t} for t, n in TRAIN_QUOTA.items() for _ in range(n)]
+    full += [{"kind": "pair", "type": 1}] * PAIRS
+    assert train_short(full) == {}                                           # 앞에서 빠졌어도 채웠으면 0
+    assert train_short(full[1:-1]) == {"1": 1, "pairs": 1}
+
+
+def check_pair_needs_asked_value_in_clean_answer() -> None:
+    qs, rs, a, vs = _fixture()
+    qs[0] = dict(qs[0], answer="베이직 요금제는 데이터를 넉넉하게 줍니다.")    # travel-001 의 멀쩡한 답변에 값이 없다
+    items, dropped = build_train(qs, rs, a, vs, load_templates())
+    assert ("travel-001", "pair") not in {(i["qid"], i["kind"]) for i in items}
+    assert "값" in dropped["pair"]["travel-001"][0]
+
+
+def check_supplement_review_flow_reviews_only_new_cases() -> None:
+    """보충 뒤의 순서(계획 E9 Step 4): 검수하지 않은 문항만 뽑고, 그 결과를 덧붙이면 apply_review 가 멈추지 않는다.
+    이미 검수한 문항을 다시 덧붙이면 merge_reviews 가 먼저 막는다(apply_review 의 "검수 줄이 두 개다" 를 피한다)."""
+    key = {f"c{i}": {"qid": f"q{i}", "table_score": 1} for i in range(5)}
+    rows = [{"case_id": c} for c in key]
+    first = [{"case_id": f"c{i}", "review_score": 1} for i in range(3)]          # 첫 검수는 c0~c2
+    todo = pending_rows(rows, first)
+    assert [r["case_id"] for r in todo] == ["c3", "c4"]
+    new = [{"case_id": "c3", "review_score": 1}, {"case_id": "c4", "review_score": 1}]
+    merged, problems = merge_reviews(first, new, {r["case_id"] for r in todo})
+    assert problems == [] and len(merged) == 5
+    kept, dropped, bad = apply_review(key, merged)
+    assert bad == [] and len(kept) == 5
+    _, problems = merge_reviews(first, new + [{"case_id": "c0", "review_score": 1}], {"c3", "c4"})
+    assert any("c0" in p for p in problems)                                          # 이미 검수한 문항
+    _, problems = merge_reviews(first, new[:1], {"c3", "c4"})
+    assert any("없는 문항 1개" in p for p in problems)                              # 검수가 빠진 문항
+
+
 CHECKS = [check_build_train_drops_only_broken_items_and_their_pairs, check_split_val_keeps_question_together_and_is_stable,
-          check_leak_problems_find_overlaps]
+          check_leak_problems_find_overlaps, check_supplement_review_flow_reviews_only_new_cases,
+          check_sentence_overlap_both_ways_and_forbidden_values, check_train_refuses_duplicate_variants_and_counts_quota,
+          check_pair_needs_asked_value_in_clean_answer]
 
 
 def main() -> None:
@@ -1825,6 +1988,10 @@ Expected: `ModuleNotFoundError: No module named 'tools.judgeft_export'`
     $PY -m tools.judgeft_export test draft        # 검수 전 새 시험지와 정답 파일
     $PY -m tools.judgeft_export test mismatches   # 검수 점수와 정답 점수가 다른 문항 목록(사용자 판단용)
     $PY -m tools.judgeft_export test final        # 검수를 반영한 최종 새 시험지
+    # 검수 뒤 조건을 채우지 못해 보충했을 때(계획 E9 Step 4). 이 순서대로 한다.
+    $PY -m tools.judgeft_export test draft --after-supplement    # 보충 회차의 문항을 더한 검수 전 시험지
+    $PY -m tools.judgeft_export test pending --out <저장소 밖 폴더>/cases.jsonl   # 아직 검수하지 않은 문항만
+    $PY -m tools.judgeft_export test append-review <검수 결과 파일>             # review.jsonl 에 덧붙인다
     $PY -m tools.judgeft_export train             # 학습 데이터(학습 묶음, 검증 묶음). 글자 확인과 누출 확인을 함께 한다
 
 새 시험지는 v2 와 같은 모양이라 v2 의 build_cases(⑥, ⑧ 의 글자 확인 포함), apply_review, fence_for 를 그대로 쓴다.
@@ -1835,19 +2002,26 @@ from __future__ import annotations
 
 import argparse
 import random
+import re
 import sys
+from collections import Counter
+from pathlib import Path
 
 from .judge5 import RULES_V2, build_messages, parse_result, prompt_sha256, sha256_file
 from .judge5v2_export import ExportProblem, apply_review, build_cases, case_id_of, fence_for
 from .judgeft_assign import assigned
 from .judgeft_files import (
-    ANSWER_KEY, ASSIGNMENT, CASES, CASES_SHA, MISMATCHES, QUESTIONS, RETRIEVED, REVIEW, SEED, TABLE_SCORE, TEMPLATES,
+    ANSWER_KEY, ASSIGNMENT, CASES, CASES_SHA, CORPUS, FORBIDDEN_VALUES, GATE_A, MISMATCHES, QUESTIONS, RETRIEVED,
+    PAIRS, REVIEW, ROOT, SEED, TABLE_SCORE, TEMPLATES, TRAIN_QUOTA, V2_CORPUS_DIRS, fields_doc, value_in,
     TRAIN, TRAIN_DROPPED, TRAIN_SHA, TYPE_NAMES, V2_CASES, VAL, VAL_FRACTION, VARIANTS, latest_by_qid, read_json,
     read_jsonl, write_json, write_jsonl,
 )
 from .judgeft_rationale import load_templates, record_problems, render, template_problems
 
-MIN_LEAK_LEN = 20   # 이보다 짧은 근거 청크는 누출 확인에서 뺀다. "## 요금" 같은 제목이 우연히 겹칠 수 있다.
+MIN_LEAK_LEN = 20   # 이보다 짧은 근거 청크와 문장은 누출 확인에서 뺀다. "## 요금" 같은 제목이 우연히 겹칠 수 있다.
+# 문장 경계: 마침표, 물음표, 느낌표 뒤의 공백, 또는 줄바꿈. (?<=...) 는 "바로 앞이 이 글자일 때" 만 맞는 조건이라
+# 마침표 자체는 앞 문장에 남는다.
+_SENTENCE_SPLIT = re.compile(r"(?<=[.!?])\s+|\n+")
 
 
 def _inputs() -> tuple[list[dict], list[dict], dict, list[dict]]:
@@ -1883,21 +2057,79 @@ def kept_test() -> tuple[dict[str, int], set[str], set[str]]:
     return types, set(), five
 
 
-def cmd_test(stage: str) -> int:
-    if stage == "draft" and ANSWER_KEY.exists() and read_json(ANSWER_KEY).get("stage") == "final":
-        print("정답 파일이 이미 최종본입니다. draft 로 덮지 않습니다(v2 와 같은 이유: 검수 전 시험지로 모델을 돌리게 된다).")
+def pending_rows(rows: list[dict], reviews: list[dict]) -> list[dict]:
+    """아직 검수 줄이 없는 문항. 보충 뒤에는 새 회차의 문항만 남는다(앞 회차의 문항은 이미 검수 줄이 있다)."""
+    done = {r["case_id"] for r in reviews}
+    return [r for r in rows if r["case_id"] not in done]
+
+
+def merge_reviews(existing: list[dict], new: list[dict], pending_ids: set[str]) -> tuple[list[dict], list[str]]:
+    """새 검수 결과를 기존 review.jsonl 뒤에 붙인다. (합친 목록, 문제 목록). 문제가 있으면 합친 목록을 쓰지 않는다.
+
+    이미 검수한 문항을 다시 검수한 줄이 섞이면 apply_review 가 "검수 줄이 두 개다" 로 멈추므로 여기서 먼저 막는다.
+    """
+    problems = []
+    seen: set[str] = set()
+    for r in new:
+        cid = r.get("case_id")
+        if cid in seen:
+            problems.append(f"{cid}: 새 검수 결과에 같은 문항이 두 번 있다")
+        elif cid not in pending_ids:
+            problems.append(f"{cid}: 검수할 문항(pending)이 아니다. 이미 검수했거나 시험지에 없다")
+        seen.add(cid)
+    if missing := sorted(pending_ids - seen):
+        problems.append(f"검수 결과에 없는 문항 {len(missing)}개: {', '.join(missing[:5])}")
+    return existing + new, problems
+
+
+def _in_repo(path: Path) -> bool:
+    """검수 폴더가 저장소 안이면 검수 세션이 변형 유형이 적힌 파일을 볼 수 있다(v2 계획 E8)."""
+    return path.resolve().is_relative_to(ROOT.parent.resolve())
+
+
+def cmd_test(stage: str, after_supplement: bool = False, path: str | None = None) -> int:
+    final_now = ANSWER_KEY.exists() and read_json(ANSWER_KEY).get("stage") == "final"
+    if stage == "draft" and final_now and not after_supplement:
+        print("정답 파일이 이미 최종본입니다. draft 로 덮지 않습니다(v2 와 같은 이유: 검수 전 시험지로 모델을 돌리게 된다). "
+              "보충 회차를 더한 것이면 --after-supplement 를 붙입니다(계획 E9 Step 4).")
+        return 1
+    if stage == "draft" and after_supplement and GATE_A.exists():
+        print("관문 (a) 의 결과(gate_a.json)가 이미 있습니다. 모델이 돈 뒤에는 새 시험지를 바꾸지 않습니다(스펙 6-5절).")
         return 1
     try:
         rows, key = build_test()
     except ExportProblem as e:
         print("새 시험지를 만들지 않았습니다.\n  - " + "\n  - ".join(e.problems[:20]))
         return 1
+    reviews = read_jsonl(REVIEW) if REVIEW.exists() else []
     if stage == "draft":
+        if after_supplement and not pending_rows(rows, reviews):
+            print("검수하지 않은 새 문항이 없습니다. 보충 회차(judgeft_assign supplement test)와 변형 답변을 먼저 씁니다.")
+            return 1
         sha = _write_test(rows, {"stage": "draft", "seed": SEED, "cases": key, "dropped": {}})
-        print(f"새 시험지 {len(rows)}문항, SHA-256 {sha}")
+        print(f"새 시험지 {len(rows)}문항(검수하지 않은 문항 {len(pending_rows(rows, reviews))}개), SHA-256 {sha}")
+        return 0
+    if stage == "pending":
+        out = Path(path or "")
+        if not path or _in_repo(out):
+            print("--out 에 저장소 밖의 새 폴더 안 경로를 줍니다(검수 세션이 저장소의 파일을 보지 않게 한다).")
+            return 1
+        todo = pending_rows(rows, reviews)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        write_jsonl(out, todo)
+        print(f"검수할 문항 {len(todo)}개: {out}")
+        return 0
+    if stage == "append-review":
+        new = read_jsonl(Path(path or ""))
+        merged, problems = merge_reviews(reviews, new, {r["case_id"] for r in pending_rows(rows, reviews)})
+        if problems:
+            print("review.jsonl 에 덧붙이지 않았습니다.\n  - " + "\n  - ".join(problems[:20]))
+            return 1
+        write_jsonl(REVIEW, merged)
+        print(f"review.jsonl 에 {len(new)}줄을 덧붙였습니다(모두 {len(merged)}줄).")
         return 0
     if stage == "mismatches":
-        reviews = {r["case_id"]: r for r in read_jsonl(REVIEW)}
+        reviews = {r["case_id"]: r for r in reviews}
         notes = {v["qid"]: v.get("note", "") for v in read_jsonl(VARIANTS)}
         body_of = {r["case_id"]: r["messages"][1]["content"] for r in rows}
         out = ["# 검수 점수와 정답 점수가 다른 문항", "", "이 파일에는 변형 유형이 적혀 있다. 검수 세션에 주지 않는다.", ""]
@@ -1914,7 +2146,7 @@ def cmd_test(stage: str) -> int:
         MISMATCHES.write_text("\n".join(out) + "\n", encoding="utf-8")
         print(f"사용자 판단이 필요한 문항 {n}개: {MISMATCHES}")
         return 0
-    kept, dropped, problems = apply_review(key, read_jsonl(REVIEW))
+    kept, dropped, problems = apply_review(key, reviews)
     if problems:
         print("최종 새 시험지를 만들지 않았습니다.\n  - " + "\n  - ".join(problems[:20]))
         return 1
@@ -1931,6 +2163,10 @@ def build_train(questions: list[dict], retrieved: list[dict], assignment: dict, 
     v2 의 build_cases 는 문제가 하나라도 있으면 전체를 멈춘다. 학습 데이터는 어긋난 문항만 빼야 하므로(스펙 5-2절)
     질문 하나씩 build_cases 에 넣어 그 질문의 문제만 받는다. 확인 2, 3(⑥, ⑧ 의 글자)은 build_cases 안에 있다.
     """
+    # 같은 질문의 변형 줄이 둘이면 dict 로 만들 때 뒤의 줄이 조용히 앞의 줄을 덮는다. 어느 쪽이 맞는지는 출제
+    # 세션만 아므로 멈춘다. Counter 는 값마다 몇 번 나왔는지 센다.
+    if dups := sorted(q for q, n in Counter(v["qid"] for v in variants).items() if n > 1):
+        raise ValueError(f"variants.jsonl 에 같은 질문의 줄이 여러 개다: {', '.join(dups[:10])}. 하나만 남긴다")
     types, pairs, _ = assigned(assignment, "train")
     q_by = {q["qid"]: q for q in questions}
     r_by = {r["qid"]: r for r in latest_by_qid(retrieved)}
@@ -1954,6 +2190,10 @@ def build_train(questions: list[dict], retrieved: list[dict], assignment: dict, 
             dropped["pair"][qid] = ["짝의 ⑧ 문항이 빠져서 짝도 뺀다"]
             continue
         q, r, v = q_by[qid], r_by[qid], v_by[qid]
+        # 짝 문항은 멀쩡한 답변이 질문 대상의 값을 그대로 말해야 5점이다. 값이 없으면 ⑧ 과 짝이 대조가 되지 않는다.
+        if not value_in(q["contrast"]["asked"]["value"], q["answer"]):
+            dropped["pair"][qid] = ["멀쩡한 답변에 질문 대상의 값(contrast.asked.value)이 없다"]
+            continue
         items.append(_item(q, r, q["answer"], 1, {"target": v["target"], "evidence": v["evidence"]}, "pair", templates))
     for it in list(items):                                                                 # 확인 4
         if parse_result(it["target"], "stop", rules=RULES_V2) != (it["score"], "ok"):
@@ -1998,6 +2238,56 @@ def leak_problems(items: list[dict], questions: list[dict], retrieved: list[dict
     return out
 
 
+def sentences(text: str, template: str) -> set[str]:
+    """20자 이상 문장. 공통 지시문(template)에 들어 있는 문장은 뺀다. 모든 문항이 같은 지시문을 쓰므로 겹쳐도 누출이 아니다."""
+    out = set()
+    for s in _SENTENCE_SPLIT.split(text):
+        s = s.strip()
+        if len(s) >= MIN_LEAK_LEN and s not in template:
+            out.add(s)
+    return out
+
+
+def overlap_problems(train: dict[str, str], test: dict[str, str], template: str) -> list[str]:
+    """학습 쪽 글과 시험 쪽 글을 문장 단위로 양쪽에서 대조한다. 이름마다 한 줄만 낸다.
+
+    leak_problems 는 학습 문항의 글 전체가 시험지에 들어 있는지만 본다. 문서의 한 문장만 옮겨 쓴 경우나
+    시험 쪽 글이 학습 쪽에 들어간 경우는 놓친다. 그래서 문장으로 잘라 두 방향을 모두 본다.
+    """
+    out = []
+    for name_a, side_a, side_b, where in (("학습", train, test, "시험"), ("시험", test, train, "학습")):
+        blob = "\n".join(side_b.values())
+        for name, text in side_a.items():
+            if hit := next((s for s in sorted(sentences(text, template)) if s in blob), None):
+                out.append(f"{name_a} 쪽 {name} 의 문장이 {where} 쪽에 나온다: {hit[:40]}")
+    return out
+
+
+def forbidden_problems(texts: dict[str, str]) -> list[str]:
+    """스펙 4-5절의 금지 값(FORBIDDEN_VALUES)이 학습 데이터, 문장 틀, 노트북에 없는가."""
+    return [f"{name}: 금지 값 {v!r} 가 있다(스펙 4-5절)" for name, text in texts.items() for v in FORBIDDEN_VALUES
+            if v in text]
+
+
+def _corpus_texts(dirs: list[Path]) -> dict[str, str]:
+    return {f"문서 {p.parent.name}/{p.name}": p.read_text(encoding="utf-8")
+            for d in dirs for p in sorted(d.glob("*.md"))}
+
+
+def overlap_sides(items: list[dict], questions: list[dict], retrieved: list[dict]) -> tuple[dict, dict]:
+    """(학습 쪽, 시험 쪽). 학습 쪽은 학습용 분야의 문서와 학습 문항, 시험 쪽은 시험용 분야와 v2 의 문서와 두 시험지다."""
+    doc = fields_doc()
+    q_by = {q["qid"]: q for q in questions}
+    r_by = {r["qid"]: r for r in latest_by_qid(retrieved)}
+    train = _corpus_texts([CORPUS / f for f in doc["train"]])
+    for it in items:
+        train[f"학습 문항 {it['id']}({it['qid']})"] = "\n".join(
+            [q_by[it["qid"]]["question"], it["target"]] + [s["content"] for s in r_by[it["qid"]]["sources"]])
+    test = _corpus_texts([CORPUS / f for f in doc["test"]] + list(V2_CORPUS_DIRS.values()))
+    test["시험지"] = "\n".join(test_texts())
+    return train, test
+
+
 def test_texts() -> list[str]:
     """새 시험지(최종본)와 동결 시험지의 user 메시지. 시험지 파일이 없으면 멈춘다."""
     if not CASES.exists() or read_json(ANSWER_KEY).get("stage") != "final":
@@ -2015,15 +2305,33 @@ def kept_train() -> tuple[dict[str, int], set[str], set[str]]:
             {i["qid"] for i in items if i["kind"] == "pair"}, set())
 
 
+def train_short(items: list[dict]) -> dict[str, int]:
+    """할당량(스펙 4-4절)에 모자란 수. {유형 번호 문자열 또는 "pairs": 모자란 수}. 빈 dict 면 할당량을 다 채웠다."""
+    have = Counter(i["type"] for i in items if i["kind"] == "main")
+    short = {str(t): n - have[t] for t, n in TRAIN_QUOTA.items() if have[t] < n}
+    if (n_pairs := sum(1 for i in items if i["kind"] == "pair")) < PAIRS:
+        short["pairs"] = PAIRS - n_pairs
+    return short
+
+
 def cmd_train() -> int:
     templates = load_templates()
     if bad := template_problems(templates):
         print("문장 틀 파일이 규칙과 다릅니다.\n  - " + "\n  - ".join(bad))
         return 1
     questions, retrieved, assignment, variants = _inputs()
-    items, dropped = build_train(questions, retrieved, assignment, variants, templates)
-    if leaks := leak_problems(items, questions, retrieved, test_texts()):
-        print("학습 데이터가 시험지와 겹칩니다. 학습하지 않고 사용자에게 보입니다(스펙 5-3절).\n  - "
+    try:
+        items, dropped = build_train(questions, retrieved, assignment, variants, templates)
+    except ValueError as e:
+        print(f"학습 데이터를 만들지 않았습니다. {e}")
+        return 1
+    template = "\n".join(m["content"] for m in build_messages("", [], ""))
+    leaks = leak_problems(items, questions, retrieved, test_texts())
+    leaks += overlap_problems(*overlap_sides(items, questions, retrieved), template)
+    leaks += forbidden_problems({f"학습 문항 {i['id']}": i["target"] + "".join(m["content"] for m in i["messages"])
+                                 for i in items} | {"문장 틀": TEMPLATES.read_text(encoding="utf-8")})
+    if leaks:
+        print("학습 데이터가 시험지와 겹치거나 금지 값이 있습니다. 학습하지 않고 사용자에게 보입니다(스펙 5-3절).\n  - "
               + "\n  - ".join(leaks[:20]))
         return 1
     train, val = split_val(items)
@@ -2035,23 +2343,32 @@ def cmd_train() -> int:
     n_drop = sum(len(v) for v in dropped.values())
     print(f"학습 묶음 {len(train)}문항, 검증 묶음 {len(val)}문항, 뺀 문항 {n_drop}개"
           f"(본 문항 {len(dropped['main'])}, 짝 {len(dropped['pair'])})")
-    if n_drop:
-        print("뺀 문항은 `judgeft_assign supplement train` 으로 채운 뒤 출제 세션이 변형 답변을 쓰고 이 명령을 다시 한다.")
+    # 종료 코드는 뺀 문항이 있었는가가 아니라 남은 문항이 할당량에 닿았는가로 정한다. 앞 회차에서 빠진
+    # 문항은 train_dropped.json 에 계속 남으므로, 보충으로 채운 뒤에도 "뺀 문항 n개" 는 0 이 되지 않는다.
+    if short := train_short(items):
+        print(f"할당량에 모자랍니다: {short}. `judgeft_assign supplement train` 으로 채운 뒤 출제 세션이 변형 답변을 쓰고 "
+              "이 명령을 다시 한다.")
         return 2
+    if n_drop:
+        print("뺀 문항은 보충 회차로 이미 채웠습니다. 할당량을 모두 채웠습니다.")
     return 0
 
 
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description="새 시험지와 학습 데이터를 만든다")
     p.add_argument("what", choices=("test", "train"))
-    p.add_argument("stage", nargs="?", choices=("draft", "mismatches", "final"))
+    p.add_argument("stage", nargs="?", choices=("draft", "mismatches", "final", "pending", "append-review"))
+    p.add_argument("path", nargs="?", help="append-review 의 검수 결과 파일")
+    p.add_argument("--after-supplement", action="store_true", help="보충 회차를 더해 draft 를 다시 만든다")
+    p.add_argument("--out", help="pending 이 쓸 파일(저장소 밖)")
     args = p.parse_args(argv)
     if args.what == "train":
         return cmd_train()
     if args.stage is None:
-        print("test 에는 draft, mismatches, final 중 하나를 준다.")
+        print("test 에는 draft, mismatches, final, pending, append-review 중 하나를 준다.")
         return 1
-    return cmd_test(args.stage)
+    # argparse 는 --after-supplement 를 after_supplement 로 바꿔 담는다(- 는 이름에 쓸 수 없어서).
+    return cmd_test(args.stage, args.after_supplement, args.out if args.stage == "pending" else args.path)
 
 
 if __name__ == "__main__":
@@ -2064,7 +2381,7 @@ if __name__ == "__main__":
 $PY -m tools.judgeft_export_check | tail -1 && $PY -m tools.judgeft_assign_check | tail -1
 ```
 
-Expected: `3가지 전부 통과.`, `6가지 전부 통과.`
+Expected: `7가지 전부 통과.`, `7가지 전부 통과.`
 
 - [ ] **Step 5: 커밋한다**
 
@@ -2295,7 +2612,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>" -- ai-service/tools/jud
 """
 from __future__ import annotations
 
-from .judgeft_determinism import compare_runs, env_diff, runs_for
+from .judgeft_determinism import compare_runs, decide_pre_from, env_diff, runs_for
 from .judgeft_files import V2_RESULTS_DIR, result_path
 from .judgeft_gate import gate_a, review_conditions
 
@@ -2325,7 +2642,9 @@ def check_gate_a_threshold_and_unread_denominator() -> None:
     assert not gate_a([_run(5, 0)], cases)["pass"]                  # 5/60
     r = gate_a([_run(6, 4)], cases)["runs"][0]                      # 못 읽음 4개는 분모에서 빠진다: 6/56
     assert r["unread"] == 4 and abs(r["ratio"] - 6 / 56) < 1e-9
-    assert not gate_a([_run(9, 0), _run(5, 0), _run(9, 0)], cases)["pass"]   # 가장 적은 실행으로 판정
+    assert not gate_a([_run(9, 0), _run(5, 0), _run(9, 0)], cases)["pass"]   # 비율이 가장 낮은 실행으로 판정
+    over = dict(cases, e0={"type": 8, "score": 3, "two_targets": True})      # 사용자가 3점으로 바꾼 ⑧ 은 세지 않는다
+    assert gate_a([_run(6, 0)], over)["runs"][0]["eighth"] == 59
 
 
 def check_compare_runs_and_env() -> None:
@@ -2335,22 +2654,43 @@ def check_compare_runs_and_env() -> None:
     assert env_diff({"torch": "2.11.0+cu130", "transformers": "4.57.6", "bitsandbytes": "0.50.2"},
                     {"torch": "2.11.0+cu130", "transformers": "4.57.6", "bitsandbytes": "0.50.2"}) == {}
     assert set(env_diff({"torch": "2.12.0"}, {"torch": "2.11.0"})) >= {"torch"}
+    assert "gpu" in env_diff({"gpu": "NVIDIA L4"}, {"gpu": "Tesla T4"})
+
+
+def check_decide_pre_separates_causes() -> None:
+    """판이 같아도 v2 와 다르면 새 환경의 run2 를 요구하고, run1 과 run2 로 실행 수를 정한다."""
+    a = [{"case_id": "c1", "output": "x [RESULT] 5", "finish": "stop"}]
+    b = [dict(a[0], output="y [RESULT] 5")]
+    r = decide_pre_from(a, a, None, {})
+    assert r["use_v2"] and r["runs"] == 1
+    try:
+        decide_pre_from(a, b, None, {})
+    except SystemExit as e:
+        assert "run2" in str(e)
+    else:
+        raise AssertionError("판이 같은데 v2 와 다르면 run2 를 요구해야 한다")
+    r = decide_pre_from(a, b, a, {})                 # 새 환경의 두 실행은 같다: v2 와의 차이는 코드나 환경 쪽
+    assert not r["use_v2"] and r["runs"] == 1 and r["vs_v2"]["diff"] == 1
+    r = decide_pre_from(a, b, b, {})                 # 새 환경의 두 실행도 다르다: 생성이 실행마다 다르다
+    assert not r["use_v2"] and r["runs"] == 3
+    r = decide_pre_from(a, a, a, {"torch": {"v2": "2.11.0", "now": "2.12.0"}})   # 판이 다르면 v2 와 대조하지 않는다
+    assert not r["use_v2"] and "vs_v2" not in r
 
 
 def check_runs_for_follows_spec_table() -> None:
     v2 = V2_RESULTS_DIR / "M3_run1.jsonl"
-    same1 = {"pre": {"env_same": True, "runs": 1}, "post": {"runs": 1}}
+    same1 = {"pre": {"use_v2": True, "runs": 1}, "post": {"runs": 1}}
     assert runs_for("M3pre", "frozen", same1) == [v2]
-    assert runs_for("M3pre", "frozen", {"pre": {"env_same": True, "runs": 3}}) == [
+    assert runs_for("M3pre", "frozen", {"pre": {"use_v2": True, "runs": 3}}) == [
         v2, result_path("frozen", "M3pre", 1), result_path("frozen", "M3pre", 2)]
-    assert runs_for("M3pre", "frozen", {"pre": {"env_same": False, "runs": 1}}) == [result_path("frozen", "M3pre", 1)]
+    assert runs_for("M3pre", "frozen", {"pre": {"use_v2": False, "runs": 1}}) == [result_path("frozen", "M3pre", 1)]
     assert runs_for("M1", "new", same1) == [result_path("new", "M1", n) for n in (1, 2, 3)]
     assert runs_for("M1", "frozen", same1) == [V2_RESULTS_DIR / "M1_run1.jsonl"]
     assert runs_for("M3ft", "frozen", {"post": {"runs": 3}})[2] == result_path("frozen", "M3ft", 3)
 
 
 CHECKS = [check_review_conditions_pass_and_fail, check_gate_a_threshold_and_unread_denominator,
-          check_compare_runs_and_env, check_runs_for_follows_spec_table]
+          check_compare_runs_and_env, check_runs_for_follows_spec_table, check_decide_pre_separates_causes]
 
 
 def main() -> None:
@@ -2385,6 +2725,8 @@ Expected: `ModuleNotFoundError: No module named 'tools.judgeft_determinism'`
 
 출력이 달라졌을 때 생성이 실행마다 다른 것인지, 환경(라이브러리 판)이 바뀌어 다른 것인지를 가른다.
 판이 v2 와 다르면 v2 의 결과와 대조하지 않는다. 대조하면 두 원인이 하나로 섞인다.
+판이 같은데 v2 와 다르면 새 환경에서 한 번 더 채점해(run2) run1 과 대조한다. v2 와 이 실험은 노트북 코드가 다르고
+v2 는 accelerate 판을 적지 않았으므로, 판이 같다는 것만으로 같은 환경이라고 말할 수 없기 때문이다.
 """
 from __future__ import annotations
 
@@ -2395,7 +2737,7 @@ from pathlib import Path
 from .judge5 import RULES_V2, parse_result
 from .judgeft_files import DETERMINISM, V2_ENV, V2_RESULTS_DIR, read_json, read_jsonl, result_path, write_json
 
-ENV_KEYS = ("torch", "transformers", "bitsandbytes")   # v2 의 env.json 에 있는 판(스펙 8-1절)
+ENV_KEYS = ("gpu", "torch", "transformers", "bitsandbytes")   # v2 의 env.json 에 있는 값(스펙 8-1절). GPU 가 다르면 연산이 다르다
 
 
 def env_path(results: Path) -> Path:
@@ -2418,20 +2760,35 @@ def compare_runs(a: list[dict], b: list[dict]) -> dict:
     return {"same": len(ka) - len(diff), "diff": len(diff), "diff_ids": diff}
 
 
+def decide_pre_from(run1: list[dict], v2: list[dict], run2: list[dict] | None, d: dict) -> dict:
+    """결정성 판정의 본체(파일을 읽지 않아 점검할 수 있다). run2 는 새 환경의 둘째 실행이고 아직 없으면 None 이다.
+
+    use_v2 는 학습 전 M3 의 동결 시험지 값에 v2 의 run1 을 쓰는가다. v2 와 판이 같고 줄마다 같을 때만 쓴다.
+    """
+    out: dict = {"env_same": not d, "env_diff": d}
+    if not d:
+        c = compare_runs(run1, v2)
+        out["vs_v2"] = {k: c[k] for k in ("same", "diff")}
+        if c["diff"] == 0:
+            return {**out, "compared": ["frozen M3pre_run1", "v2 M3_run1"], **c, "use_v2": True, "runs": 1}
+        why = (f"판은 v2 와 같은데 v2 의 run1 과 {c['diff']}줄이 다릅니다. 생성이 실행마다 다른지, 노트북 코드나 "
+               "accelerate 판(v2 는 적지 않았다)이 달라서인지 가르려고 새 환경에서 한 번 더 채점합니다")
+    else:
+        why = f"환경의 판이 v2 와 다릅니다({d}). v2 결과를 섞지 않고 새 환경에서 한 번 더 채점합니다"
+    if run2 is None:
+        raise SystemExit(why + "(계획 E12 Step 3). frozen/M3pre_run2.jsonl 을 만든 뒤 다시 하세요.")
+    c = compare_runs(run1, run2)
+    # 새 환경의 두 실행이 같으면 생성은 결정적이고, v2 와의 차이는 환경이나 코드의 차이다. 그래도 v2 의 값은 섞지 않는다.
+    return {**out, "compared": ["frozen M3pre_run1", "frozen M3pre_run2"], **c, "use_v2": False,
+            "runs": 1 if c["diff"] == 0 else 3}
+
+
 def decide_pre() -> dict:
     run1 = result_path("frozen", "M3pre", 1)
-    env = read_json(env_path(run1))
-    d = env_diff(env, read_json(V2_ENV))
-    if not d:
-        other, label = V2_RESULTS_DIR / "M3_run1.jsonl", "v2 M3_run1"
-    else:
-        other, label = result_path("frozen", "M3pre", 2), "frozen M3pre_run2"
-        if not other.exists():
-            raise SystemExit(f"환경의 판이 v2 와 다릅니다({d}). v2 결과를 섞지 않고 새 환경에서 한 번 더 채점합니다"
-                             "(계획 E12 Step 3). frozen/M3pre_run2.jsonl 을 만든 뒤 다시 하세요.")
-    c = compare_runs(read_jsonl(run1), read_jsonl(other))
-    return {"env_same": not d, "env_diff": d, "compared": ["frozen M3pre_run1", label], **c,
-            "runs": 1 if c["diff"] == 0 else 3}
+    run2 = result_path("frozen", "M3pre", 2)
+    d = env_diff(read_json(env_path(run1)), read_json(V2_ENV))
+    return decide_pre_from(read_jsonl(run1), read_jsonl(V2_RESULTS_DIR / "M3_run1.jsonl"),
+                           read_jsonl(run2) if run2.exists() else None, d)
 
 
 def decide_post() -> dict:
@@ -2447,7 +2804,7 @@ def runs_for(model: str, sheet: str, det: dict) -> list[Path]:
         pre = det["pre"]
         if sheet == "new":
             return [result_path("new", "M3pre", n) for n in range(1, pre["runs"] + 1)]
-        if pre["env_same"]:
+        if pre["use_v2"]:
             mine = [result_path("frozen", "M3pre", n) for n in (1, 2)]
             return [V2_RESULTS_DIR / "M3_run1.jsonl"] + (mine if pre["runs"] == 3 else [])
         return [result_path("frozen", "M3pre", n) for n in range(1, pre["runs"] + 1)]
@@ -2467,6 +2824,8 @@ def main(argv: list[str] | None = None) -> int:
           f"쓸 실행 수 {r['runs']}")
     if args.which == "pre" and r["env_diff"]:
         print(f"환경의 판이 v2 와 다릅니다: {r['env_diff']}. v2 의 결과는 쓰지 않습니다.")
+    elif args.which == "pre" and not r["use_v2"]:
+        print(f"판은 v2 와 같지만 v2 의 run1 과 {r['vs_v2']['diff']}줄이 달라 v2 의 결과는 쓰지 않습니다.")
     return 0
 
 
@@ -2524,8 +2883,12 @@ def review_conditions(cases: dict[str, dict]) -> list[Condition]:
 
 def gate_a(runs: list[list[dict]], cases: dict[str, dict]) -> dict:
     """관문 (a). runs 는 학습 전 M3 의 새 시험지 결과(실행마다 줄 목록). 실행마다 분모는 ⑧ 수에서 못 읽음을 뺀 수다.
-    통과는 가장 적은 실행으로 판정한다(스펙 7-1절: 속는다고 말하려면 매번 속아야 한다)."""
-    eighth = {cid for cid, k in cases.items() if k["type"] == 8}
+    통과는 비율이 가장 낮은 실행으로 판정한다(스펙 7-1절: 속는다고 말하려면 매번 속아야 한다. 못 읽음이 실행마다
+    달라 분모가 다를 수 있으므로 수가 아니라 비율로 고른다).
+
+    ⑧ 은 정답 점수가 1 인 문항만 센다. 검수에서 사용자가 점수를 바꾼(override) ⑧ 은 심각한 놓침의 정의(정답 1,
+    모델 4 이상)가 맞지 않는다. 보고서의 severe8 과 같은 범위다."""
+    eighth = {cid for cid, k in cases.items() if k["type"] == 8 and k["score"] == 1}
     out = []
     for i, rows in enumerate(runs, 1):
         got = {r["case_id"]: parse_result(r["output"], r.get("finish"), rules=RULES_V2)[0] for r in rows}
@@ -2566,7 +2929,7 @@ def cmd_a() -> int:
     write_json(GATE_A, res)
     for r in res["runs"]:
         print(f"실행 {r['run']}: ⑧ {r['eighth']}문항, 못 읽음 {r['unread']}, 심각한 놓침 {r['severe']}, 비율 {r['ratio']:.1%}")
-    print(f"관문 (a): {'통과' if res['pass'] else '통과하지 못함'}(기준 {GATE_A_RATIO:.0%} 이상, 가장 적은 실행으로 판정)")
+    print(f"관문 (a): {'통과' if res['pass'] else '통과하지 못함'}(기준 {GATE_A_RATIO:.0%} 이상, 비율이 가장 낮은 실행으로 판정)")
     return 0 if res["pass"] else 2
 
 
@@ -2586,7 +2949,7 @@ if __name__ == "__main__":
 $PY -m tools.judgeft_gate_check | tail -1
 ```
 
-Expected: `4가지 전부 통과.`
+Expected: `5가지 전부 통과.`
 
 - [ ] **Step 6: 커밋한다**
 
@@ -2598,7 +2961,7 @@ git commit -m "feat: 결정성 확인, 검수 뒤 조건, 학습 전 관문 (a) 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>" -- ai-service/tools/judgeft_determinism.py ai-service/tools/judgeft_gate.py ai-service/tools/judgeft_gate_check.py
 ```
 
-**리뷰 포인트:** 관문 (a) 가 문항별 점수나 출력을 찍지 않는가. 분모에서 못 읽음을 빼는가. 판이 v2 와 다를 때 v2 결과와 대조하지 않는가. `runs_for` 가 스펙 8-1절의 표(M1 은 동결 시험지에서 v2 결과, 새 시험지에서 3회)와 같은가.
+**리뷰 포인트:** 관문 (a) 가 문항별 점수나 출력을 찍지 않는가. 분모에서 못 읽음을 빼는가. 판이 v2 와 다를 때 v2 결과와 대조하지 않는가. 판이 같아도 v2 와 다르면 새 환경의 run2 를 요구하고 v2 결과를 섞지 않는가(`use_v2`). 관문 (a) 가 ⑧ 중 정답 1점인 문항만 세는가. `runs_for` 가 스펙 8-1절의 표(M1 은 동결 시험지에서 v2 결과, 새 시험지에서 3회)와 같은가.
 
 ---
 
@@ -2628,21 +2991,25 @@ from unittest import mock
 from . import judgeft_cloudflare
 
 
-def check_refuses_before_gate_a() -> None:
-    """관문 (a) 의 기록이 없거나 통과하지 못했으면 호출하기 전에 멈춘다(스펙 8-1절)."""
+def check_refuses_before_gates() -> None:
+    """관문 (a), (b) 의 기록이 없거나 하나라도 통과하지 못했으면 호출하기 전에 멈춘다(스펙 8-1절)."""
     with tempfile.TemporaryDirectory() as d:
-        gate = Path(d) / "gate_a.json"
+        gate, gate_b = Path(d) / "gate_a.json", Path(d) / "gate_b.json"
         # mock.patch.object: with 블록 안에서만 모듈의 이름을 바꿔 끼운다. 실제 gate_a.json 을 건드리지 않는다.
-        with mock.patch.object(judgeft_cloudflare, "GATE_A", gate), \
+        with mock.patch.object(judgeft_cloudflare, "GATE_A", gate), mock.patch.object(judgeft_cloudflare, "GATE_B", gate_b), \
              mock.patch.object(judgeft_cloudflare, "_call", side_effect=AssertionError("부르면 안 된다")):
             assert judgeft_cloudflare.run(1, None) == 1
             gate.write_text(json.dumps({"pass": False}), encoding="utf-8")
             assert judgeft_cloudflare.run(1, None) == 1
             gate.write_text(json.dumps({"pass": True}), encoding="utf-8")
+            assert judgeft_cloudflare.run(1, None) == 1          # (a) 만 통과, (b) 기록 없음
+            gate_b.write_text(json.dumps({"finite": False}), encoding="utf-8")
+            assert not judgeft_cloudflare.gate_passed()
+            gate_b.write_text(json.dumps({"finite": True}), encoding="utf-8")
             assert judgeft_cloudflare.gate_passed()
 
 
-CHECKS = [check_refuses_before_gate_a]
+CHECKS = [check_refuses_before_gates]
 
 
 def main() -> None:
@@ -2676,7 +3043,8 @@ Expected: `ImportError` 또는 `ModuleNotFoundError`(`tools.judgeft_cloudflare` 
     $PY -m tools.judgeft_cloudflare --run 1 [--limit 10]
 
 v2 의 judge5_cloudflare 는 실행 번호가 1 로 고정돼 있다. 그 파일을 고치지 않고 호출, 결과 줄, 이어 하기 함수를
-가져다 쓴다. 학습 전 관문 (a) 를 통과하기 전에는 돌지 않는다. 관문에서 끝나면 뉴런을 쓰지 않기 위해서다(스펙 8-1절).
+가져다 쓴다. 학습 전 관문 (a) 와 (b) 를 모두 통과하기 전에는 돌지 않는다. 관문에서 끝나면 뉴런을 쓰지 않기 위해서다
+(스펙 8-1절). (b) 에서 메모리가 모자라 사용자가 새 실험으로 돌리면 이 실험의 M1 결과는 쓰이지 않는다.
 """
 from __future__ import annotations
 
@@ -2688,16 +3056,20 @@ from app import cf
 
 from .judge5 import MODELS, sha256_file
 from .judge5_cloudflare import MODEL_KEY, _call, _log_failure, done_ids, foreign_lines, result_line
-from .judgeft_files import CASES, CASES_SHA, GATE_A, read_json, read_jsonl, result_path
+from .judgeft_files import CASES, CASES_SHA, GATE_A, GATE_B, read_json, read_jsonl, result_path
 
 
 def gate_passed() -> bool:
-    return GATE_A.exists() and bool(read_json(GATE_A).get("pass"))
+    """관문 (a) 는 pass, 관문 (b) 는 loss 가 숫자였는가(finite). (b) 가 메모리 부족이면 gate_b.json 자체가 없다."""
+    a = GATE_A.exists() and bool(read_json(GATE_A).get("pass"))
+    b = GATE_B.exists() and bool(read_json(GATE_B).get("finite"))
+    return a and b
 
 
 def run(n: int, limit: int | None) -> int:
     if not gate_passed():
-        print("학습 전 관문 (a) 를 통과하지 않았습니다(gate_a.json). M1 은 관문을 통과한 뒤에 돌립니다(스펙 8-1절).")
+        print("학습 전 관문 (a), (b) 를 모두 통과하지 않았습니다(gate_a.json, gate_b.json). "
+              "M1 은 두 관문을 통과한 뒤에 돌립니다(스펙 8-1절, 계획 E17).")
         return 1
     actual = sha256_file(CASES)
     if actual != CASES_SHA.read_text(encoding="utf-8").split()[0]:
@@ -2762,7 +3134,7 @@ git commit -m "feat: 관문 (a) 통과 뒤에만 도는 M1 새 시험지 채점 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>" -- ai-service/tools/judgeft_cloudflare.py ai-service/tools/judgeft_cloudflare_check.py
 ```
 
-**리뷰 포인트:** 관문 기록이 없거나 통과가 아니면 호출 전에 멈추는가. 결과 줄이 v2 와 같은 키에 실행 번호만 다른가.
+**리뷰 포인트:** 관문 (a), (b) 의 기록이 없거나 하나라도 통과가 아니면 호출 전에 멈추는가. 결과 줄이 v2 와 같은 키에 실행 번호만 다른가.
 
 ---
 
@@ -2786,7 +3158,14 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>" -- ai-service/tools/jud
 """
 from __future__ import annotations
 
-from .judgeft_report import Metrics, criteria, eighth_change, metrics, pipeline_lines
+import json
+import tempfile
+from pathlib import Path
+from unittest import mock
+
+from . import judgeft_files, judgeft_report
+from .judgeft_files import V2_RESULTS_DIR, read_jsonl, write_json, write_jsonl
+from .judgeft_report import Metrics, criteria, eighth_change, metrics, pipeline_lines, training_summary, unread_kinds
 
 KEY = {"e1": {"type": 8, "score": 1, "two_targets": True}, "e2": {"type": 8, "score": 1, "two_targets": True},
        "a1": {"type": 1, "score": 5, "two_targets": True}, "a2": {"type": 2, "score": 5, "two_targets": False},
@@ -2841,8 +3220,100 @@ def check_pipeline_lines_count_supplements_and_drops() -> None:
     assert "본 문항 2개, 짝 1개" in out[2] and "  - 인용이 없다: 2" in out
 
 
+def check_unread_kinds_and_training_log_last_line() -> None:
+    rows = [{"output": "x [RESULT] 5", "finish": "stop"}, {"output": "잘림", "finish": "length"},
+            {"output": "[RESULT] 3 [RESULT] 4", "finish": "stop"}, {"output": "[RESULT] 9", "finish": "stop"}]
+    assert unread_kinds(rows) == {"missing": 1, "conflict": 1, "out_of_range": 1, "length": 1}
+    log = [{"session_start": 1, "mode": "train"}, {"step": 1, "train_loss": 2.0, "scale": 65536.0, "skipped": True},
+           {"step": 2, "train_loss": 1.9, "scale": 32768.0, "skipped": False},
+           {"session_start": 2, "mode": "train"}, {"resumed_from": 1}, {"step": 2, "train_loss": 1.5, "scale": 32768.0,
+                                                                         "skipped": False, "val_loss": 1.4}]
+    out = "\n".join(training_summary(log))
+    assert "학습 단계 2개" in out and "학습 세션 2번" in out and "[1]" in out
+    assert "마지막 단계 1.5000" in out and "2단계 1.4000" in out and "건너뛴 단계 1개 [1]" in out   # 단계마다 마지막 줄
+
+
+def _write_fixture(d: Path, gate_pass: bool) -> dict:
+    """새 시험지 4문항(⑧ 둘), 학습 전 M3 의 새 시험지 결과, 관문 기록. 동결 시험지는 v2 의 실제 파일을 쓴다."""
+    cases = {f"e{i}": {"type": 8, "score": 1, "two_targets": True, "decision": "match"} for i in range(2)}
+    cases |= {"a0": {"type": 1, "score": 5, "two_targets": True, "decision": "keep"},
+              "b0": {"type": 4, "score": 3, "two_targets": False, "decision": "override"}}
+    paths = {"ANSWER_KEY": d / "answer_key.json", "ASSIGNMENT": d / "assignment.json", "GATE_A": d / "gate_a.json",
+             "GATE_B": d / "gate_b.json", "TRAIN_DONE": d / "train_done.json", "TRAINING_LOG": d / "training_log.jsonl",
+             "TRAIN_DROPPED": d / "train_dropped.json", "DETERMINISM": d / "determinism.json"}
+    write_json(paths["ANSWER_KEY"], {"stage": "final", "cases": cases,
+                                     "dropped": {"x0": {"type": 6, "reason": "검수 메모"}}})
+    write_json(paths["ASSIGNMENT"], {"rounds": [{"sheet": "test", "types": {}, "pairs": []}]})
+    write_json(paths["GATE_A"], {"threshold": 0.1, "pass": gate_pass,
+                                 "runs": [{"run": 1, "eighth": 2, "unread": 0, "severe": 1 if gate_pass else 0,
+                                           "ratio": 0.5 if gate_pass else 0.0}]})
+    write_json(paths["DETERMINISM"], {"pre": {"use_v2": True, "runs": 1}})
+    out = [{"case_id": c, "output": "x [RESULT] 1", "finish": "stop"} for c in cases]
+    write_jsonl(d / "results" / "new" / "M3pre_run1.jsonl", out)
+    return paths
+
+
+def check_report_builds_when_ended_at_gate_a() -> None:
+    """관문 (a) 에서 끝나도 보고서가 나오고, 하지 않은 것은 하지 않음으로 적힌다."""
+    with tempfile.TemporaryDirectory() as t:
+        d = Path(t)
+        paths = _write_fixture(d, gate_pass=False)
+        patches = [mock.patch.object(judgeft_report, k, v) for k, v in paths.items()]
+        patches.append(mock.patch.object(judgeft_files, "RESULTS_DIR", d / "results"))
+        for x in patches:
+            x.start()
+        try:
+            text = judgeft_report.build()
+            assert "판정: 통과하지 못함" in text and "관문 (b)" in text and "하지 않음(gate_b.json 이 없다" in text
+            assert "버린 문항 1개: ⑥" in text and "사용자가 정답 점수 유지 1" in text and "검수 뒤 조건 1: 실패" in text
+            assert "| 학습 후 M3 | 하지 않음 |" in text and "판정하지 않음" in text
+            assert "#### 학습 전 M3 (첫 실행)" in text and "### 유형별 (시험지 new" in text   # 혼동행렬과 유형별 표
+            assert "| 늘 1점 |" in text
+            # 관문을 통과했는데 학습이 끝나지 않았으면 만들지 않는다(스펙 6-5절)
+            write_json(paths["GATE_A"], {**json.loads(paths["GATE_A"].read_text()), "pass": True})
+            try:
+                judgeft_report.build()
+            except SystemExit as e:
+                assert "학습이 끝나지 않았습니다" in str(e)
+            else:
+                raise AssertionError("학습 전에 새 시험지 결과로 보고서를 만들었다")
+        finally:
+            for x in patches:
+                x.stop()
+
+
+def check_report_builds_full_with_criteria() -> None:
+    with tempfile.TemporaryDirectory() as t:
+        d = Path(t)
+        paths = _write_fixture(d, gate_pass=True)
+        write_json(paths["GATE_B"], {"longest_id": "r1", "longest_tokens": 900, "peak_gb": 12.1, "step_seconds": 60.0,
+                                     "total_steps": 135, "est_hours": 2.2, "save_every": 30, "finite": True,
+                                     "losses": [1.2, 1.1]})
+        write_json(paths["TRAIN_DONE"], {"adapter_sha256": "ab" * 32})
+        write_jsonl(paths["TRAINING_LOG"], [{"session_start": 1, "mode": "train"},
+                                            {"step": 1, "train_loss": 1.0, "scale": 65536.0, "skipped": False}])
+        write_json(paths["DETERMINISM"], {"pre": {"use_v2": True, "runs": 1}, "post": {"runs": 1}})
+        new_rows = read_jsonl(d / "results" / "new" / "M3pre_run1.jsonl")
+        for n in (1, 2, 3):
+            write_jsonl(d / "results" / "new" / f"M1_run{n}.jsonl", new_rows)
+        write_jsonl(d / "results" / "new" / "M3ft_run1.jsonl", new_rows)
+        write_jsonl(d / "results" / "frozen" / "M3ft_run1.jsonl", read_jsonl(V2_RESULTS_DIR / "M1_run1.jsonl"))
+        patches = [mock.patch.object(judgeft_report, k, v) for k, v in paths.items()]
+        patches.append(mock.patch.object(judgeft_files, "RESULTS_DIR", d / "results"))
+        for x in patches:
+            x.start()
+        try:
+            text = judgeft_report.build()
+        finally:
+            for x in patches:
+                x.stop()
+        assert "가장 긴 문항 r1(900토큰)" in text and "어댑터 SHA-256 abab" in text
+        assert "- 기준 1:" in text and "- 기준 4:" in text and "⑧ 만의 짝 부호 검정(보고 항목)" in text
+
+
 CHECKS = [check_metrics_split_eighth_and_false_alarms, check_pipeline_lines_count_supplements_and_drops, check_criteria_use_worst_post_and_best_comparator,
-          check_eighth_change_counts_fixed_and_new_misses]
+          check_eighth_change_counts_fixed_and_new_misses, check_unread_kinds_and_training_log_last_line,
+          check_report_builds_when_ended_at_gate_a, check_report_builds_full_with_criteria]
 
 
 def main() -> None:
@@ -2868,9 +3339,13 @@ Expected: `ModuleNotFoundError: No module named 'tools.judgeft_report'`
 - [ ] **Step 3: 보고서 도구를 쓴다**
 
 ```python
-"""스펙 8절의 수치, 비교, 교체 후보 기준을 낸다.
+"""스펙 7절의 관문 결과, 8절의 수치, 비교, 교체 후보 기준, 9-3절의 검수 결과를 낸다.
 
 실행:  cd ai-service && $PY -m tools.judgeft_report      # testdata/judgeft/report.md 를 쓴다
+
+관문 (a) 에서 끝나도 보고서를 만든다. 그때 있는 결과만 내고, 돌리지 않은 모델과 비교는 "하지 않음" 으로 적는다.
+관문 (a) 를 통과했는데 학습이 끝나지 않았으면(train_done.json 이 없으면) 만들지 않는다. 새 시험지의 학습 전 M3 결과를
+학습이 끝나기 전에 열지 않기 위해서다(스펙 6-5절).
 
 동결 시험지의 정답은 v2 의 정답 파일, 대상이 둘인 질문인지는 v2 의 질문 파일에서 읽는다. 모델마다 몇 번 돌린
 결과를 쓰는지는 determinism.json 으로 정한다(judgeft_determinism.runs_for). 점수 읽기, 대조 수치, 부호 검정,
@@ -2882,14 +3357,15 @@ import sys
 from collections import Counter
 from dataclasses import dataclass
 
-from .judge5 import RULES_V2, Comparison, compare, parse_result, sign_test_p, summarize
+from .judge5 import RULES_V2, SCALE, Comparison, compare, parse_result, sign_test_p, summarize
 from .judge5v2_gate import fake_within1
-from .judge5v2_report import error_counts
+from .judge5v2_report import _breakdown, error_counts
 from .judgeft_determinism import runs_for
 from .judgeft_files import (
-    ANSWER_KEY, ASSIGNMENT, DETERMINISM, REPORT, SHEETS, TRAIN_DROPPED, V2_ANSWER_KEY, V2_QUESTIONS, read_json,
-    read_jsonl,
+    ANSWER_KEY, ASSIGNMENT, DETERMINISM, GATE_A, GATE_B, REPORT, SHEETS, TRAIN_DONE, TRAIN_DROPPED, TRAINING_LOG,
+    TYPE_NAMES, V2_ANSWER_KEY, V2_QUESTIONS, read_json, read_jsonl,
 )
+from .judgeft_gate import review_conditions
 
 DISPUTED = "3909377dbed6"   # 동결 시험지에서 M1 의 유일한 심각한 놓침. 정답 해석이 갈리는 문항(스펙 1-2절, 8-4절 기준 2)
 NAMES = {"M1": "M1", "M3pre": "학습 전 M3", "M3ft": "학습 후 M3"}
@@ -2923,6 +3399,22 @@ def keys() -> dict[str, dict[str, dict]]:
 
 def scores_of(rows: list[dict]) -> dict[str, int | None]:
     return {r["case_id"]: parse_result(r["output"], r.get("finish"), rules=RULES_V2)[0] for r in rows}
+
+
+def unread_kinds(rows: list[dict]) -> dict[str, int]:
+    """못 읽음을 원인별로 센다. missing, conflict, out_of_range 는 parse_result 의 상태이고,
+    length 는 그중 512 토큰에서 잘린 것이다. 원인이 다르면 고칠 곳이 다르다(양식이 무너짐, 끝을 모름, 값이 틀림)."""
+    out: Counter = Counter()
+    for r in rows:
+        score, state = parse_result(r["output"], r.get("finish"), rules=RULES_V2)
+        if score is None:
+            out[state] += 1
+            out["length"] += r.get("finish") == "length"
+    return {k: out[k] for k in ("missing", "conflict", "out_of_range", "length")}
+
+
+def _kinds_text(k: dict[str, int]) -> str:
+    return f"missing {k['missing']}(그중 잘림 {k['length']}), conflict {k['conflict']}, out_of_range {k['out_of_range']}"
 
 
 def metrics(key: dict[str, dict], scores: dict[str, int | None]) -> Metrics:
@@ -2977,7 +3469,7 @@ def eighth_change(key: dict[str, dict], pre: dict[str, int | None], post: dict[s
     """⑧ 만의 짝 부호 검정(스펙 8-3절). a 는 학습 후 M3 가 나은 문항(학습 전에 심각하게 놓쳤고 학습 후에 놓치지 않음)."""
     excluded = fixed = broken = same = 0
     for c, k in key.items():
-        if k["type"] != 8:
+        if k["type"] != 8 or k["score"] != 1:   # severe8, 관문 (a) 와 같은 범위
             continue
         x, y = pre[c], post[c]
         if x is None or y is None:
@@ -3008,39 +3500,158 @@ def pipeline_lines(assignment: dict, dropped: dict) -> list[str]:
     return out
 
 
+def training_summary(lines: list[dict]) -> list[str]:
+    """학습 기록(training_log.jsonl)을 요약한다. 단계마다 마지막 줄을 쓴다.
+
+    끊긴 뒤 이어 하면 마지막 체크포인트 뒤의 단계를 다시 하므로 같은 단계의 줄이 두 번 적힐 수 있다.
+    채점에 쓰는 어댑터는 다시 한 쪽의 결과이므로 마지막 줄이 맞는 값이다.
+    """
+    steps: dict[int, dict] = {}
+    for line in lines:
+        if "step" in line:
+            steps[line["step"]] = line   # 같은 단계면 뒤의 줄이 앞의 줄을 덮는다
+    sessions = sum(1 for line in lines if "session_start" in line and line.get("mode") == "train")
+    resumed = [line["resumed_from"] for line in lines if "resumed_from" in line]
+    bad = [(line["bad_checkpoint"], line["reason"]) for line in lines if "bad_checkpoint" in line]
+    if not steps:
+        return ["- 학습 기록에 단계가 없다"]
+    order = sorted(steps)
+    vals = [(n, steps[n]["val_loss"]) for n in order if "val_loss" in steps[n]]
+    skipped = [n for n in order if steps[n].get("skipped")]
+    out = [f"- 학습 단계 {len(order)}개(마지막 {order[-1]}), 학습 세션 {sessions}번, 이어 한 체크포인트 {resumed or '없음'}",
+           f"- 학습 loss: 첫 단계 {steps[order[0]]['train_loss']:.4f}, 마지막 단계 {steps[order[-1]]['train_loss']:.4f}",
+           "- 검증 loss(체크포인트마다): " + (", ".join(f"{n}단계 {v:.4f}" for n, v in vals) or "없음"),
+           f"- loss scaling 으로 건너뛴 단계 {len(skipped)}개{(' ' + str(skipped)) if skipped else ''}, "
+           f"마지막 scale {steps[order[-1]].get('scale')}"]
+    if bad:
+        out.append("- 깨져서 건너뛴 체크포인트: " + ", ".join(f"{n}단계({why})" for n, why in bad))
+    return out
+
+
+def review_lines(ak: dict) -> list[str]:
+    """검수 결과(스펙 5-1절, 9-3절). 사용자 판단별 수, 버린 문항의 유형별 수, 검수 뒤 세 조건."""
+    decisions = Counter(k["decision"] for k in ak["cases"].values())
+    dropped = Counter(TYPE_NAMES[k["type"]] for k in ak["dropped"].values())
+    out = [f"- 남은 문항 {len(ak['cases'])}개: 검수 점수와 같음 {decisions['match']}, 사용자가 정답 점수 유지 "
+           f"{decisions['keep']}, 사용자가 점수를 바꿈 {decisions['override']}",
+           f"- 버린 문항 {len(ak['dropped'])}개" + (": " + ", ".join(f"{t} {n}" for t, n in sorted(dropped.items()))
+                                                   if dropped else "")]
+    out += [f"- 검수 뒤 조건 {c.no}: {'통과' if c.ok else '실패'}. {c.text}" for c in review_conditions(ak["cases"])]
+    return out
+
+
+def gate_lines(gate_a: dict | None, gate_b: dict | None) -> list[str]:
+    """학습 전 관문 결과(스펙 7절). 통과 여부와 관계없이 적는다. 기록이 없으면 하지 않았다고 적는다."""
+    out = ["### 관문 (a): 학습 전 M3 가 새 시험지의 ⑧ 에서 속는가", ""]
+    if gate_a is None:
+        out.append("- 하지 않음(gate_a.json 이 없다)")
+    else:
+        out += [f"- 실행 {r['run']}: ⑧(정답 1점) {r['eighth']}문항, 못 읽음 {r['unread']}, 심각한 놓침 {r['severe']}, "
+                f"비율 {r['ratio']:.1%}" for r in gate_a["runs"]]
+        out.append(f"- 판정: {'통과' if gate_a['pass'] else '통과하지 못함'}(기준 {gate_a['threshold']:.0%} 이상, "
+                   "비율이 가장 낮은 실행으로 판정)")
+    out += ["", "### 관문 (b): 코랩 T4 에서 학습이 메모리에 올라가는가", ""]
+    if gate_b is None:
+        out.append("- 하지 않음(gate_b.json 이 없다. 관문 (a) 에서 끝났거나 메모리가 모자라 기록을 남기지 못했다)")
+    else:
+        out += [f"- 가장 긴 문항 {gate_b['longest_id']}({gate_b['longest_tokens']}토큰), GPU 메모리 최대 {gate_b['peak_gb']}GB",
+                f"- 학습 단계 하나 {gate_b['step_seconds']}초, 전체 {gate_b['total_steps']}단계 어림 {gate_b['est_hours']}시간"
+                f"(가장 긴 문항으로 잰 값이라 실제보다 길다), 체크포인트 간격 {gate_b['save_every']}단계",
+                f"- loss 가 숫자였는가: {gate_b['finite']}({gate_b['losses']})"]
+    return out
+
+
+def available(model: str, sheet: str, det: dict) -> list[list[dict]] | None:
+    """그 모델과 시험지의 결과 줄(실행마다). 결정성 판정이 없거나 파일이 하나라도 없으면 None(하지 않음)."""
+    try:
+        paths = runs_for(model, sheet, det)
+    except KeyError:   # det 에 pre 나 post 가 없다: 그 확인까지 가지 않았다
+        return None
+    if not all(p.exists() for p in paths):
+        return None
+    return [read_jsonl(p) for p in paths]
+
+
+def _confusion(name: str, key: dict[str, dict], scores: dict[str, int | None]) -> list[str]:
+    s = summarize([(k["score"], scores[c]) for c, k in key.items()])
+    out = [f"#### {name} (첫 실행)", "", "| 정답 점수 \\ 모델 | " + " | ".join(str(v) for v in SCALE) + " |",
+           "|---" * (len(SCALE) + 1) + "|"]
+    return out + [f"| {h} | " + " | ".join(str(s.confusion[(h, v)]) for v in SCALE) + " |" for h in SCALE] + [""]
+
+
 def build() -> str:
-    ks, det = keys(), read_json(DETERMINISM)
-    raw = {mod: {sh: [scores_of(read_jsonl(p)) for p in runs_for(mod, sh, det)] for sh in SHEETS} for mod in NAMES}
-    m = {mod: {sh: [metrics(ks[sh], s) for s in raw[mod][sh]] for sh in SHEETS} for mod in NAMES}
+    gate_a = read_json(GATE_A) if GATE_A.exists() else None
+    if gate_a is None:
+        raise SystemExit("관문 (a) 의 결과(gate_a.json)가 없습니다. 보고서는 관문 (a) 뒤에 만듭니다.")
+    if gate_a["pass"] and not TRAIN_DONE.exists():
+        raise SystemExit("관문 (a) 를 통과했는데 학습이 끝나지 않았습니다(train_done.json 이 없다). 새 시험지의 결과를 "
+                         "학습이 끝나기 전에 열지 않습니다(스펙 6-5절).")
+    ks = keys()
+    det = read_json(DETERMINISM) if DETERMINISM.exists() else {}
+    rows = {mod: {sh: available(mod, sh, det) for sh in SHEETS} for mod in NAMES}
+    raw = {mod: {sh: [scores_of(r) for r in rows[mod][sh]] if rows[mod][sh] else None for sh in SHEETS} for mod in NAMES}
+    m = {mod: {sh: [metrics(ks[sh], x) for x in raw[mod][sh]] if raw[mod][sh] else None for sh in SHEETS} for mod in NAMES}
     dropped = read_json(TRAIN_DROPPED) if TRAIN_DROPPED.exists() else {}
-    lines = ["# 채점 모델 파인튜닝 실험 보고서", "", f"결정성: {det}", "", "## 문항과 학습 데이터의 경위", ""]
-    lines += pipeline_lines(read_json(ASSIGNMENT), dropped) + [""]
+    lines = ["# 채점 모델 파인튜닝 실험 보고서", "", f"결정성: {det or '확인하지 않음'}", "",
+             "## 문항과 학습 데이터의 경위", ""]
+    lines += pipeline_lines(read_json(ASSIGNMENT), dropped) + ["", "## 새 시험지의 검수 결과 (스펙 5-1절)", ""]
+    lines += review_lines(read_json(ANSWER_KEY)) + ["", "## 학습 전 관문 (스펙 7절)", ""]
+    lines += gate_lines(gate_a, read_json(GATE_B) if GATE_B.exists() else None) + ["", "## 학습 기록 (스펙 6-3절, 6-4절)", ""]
+    if TRAINING_LOG.exists():
+        lines += training_summary(read_jsonl(TRAINING_LOG))
+        if TRAIN_DONE.exists():
+            lines.append(f"- 어댑터 SHA-256 {read_json(TRAIN_DONE)['adapter_sha256']}")
+    else:
+        lines.append("- 하지 않음(학습하지 않았다)")
+    lines.append("")
     for sh in SHEETS:
         lines += [f"## 시험지 {sh} ({len(ks[sh])}문항)", "",
                   "| 모델 | 실행 | 거리 1 이하 | ⑧ 뺀 거리 1 이하 | 놓침 | 헛경보 | 헛경보(대상 둘) | 헛경보(그 밖) "
-                  "| 심각한 놓침 | ⑧ 심각한 놓침 | 정확히 같음 | 평균 거리 | 못 읽음 |", "|" + "---|" * 13]
+                  "| 심각한 놓침 | ⑧ 심각한 놓침 | 정확히 같음 | 평균 거리 | 못 읽음 | 못 읽음의 원인 |", "|" + "---|" * 14]
         for mod, name in NAMES.items():
-            for i, x in enumerate(m[mod][sh], 1):
+            if m[mod][sh] is None:
+                lines.append(f"| {name} | 하지 않음 |" + " |" * 12)
+                continue
+            for i, (x, r) in enumerate(zip(m[mod][sh], rows[mod][sh]), 1):
                 lines.append(f"| {name} | {i} | {x.within1} | {x.within1_ex8} | {x.miss} | {x.false_alarm} | {x.fa_two} "
-                             f"| {x.fa_one} | {x.severe} | {x.severe8} | {x.exact} | {_fmt(x.mean_distance)} | {x.unread} |")
+                             f"| {x.fa_one} | {x.severe} | {x.severe8} | {x.exact} | {_fmt(x.mean_distance)} | {x.unread} "
+                             f"| {_kinds_text(unread_kinds(r)) if x.unread else '-'} |")
+        for v in sorted(SCALE, reverse=True):   # 다섯 가짜 모델(스펙 8-2절)
+            x = metrics(ks[sh], {c: v for c in ks[sh]})
+            lines.append(f"| 늘 {v}점 | - | {x.within1} | {x.within1_ex8} | {x.miss} | {x.false_alarm} | {x.fa_two} "
+                         f"| {x.fa_one} | {x.severe} | {x.severe8} | {x.exact} | {_fmt(x.mean_distance)} | 0 | - |")
         fakes = fake_within1([k["score"] for k in ks[sh].values()])
         lines += ["", "가짜 모델의 거리 1 이하 비율: "
                   + ", ".join(f"늘 {k}점 {v:.1%}" for k, v in sorted(fakes.items(), reverse=True)), ""]
         human = {c: k["score"] for c, k in ks[sh].items()}
         for a, b in (("M3ft", "M3pre"), ("M3ft", "M1")):
+            if raw[a][sh] is None or raw[b][sh] is None:
+                lines.append(f"- {NAMES[a]} 와 {NAMES[b]}: 하지 않음. 결과가 없는 모델이 있다")
+                continue
             c = compare(human, raw[a][sh][0], raw[b][sh][0])
             lines.append(f"- {NAMES[a]} 와 {NAMES[b]}(첫 실행): {NAMES[a]} 가 더 가까움 {c.a_closer}, "
                          f"{NAMES[b]} 가 더 가까움 {c.b_closer}, 같음 {c.ties}, 제외 {c.excluded}, p = {c.p_value:.4f}, "
                          f"판정 **{c.verdict(NAMES[a], NAMES[b], BASIS)}**")
-        if sh == "new":
+        if sh == "new" and raw["M3pre"][sh] and raw["M3ft"][sh]:
             e = eighth_change(ks[sh], raw["M3pre"][sh][0], raw["M3ft"][sh][0])
             lines.append(f"- ⑧ 만의 짝 부호 검정(보고 항목): 학습 후 고쳐진 놓침 {e.a_closer}, 새로 생긴 놓침 "
                          f"{e.b_closer}, 제외 {e.excluded}, p = {e.p_value:.4f}, 판정 **{e.verdict(NAMES['M3ft'], NAMES['M3pre'], BASIS)}**")
+        elif sh == "new":
+            lines.append("- ⑧ 만의 짝 부호 검정: 하지 않음. 학습 후 M3 의 결과가 없다")
         else:
             lines.append(f"- {DISPUTED}(정답 해석이 갈리는 문항): " + ", ".join(
-                f"{NAMES[mod]} {raw[mod][sh][0].get(DISPUTED)}점" for mod in NAMES))
-        lines.append("")
+                f"{NAMES[mod]} {raw[mod][sh][0].get(DISPUTED)}점" for mod in NAMES if raw[mod][sh]))
+        have = {NAMES[mod]: raw[mod][sh][0] for mod in NAMES if raw[mod][sh]}
+        lines += ["", f"### 혼동행렬 (시험지 {sh}, 행은 정답 점수, 열은 모델 점수)", ""]
+        for name, sc in have.items():
+            lines += _confusion(name, ks[sh], sc)
+        by_type = {TYPE_NAMES[t]: [c for c, k in ks[sh].items() if k["type"] == t]
+                   for t in sorted({k["type"] for k in ks[sh].values()})}
+        lines += _breakdown(f"유형별 (시험지 {sh}, 첫 실행, 판정에 쓰지 않는다)", by_type, human, have)
     lines += ["## 교체 후보의 기준 (스펙 8-4절)", ""]
+    if any(m[mod][sh] is None for mod in NAMES for sh in SHEETS):
+        lines.append("- 판정하지 않음. 결과가 없는 모델이 있다(관문에서 끝났거나 학습 후 채점을 하지 않았다)")
+        return "\n".join(lines) + "\n"
     crit = criteria(m)
     lines += [f"- 기준 {no}: {'통과' if ok else '실패'}. {txt}" for no, ok, txt in crit]
     lines += ["", f"**학습 후 M3 는 교체 후보{'다' if all(ok for _, ok, _ in crit) else '가 아니다'}.**"]
@@ -3063,22 +3674,23 @@ if __name__ == "__main__":
 $PY -m tools.judgeft_report_check | tail -1
 $PY - <<'EOF'
 from tools.judgeft_files import V2_ANSWER_KEY, V2_QUESTIONS, V2_RESULTS_DIR, read_json, read_jsonl
-from tools.judgeft_report import metrics, scores_of
+from tools.judgeft_report import metrics, scores_of, unread_kinds
 contrast = {q["qid"]: q.get("contrast") is not None for q in read_jsonl(V2_QUESTIONS)}
 key = {c: {"type": k["type"], "score": k["score"], "two_targets": contrast[k["qid"]]}
        for c, k in read_json(V2_ANSWER_KEY)["cases"].items()}
 for m in ("M1", "M3", "M4"):
-    x = metrics(key, scores_of(read_jsonl(V2_RESULTS_DIR / f"{m}_run1.jsonl")))
-    print(m, x.within1, x.false_alarm, x.fa_two, x.fa_one, x.severe, x.unread)
+    rows = read_jsonl(V2_RESULTS_DIR / f"{m}_run1.jsonl")
+    x = metrics(key, scores_of(rows))
+    print(m, x.within1, x.false_alarm, x.fa_two, x.fa_one, x.severe, x.unread, unread_kinds(rows))
 EOF
 ```
 
-Expected: `4가지 전부 통과.` 그리고
+Expected: `7가지 전부 통과.` 그리고
 
 ```
-M1 209 4 4 0 1 0
-M3 216 10 3 7 5 0
-M4 208 17 7 10 5 1
+M1 209 4 4 0 1 0 {'missing': 0, 'conflict': 0, 'out_of_range': 0, 'length': 0}
+M3 216 10 3 7 5 0 {'missing': 0, 'conflict': 0, 'out_of_range': 0, 'length': 0}
+M4 208 17 7 10 5 1 {'missing': 1, 'conflict': 0, 'out_of_range': 0, 'length': 0}
 ```
 
 - [ ] **Step 5: 커밋한다**
@@ -3107,13 +3719,14 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>" -- ai-service/tools/jud
 노트북을 손으로 고치지 않고 이 도구로 만든다. 이유는 모듈 머리말의 셋이다. 동결 커밋(E11) 전에는 해시 파일이 없어 노트북의 기대 해시가 빈 글자이고, 노트북은 빈 해시를 받으면 멈춘다. E11 에서 이 도구를 다시 돌리면 해시가 채워진다.
 
 **학습 노트북이 하는 일**(스펙 6절, 7-2절):
-- 첫 칸에서 `transformers==4.57.6`, `bitsandbytes==0.50.2`, `peft==0.17.1`, `accelerate==1.10.1` 을 깔고, 둘째 칸에서 깔린 판이 고정한 판과 다르면 멈춘다. torch 판은 `train_env.json` 에 적는다.
-- `MODE = 'gate_b'`: 가장 긴 학습 문항(토큰 수 기준)으로 학습 단계 둘을 돌려 GPU 최대 메모리, 단계 하나의 시간, loss 가 숫자인지를 `gate_b.json` 에 적는다. 단계 시간에 전체 단계 수를 곱해 학습 시간을 어림하고, 약 30분마다 체크포인트가 되는 간격(`save_every`)을 정한다.
-- `MODE = 'train'`: 바퀴마다 시드로 섞은 순서로 학습한다. `save_every` 단계마다 검증 loss 를 재고 체크포인트(어댑터, 옵티마이저, 스케줄러, loss scaler, 단계 번호, 세 난수 상태)를 저장한다. 저장의 마지막에 `done` 파일을 써서, 저장 도중 끊긴 체크포인트는 이어 하기에서 건너뛴다. 가장 최근 둘만 남긴다. 다시 실행하면 가장 최근의 완성된 체크포인트에서 이어 한다. 끝나면 마지막 단계의 어댑터를 `adapter/` 에 저장하고 SHA-256 을 `train_done.json` 에 적는다.
+- 첫 칸에서 `transformers==4.57.6`, `bitsandbytes==0.50.2`, `peft==0.17.1`, `accelerate==1.10.1` 을 깔고, 둘째 칸에서 깔린 판이 고정한 판과 다르면 멈춘다. 둘째 칸의 `MODE` 는 비어 있고, 비운 채 실행하면 멈춘다. 체크포인트가 이미 있으면 `gate_b` 를 거절한다. 세션마다 `training_log.jsonl` 에 `session_start` 줄을 쓴다.
+- 환경(GPU, torch 와 라이브러리 판)은 `gate_b` 에서는 `gate_b.json` 의 `env` 에, 학습에서는 첫 세션에 `train_env.json` 으로 적는다. 이어 하는 세션은 `train_env.json` 과 비교해 다르면 멈춘다.
+- `MODE = 'gate_b'`: 먼저 `model.train()` 을 부르고 층마다 gradient checkpointing 이 켜졌는지 확인한다. 그다음 가장 긴 학습 문항(토큰 수 기준)으로 학습 단계 둘을 돌려 GPU 최대 메모리, 단계 하나의 시간, loss 가 숫자인지를 `gate_b.json` 에 적는다. 단계 시간에 전체 단계 수를 곱해 학습 시간을 어림하고, 약 30분마다 체크포인트가 되는 간격(`save_every`)을 정한다.
+- `MODE = 'train'`: 바퀴마다 시드로 섞은 순서로 학습한다. `save_every` 단계마다 검증 loss 를 재고 체크포인트(어댑터, 옵티마이저, 스케줄러, loss scaler, 단계 번호, 세 난수 상태)를 저장한다. 저장의 마지막에 두 파일(어댑터, 상태)의 SHA-256 을 담은 `done` 파일을 써서, 저장 도중 끊긴 체크포인트는 이어 하기에서 건너뛴다. 다시 실행하면 가장 최근 체크포인트부터 해시를 확인하고, 맞지 않으면 기록(`bad_checkpoint`)하고 지운 뒤 하나 앞의 것에서 이어 한다. 가장 최근 둘만 남긴다. 단계마다 loss scaling 의 `scale` 과 그 단계를 건너뛰었는지(`skipped`)를, 저장할 때마다 Drive 의 남은 용량(`drive_free_gb`)을 학습 기록에 적는다. 끝나면 마지막 단계의 어댑터를 `adapter/` 에 저장하고 SHA-256 을 `train_done.json` 에 적는다.
 - loss 가 숫자가 아니면 그 자리에서 멈춘다(스펙 6-5절).
 - `prepare_model_for_kbit_training` 을 쓰지 않는다. 그 함수는 4비트가 아닌 층을 float32 로 바꿔 임베딩과 lm_head 만 약 6GB 가 된다. gradient checkpointing 과 입력 기울기 경로만 직접 켠다.
 
-**채점 노트북이 하는 일**(스펙 8-1절): v2 노트북의 `load` 와 `generate`(탐욕적 디코딩, `use_model_defaults=False`, 처음부터 만든 생성 설정)를 그대로 따르고, `SHEET`(new, frozen), `MODEL`(M3pre, M3ft), `RUN`(1~3)을 칸 맨 위의 값으로 받는다. 학습 후 M3 는 어댑터 해시를 확인한 뒤 `PeftModel.from_pretrained` 로 얹는다(합치지 않는다). 결과는 Drive 의 `results/<시험지>/<모델>_run<번호>.jsonl` 과 `.env.json` 이다. **문항마다 점수를 찍지 않는다.** 학습이 끝날 때까지 새 시험지의 결과를 보지 않기 위해서다.
+**채점 노트북이 하는 일**(스펙 8-1절): v2 노트북의 `load` 와 `generate`(탐욕적 디코딩, `use_model_defaults=False`, 처음부터 만든 생성 설정)를 그대로 따르고, `SHEET`(new, frozen), `MODEL`(M3pre, M3ft), `RUN`(1~3)을 칸 맨 위의 값으로 받는다. 학습 후 M3 는 어댑터 해시를 확인한 뒤 `PeftModel.from_pretrained` 로 얹는다(합치지 않는다). 결과는 Drive 의 `results/<시험지>/<모델>_run<번호>.jsonl` 과 `.env.json` 이다. `M3pre` 인데 `ADAPTER_SHA256` 이 채워져 있거나 `M3ft` 인데 비어 있으면 멈춘다. 이어 할 때는 `.env.json` 과 환경을 비교해 다르면 멈추고, 쓰다가 끊긴 마지막 줄은 버리고 `<모델>_run<번호>_resume.log` 에 적는다. **문항마다 점수를 찍지 않는다.** 학습이 끝날 때까지 새 시험지의 결과를 보지 않기 위해서다.
 
 - [ ] **Step 1: 노트북 생성 도구를 쓴다**
 
@@ -3167,6 +3780,15 @@ def _nb(cells: list[dict]) -> dict:
             "nbformat": 4, "nbformat_minor": 0}
 
 
+# 사용자 안내(두 노트북 공통). 사용자는 파이썬과 코랩에 익숙하지 않다.
+GUIDE = """**처음 여는 법:** colab.research.google.com 에서 파일 > 노트북 업로드 로 이 `.ipynb` 파일을 고른다.
+
+**허용 창:** 첫 실행에서 두 창이 뜬다. "이 노트북에 보안 비밀 액세스 권한을 부여하시겠습니까?" 에는 **액세스 권한 부여**, "이 노트북에서 Google Drive 파일에 액세스하도록 허용하시겠습니까?" 에는 **Google Drive에 연결** 을 누르고 계정을 고른 뒤 모두 허용한다. `HF_TOKEN` 이 목록에 있으면 그 줄의 "노트북 액세스" 스위치를 켠다.
+
+**오류가 나면:** 모두 실행이 그 칸에서 멈추고 zip 도 내려받아지지 않는다. 빨간 오류 글의 **마지막 다섯 줄쯤** 을 복사해 그대로 알려 준다. 칸을 고치거나 값을 바꾸지 않는다.
+
+**오래 걸리는 동안:** 브라우저 탭을 닫지 않고 열어 둔다. 컴퓨터의 잠자기를 끈다(맥: 시스템 설정 > 디스플레이 또는 배터리 > 잠자기 방지). 무료 GPU 한도에 걸려 "GPU 백엔드에 연결할 수 없습니다" 가 뜨면 몇 시간 뒤(보통 다음 날) 다시 연다. 이미 한 일은 Drive 에 남아 이어 한다."""
+
 PIP = "!pip install -q " + " ".join(f'"{k}=={v}"' for k, v in F.PINS.items()) + " huggingface_hub\n"
 
 COMMON = f'''import gc, glob, hashlib, json, math, os, platform, random, shutil, time
@@ -3193,6 +3815,15 @@ def env_record():
     assert not wrong, f'고정한 판과 다르게 깔렸습니다: {{wrong}}. 런타임을 다시 시작하고 첫 칸부터 다시 실행하세요.'
     return env
 
+def check_env(saved_path):
+    # 이어 할 때는 처음 세션과 판이 같아야 한다. 다르면 이어 붙인 결과가 한 환경의 결과가 아니게 된다.
+    if os.path.exists(saved_path):
+        old = json.load(open(saved_path))
+        diff = {{k: (old.get(k), ENV.get(k)) for k in set(old) | set(ENV) if old.get(k) != ENV.get(k)}}
+        assert not diff, f'처음 세션과 환경이 다릅니다: {{diff}}. 멈추고 이 줄을 그대로 알려 주세요.'
+    else:
+        json.dump(ENV, open(saved_path, 'w'), indent=2)
+
 QUANT = BitsAndBytesConfig(load_in_4bit=True, bnb_4bit_quant_type='nf4',
                            bnb_4bit_compute_dtype=torch.float16)  # v2 와 같다. T4 는 bf16 을 지원하지 않는다
 
@@ -3212,15 +3843,20 @@ def train_notebook() -> dict:
 설계: `docs/superpowers/specs/2026-10-05-judge-finetune-design.md` (6절, 7-2절)
 
 **실행 방법**
-1. 런타임 > 런타임 유형 변경 > **T4 GPU**. 왼쪽 열쇠 아이콘에 `HF_TOKEN` 을 넣는다.
+1. 런타임 > 런타임 유형 변경 > **T4 GPU**. 왼쪽 열쇠 아이콘(보안 비밀)에 이름 `HF_TOKEN` 으로 Hugging Face 토큰을 넣는다.
 2. Drive 의 `MyDrive/alldap_judgeft/` 에 `train.jsonl`, `val.jsonl` 을 올린다.
-3. **관문 (b)**: 둘째 칸의 `MODE = 'gate_b'` 그대로 **모두 실행**. 끝나면 `gate_b.json` 이 생긴다. 메모리 부족이나 loss 가 숫자가 아니면 멈추고 알린다(스펙 7-2절).
-4. **학습**: 런타임 > 세션 다시 시작 뒤 `MODE = 'train'` 으로 바꾸고 **모두 실행**. 관문 (b) 에서 만든 LoRA 를 이어 쓰지 않도록 반드시 세션을 다시 시작한다.
-5. 끊기면 세션을 다시 시작하고 `MODE = 'train'` 그대로 **모두 실행** 한다. 가장 최근의 완성된 체크포인트에서 이어 한다.
+3. **관문 (b)**: 둘째 칸 맨 위를 `MODE = 'gate_b'` 로 고치고 **모두 실행**. 끝나면 `gate_b.json` 이 생긴다. 메모리 부족이나 loss 가 숫자가 아니면 멈추고 알린다(스펙 7-2절).
+4. **학습**: 런타임 > 세션 다시 시작 뒤 `MODE = 'train'` 으로 바꾸고 **모두 실행**. 관문 (b) 에서 만든 LoRA 를 이어 쓰지 않도록 반드시 세션을 다시 시작한다. 체크포인트가 하나라도 생긴 뒤에는 `gate_b` 를 다시 돌릴 수 없다.
+5. 끊기면 세션을 다시 시작하고 `MODE = 'train'` 그대로 **모두 실행** 한다. 가장 최근의 온전한 체크포인트에서 이어 한다.
 6. 끝나면 마지막 칸이 `alldap_judgeft_train.zip`(학습 기록, 어댑터 해시)을 내려받는다. 어댑터 파일은 Drive 의 `adapter/` 에 남는다.
 
-설정은 한 번만 학습한다(스펙 6-5절). 이 노트북의 설정 값을 바꾸지 않는다. 시험지는 이 노트북에 없다."""
-    setup = '''MODE = 'gate_b'   # 'gate_b' 또는 'train'
+**Drive 휴지통:** 이 노트북은 오래된 체크포인트(하나에 약 0.4GB, 재지 않은 어림)를 지운다. 지운 파일은 Drive 휴지통으로 가서 용량을 계속 차지한다. 학습 기록에 찍히는 `drive_free_gb` 가 3 아래로 내려가면 drive.google.com 의 휴지통에서 **휴지통 비우기** 를 누른다.
+
+설정은 한 번만 학습한다(스펙 6-5절). 이 노트북의 설정 값을 바꾸지 않는다. 시험지는 이 노트북에 없다.
+
+""" + GUIDE
+    setup = '''MODE = ''   # 'gate_b' 또는 'train'. 비워 두면 멈춘다(실수로 다른 단계를 돌리지 않게)
+assert MODE in ('gate_b', 'train'), "MODE 를 'gate_b' 또는 'train' 으로 고치고 다시 모두 실행하세요."
 ''' + COMMON + f'''
 TRAIN = f'{{DIR}}/train.jsonl'
 VAL = f'{{DIR}}/val.jsonl'
@@ -3234,7 +3870,20 @@ ADAPTER = f'{{DIR}}/adapter'
 LOG = f'{{DIR}}/training_log.jsonl'
 os.makedirs(CKPT, exist_ok=True)
 ENV = env_record()
-json.dump(ENV, open(f'{{DIR}}/train_env.json', 'w'), indent=2)
+
+def checkpoints():
+    # 완성 표시(done 파일)가 있는 체크포인트만 센다. 저장 도중 끊긴 체크포인트는 done 이 없어 건너뛴다(스펙 6-4절).
+    return sorted((int(p.rsplit('-', 1)[1]), p) for p in glob.glob(f'{{CKPT}}/step-*') if os.path.exists(f'{{p}}/done'))
+
+def log(rec):
+    open(LOG, 'a').write(json.dumps(rec) + '\\n')
+
+if MODE == 'gate_b':
+    assert not checkpoints(), '학습 체크포인트가 이미 있습니다. 관문 (b) 는 학습 전에만 돌립니다. MODE 를 확인하세요.'
+else:
+    check_env(f'{{DIR}}/train_env.json')   # 첫 학습 세션이면 적고, 이어 하는 세션이면 처음과 비교한다
+# 세션마다 한 줄. 읽는 쪽은 단계마다 마지막 줄을 쓴다(끊긴 뒤 다시 한 단계가 두 번 적힐 수 있다).
+log({{'session_start': time.time(), 'mode': MODE, 'env': ENV}})
 print(len(TRAIN_ROWS), len(VAL_ROWS), ENV)
 '''
     model_cell = f'''from peft import LoraConfig, get_peft_model, set_peft_model_state_dict
@@ -3299,19 +3948,29 @@ def train_step(batch):
             raise RuntimeError(f'loss 가 숫자가 아니다({{loss.item()}}). 설정을 바꾸지 않고 멈춘다(스펙 6-5절).')
         scaler.scale(loss).backward()
         losses.append(loss.item() * len(batch))
+    scale = scaler.get_scale()
     scaler.step(opt); scaler.update(); sched.step(); opt.zero_grad(set_to_none=True)
-    return sum(losses) / len(losses)
+    # 기울기에 inf, NaN 이 있으면 scaler 는 그 단계의 갱신을 건너뛰고 scale 을 줄인다. 줄었으면 건너뛴 것이다.
+    # 약 135단계 중 warmup 이 4단계라 앞쪽 건너뜀이 많으면 학습이 덜 된 채 끝날 수 있어 기록한다.
+    return sum(losses) / len(losses), scale, scaler.get_scale() < scale
 '''
     gate_cell = '''if MODE == 'gate_b':
+    # from_pretrained 는 모델을 eval 모드로 돌려주고 get_peft_model 은 바깥 껍데기만 training=True 로 둔다.
+    # 층이 eval 이면 gradient checkpointing 이 꺼져(층의 조건이 gradient_checkpointing and training) 메모리를 더 쓴다.
+    # 그러면 관문이 메모리 부족으로 거짓 실패하거나 step_seconds, est_hours, save_every 가 학습과 다르게 나온다.
+    model.train()
+    layers = model.base_model.model.model.layers
+    assert all(l.gradient_checkpointing and l.training for l in layers), 'gradient checkpointing 이 켜지지 않았습니다'
     lengths = [(len(encode_row(r)[0]), r['id']) for r in TRAIN_ROWS + VAL_ROWS]
     longest_tokens, longest_id = max(lengths)
     row = next(r for r in TRAIN_ROWS + VAL_ROWS if r['id'] == longest_id)
     torch.cuda.reset_peak_memory_stats()
     times, losses = [], []
     for _ in range(2):   # 학습 단계 둘. 첫 단계는 준비 시간이 섞이므로 둘째 단계의 시간을 쓴다
-        t = time.time(); losses.append(train_step([row] * GRAD_ACCUM)); torch.cuda.synchronize(); times.append(time.time() - t)
+        t = time.time(); losses.append(train_step([row] * GRAD_ACCUM)[0]); torch.cuda.synchronize(); times.append(time.time() - t)
+        assert all(l.gradient_checkpointing and l.training for l in layers), '첫 단계 뒤 gradient checkpointing 이 꺼졌습니다'
     step_seconds = times[-1]
-    res = {'longest_id': longest_id, 'longest_tokens': longest_tokens, 'losses': losses,
+    res = {'longest_id': longest_id, 'longest_tokens': longest_tokens, 'losses': losses, 'env': ENV,
            'finite': all(math.isfinite(x) for x in losses),
            'peak_gb': round(torch.cuda.max_memory_allocated() / 1024**3, 2), 'step_seconds': round(step_seconds, 1),
            'total_steps': TOTAL_STEPS, 'est_hours': round(step_seconds * TOTAL_STEPS / 3600, 1),
@@ -3320,48 +3979,75 @@ def train_step(batch):
     print(res)
     assert res['finite'], 'loss 가 숫자가 아니다. 멈추고 사용자에게 알린다(스펙 7-2절)'
 '''
-    train_cell = '''def checkpoints():
-    # 완성 표시(done 파일)가 있는 체크포인트만 센다. 저장 도중 끊긴 체크포인트는 done 이 없어 건너뛴다(스펙 6-4절).
-    return sorted((int(p.rsplit('-', 1)[1]), p) for p in glob.glob(f'{CKPT}/step-*') if os.path.exists(f'{p}/done'))
-
-def val_loss():
+    train_cell = '''def val_loss():
     model.eval()
     with torch.no_grad():
         v = sum(row_loss(r).item() for r in VAL_ROWS) / len(VAL_ROWS)
     model.train()
     return v
 
+FILES = ('adapter_model.safetensors', 'state.pt')
+
+def drive_free_gb():
+    # Drive 를 붙인 폴더의 남은 용량. Drive 가 알려 주는 값이라 휴지통이 차지한 몫이 빠져 있을 수 있다(재지 않음).
+    return round(shutil.disk_usage(DIR).free / 1024**3, 1)
+
 def save(step):
     p = f'{CKPT}/step-{step}'
-    os.makedirs(p, exist_ok=True)
+    shutil.rmtree(p, ignore_errors=True)   # 같은 번호의 깨진 체크포인트가 남아 있으면 그 done 이 새 것으로 보이지 않게 지운다
+    os.makedirs(p)
     model.save_pretrained(p)
     torch.save({'opt': opt.state_dict(), 'sched': sched.state_dict(), 'scaler': scaler.state_dict(), 'step': step,
                 'py': random.getstate(), 'torch': torch.get_rng_state(), 'cuda': torch.cuda.get_rng_state()}, f'{p}/state.pt')
-    open(f'{p}/done', 'w').write('ok')   # 마지막에 쓴다. 이 파일이 있어야 완성된 체크포인트다
+    # done 은 마지막에 쓴다. 이 파일이 있어야 완성된 체크포인트다. 두 파일의 해시를 적어 이어 할 때 깨졌는지 본다.
+    json.dump({f: sha_of(f'{p}/{f}') for f in FILES}, open(f'{p}/done', 'w'))
     for _, old in checkpoints()[:-KEEP_CHECKPOINTS]:
-        shutil.rmtree(old)   # 가장 최근 둘만 남긴다(Drive 15GB, 스펙 6-4절)
+        shutil.rmtree(old)   # 가장 최근 둘만 남긴다(Drive 15GB, 스펙 6-4절). 지운 파일은 Drive 휴지통으로 간다
+
+def load_checkpoint(p):
+    """해시가 맞고 읽히면 단계 번호를, 아니면 None 을 돌려준다. 읽다가 실패하면 모델이 반쯤 바뀌었을 수 있어 멈춘다."""
+    want = json.load(open(f'{p}/done'))
+    got = {f: sha_of(f'{p}/{f}') for f in FILES}
+    if got != want:
+        return None
+    set_peft_model_state_dict(model, load_file(f'{p}/adapter_model.safetensors'))
+    s = torch.load(f'{p}/state.pt', weights_only=False)
+    opt.load_state_dict(s['opt']); sched.load_state_dict(s['sched']); scaler.load_state_dict(s['scaler'])
+    random.setstate(s['py']); torch.set_rng_state(s['torch']); torch.cuda.set_rng_state(s['cuda'])
+    return s['step']
 
 if MODE == 'train':
     SAVE_EVERY = json.load(open(f'{DIR}/gate_b.json'))['save_every']
     start = 0
-    if done := checkpoints():
-        start, p = done[-1]
-        set_peft_model_state_dict(model, load_file(f'{p}/adapter_model.safetensors'))
-        s = torch.load(f'{p}/state.pt', weights_only=False)
-        opt.load_state_dict(s['opt']); sched.load_state_dict(s['sched']); scaler.load_state_dict(s['scaler'])
-        random.setstate(s['py']); torch.set_rng_state(s['torch']); torch.cuda.set_rng_state(s['cuda'])
-        open(LOG, 'a').write(json.dumps({'resumed_from': start, 'at': time.time()}) + '\\n')
-        print('이어 한다:', p)
+    # 가장 최근 것부터 본다. 해시가 맞지 않거나 파일을 읽지 못하면 기록하고 지운 뒤 하나 앞의 것으로 간다.
+    # 최근 둘을 남기는 이유(스펙 6-4절)를 코드가 실제로 쓰는 자리다.
+    for n, p in reversed(checkpoints()):
+        try:
+            got = load_checkpoint(p)
+            why = None if got is not None else '해시가 done 에 적힌 것과 다르다'
+        except Exception as e:   # 파일이 잘려 safetensors 나 torch.load 가 실패한 경우
+            raise RuntimeError(f'체크포인트 {p} 를 읽다가 멈췄습니다({e}). 모델 상태가 섞였을 수 있어 세션을 다시 시작하고 '
+                               f'이 체크포인트 폴더를 지운 뒤 다시 모두 실행하세요.') from e
+        if why is None:
+            start = got
+            log({'resumed_from': start, 'at': time.time(), 'env': ENV})
+            print('이어 한다:', p)
+            break
+        log({'bad_checkpoint': n, 'reason': why, 'at': time.time()})
+        print('깨진 체크포인트를 건너뛴다:', p, why)
+        shutil.rmtree(p)
     model.train()
     for step, batch in enumerate(batches(), 1):
         if step <= start:
             continue   # 이미 한 단계는 건너뛴다. batches() 는 시드로 순서가 정해져 있어 같은 자리에서 이어진다
-        loss = train_step(batch)
-        rec = {'step': step, 'train_loss': loss, 'lr': sched.get_last_lr()[0], 'at': time.time()}
+        loss, scale, skipped = train_step(batch)
+        rec = {'step': step, 'train_loss': loss, 'lr': sched.get_last_lr()[0], 'scale': scale, 'skipped': skipped,
+               'at': time.time()}
         if step % SAVE_EVERY == 0 or step == TOTAL_STEPS:
             rec['val_loss'] = val_loss()
             save(step)
-        open(LOG, 'a').write(json.dumps(rec) + '\\n')
+            rec['drive_free_gb'] = drive_free_gb()
+        log(rec)
         print(rec)
     model.save_pretrained(ADAPTER)   # 채점에 쓰는 어댑터는 마지막 단계의 것이다(스펙 6-3절). 검증 loss 로 고르지 않는다
     sha = sha_of(f'{ADAPTER}/adapter_model.safetensors')
@@ -3386,20 +4072,24 @@ def eval_notebook() -> dict:
 설계: `docs/superpowers/specs/2026-10-05-judge-finetune-design.md` (8-1절)
 
 **실행 방법**
-1. 런타임 > 런타임 유형 변경 > **T4 GPU**. 왼쪽 열쇠 아이콘에 `HF_TOKEN` 을 넣는다.
+1. 런타임 > 런타임 유형 변경 > **T4 GPU**. 왼쪽 열쇠 아이콘(보안 비밀)에 이름 `HF_TOKEN` 으로 Hugging Face 토큰을 넣는다.
 2. Drive 의 `MyDrive/alldap_judgeft/` 에 `cases_new.jsonl`(새 시험지 `testdata/judgeft/cases.jsonl`)과 `cases_frozen.jsonl`(동결 시험지 `testdata/judge5v2/cases.jsonl`)을 올린다. 학습 후 M3 를 돌릴 때는 학습 노트북이 만든 `adapter/` 가 같은 폴더에 있어야 한다.
-3. 둘째 칸의 `SHEET`, `MODEL`, `RUN` 을 계획이 말하는 값으로 바꾼다. 학습 후 M3 이면 `ADAPTER_SHA256` 에 학습 노트북이 찍은 해시를 넣는다.
-4. **모두 실행**. 끊기면 세션을 다시 시작하고 같은 값으로 모두 실행한다. 이미 채점한 문항은 건너뛴다.
+3. 둘째 칸의 `SHEET`, `MODEL`, `RUN` 을 오케스트레이터가 알려 준 값으로 바꾼다. 학습 후 M3 이면 오케스트레이터가 준 `ADAPTER_SHA256 = '...'` 한 줄을 그 자리에 그대로 붙여 넣는다. 학습 전 M3 이면 `ADAPTER_SHA256` 을 비워 둔다.
+4. **모두 실행**. 끊기면 세션을 다시 시작하고 같은 값으로 모두 실행한다. 이미 채점한 문항은 건너뛴다(반쯤 쓴 마지막 줄은 버리고 그 문항부터 다시 한다).
 5. 끝나면 마지막 칸이 결과 파일 둘(`<모델>_run<번호>.jsonl`, `.env.json`)을 담은 zip 을 내려받는다.
 
 **학습이 끝날 때까지 새 시험지의 결과 파일을 열어 보지 않는다**(스펙 6-5절). 내려받은 zip 은 그대로 오케스트레이터에 넘긴다.
-생성 설정은 v2 와 같다(탐욕적 디코딩, 최대 출력 {MAX_NEW_TOKENS} 토큰, repetition_penalty 1.0)."""
+생성 설정은 v2 와 같다(탐욕적 디코딩, 최대 출력 {MAX_NEW_TOKENS} 토큰, repetition_penalty 1.0).
+
+""" + GUIDE
     setup = '''SHEET = 'frozen'      # 'new' 또는 'frozen'
 MODEL = 'M3pre'       # 'M3pre'(학습 전) 또는 'M3ft'(학습 후)
 RUN = 1               # 1, 2, 3
 ADAPTER_SHA256 = ''   # MODEL 이 'M3ft' 일 때 학습 노트북의 어댑터 해시
 ''' + COMMON + f'''
 assert SHEET in ('new', 'frozen') and MODEL in ('M3pre', 'M3ft') and RUN in (1, 2, 3)
+# 학습 전 M3 에 해시가 적혀 있으면 어느 쪽을 돌리려던 것인지 알 수 없다. 결과 줄의 adapter_sha256 도 거짓이 된다.
+assert (MODEL == 'M3pre') == (ADAPTER_SHA256 == ''), 'M3pre 이면 ADAPTER_SHA256 을 비우고, M3ft 이면 채웁니다.'
 EXPECTED = {{'new': {h["cases_new"]!r}, 'frozen': {F.FROZEN_SHA256!r}}}
 MAX_NEW_TOKENS = {MAX_NEW_TOKENS}
 SMOKE_MESSAGES = {json.dumps(smoke_messages(), ensure_ascii=False)}
@@ -3412,7 +4102,7 @@ OUT = f'{{DIR}}/results/{{SHEET}}'
 os.makedirs(OUT, exist_ok=True)
 PATH = f'{{OUT}}/{{MODEL}}_run{{RUN}}.jsonl'
 ENV = env_record()
-json.dump(ENV, open(PATH.replace('.jsonl', '.env.json'), 'w'), indent=2)
+check_env(PATH.replace('.jsonl', '.env.json'))   # 첫 세션이면 적고, 이어 하는 세션이면 처음과 비교한다
 print(len(CASE_ROWS), '문항', ENV)
 '''
     run_cell = '''tok, model = load_base()
@@ -3440,7 +4130,23 @@ text, finish = generate(SMOKE_MESSAGES)
 assert text.strip(), '가짜 문항의 출력이 비었다. 멈추고 알린다'
 json.dump({'model': MODEL, 'output': text, 'finish': finish, 'generation': gen.to_dict()},
           open(f'{OUT}/{MODEL}_run{RUN}_smoke.json', 'w'), ensure_ascii=False, indent=2)
-done = {json.loads(l)['case_id'] for l in open(PATH, encoding='utf-8') if l.strip()} if os.path.exists(PATH) else set()
+def resume_lines():
+    """이미 쓴 줄. 마지막 줄이 쓰다가 끊겨 JSON 이 아니면 버리고 파일을 다시 쓴다. 버린 것은 기록한다."""
+    if not os.path.exists(PATH):
+        return []
+    raw = [l for l in open(PATH, encoding='utf-8').read().split('\\n') if l.strip()]
+    good = []
+    for i, l in enumerate(raw):
+        try:
+            good.append(json.loads(l))
+        except json.JSONDecodeError:
+            assert i == len(raw) - 1, f'{PATH} 의 {i + 1}번째 줄이 깨졌습니다. 마지막 줄이 아니라 멈춥니다.'
+            open(PATH, 'w', encoding='utf-8').write(''.join(json.dumps(g, ensure_ascii=False) + '\\n' for g in good))
+            open(f'{OUT}/{MODEL}_run{RUN}_resume.log', 'a').write(json.dumps({'dropped_partial_line': l[:200], 'at': time.time()}) + '\\n')
+            print('반쯤 쓴 마지막 줄을 버리고 이어 한다')
+    return good
+
+done = {g['case_id'] for g in resume_lines()}
 for i, row in enumerate(CASE_ROWS):
     if row['case_id'] in done:
         continue
@@ -3509,7 +4215,7 @@ git commit -m "feat: 학습 노트북(관문 b, 체크포인트 이어 하기)�
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>" -- ai-service/tools/judgeft_notebooks.py ai-service/notebooks/judgeft_train_colab.ipynb ai-service/notebooks/judgeft_eval_colab.ipynb
 ```
 
-**리뷰 포인트:** 학습 노트북의 `row_loss` 가 `logits_to_keep=n+1` 과 `logits[0, :-1]` 로 모범 답안 n 개 토큰만 맞히는가(태스크 7 의 `check_logits_to_keep` 과 같은 계산인가). LoRA 가중치를 float32 로 바꾸는가. 이어 하기가 단계 번호, 옵티마이저, 스케줄러, scaler, 난수 상태를 모두 되돌리는가. 채점 노트북의 생성 설정이 v2 노트북과 같은가. 두 노트북 어디에도 문항별 점수를 찍는 줄이 없는가.
+**리뷰 포인트:** 학습 노트북의 `row_loss` 가 `logits_to_keep=n+1` 과 `logits[0, :-1]` 로 모범 답안 n 개 토큰만 맞히는가(태스크 7 의 `check_logits_to_keep` 과 같은 계산인가). LoRA 가중치를 float32 로 바꾸는가. 이어 하기가 단계 번호, 옵티마이저, 스케줄러, scaler, 난수 상태를 모두 되돌리는가. 관문 칸이 `model.train()` 을 부르고 층마다 gradient checkpointing 이 켜졌는지 확인하는가(`from_pretrained` 는 eval 모드로 돌려주고 `get_peft_model` 은 바깥만 training 으로 둔다. 층이 eval 이면 checkpointing 이 꺼져 관문이 메모리 부족으로 거짓 실패하거나 시간이 학습과 다르게 나온다). 체크포인트의 완성 표시에 두 파일의 해시를 적고, 이어 할 때 해시가 맞지 않으면 기록하고 하나 앞의 것으로 가는가. 이어 할 때 처음 세션의 환경과 비교해 다르면 멈추는가. `MODE` 가 비어 있으면 멈추고, 체크포인트가 있으면 `gate_b` 를 거절하는가. 채점 노트북이 `M3pre` 에 해시가 있으면 멈추고, 반쯤 쓴 마지막 줄을 버리고 기록하는가. 채점 노트북의 생성 설정이 v2 노트북과 같은가. 두 노트북 어디에도 문항별 점수를 찍는 줄이 없는가.
 
 ---
 
@@ -3544,10 +4250,10 @@ from . import (judgeft_assign_check, judgeft_cloudflare_check, judgeft_export_ch
 from .judge5 import sha256_file
 from .judge5v2_export import CASE_KEYS
 from .judgeft_assign import replay
-from .judgeft_export import build_train, split_val
+from .judgeft_export import build_train, forbidden_problems, split_val
 from .judgeft_files import (
-    ASSIGNMENT, CASES, FROZEN_SHA256, QUESTIONS, RETRIEVED, TRAIN, TRAIN_SHA, V2_CASES, VAL, VARIANTS, read_json,
-    read_jsonl,
+    ASSIGNMENT, CASES, FROZEN_SHA256, QUESTIONS, RETRIEVED, TEMPLATES, TRAIN, TRAIN_SHA, V2_CASES, VAL, VARIANTS,
+    read_json, read_jsonl,
 )
 from .judgeft_notebooks import expected
 from .judgeft_rationale import load_templates
@@ -3600,8 +4306,19 @@ def check_committed_train_rebuilds() -> None:
     assert recorded["train.jsonl"] == sha256_file(TRAIN) and recorded["val.jsonl"] == sha256_file(VAL)
 
 
+def check_forbidden_values_absent() -> None:
+    """스펙 4-5절의 금지 값이 문장 틀, 두 노트북(시범 데이터 포함), 커밋된 학습 데이터에 없다."""
+    texts = {"문장 틀": TEMPLATES.read_text(encoding="utf-8")}
+    texts |= {path.name: text for path, text in expected().items()}
+    for path in (TRAIN, VAL):
+        if path.exists():
+            texts[path.name] = path.read_text(encoding="utf-8")
+    assert not (bad := forbidden_problems(texts)), bad
+
+
 OWN = [check_frozen_sheet_is_unchanged, check_notebooks_match_generator, check_notebooks_have_no_test_questions,
-       check_committed_cases_are_blind, check_committed_assignment_replays, check_committed_train_rebuilds]
+       check_committed_cases_are_blind, check_committed_assignment_replays, check_committed_train_rebuilds,
+       check_forbidden_values_absent]
 CHECKS = (judgeft_fields_check.CHECKS + judgeft_search_check.CHECKS + judgeft_assign_check.CHECKS
           + judgeft_rationale_check.CHECKS + judgeft_export_check.CHECKS + judgeft_labels_check.CHECKS
           + judgeft_gate_check.CHECKS + judgeft_cloudflare_check.CHECKS + judgeft_report_check.CHECKS + OWN)
@@ -3627,7 +4344,7 @@ $PY -m tools.judge5_check | tail -1 && $PY -m tools.judge5v2_check | tail -1
 git -C /Users/cheonjamin/projects/AllDap-judge-ft diff --stat f52a1a6 -- ai-service/tools/judge5*.py ai-service/testdata/judge5v2 ai-service/notebooks/judge5*_colab.ipynb ai-service/app
 ```
 
-Expected: `35가지 전부 통과.`, `44가지 전부 통과.`, `66가지 전부 통과.`, 그리고 마지막 명령의 출력이 비어 있다(v2 파일과 서비스 코드가 하나도 바뀌지 않았다). `f52a1a6` 은 이 브랜치를 딴 `feat/judge-selfhost-v2` 의 커밋이다. 브랜치 이름으로 비교하지 않는 이유: #160 에 커밋이 더해지면 그 차이가 이 브랜치의 변경처럼 보인다.
+Expected: `46가지 전부 통과.`, `44가지 전부 통과.`, `66가지 전부 통과.`, 그리고 마지막 명령의 출력이 비어 있다(v2 파일과 서비스 코드가 하나도 바뀌지 않았다). `f52a1a6` 은 이 브랜치를 딴 `feat/judge-selfhost-v2` 의 커밋이다. 브랜치 이름으로 비교하지 않는 이유: #160 에 커밋이 더해지면 그 차이가 이 브랜치의 변경처럼 보인다.
 
 - [ ] **Step 3: CI 에 한 줄을 더한다**
 
@@ -3793,7 +4510,7 @@ v2 계획 E4 와 같다. 말투 견본은 `testdata/judge5v2/style_samples.json`
 $PY -m tools.judgeft_assign count
 ```
 
-Expected: `train <분야>: 후보 N개, ⑧ 자격 M개(R%)` 줄이 있다. 이 분야 하나로 학습용 ⑧ 240 의 절반(120) 이상이 나오는지 본다. 120 에 크게 못 미치면 나머지 분야의 문서를 쓰기 전에 출제 세션에 알려, 나란히 적는 규정을 늘리게 한다(스펙 9-1절 3). 비율과 그 판단을 `run_log.md` 에 적는다.
+Expected: `train <분야>: 후보 N개, ⑧ 자격 M개(R%)` 줄이 있다. 이 단계에서는 이 줄만 본다(판정 줄은 분야가 다 모인 E5 에서 본다. 지금은 종료 코드 2 가 나와도 정상이다). 이 분야 하나로 학습용 ⑧ 240 의 절반(120) 이상이 나오는지 본다. 120 에 크게 못 미치면 나머지 분야의 문서를 쓰기 전에 출제 세션에 알려, 나란히 적는 규정을 늘리게 한다(스펙 9-1절 3). 비율과 그 판단을 `run_log.md` 에 적는다.
 
 - [ ] **Step 5: 커밋한다**
 
@@ -3832,10 +4549,11 @@ cd /Users/cheonjamin/projects/AllDap-judge-ft/ai-service
 $PY -m tools.judgeft_assign count
 ```
 
-Expected: `test 합계 ⑧ 자격 N개, 기준 72개 이상: 충분` 과 `train 합계 ⑧ 자격 M개, 기준 240개 이상: 충분`.
+Expected: `test 판정: 충분(첫 배정을 그대로 돌려 봤다)` 과 `train 판정: 충분(첫 배정을 그대로 돌려 봤다)`, 종료 코드 0. 합계 줄에는 ⑧ 자격 수와 함께 **④ 를 뽑은 뒤 남은 ⑧ 자격 수** 가 나온다. 판정은 합계가 아니라 E6 의 첫 배정을 같은 시드, 같은 순서로 저장하지 않고 돌려 본 결과다. 배정은 ④ 를 ⑧ 보다 먼저 뽑는데 주장이 2 인 ⑧ 자격 질문은 ④ 의 자격도 있어서, 합계가 기준을 넘어도 첫 배정이 모자랄 수 있기 때문이다. 종료 코드 2 는 분야를 늘려야 한다(⑧, 대상이 둘인 ①②, 짝이 모자람), 3 은 그 시험지의 분야에 질문을 더 써야 한다(④, ③, ⑥ 등이 모자람)는 뜻이다.
 
 - [ ] **Step 2: 모자라면 분야를 연다**
 
+- 종료 코드 3 이면 분야를 늘리지 않고, 모자란 유형이 나온 시험지의 분야에 출제 세션이 질문을 더 쓴다(E4 의 질문, 검색, 답변). 그다음 Step 1 을 다시 한다.
 - 시험용이 모자라면 `$PY -m tools.judgeft_fields open test` 로 예비 분야를 연다.
 - 학습용이 모자라면 `$PY -m tools.judgeft_fields open train` 으로 연다. 예비 분야가 이미 시험용으로 쓰였으면 도구가 거절하고, 그때는 출제 세션이 새 분야 하나(스펙 3-1절의 조건, 이미 쓴 분야와 v2 의 네 분야와 겹치지 않는 영어 소문자 이름)를 정해 `--new <이름>` 으로 연다.
 - 연 분야마다 E4 를 한다. 뉴런을 쓴다.
@@ -3866,7 +4584,7 @@ cd /Users/cheonjamin/projects/AllDap-judge-ft/ai-service
 $PY -m tools.judgeft_assign first
 ```
 
-Expected: `test: Counter({8: 60, 1: 10, 2: 10, 3: 10, 4: 10, 6: 8, 5: 7, 7: 5}), 짝 0, 대상이 둘인 ①② 12, ...` 와 `train: Counter({8: 240, 1: 35, 2: 35, ...}), 짝 120, ...`. 종료 코드 2 로 멈추면 출력의 모자란 수를 보고, ④, ③, ⑥ 이면 그 시험지의 분야에 질문을 더 써서(E4) 다시 하고, ⑧ 이나 대상이 둘인 ①②, 짝이면 E5 로 돌아간다. 시드나 할당량을 바꾸지 않는다.
+Expected: `test: Counter({8: 60, 1: 10, 2: 10, 3: 10, 4: 10, 6: 8, 5: 7, 7: 5}), 짝 0, 대상이 둘인 ①② 12, ...` 와 `train: Counter({8: 240, 1: 35, 2: 35, ...}), 짝 120, ...`. E5 의 `count` 가 같은 배정을 이미 돌려 봤으므로 여기서 모자람이 나오면 E5 뒤에 입력(질문, 검색, 제외)이 바뀐 것이다. 종료 코드 2 로 멈추면 출력의 모자란 수를 보고, ④, ③, ⑥ 이면 그 시험지의 분야에 질문을 더 써서(E4) 다시 하고, ⑧ 이나 대상이 둘인 ①②, 짝이면 E5 로 돌아간다. 시드나 할당량을 바꾸지 않는다.
 
 - [ ] **Step 2: 점검하고 커밋한다**
 
@@ -3879,7 +4597,7 @@ git commit -m "test: 파인튜닝 실험의 시험용과 학습용 유형을 시
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>" -- ai-service/testdata/judgeft/assignment.json
 ```
 
-Expected: `35가지 전부 통과.`(배정 재현 점검이 이제 실제 파일을 본다)
+Expected: `46가지 전부 통과.`(배정 재현 점검이 이제 실제 파일을 본다)
 
 **리뷰 포인트:** 이 커밋 뒤로 회차의 `pool` 에 든 질문의 `questions.jsonl` 줄을 고치지 않는다(v2 계획 E6 의 규칙. 배정 재현 점검이 그 줄을 입력으로 쓴다).
 
@@ -3975,7 +4693,32 @@ Expected: `최종 새 시험지 N문항(버린 문항 M개)`, 그리고 조건 �
 $PY -m tools.judgeft_assign supplement test
 ```
 
-새 회차에 배정된 질문만 출제 세션이 E7 처럼 변형 답변을 쓰고, E8 의 Step 1~3(검수는 새 폴더에 새 문항만)과 이 태스크의 Step 1~3 을 다시 한다. 보충할 질문이 모자라 멈추면(종료 코드 2) 사용자에게 보인다.
+보충할 질문이 모자라 멈추면(종료 코드 2) 사용자에게 보인다. 채웠으면 아래 순서대로 한다. 정답 파일이 이미 최종본이라 E8 의 `test draft` 를 그대로 다시 하면 거절되고, 시험지 전체를 다시 검수하면 `review.jsonl` 에 같은 문항의 줄이 두 개가 되어 `test final` 이 멈추기 때문이다.
+
+1. 출제 세션이 새 회차에 배정된 질문만 E7 처럼 변형 답변과 변경 기록을 쓴다.
+2. 보충 문항을 더한 검수 전 시험지를 만든다.
+
+   ```bash
+   $PY -m tools.judgeft_export test draft --after-supplement
+   ```
+
+   Expected: `새 시험지 N문항(검수하지 않은 문항 K개), SHA-256 ...`. K 는 새 회차의 문항 수다. 관문 (a) 의 결과가 이미 있으면 도구가 거절한다(모델이 돈 뒤에는 시험지를 바꾸지 않는다).
+3. 검수하지 않은 문항만 담은 파일을 저장소 밖의 새 폴더에 만든다.
+
+   ```bash
+   $PY -m tools.judgeft_export test pending --out /Users/cheonjamin/judgeft_review/r2/cases.jsonl
+   ```
+
+   Expected: `검수할 문항 K개: ...`. 폴더 이름은 회차마다 새로 정한다(`r2`, `r3`). 저장소 안의 경로를 주면 거절한다.
+4. 사용자가 그 폴더에서 Codex 를 새로 열고 E8 Step 3 과 같은 지시문으로 검수한다.
+5. 검수 결과를 `review.jsonl` 에 덧붙인다.
+
+   ```bash
+   $PY -m tools.judgeft_export test append-review /Users/cheonjamin/judgeft_review/r2/<결과 파일>
+   ```
+
+   Expected: `review.jsonl 에 K줄을 덧붙였습니다(모두 M줄).`. 이미 검수한 문항, 시험지에 없는 문항, 검수가 빠진 문항이 있으면 덧붙이지 않고 목록을 낸다.
+6. 이 태스크의 Step 1~3(`test mismatches`, 사용자 판단, `test final`, `judgeft_gate review`)을 다시 한다. 앞 회차에서 이미 판단한 문항은 불일치 목록에 다시 나오지 않는다.
 
 - [ ] **Step 5: 커밋한다**
 
@@ -4002,11 +4745,11 @@ cd /Users/cheonjamin/projects/AllDap-judge-ft/ai-service
 $PY -m tools.judgeft_export train
 ```
 
-Expected: `학습 묶음 약 540문항, 검증 묶음 약 60문항, 뺀 문항 0개` 와 종료 코드 0. 누출이 나오면(종료 코드 1) 학습하지 않고 사용자에게 보인다(스펙 5-3절).
+Expected: `학습 묶음 약 540문항, 검증 묶음 약 60문항, 뺀 문항 0개` 와 종료 코드 0. 종료 코드는 뺀 문항이 있었는가가 아니라 **남은 문항이 할당량(스펙 4-4절)에 닿았는가** 로 정한다. 앞 회차에서 뺀 문항은 `train_dropped.json` 에 계속 남으므로, 보충으로 채운 뒤에는 `뺀 문항 n개` 와 함께 `뺀 문항은 보충 회차로 이미 채웠습니다.` 가 나오고 종료 코드는 0 이다. 할당량에 모자라면 `할당량에 모자랍니다: {...}` 와 종료 코드 2 다. 누출이 나오면(종료 코드 1) 학습하지 않고 사용자에게 보인다(스펙 5-3절). 누출 확인은 셋이다: 학습 문항의 글 전체가 시험지에 있는가, 학습 쪽(학습용 분야의 문서와 학습 문항)과 시험 쪽(시험용 분야와 v2 의 문서, 두 시험지)의 20자 이상 문장이 서로에게 나오는가(두 방향), 스펙 4-5절의 금지 값(`FORBIDDEN_VALUES`)이 학습 문항과 문장 틀에 있는가. 같은 질문의 변형 줄이 둘이면 종료 코드 1 로 멈춘다(출제 세션이 하나만 남긴다).
 
 - [ ] **Step 2: 뺀 문항이 있으면 보충한다**
 
-종료 코드 2 이면 `train_dropped.json` 의 이유를 출제 세션에 보여 원인을 알린 뒤 보충한다.
+종료 코드 2(할당량에 모자람)이면 `train_dropped.json` 의 이유를 출제 세션에 보여 원인을 알린 뒤 보충한다.
 
 ```bash
 $PY -m tools.judgeft_assign supplement train
@@ -4059,7 +4802,7 @@ Expected: `썼다:` 두 줄, 그리고 `0`(학습 데이터 해시가 빈 글자
 $PY -m tools.judgeft_check | tail -1 && $PY -m tools.judge5_check | tail -1 && $PY -m tools.judge5v2_check | tail -1
 ```
 
-Expected: `35가지 전부 통과.`, `44가지 전부 통과.`, `66가지 전부 통과.`
+Expected: `46가지 전부 통과.`, `44가지 전부 통과.`, `66가지 전부 통과.`
 
 - [ ] **Step 3: 동결 커밋을 한다**
 
@@ -4081,13 +4824,30 @@ git log -1 --format=%H
 ### Task E12: 학습 전 M3 의 결정성을 확인한다 (사용자, 코랩)
 
 **Files:**
-- Create: `ai-service/testdata/judgeft/results/frozen/M3pre_run1.jsonl`, `.env.json`, `_smoke.json`(판이 다르면 `run2` 도), `determinism.json`
+- Create: `ai-service/testdata/judgeft/results/frozen/M3pre_run1.jsonl`, `.env.json`, `_smoke.json`(판이 다르거나 v2 의 run1 과 다르면 `run2` 도), `determinism.json`
 
 - [ ] **Step 1: 사용자에게 안내한다**
 
-1. Drive 에 `MyDrive/alldap_judgeft/` 를 만들고 `testdata/judgeft/cases.jsonl` 을 `cases_new.jsonl` 로, `testdata/judge5v2/cases.jsonl` 을 `cases_frozen.jsonl` 로 올린다. `train.jsonl`, `val.jsonl` 도 올린다(E14 에서 쓴다).
-2. `notebooks/judgeft_eval_colab.ipynb` 를 코랩에서 열고 `SHEET = 'frozen'`, `MODEL = 'M3pre'`, `RUN = 1` 로 모두 실행한다(약 78분, v2 결과 6-2절).
-3. 내려받은 zip 의 경로를 알려 준다.
+사용자는 파이썬과 코랩에 익숙하지 않다. 오케스트레이터가 먼저 올릴 파일을 이름을 바꿔 한 폴더에 모은다.
+
+```bash
+cd /Users/cheonjamin/projects/AllDap-judge-ft/ai-service
+mkdir -p ~/Desktop/alldap_judgeft_upload
+cp testdata/judgeft/cases.jsonl ~/Desktop/alldap_judgeft_upload/cases_new.jsonl
+cp testdata/judge5v2/cases.jsonl ~/Desktop/alldap_judgeft_upload/cases_frozen.jsonl
+cp testdata/judgeft/train.jsonl testdata/judgeft/val.jsonl ~/Desktop/alldap_judgeft_upload/
+cp notebooks/judgeft_eval_colab.ipynb notebooks/judgeft_train_colab.ipynb ~/Desktop/alldap_judgeft_upload/
+ls ~/Desktop/alldap_judgeft_upload
+```
+
+Expected: 여섯 파일. 그다음 사용자에게 아래를 그대로 안내한다.
+
+1. drive.google.com 의 내 드라이브에 `alldap_judgeft` 폴더를 만들고, 바탕화면의 `alldap_judgeft_upload` 폴더에서 `.jsonl` 네 파일(`cases_new.jsonl`, `cases_frozen.jsonl`, `train.jsonl`, `val.jsonl`)을 끌어 넣는다. 이름을 바꾸지 않는다.
+2. colab.research.google.com 에서 파일 > 노트북 업로드 로 `judgeft_eval_colab.ipynb` 를 연다. 런타임 > 런타임 유형 변경 에서 **T4 GPU** 를 고른다.
+3. 왼쪽 열쇠 아이콘(보안 비밀)에 이름 `HF_TOKEN` 으로 Hugging Face 토큰을 넣고 "노트북 액세스" 스위치를 켠다.
+4. 둘째 칸 맨 위를 `SHEET = 'frozen'`, `MODEL = 'M3pre'`, `RUN = 1`, `ADAPTER_SHA256 = ''` 로 두고 런타임 > 모두 실행 을 누른다(약 78분, v2 결과 6-2절). "보안 비밀 액세스 권한" 창에는 **액세스 권한 부여**, "Google Drive 파일에 액세스" 창에는 **Google Drive에 연결** 을 누르고 모두 허용한다.
+5. 오류로 멈추면 zip 이 내려받아지지 않는다. 빨간 오류 글의 마지막 다섯 줄쯤을 복사해 알려 준다. 칸을 고치지 않는다.
+6. 끝나면 내려받아진 zip 의 경로(보통 `~/Downloads/alldap_judgeft_frozen_M3pre_run1.zip`)를 알려 준다.
 
 - [ ] **Step 2: 결과를 풀고 결정성을 판정한다** (오케스트레이터)
 
@@ -4097,15 +4857,15 @@ unzip -o <zip 경로> -d testdata/judgeft/results/frozen
 $PY -m tools.judgeft_determinism pre
 ```
 
-Expected: `pre: frozen M3pre_run1 와 v2 M3_run1 를 대조. 같은 문항 231, 다른 문항 0. 쓸 실행 수 1`. 판이 v2 와 다르면 도구가 "frozen/M3pre_run2.jsonl 을 만든 뒤 다시 하세요" 로 멈춘다. 그때는 Step 3 으로 간다.
+Expected: `pre: frozen M3pre_run1 와 v2 M3_run1 를 대조. 같은 문항 231, 다른 문항 0. 쓸 실행 수 1`. 도구가 "frozen/M3pre_run2.jsonl 을 만든 뒤 다시 하세요" 로 멈추는 경우는 둘이다: 판(GPU, torch, transformers, bitsandbytes)이 v2 와 다를 때, 그리고 **판은 같은데 v2 의 run1 과 한 줄이라도 다를 때**. 뒤의 경우는 생성이 실행마다 다른지, v2 와 노트북 코드나 accelerate 판(v2 는 적지 않았다)이 달라서인지를 가르려고 새 환경의 run2 와 대조한다. 어느 경우든 Step 3 으로 간다.
 
 - [ ] **Step 3: 판이 다르면 새 환경에서 한 번 더 돈다** (사용자)
 
-같은 노트북을 `RUN = 2` 로 돌려 결과를 같은 폴더에 풀고 `judgeft_determinism pre` 를 다시 한다. 판의 차이를 `run_log.md` 에 적는다.
+같은 노트북을 `RUN = 2` 로 돌려 결과를 같은 폴더에 풀고 `judgeft_determinism pre` 를 다시 한다. run1 과 run2 가 같으면 생성은 결정적이고 v2 와의 차이는 환경이나 코드 쪽이다(쓸 실행 수 1). 다르면 생성이 실행마다 다르다(쓸 실행 수 3). 어느 쪽이든 v2 의 run1 은 섞지 않는다(`use_v2` 가 `false`). 판의 차이와 v2 와 다른 줄 수(`vs_v2`)를 `run_log.md` 에 적는다.
 
 - [ ] **Step 4: 쓸 실행 수가 3 이면 실행을 채운다** (사용자)
 
-`determinism.json` 의 `pre.runs` 가 3 이면, 판이 v2 와 같을 때는 `RUN = 2` 를 한 번 더(v2 결과와 함께 3회), 다를 때는 `RUN = 3` 을 한 번 더 돌린다(`runs_for` 의 규칙). 이 경우 E13 과 E16 의 코랩 실행도 세 번씩이다.
+`determinism.json` 의 `pre.runs` 가 3 이면, `use_v2` 가 `true` 일 때는 `RUN = 2` 를 한 번 더(v2 결과와 함께 3회), `false` 일 때는 `RUN = 3` 을 한 번 더 돌린다(`runs_for` 의 규칙). 이 경우 E13 과 E16 의 코랩 실행도 세 번씩이다.
 
 - [ ] **Step 5: 커밋한다**
 
@@ -4137,7 +4897,7 @@ unzip -o <zip 경로> -d testdata/judgeft/results/new
 $PY -m tools.judgeft_gate a
 ```
 
-Expected: 실행마다 `⑧ N문항, 못 읽음 U, 심각한 놓침 S, 비율 R%` 한 줄과 `관문 (a): 통과` 또는 `통과하지 못함`. 결과 파일을 `cat`, `head`, `jq` 로 열지 않는다.
+Expected: 실행마다 `⑧ N문항, 못 읽음 U, 심각한 놓침 S, 비율 R%` 한 줄과 `관문 (a): 통과` 또는 `통과하지 못함`(비율이 가장 낮은 실행으로 판정). N 은 정답 점수가 1 인 ⑧ 이다(검수에서 사용자가 점수를 바꾼 ⑧ 은 심각한 놓침의 정의가 맞지 않아 세지 않는다). 결과 파일을 `cat`, `head`, `jq` 로 열지 않는다.
 
 - [ ] **Step 3: 커밋한다**
 
@@ -4161,11 +4921,11 @@ E14 부터 E17 까지 하지 않고 E18 의 짧은 판으로 간다. 결과 문�
 
 - [ ] **Step 1: 메모리와 시간을 잰다** (사용자)
 
-`notebooks/judgeft_train_colab.ipynb` 를 열고 `MODE = 'gate_b'` 그대로 모두 실행한다.
+`notebooks/judgeft_train_colab.ipynb` 를 코랩에서 열고(파일 > 노트북 업로드), 둘째 칸 맨 위의 `MODE = ''` 를 `MODE = 'gate_b'` 로 고쳐 모두 실행한다. 노트북 머리말의 안내(허용 창, 오류가 났을 때)를 따른다. `MODE` 를 비운 채 실행하면 둘째 칸에서 멈춘다(실수로 다른 단계를 돌리지 않게 한 것이다).
 
 - [ ] **Step 2: 판정한다** (오케스트레이터)
 
-내려받은 zip 의 `gate_b.json` 을 `testdata/judgeft/` 로 옮기고 본다.
+내려받은 zip 의 `gate_b.json` 을 `testdata/judgeft/` 로 옮기고 본다. 노트북이 오류로 멈췄으면 zip 이 없다. 사용자가 복사해 준 오류 글의 마지막 줄로 아래 셋 중 어디인지 가른다.
 
 - **메모리 부족(`OutOfMemoryError`)으로 멈췄으면** 학습하지 않고 사용자에게 보인다. 7B 로 내리기, 설정 바꾸기는 사용자가 정하고, 정하면 새 실험이다(스펙 7-2절).
 - **`finite` 가 `false` 이거나 노트북이 "loss 가 숫자가 아니다" 로 멈췄으면** 같은 처리다.
@@ -4174,6 +4934,7 @@ E14 부터 E17 까지 하지 않고 E18 의 짧은 판으로 간다. 결과 문�
   - (b) 무엇을 왜 고쳤는지와 새 동결 커밋의 해시를 커밋 메시지와 `run_log.md` 에 남긴다.
   - (c) 새 시험지의 문항별 결과를 열기 전이므로 결과에 맞춘 조정이 아니라는 근거를 `run_log.md` 에 적는다.
   - (d) 학습이 한 단계라도 진행된 뒤에 난 오류는 이 경우가 아니다. 고치지 않고 사용자에게 넘긴다.
+  - **고친 곳이 채점 노트북과 함께 쓰는 칸(`judgeft_notebooks.py` 의 `COMMON`, `GUIDE`, `PIP`)이면 E12 와 E13 을 다시 한다.** 학습 전 M3 의 결과가 고치기 전의 코드로 나왔기 때문이다. 다시 한 결과는 앞의 것을 덮지 않고 `run_log.md` 에 두 결과를 함께 적는다. 학습 노트북에만 있는 칸(`setup`, `model_cell`, `gate_cell`, `train_cell`)만 고쳤으면 다시 하지 않는다.
 - 통과했으면 `peak_gb`, `step_seconds`, `est_hours`, `save_every` 를 `run_log.md` 에 적고, **어림한 학습 시간을 사용자에게 알린다**(스펙 7-2절).
 
 - [ ] **Step 3: 커밋한다**
@@ -4186,7 +4947,7 @@ git commit -m "test: 학습 전 관문 (b) 의 메모리와 시간을 남긴다
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>" -- ai-service/testdata/judgeft/gate_b.json ai-service/testdata/judgeft/run_log.md
 ```
 
-**리뷰 포인트:** `longest_id` 가 E10 Step 3 의 가장 긴 문항과 같은가.
+**리뷰 포인트:** `longest_id` 가 E10 Step 3 의 가장 긴 문항과 같은가. `gate_b.json` 의 `env` 가 E12 의 `.env.json` 과 같은 판인가(다르면 `run_log.md` 에 적는다). 관문 칸이 `model.train()` 뒤 층마다 gradient checkpointing 이 켜졌는지 확인하고 지나갔는가(꺼진 채로 재면 메모리와 시간이 학습과 다르다).
 
 ---
 
@@ -4194,13 +4955,20 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>" -- ai-service/testdata/
 
 - [ ] **Step 1: 학습한다** (사용자)
 
-런타임 > 세션 다시 시작 뒤 `MODE = 'train'` 으로 바꿔 모두 실행한다. 끊기면 세션을 다시 시작하고 그대로 모두 실행한다(가장 최근의 완성된 체크포인트에서 이어 한다). 학습 중에 다른 노트북으로 새 시험지를 채점하지 않는다.
+런타임 > 세션 다시 시작 뒤 `MODE = 'train'` 으로 바꿔 모두 실행한다. 끊기면 세션을 다시 시작하고 그대로 모두 실행한다(가장 최근의 온전한 체크포인트에서 이어 한다). 학습 중에 다른 노트북으로 새 시험지를 채점하지 않는다. 오케스트레이터는 E14 에서 알린 어림 시간과 함께 아래를 사용자에게 다시 알린다.
+
+- 학습하는 동안 브라우저 탭을 닫지 않고, 컴퓨터의 잠자기를 끈다(맥: 시스템 설정 > 디스플레이 또는 배터리 > 잠자기 방지).
+- 무료 GPU 한도에 걸려 "GPU 백엔드에 연결할 수 없습니다" 가 뜨면 몇 시간 뒤(보통 다음 날) 다시 열고 `MODE = 'train'` 으로 모두 실행한다. 한 일은 Drive 에 남아 있다.
+- 출력 줄의 `drive_free_gb` 가 3 아래로 내려가면 drive.google.com 의 휴지통에서 **휴지통 비우기** 를 누른다. 노트북이 지운 오래된 체크포인트(하나에 약 0.4GB, 재지 않은 어림)가 휴지통에서 용량을 차지한다.
+- 이어 할 때 처음 세션과 판(GPU, torch, 라이브러리)이 다르면 노트북이 멈춘다. 그 줄을 그대로 알려 받는다(설정을 바꾸지 않고 사용자에게 보인다. 스펙 6-5절).
+- 오류로 멈추면 빨간 오류 글의 마지막 다섯 줄쯤을 복사해 받는다. 학습이 한 단계라도 진행된 뒤의 오류이므로 노트북을 고치지 않고 사용자에게 보인다(스펙 6-5절의 (d)).
 
 - [ ] **Step 2: 산출물을 기록한다** (오케스트레이터)
 
 내려받은 zip 의 `training_log.jsonl`, `train_done.json`, `train_env.json` 을 `testdata/judgeft/` 로 옮긴다. `run_log.md` 에 적는다:
 - 어댑터 SHA-256 과 Drive 경로(`MyDrive/alldap_judgeft/adapter/`). 어댑터 파일은 git 에 넣지 않는다(스펙 2-2절).
-- 끊긴 횟수(`training_log.jsonl` 의 `resumed_from` 줄 수)와 이어 한 체크포인트.
+- 끊긴 횟수(`training_log.jsonl` 의 `resumed_from` 줄 수)와 이어 한 체크포인트, 깨져서 건너뛴 체크포인트(`bad_checkpoint` 줄). 같은 단계의 줄이 둘이면 마지막 줄이 맞는 값이다(끊긴 뒤 다시 한 단계다. 보고서 도구도 마지막 줄을 쓴다).
+- loss scaling 으로 건너뛴 단계(`skipped` 가 `true` 인 줄)의 수와 위치.
 - 마지막 학습 loss 와 검증 loss 의 흐름. 검증 loss 로 체크포인트를 고르지 않는다(스펙 6-3절).
 
 - [ ] **Step 3: 커밋한다**
@@ -4221,7 +4989,14 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>" -- ai-service/testdata/
 
 - [ ] **Step 1: 새 시험지를 두 번 채점한다** (사용자)
 
-채점 노트북에 `MODEL = 'M3ft'`, `ADAPTER_SHA256 = '<E15 의 해시>'` 를 넣고 `SHEET = 'new'` 로 `RUN = 1`, `RUN = 2` 를 돌린다.
+오케스트레이터가 `train_done.json` 에서 붙여 넣을 줄을 만들어 사용자에게 준다.
+
+```bash
+cd /Users/cheonjamin/projects/AllDap-judge-ft/ai-service
+$PY -c "import json; print(\"ADAPTER_SHA256 = '\" + json.load(open('testdata/judgeft/train_done.json'))['adapter_sha256'] + \"'\")"
+```
+
+사용자는 채점 노트북 둘째 칸의 `ADAPTER_SHA256 = ''` 줄을 받은 줄로 통째로 바꾸고, `MODEL = 'M3ft'`, `SHEET = 'new'` 로 `RUN = 1`, `RUN = 2` 를 돌린다. `MODEL = 'M3pre'` 인데 해시가 있거나 `M3ft` 인데 비어 있으면 노트북이 멈춘다.
 
 - [ ] **Step 2: 결정성을 판정한다** (오케스트레이터)
 
@@ -4253,7 +5028,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>" -- ai-service/testdata/
 
 ### Task E17: M1 으로 새 시험지를 세 번 채점한다
 
-**뉴런을 쓴다(회당 약 4,500).** 관문 (a) 를 통과한 뒤, 하루에 한 번씩 사흘에 나눈다. E16 과 순서는 상관없다.
+**뉴런을 쓴다(회당 약 4,500).** 관문 (a) 와 (b) 를 모두 통과한 뒤(E14 뒤), 하루에 한 번씩 사흘에 나눈다. E15 의 학습과 E16 과는 순서가 상관없다. 도구가 `gate_a.json` 의 `pass` 와 `gate_b.json` 의 `finite` 를 확인하고, 하나라도 없거나 거짓이면 부르기 전에 멈춘다.
 
 - [ ] **Step 1: 그날의 한도를 확인한다**
 
@@ -4312,7 +5087,7 @@ cd ai-service
 $PY -m tools.judgeft_report
 ```
 
-Expected: `보고서: .../report.md`. 결과에 없는 문항이 있다고 멈추면 그 실행을 마저 채점한다. 결과 파일을 손으로 고쳐 맞추지 않는다. **관문 (a) 에서 끝났으면** 이 단계를 건너뛰고 `gate_a.json` 과 `gate.md` 로 결과 문서를 쓴다.
+Expected: `보고서: .../report.md`. 결과에 없는 문항이 있다고 멈추면 그 실행을 마저 채점한다. 결과 파일을 손으로 고쳐 맞추지 않는다. 보고서에는 문항과 학습 데이터의 경위, 검수 결과(사용자 판단별 수, 버린 문항의 유형별 수, 검수 뒤 세 조건), 관문 (a), (b) 의 결과(통과 여부와 관계없이), 학습 기록 요약, 시험지마다 수치 표(실행마다, 다섯 가짜 모델 포함, 못 읽음의 원인을 missing, conflict, out_of_range, 잘림으로 나눠), 혼동행렬, 유형별 표, 비교, 교체 후보 기준이 들어간다(스펙 7절, 8-2절, 9-3절). **관문 (a) 에서 끝났어도** 이 단계를 그대로 한다. 그때 있는 결과(학습 전 M3 의 두 시험지, v2 의 M1)만 내고, 돌리지 않은 모델과 비교와 기준은 `하지 않음` 으로 적힌다. 관문 (a) 를 통과했는데 `train_done.json` 이 없으면 도구가 거절한다(학습이 끝나기 전에 새 시험지의 결과를 열지 않는다. 스펙 6-5절).
 
 - [ ] **Step 3: 결과 문서를 쓴다**
 
@@ -4360,4 +5135,4 @@ gh pr create --title "채점 모델 M3 를 ⑧ 다른 대상 규정 문항으로
 
 PR 본문은 `.github/PULL_REQUEST_TEMPLATE.md` 를 채운다. **한계와 트레이드오프** 칸과 **검토한 대안** 칸을 비우지 않는다. 본문 끝에 `🤖 Generated with [Claude Code](https://claude.com/claude-code)` 를 붙인다. CI 를 기다리지 않는다.
 
-**리뷰 포인트:** 결과 문서의 모든 숫자가 `report.md`, `run_log.md`, `gate_a.json`, `gate_b.json` 에 있는 숫자인가. 판정 문장이 정해진 세 가지 중 하나인가. 교체 후보가 나왔어도 서비스의 채점 모델을 바꾸지 않았는가.
+**리뷰 포인트:** 결과 문서의 모든 숫자가 `report.md`, `run_log.md`, `gate_a.json`, `gate_b.json` 에 있는 숫자인가. 관문에서 끝났으면 `report.md` 의 `하지 않음` 이 실제로 하지 않은 것과 맞는가. 판정 문장이 정해진 세 가지 중 하나인가. 교체 후보가 나왔어도 서비스의 채점 모델을 바꾸지 않았는가.
