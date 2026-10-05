@@ -4820,13 +4820,12 @@ print(collections.Counter(r['finish'] for r in rows))
 - [ ] **Step 4: 뉴런과 끝난 시각을 적고 커밋한다**
 
 ```bash
-P="ai-service/testdata/judge5v2/results/M1_run1.jsonl ai-service/testdata/judge5v2/run_log.md"
-F=ai-service/testdata/judge5v2/results/M1_failures.jsonl
-test -e "$F" && P="$P $F"     # 실패 기록은 실패가 있었을 때만 생긴다
-git add $P
+# 실패 기록(results/M1_failures.jsonl)은 실패가 있었을 때만 생긴다. 있으면 두 명령의 경로 끝에 더한다.
+# 경로를 변수에 모아 넘기지 않는다. zsh 는 따옴표 없는 변수를 공백에서 나누지 않는다.
+git add ai-service/testdata/judge5v2/results/M1_run1.jsonl ai-service/testdata/judge5v2/run_log.md
 git commit -m "test: 채점 모델 비교 v2 의 시험지를 M1 으로 채점한다
 
-Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>" -- $P
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>" -- ai-service/testdata/judge5v2/results/M1_run1.jsonl ai-service/testdata/judge5v2/run_log.md
 ```
 
 **리뷰 포인트:** 모든 줄에 `domain` 이 있고 `cases_sha256` 이 동결 커밋의 해시와 같은가. 이 태스크에서 출력을 보고 무엇을 고치지 않았는가.
