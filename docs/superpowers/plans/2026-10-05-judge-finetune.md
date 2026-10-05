@@ -1,6 +1,6 @@
 # 채점 모델 M3 파인튜닝 구현 계획
 
-> **PR 은 #160(`feat/judge-selfhost-v2`)이 머지된 뒤에 연다.** 이 브랜치(`feat/judge-finetune`)는 #160 의 브랜치에서 땄다(스택 브랜치). #160 보다 먼저 PR 을 열면 #160 의 커밋이 이 PR 에 함께 보이고, #160 이 머지될 때마다 이 브랜치가 낡아 충돌을 손으로 풀어야 한다(AGENTS.md 의 브랜치 규칙, 2026-09-08 에 겪었다). #160 이 머지되면 `git rebase main` 으로 기준을 옮긴 뒤 PR 을 연다. 충돌이 나는 자리는 `docs/superpowers/handoff-*.md` 와 `AGENTS.md` 의 진행 상황 절일 가능성이 크다.
+> **#160(`feat/judge-selfhost-v2`)은 2026-10-05 에 머지됨.** 이 브랜치(`feat/judge-finetune`)는 #160 의 브랜치에서 땄다(스택 브랜치). 머지된 뒤 같은 날 `git rebase origin/main` 으로 기준을 옮겼고 충돌은 없었다. 그래서 이 브랜치에는 이 실험의 커밋만 남아 있다. PR 은 태스크 E18 에서 연다.
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
