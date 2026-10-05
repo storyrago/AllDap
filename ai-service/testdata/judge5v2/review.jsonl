@@ -1,0 +1,240 @@
+{"case_id": "e3e3e71def2c", "review_note": "근거에는 반품 시 구매 적립금을 회수한다고 되어 있으나 답변은 14일 보류 후 절반을 돌려준다고 반대로 지어냈다.", "review_score": 1}
+{"case_id": "53f14510bc81", "reason": "주장 둘 중 하나(핵심 답)만 근거에 있어 4점 정의(사소한 주장 하나)와 3점 정의(반반)에 모두 맞는다. 스펙 3-2절이 ③에서 막은 모양이 ④에서 생겼다", "review_note": "두 모델의 22mm 시계줄을 서로 바꿔 끼울 수 있다는 핵심은 근거에 있지만 공구 없이 버튼으로 뺀다는 내용은 없다.", "review_score": 4, "user_decision": "drop"}
+{"case_id": "cc83d02fd98f", "reason": "주장 둘 중 하나(핵심 답)만 근거에 있어 4점 정의(사소한 주장 하나)와 3점 정의(반반)에 모두 맞는다. 스펙 3-2절이 ③에서 막은 모양이 ④에서 생겼다", "review_note": "아로마 오일을 넣으면 안 된다는 핵심은 근거에 있으나 물통 안쪽의 물 높이 눈금 주장은 근거에 없다.", "review_score": 4, "user_decision": "drop"}
+{"case_id": "5979be20f553", "review_note": "근거는 만 60세 이상이며 1인당 합계 5천만원까지라고 하는데 답변은 나이 제한과 한도를 모두 다르게 지어냈다.", "review_score": 1}
+{"case_id": "e95d8879f7de", "review_note": "1회 1만2천원 한도만 근거와 맞고 제휴 식당 할인·간식 상자·수면실 주장은 모두 근거에 없으며 실비 정산 방식도 답하지 않았다.", "review_score": 2}
+{"case_id": "86f52ac3f861", "review_note": "8시간 이상 항공권이 프리미엄 이코노미라는 핵심만 맞고 예약 기한·라운지 비용·수하물 정산은 모두 근거에 없다.", "review_score": 2}
+{"case_id": "b9d188b9df17", "review_note": "분실 재발급 비용 1만원과 신청 후 3영업일이라는 두 주장이 모두 근거에 적혀 있다.", "review_score": 5}
+{"case_id": "cc480afc6eac", "review_note": "근거는 오후 4시 이후 신청분을 다음 영업일에 처리한다고 하나 답변은 4영업일 뒤라고 반대로 말했다.", "review_score": 1}
+{"case_id": "e87227e3a95d", "review_note": "근거상 해외 컨퍼런스 지원은 연 1회인데 답변은 연 2회라고 잘못 말했다.", "review_score": 1}
+{"case_id": "4055230ba679", "review_note": "근거상 해당 경우 담보인정비율은 50%인데 답변은 45%라고 했다.", "review_score": 1}
+{"case_id": "bad56b0e03bf", "review_note": "형제자매 사망 휴가 2일은 근거에 있지만 회사 차량·동료 공가·무료 심리 상담 주장은 모두 근거에 없다.", "review_score": 2}
+{"case_id": "94ae06767f84", "review_note": "월 1만원 이상 300만원 이하와 1인 3계좌는 모두 근거와 맞지만 은행 달력 제공 주장은 근거에 없다.", "review_score": 4}
+{"case_id": "0a5cf8ce86f8", "review_note": "솔 사업자 운영자금 대출의 중도상환 수수료율이 0.8%라는 답변이 근거와 정확히 일치한다.", "review_score": 5}
+{"case_id": "1a3cafb82f72", "review_note": "주문 기록 5년과 고객 문의 기록 3년은 근거와 맞지만 앱의 운영체제 지원 주장은 근거에 없다.", "review_score": 4}
+{"case_id": "5de448ae9b59", "review_note": "주황색 전원등이 팬 모터 이상이며 전원을 끄고 방문 수리를 접수해야 한다는 내용은 맞지만 고객 등록 엽서 주장은 근거에 없다.", "review_score": 4}
+{"case_id": "7ebdb10378ab", "review_note": "근거상 첫 구매 확정 시 추가 적립금은 1,000P인데 답변은 1,500P라고 했다.", "review_score": 1}
+{"case_id": "18f11e98993f", "review_note": "근거상 사택 거주 기간은 4년인데 답변은 6년이라고 했다.", "review_score": 1}
+{"case_id": "7fe831665128", "review_note": "7일 내 배송지 미입력 시 자동 취소와 전액 환불은 근거와 맞지만 앱의 리본 모양 버튼 주장은 근거에 없다.", "review_score": 4}
+{"case_id": "a55fc02ffe2e", "review_note": "카드 신고를 7일 안에 풀 수 있다는 주장은 맞지만 감사 쿠폰은 근거에 없고 통장은 신고 해제가 불가하다는 답도 빠졌다.", "review_score": 3}
+{"case_id": "b6613f877c9a", "review_note": "마이페이지 직접 발급은 결제일부터 5일 이내이고 90일이 지나면 발급 불가라는 두 내용이 모두 근거와 일치한다.", "review_score": 5}
+{"case_id": "85f463553a92", "review_note": "24개월 정액적립식 기본 금리가 연 3.40%라는 답변이 근거와 정확히 일치한다.", "review_score": 5}
+{"case_id": "eb310e6e1de2", "review_note": "급여일이 매월 25일이라는 내용은 맞지만 생일 축하금은 근거에 없고 휴일이면 직전 영업일 지급이라는 답이 빠졌다.", "review_score": 3}
+{"case_id": "c0c6e1d04473", "review_note": "근거상 우수 등급 포상금은 50만원인데 답변은 최우수 등급 금액인 100만원이라고 했다.", "review_score": 1}
+{"case_id": "92a406ffec58", "review_note": "만 14세 이상 가입 가능하다는 내용은 맞지만 친구 추천 적립금은 근거에 없고 1인 1계정이라는 답이 빠졌다.", "review_score": 3}
+{"case_id": "e1d32268e6a6", "review_note": "단계별 결과를 5영업일 이내 통보한다는 내용은 맞지만 면접비 주장은 근거에 없고 경력직의 코딩테스트 생략 가능 여부를 답하지 않았다.", "review_score": 3}
+{"case_id": "730dcdc49887", "review_note": "R5가 지도를 4개 층까지 저장한다는 내용은 맞지만 1년 클라우드 백업은 근거에 없고 금지 구역 최대 15곳이라는 답이 빠졌다.", "review_score": 3}
+{"case_id": "f3a742bd1a91", "review_note": "토요일 오전 9시부터 오후 1시까지 운영하고 일요일은 쉰다는 답변이 모두 근거와 일치한다.", "review_score": 5}
+{"case_id": "3ed5398a96c7", "review_note": "인턴 추천은 포상금 대상이 아니라는 근거에 따라 추천자가 포상금을 받지 못한다고 정확히 답했다.", "review_score": 5}
+{"case_id": "1c4b4a0c4ac0", "review_note": "근거상 체크카드는 신고일 기준 15일 전부터 보상하는데 답변은 신용카드 기준인 60일이라고 했다.", "review_score": 1}
+{"case_id": "5f9d4ade362a", "review_note": "촉탁직 임금이 정년 직전 기본급의 70%라는 답변이 근거와 정확히 일치한다.", "review_score": 5}
+{"case_id": "477c05d34b32", "review_note": "퇴직금을 지급하지 않고 계약 종료 시 50만원 격려금을 준다는 핵심은 모두 맞지만 방문객 무료 주차 주장은 근거에 없다.", "review_score": 4}
+{"case_id": "78b5d74914ff", "review_note": "근거상 E16은 R5에만 있는 라이다 회전 막힘인데 답변은 R1의 물통 수위 이상과 근거 없는 조치를 제시했다.", "review_score": 1}
+{"case_id": "679df7b2d03a", "review_note": "일반 등급의 단순 변심 교환 왕복 배송비가 6,000원이라는 답변이 근거와 일치한다.", "review_score": 5}
+{"case_id": "9eb65889d5de", "reason": "주장 둘 중 하나(핵심 답)만 근거에 있어 4점 정의(사소한 주장 하나)와 3점 정의(반반)에 모두 맞는다. 스펙 3-2절이 ③에서 막은 모양이 ④에서 생겼다", "review_note": "다른 은행이나 편의점 ATM 출금 수수료 1,300원은 맞지만 ATM 옆 안내 책자 비치 주장은 근거에 없다.", "review_score": 4, "user_decision": "drop"}
+{"case_id": "ac89afe10eb0", "review_note": "창구 타행 이체 월 10회 면제와 모바일 이체 면제와 별도 계산은 모두 맞지만 무료 음료 주장은 근거에 없다.", "review_score": 4}
+{"case_id": "165becc12ec3", "review_note": "A등급 상여금 지급률이 기본급의 150%라는 답변이 근거와 일치한다.", "review_score": 5}
+{"case_id": "ef4a878fee50", "reason": "질문이 묻는 핵심 값이 근거와 다르므로 1점 정의(근거와 반대되는 내용)에 맞는다", "review_note": "포장을 뜯으면 반품할 수 없다는 내용은 맞지만 핵심 기한을 근거의 7일이 아닌 14일로 잘못 말했다.", "review_score": 3, "user_decision": "keep"}
+{"case_id": "105bb18eb466", "review_note": "근거상 VIP도 25,000원 이상이어야 새벽배송이 무료인데 답변은 기준 금액이 없고 무료 이용권을 받는다고 지어냈다.", "review_score": 1}
+{"case_id": "cf8bb015d373", "review_note": "비상근 자문역의 건강검진을 3년에 1회 지원한다는 답변이 근거와 일치한다.", "review_score": 5}
+{"case_id": "f2fe53f3ce9f", "review_note": "6~9개월 카드 할부 수수료율이 연 15.5%라는 답변이 근거와 정확히 일치한다.", "review_score": 5}
+{"case_id": "16e08688432f", "review_note": "근거상 올댑랩스 신규 입사자 수습 기간은 1개월인데 답변은 5개월이라고 했다.", "review_score": 1}
+{"case_id": "2c1c0a3e146b", "review_note": "근거상 R3는 최대 2,500Pa이고 문턱 1.5cm까지인데 답변은 두 수치와 7단계 조절을 모두 다르게 지어냈다.", "review_score": 1}
+{"case_id": "1a7870f25411", "review_note": "골드 등급은 결제일부터 7일 이내 가격 하락 시 보상받는다는 답변이 근거와 일치한다.", "review_score": 5}
+{"case_id": "5a6f05c7b43a", "review_note": "신용대출 기간 1년과 연장 시 최장 10년이라는 두 내용이 모두 근거와 일치한다.", "review_score": 5}
+{"case_id": "da71f4f569cb", "review_note": "단순 변심 7일과 하자 30일이라는 교환 기한은 모두 맞지만 다람쥐 마스코트 주장은 근거에 없다.", "review_score": 4}
+{"case_id": "ca21e071a81a", "review_note": "표준 모드 최대 150분은 맞지만 배터리 용량 주장은 근거에 없고 완전 충전 약 5시간이라는 답이 빠졌다.", "review_score": 3}
+{"case_id": "b5037e874507", "review_note": "10일 안에는 교환 또는 환불 가능하다는 내용만 맞고 앱 메뉴·스티커·상담 전화 주장은 근거에 없으며 11일째부터는 교환만 가능하다는 답도 빠졌다.", "review_score": 2}
+{"case_id": "9ee0d1f4fe78", "review_note": "근거상 영업시간 외 타행 ATM 이체 수수료는 건당 1,000원인데 답변은 무료라고 했다.", "review_score": 1}
+{"case_id": "716ddbc559f0", "review_note": "24시간 이내 신고는 맞지만 영양사 전화 안내는 근거에 없고 상품을 돌려보낼 필요가 없다는 답이 빠졌다.", "review_score": 3}
+{"case_id": "b7022b2861b0", "review_note": "근거상 휴면 예금은 마지막 거래일부터 5년 뒤 출연되는데 답변은 8년이라고 했다.", "review_score": 1}
+{"case_id": "8547767176c3", "review_note": "자녀 1명당 최대 1년이라는 내용은 맞지만 체력단련실 이용권은 근거에 없고 2회로 나누어 쓸 수 있다는 답이 빠졌다.", "review_score": 3}
+{"case_id": "212485b27360", "review_note": "입고 후 2영업일 이내 출고는 맞지만 감사 카드는 근거에 없고 교환 불가 시 배송비 3,000원이라는 답이 빠졌다.", "review_score": 3}
+{"case_id": "8024512b8743", "review_note": "하루핏 W2를 절전 모드에서 약 21일 쓸 수 있다는 답변이 근거와 일치한다.", "review_score": 5}
+{"case_id": "24dc600f4916", "review_note": "전월 30만원 이상이면 대중교통 환급을 받고 월 최대 5,000원이라는 두 내용이 모두 근거와 일치한다.", "review_score": 5}
+{"case_id": "f0f10c0f6818", "review_note": "OTP 재발급 수수료 5,000원과 만 65세 이상 면제는 맞지만 기기 색상 주장은 근거에 없다.", "review_score": 4}
+{"case_id": "13ce97b81222", "review_note": "근거상 루미봇 R5 먼지 필터는 4개월마다 교체를 권하는데 답변은 5개월이라고 했다.", "review_score": 1}
+{"case_id": "5a02c19871dd", "review_note": "근거상 추가 승인은 본부장이 해야 하는데 답변은 대표이사라고 했다.", "review_score": 1}
+{"case_id": "68b4f7939edd", "review_note": "세금계산서를 결제한 달의 다음 달 5일까지 신청해야 한다는 답변이 근거와 일치한다.", "review_score": 5}
+{"case_id": "7439300e730b", "review_note": "근거상 VIP 문의 답변 목표는 영업시간 기준 4시간 이내인데 답변은 6시간이라고 했다.", "review_score": 1}
+{"case_id": "b625939cfbfc", "review_note": "적립금 즉시 소멸과 같은 번호로 30일 뒤 재가입 가능은 맞지만 공식 블로그 열람 주장은 근거에 없다.", "review_score": 4}
+{"case_id": "b2729b2b0e53", "review_note": "구매확정 후 30일 이내 작성과 작성 다음 날 지급은 맞지만 하트 아이콘 주장은 근거에 없다.", "review_score": 4}
+{"case_id": "ae371c4fe8df", "review_note": "근거상 소리결 B1의 이어폰 단독 재생은 최대 6시간인데 답변은 9시간이라고 했다.", "review_score": 1}
+{"case_id": "18051558e732", "review_note": "근거상 숨결 A20의 CADR은 220㎥/h인데 답변은 A40의 수치인 420㎥/h라고 했다.", "review_score": 1}
+{"case_id": "2a1e579b700d", "review_note": "온새미전자 소모품을 3만원 이상 구입하면 배송비가 없다는 답변이 근거와 일치한다.", "review_score": 5}
+{"case_id": "3ba6b1fcb5f5", "review_note": "1회 최대 50,000P는 맞지만 우편 명세서·오프라인 사용·가족 간 한도 공유는 근거에 없고 월 3회 한도도 답하지 않았다.", "review_score": 2}
+{"case_id": "844a17304e8e", "review_note": "근거상 채용 탈락자 정보 보유 기간은 채용 종료 후 6개월인데 답변은 5년이라고 했다.", "review_score": 1}
+{"case_id": "b64f014a1acc", "review_note": "계약직 연차가 계약 시작일 기준 1년에 12일이라는 답변이 근거와 일치한다.", "review_score": 5}
+{"case_id": "0fed27616767", "review_note": "IPX4이며 샤워할 때 쓰면 안 된다는 두 내용은 맞지만 흰색과 검은색 출시 주장은 근거에 없다.", "review_score": 4}
+{"case_id": "905243c0f77e", "review_note": "솔 프리미엄 카드 해외 겸용 연회비가 10만원이라는 답변이 근거와 일치한다.", "review_score": 5}
+{"case_id": "4a686eebf9a6", "review_note": "근거상 골드 등급 선물 포장비는 상품 1개당 2,000원인데 답변은 무료라고 했다.", "review_score": 1}
+{"case_id": "01538a8be8ba", "review_note": "근거는 포인트가 적립 후 5년 뒤 소멸한다고 하나 답변은 연말 정산과 사회공헌 기부를 지어냈다.", "review_score": 1}
+{"case_id": "6a07ec8f6657", "review_note": "근거상 솔 클래식 카드 현금서비스 최대 한도는 400만원인데 답변은 프리미엄 카드 한도인 1,200만원이라고 했다.", "review_score": 1}
+{"case_id": "ad25685ed35c", "review_note": "자녀 결혼 축의금 30만원만 근거와 맞고 축하 카드·주차권·기념품 주장은 모두 근거에 없다.", "review_score": 2}
+{"case_id": "506daf7a8e28", "review_note": "가열 시 물을 75℃로 데우고 소비 전력이 120W라는 두 내용이 모두 근거와 일치한다.", "review_score": 5}
+{"case_id": "0a8f47179748", "review_note": "W2에 GPS가 내장됐다는 내용만 맞고 초기 수신 시간·GPX 내보내기·도심 오차는 근거에 없으며 약 18시간 사용 답도 빠졌다.", "review_score": 2}
+{"case_id": "9dc35f993b70", "review_note": "주황색 표시등이 케이스 배터리 10%에서 50% 사이를 뜻한다는 답변이 근거와 일치한다.", "review_score": 5}
+{"case_id": "fb4ab9e58347", "review_note": "재택근무 전담자의 코어타임이 오전 11시부터 오후 3시까지라는 답변이 근거와 일치한다.", "review_score": 5}
+{"case_id": "bc182e00ae1a", "review_note": "솔 신용카드 결제일을 6개월에 한 번 바꿀 수 있다는 답변이 근거와 일치한다.", "review_score": 5}
+{"case_id": "b017b9bbb4b2", "review_note": "처음 5년 연 4.10% 고정은 맞지만 축하 화분은 근거에 없고 이후 6개월마다 변동한다는 답이 빠졌다.", "review_score": 3}
+{"case_id": "4ed86d93a105", "review_note": "근거상 A40의 필터 교체 표시등은 8,700시간에 켜지는데 답변은 A20의 수치인 4,300시간이라고 했다.", "review_score": 1}
+{"case_id": "7e8cf0a37f42", "review_note": "배송중에는 배송지를 바꿀 수 없고 택배사에 직접 요청해야 한다는 핵심은 맞지만 앱 글자 크기 주장은 근거에 없다.", "review_score": 4}
+{"case_id": "e9703f3c57bf", "review_note": "근거상 해외 등록 보상금은 국가당 100만원인데 답변은 70만원이라고 했다.", "review_score": 1}
+{"case_id": "899ed262ef2c", "review_note": "거래 중지 계좌가 입금을 받을 수 있다는 내용은 맞지만 회색 표지 주장은 근거에 없고 출금 불가 여부를 답하지 않았다.", "review_score": 3}
+{"case_id": "ce5b67991596", "review_note": "먼지 센서를 2개월마다 마른 면봉으로 닦는다는 내용은 맞지만 면봉 두 개 동봉 주장은 근거에 없다.", "review_score": 4}
+{"case_id": "dd6c223bb189", "review_note": "4층 라운지는 20시 이후 소등되어 사용할 수 없다는 답변이 근거와 일치한다.", "review_score": 5}
+{"case_id": "8c8ea3662628", "review_note": "근거상 생산직 신규 입사자의 수습은 2개월인데 답변은 5개월과 근거 없는 월별 시험을 말했다.", "review_score": 1}
+{"case_id": "e9bcd55c75d1", "review_note": "근거상 정기적금의 해당 중도 해지 이율은 기본 금리의 40%인데 답변은 50%라고 했다.", "review_score": 1}
+{"case_id": "f852af735971", "review_note": "S5의 무게 1.4kg과 최대 흡입력 120AW는 맞지만 본체 색상 주장은 근거에 없다.", "review_score": 4}
+{"case_id": "e7f73039a784", "review_note": "교환은 한 주문당 1회라는 핵심만 맞고 상담 전화·손수건·만족도 조사와 응모권은 모두 근거에 없다.", "review_score": 2}
+{"case_id": "3502f777b7a2", "review_note": "앞면과 양옆 30cm 이상 및 가습기와 2m 이상이라는 답은 맞지만 손잡이 홈으로 옮긴다는 주장은 근거에 없다.", "review_score": 4}
+{"case_id": "f67026c3566e", "review_note": "면제가 교환에만 적용되고 반품 회수비에는 적용되지 않는다는 핵심은 맞지만 본사 휴게 공간 주장은 근거에 없다.", "review_score": 4}
+{"case_id": "794d668ef11c", "review_note": "근거상 생산직 오후조 출근은 오후 2시인데 답변은 오후 1시 30분과 근거 없는 준비 절차를 말했다.", "review_score": 1}
+{"case_id": "a83660f08f8f", "review_note": "SEC-002 보안 서약서 제출과 사내 문서 외부 반출 금지라는 두 내용이 모두 근거와 일치한다.", "review_score": 5}
+{"case_id": "c0de3115c8b9", "review_note": "참가 후 2주 내 사내 공유 세미나를 해야 한다는 답은 맞지만 동호회 활동비 주장은 근거에 없다.", "review_score": 4}
+{"case_id": "ecb2b28a2488", "review_note": "유효기간이 발행일부터 5년이라는 내용은 맞지만 계절별 디자인은 근거에 없고 환불 비율 90%를 답하지 않았다.", "review_score": 3}
+{"case_id": "4d07d89110ab", "review_note": "하루핏 W2를 0%에서 100%까지 충전하는 데 약 1시간 30분 걸린다는 답변이 근거와 일치한다.", "review_score": 5}
+{"case_id": "234e5d5f5fd8", "review_note": "경차의 월 주차료 감면율이 30%라는 답변이 근거와 일치한다.", "review_score": 5}
+{"case_id": "0f3a6c132cd4", "review_note": "근거상 솔 체크카드 해외 결제 수수료는 이용 금액의 1.2%인데 답변은 수수료가 없다고 했다.", "review_score": 1}
+{"case_id": "304230e1d39e", "review_note": "약 500회 충전 또는 초기 용량의 70% 미만이라는 교체 기준은 맞지만 주민센터 폐기 주장은 근거에 없다.", "review_score": 4}
+{"case_id": "cc3c2b3a0ead", "review_note": "한 달에 한 번 헹군다는 내용만 맞고 고무 패킹·제조 번호·알림음 주장은 근거에 없으며 찬물 사용도 답하지 않았다.", "review_score": 2}
+{"case_id": "c474c20ded47", "review_note": "배터리는 호환되지 않고 같은 25.2V 충전기는 바꿔 쓸 수 있다는 답은 맞지만 케이블 길이는 근거에 없다.", "review_score": 4}
+{"case_id": "3b645b3f27bd", "review_note": "계약직 재택근무 주 1회와 6개월 미만 계약은 신청 불가라는 답은 맞지만 동호회 개설 조건은 근거에 없다.", "review_score": 4}
+{"case_id": "3c6f79d68873", "review_note": "해외 ATM 수수료가 건당 3달러와 출금액의 1.0%라는 답은 맞지만 여행용 카드 지갑 제공 주장은 근거에 없다.", "review_score": 4}
+{"case_id": "7be084fc7461", "review_note": "기한 안에 완료하면 계약 금액의 10%를 완료 보상으로 받는다는 답변이 근거와 일치한다.", "review_score": 5}
+{"case_id": "237de8049963", "review_note": "근거상 수리 부품의 별도 보증은 3개월인데 답변은 9개월과 근거 없는 접수 번호 보관 조건을 말했다.", "review_score": 1}
+{"case_id": "237f5dfb7eb1", "review_note": "적립금 유효기간 12개월만 맞고 가족 합산·최대 인원·연례 재설정은 모두 근거에 없으며 말일 자정 소멸도 답하지 않았다.", "review_score": 2}
+{"case_id": "884b0f4a140f", "review_note": "근거상 루미봇 R3 사이드 브러시는 3개월마다 교체를 권하는데 답변은 5개월이라고 했다.", "review_score": 1}
+{"case_id": "e2513e8a1902", "review_note": "근거는 환불 계좌가 회원 본인 명의여야 한다고 하는데 답변은 타인 명의도 가능하다며 승인 절차까지 지어냈다.", "review_score": 1}
+{"case_id": "950ac3529d61", "review_note": "근거상 루미봇 R3의 금지 구역은 최대 5곳인데 답변은 R5의 한도인 15곳이라고 했다.", "review_score": 1}
+{"case_id": "69efaa3278d8", "review_note": "근거상 숨결 A20은 앱 연결을 지원하지 않는데 답변은 블루투스 연결과 앱 기능을 지어냈다.", "review_score": 1}
+{"case_id": "ed40e26ad884", "review_note": "월 30만원 지급은 맞지만 동호회 활동 주장은 근거에 없고 최대 6개월 지급이라는 답이 빠졌다.", "review_score": 3}
+{"case_id": "ee0c3ce1e001", "review_note": "근거상 1만원권은 80% 이상 사용해야 잔액 환불이 가능한데 답변은 60%라고 했다.", "review_score": 1}
+{"case_id": "b57643f51a72", "review_note": "근거상 실장 직책수당은 50만원인데 답변은 팀장 수당인 30만원이라고 했다.", "review_score": 1}
+{"case_id": "b9f3a214eb59", "review_note": "해외직구 상품은 7~14영업일이 걸리고 새벽배송을 이용할 수 없다는 두 내용이 모두 근거와 일치한다.", "review_score": 5}
+{"case_id": "45b699cfd61f", "review_note": "근거상 생애 최초 구입자의 LTV는 70%인데 답변은 LTV를 쓰지 않는다며 다른 심사 기준을 지어냈다.", "review_score": 1}
+{"case_id": "98e19b1e76c1", "review_note": "보증 기간이 지난 루미봇 방문 수리의 출장비가 25,000원이라는 답변이 근거와 일치한다.", "review_score": 5}
+{"case_id": "b945e7c10aee", "review_note": "프리필터를 2주에 한 번 청소하고 분리해 물로 씻을 수 있다는 두 내용이 모두 근거와 일치한다.", "review_score": 5}
+{"case_id": "6c7b6955aaae", "review_note": "실험 장비 과제 연구직의 재택근무 주 1회만 맞고 메신저 보고·받침대 대여·전기료 지원은 모두 근거에 없다.", "review_score": 2}
+{"case_id": "50631c3399ae", "review_note": "징계 정직 기간이 최대 3개월이라는 답변이 근거와 일치한다.", "review_score": 5}
+{"case_id": "60fdfd232037", "review_note": "첫 주 40시간 교육과 미이수 시 과정 중단은 맞지만 교육생 사물함 주장은 근거에 없다.", "review_score": 4}
+{"case_id": "f4cd17de07c5", "review_note": "담보 대출 한도 95% 이내와 기본 금리 가산 1.25%p는 맞지만 지점 안내 책자 주장은 근거에 없다.", "review_score": 4}
+{"case_id": "8dd8e9471547", "review_note": "일반 등급이 30,000원 이상 주문하면 일반배송비가 무료라는 답변이 근거와 일치한다.", "review_score": 5}
+{"case_id": "3e1e3d522533", "review_note": "2.4GHz Wi-Fi만 연결된다는 내용은 맞지만 휴대폰 블루투스 주장은 근거에 없고 연결 완료 제한 3분을 답하지 않았다.", "review_score": 3}
+{"case_id": "d52217ee6d8b", "review_note": "근거상 골드 등급 기준은 직전 3개월 평균 1,000만원 이상인데 답변은 1,500만원이라고 했다.", "review_score": 1}
+{"case_id": "fa0f6a24c2e9", "review_note": "3시간 이상 수면 기록과 기상 후 앱 동기화 시 단계 확인은 맞지만 자동 화면 밝기 주장은 근거에 없다.", "review_score": 4}
+{"case_id": "8f2faeb71312", "review_note": "근거상 일반 상품 단순 변심 반품은 왕복 배송비 6,000원을 빼는데 답변은 상품가의 8%와 최소액을 지어냈다.", "review_score": 1}
+{"case_id": "a494b95e1332", "review_note": "근거상 R5 먼지봉투는 일반 가정에서 약 60일마다 교체하는데 답변은 45일이라고 했다.", "review_score": 1}
+{"case_id": "e1975344173f", "review_note": "근거상 OTP의 모바일 뱅킹 1일 한도는 5억원인데 답변은 1,000만원이라고 했다.", "review_score": 1}
+{"case_id": "3d7d080f9c24", "review_note": "근거상 다음 회차는 결제일 전날 자정까지 건너뛸 수 있는데 답변은 3일 전 자정이라고 했다.", "review_score": 1}
+{"case_id": "54df991d2f01", "review_note": "작동 중 삐 소리와 함께 꺼지면 배터리 잔량이 5% 미만이라는 답변이 근거와 일치한다.", "review_score": 5}
+{"case_id": "f2847d9706c8", "review_note": "직무발명을 30일 이내 신고한다는 내용은 맞지만 우수 직원 배지는 근거에 없고 회사의 4개월 내 결정도 답하지 않았다.", "review_score": 3}
+{"case_id": "516b95f53793", "review_note": "인사 문서 보존 기간 5년만 맞고 지하 문서고·출입일·색상 라벨 주장은 모두 근거에 없다.", "review_score": 2}
+{"case_id": "2b331b50f9ee", "review_note": "근거상 소리결 무선 이어폰의 수리용 부품 보유 기간은 생산 종료 후 4년인데 답변은 7년이라고 했다.", "review_score": 1}
+{"case_id": "ca688accc921", "reason": "주장 둘 중 하나(핵심 답)만 근거에 있어 4점 정의(사소한 주장 하나)와 3점 정의(반반)에 모두 맞는다. 스펙 3-2절이 ③에서 막은 모양이 ④에서 생겼다", "review_note": "솔 체크카드를 만 12세 이상이 발급받을 수 있다는 내용은 맞지만 캐릭터 스티커 제공 주장은 근거에 없다.", "review_score": 4, "user_decision": "drop"}
+{"case_id": "f399b349cf7e", "review_note": "매월 10편 선정과 5,000P 추가 지급은 맞지만 발표 글의 계절별 배경 그림 주장은 근거에 없다.", "review_score": 4}
+{"case_id": "9f81da5d9624", "review_note": "10~12개월 할부 수수료율이 연 18.0%라는 답변이 근거와 일치한다.", "review_score": 5}
+{"case_id": "5ad7b9413de8", "review_note": "근거상 시간제 근로자의 연차는 연간 최대 11일인데 답변은 정규직 최대치인 25일이라고 했다.", "review_score": 1}
+{"case_id": "b22a6ee8c6d8", "review_note": "이어폰 단독 통화 최대 4시간은 맞지만 마이크 두 개 주장은 근거에 없고 고음량 시 재생시간 약 20% 감소를 답하지 않았다.", "review_score": 3}
+{"case_id": "5e2479940ada", "review_note": "솔 정기예금 36개월 기본 금리가 연 2.80%라는 답변이 근거와 일치한다.", "review_score": 5}
+{"case_id": "4cb25388cc15", "review_note": "지연 하루당 환불액의 0.1%라는 내용은 맞지만 연말 우편 안내는 근거에 없고 적립금 보상이라는 답이 빠졌다.", "review_score": 3}
+{"case_id": "3fbdde6aa7bb", "reason": "질문이 묻는 핵심 값이 근거와 다르므로 1점 정의(근거와 반대되는 내용)에 맞는다", "review_note": "미개봉 상태여야 한다는 내용은 맞지만 반품 기한을 근거의 14일이 아닌 20일로 잘못 말했다.", "review_score": 3, "user_decision": "keep"}
+{"case_id": "4ab5867f8501", "reason": "주장 둘 중 하나(핵심 답)만 근거에 있어 4점 정의(사소한 주장 하나)와 3점 정의(반반)에 모두 맞는다. 스펙 3-2절이 ③에서 막은 모양이 ④에서 생겼다", "review_note": "낭떠러지 센서를 2주에 한 번 닦는다는 답은 맞지만 투명 아크릴 덮개 주장은 근거에 없다.", "review_score": 4, "user_decision": "drop"}
+{"case_id": "7d1044b2873f", "review_note": "5만원 이상 결제 조건만 맞고 앱 할부 관리·무료배송권·전화 변경은 근거에 없으며 2~6개월 무이자도 답하지 않았다.", "review_score": 2}
+{"case_id": "4c1a11418445", "review_note": "직전 12개월 구매확정액 250만원 이상과 VIP 1개월 유지라는 두 내용이 모두 근거와 일치한다.", "review_score": 5}
+{"case_id": "0fcacab1c95e", "review_note": "보증 기간이 지난 소리결 이어폰 택배 수리의 왕복 택배비가 8,000원이라는 답변이 근거와 일치한다.", "review_score": 5}
+{"case_id": "633b12eb69ed", "review_note": "기본 금리 연 0.10%만 맞고 표지 디자인·커피 쿠폰·전용 창구는 근거에 없으며 연 1.50% 적용 잔액 100만원도 답하지 않았다.", "review_score": 2}
+{"case_id": "b3f0d71c0a1f", "review_note": "근거는 단독주택이 담보가 될 수 없다고 명시하나 답변은 조건부로 가능하다며 실사와 서류를 지어냈다.", "review_score": 1}
+{"case_id": "a77fd2278781", "review_note": "근거상 영문 증명서 발급은 3영업일인데 답변은 7영업일이라고 했다.", "review_score": 1}
+{"case_id": "ced092f62c07", "review_note": "5만원권은 금액의 60% 이상 사용한 뒤 잔액 환불이 가능하다는 답변이 근거와 일치한다.", "review_score": 5}
+{"case_id": "d1874effc950", "review_note": "가족돌봄휴가가 연간 10일이고 무급이라는 답은 맞지만 개인 우편물 보관함 주장은 근거에 없다.", "review_score": 4}
+{"case_id": "f14a10f0f650", "review_note": "기사의 2영업일 내 방문과 다른 택배 선불 비용을 환불액에 더해 돌려준다는 답이 모두 근거와 일치한다.", "review_score": 5}
+{"case_id": "e22829831e1f", "review_note": "코어타임 오전 10시부터 오후 4시는 맞지만 무료 주차 배정은 근거에 없고 출근 선택 시간 오전 7~10시를 답하지 않았다.", "review_score": 3}
+{"case_id": "07d706d1fc57", "review_note": "근무일 외부 강연의 월 2회·연 12회 제한은 맞지만 지정 흡연 구역 주장은 근거에 없다.", "review_score": 4}
+{"case_id": "0455f0bf52bb", "review_note": "반반차 4회를 연차 1일로 계산한다는 답변이 근거와 일치한다.", "review_score": 5}
+{"case_id": "32c8756733a9", "review_note": "성과평가를 연 2회 한다는 내용은 맞지만 무료 음료는 근거에 없고 상반기 평가가 7월이라는 답이 빠졌다.", "review_score": 3}
+{"case_id": "536b5d401a64", "review_note": "골드 생일 쿠폰 5,000원만 맞고 손편지·무료 음료·가족 선물 가능 주장은 모두 근거에 없다.", "review_score": 2}
+{"case_id": "502fc9941050", "review_note": "오류 상태 10분 뒤 전원 종료는 맞지만 경고음·시계 초기화·재가동 위치 주장은 모두 근거에 없다.", "review_score": 2}
+{"case_id": "d69c34428a57", "review_note": "멘토의 입사 3년 차 이상 조건과 월 10만원 수당은 맞지만 체력단련실 이용 시간은 근거에 없다.", "review_score": 4}
+{"case_id": "a556c32c758f", "review_note": "부설연구소 연구직의 배우자 출산 휴가가 12일이라는 답변이 근거와 일치한다.", "review_score": 5}
+{"case_id": "5502fad4a31c", "review_note": "실버 등급 일반배송 무료 기준이 20,000원 이상이라는 답변이 근거와 일치한다.", "review_score": 5}
+{"case_id": "53b63bfc6340", "review_note": "제주 지역 추가 배송비가 기본 배송비와 별도로 3,000원이라는 답변이 근거와 일치한다.", "review_score": 5}
+{"case_id": "a2c3723db23c", "review_note": "신용카드 환불 3~5영업일만 맞고 우편 안내·상담 전화·해외 카드 수수료 주장은 모두 근거에 없다.", "review_score": 2}
+{"case_id": "0077975b2d68", "review_note": "최근 1년 매출의 25% 이내이면서 최대 5,000만원이라는 한도 답변이 근거와 일치한다.", "review_score": 5}
+{"case_id": "3909377dbed6", "reason": "질문이 묻는 핵심 값이 근거와 다르므로 1점 정의(근거와 반대되는 내용)에 맞는다", "review_note": "3영업일 이상 지연 시 보상받는다는 내용은 맞지만 보상액을 근거의 1,000P가 아닌 1,500P라고 했다.", "review_score": 3, "user_decision": "keep"}
+{"case_id": "b9da586fa377", "review_note": "근거상 적립률은 1.2%이고 전월 100만원 이상이어야 하는데 답변은 스탬프와 마일리지 제도를 지어냈다.", "review_score": 1}
+{"case_id": "96714899ce21", "review_note": "6개월 기본 금리 연 2.70%만 맞고 통장 지갑·직원 전화·화상 상담 주장은 모두 근거에 없다.", "review_score": 2}
+{"case_id": "dab45d5a0d4f", "review_note": "상실일부터 30일 안에 모두 갚으면 한 번에 한해 기한의 이익을 되살린다는 답이 근거와 일치한다.", "review_score": 5}
+{"case_id": "ec48fff49158", "review_note": "목표 습도를 40%부터 70%까지 5% 단위로 고른다는 답변이 근거와 일치한다.", "review_score": 5}
+{"case_id": "3969c30543ff", "review_note": "해외 결제 수수료 1.0%만 맞고 공항 라운지·여행자 보험·가방 택 주장은 모두 근거에 없다.", "review_score": 2}
+{"case_id": "15ff2740d304", "review_note": "현장실습생의 월 실습 수당이 120만원이라는 답변이 근거와 일치한다.", "review_score": 5}
+{"case_id": "767685141d93", "review_note": "물통 용량 4L만 맞고 손잡이·무드등·자동 종료 주장은 근거에 없으며 최대 가습량 300mL/h도 답하지 않았다.", "review_score": 2}
+{"case_id": "bbaa2116d773", "review_note": "실버 등급의 적립률이 결제 금액의 1%라는 답변이 근거와 일치한다.", "review_score": 5}
+{"case_id": "13132e38e748", "review_note": "근거상 과제 결과 비중은 30%인데 답변은 45%와 근거 없는 나머지 평가 구성을 지어냈다.", "review_score": 1}
+{"case_id": "15458e2ba26a", "review_note": "자유적립식은 같은 기간 정액적립식 금리에서 0.20%p를 뺀다는 답변이 근거와 일치한다.", "review_score": 5}
+{"case_id": "7688ecff674f", "review_note": "정규직 연차가 입사일 기준 15일이라는 내용은 맞지만 동호회 가입은 근거에 없고 최소 3일 전 신청을 답하지 않았다.", "review_score": 3}
+{"case_id": "e12824441564", "review_note": "근거상 해외 체류 등록 기간은 최대 90일인데 답변은 120일이라고 했다.", "review_score": 1}
+{"case_id": "b37ad15818cf", "review_note": "근거상 실버 등급 새벽배송 무료 기준은 40,000원인데 답변은 25,000원이라고 했다.", "review_score": 1}
+{"case_id": "f45d6fb75a8b", "review_note": "B2 Pro 이어팁은 4쌍에 7,000원이고 B1과 지름이 달라 맞지 않는다는 답이 모두 근거와 일치한다.", "review_score": 5}
+{"case_id": "ae76c65f5a8b", "review_note": "근거는 개봉한 화장품을 교환할 수 없다고 명시하는데 답변은 교환 가능하다고 반대로 말했다.", "review_score": 1}
+{"case_id": "1468fd4f77cd", "review_note": "근거상 B1을 10분 충전하면 약 1시간 재생할 수 있는데 답변은 1시간 30분이라고 했다.", "review_score": 1}
+{"case_id": "d80b330d93e3", "review_note": "이체가 3시간 뒤 처리된다는 내용만 맞고 보안 스티커·화면 테마·점검 보고서는 근거에 없으며 중간 취소 가능 여부도 답하지 않았다.", "review_score": 2}
+{"case_id": "4ba1c4915b36", "review_note": "솔 정기적금 36개월 정액적립식 기본 금리가 연 3.50%라는 답변이 근거와 일치한다.", "review_score": 5}
+{"case_id": "63b5b850ffff", "review_note": "만 18세 미만 솔 체크카드의 1일 이용 한도가 30만원이라는 답변이 근거와 일치한다.", "review_score": 5}
+{"case_id": "551f85948ef0", "review_note": "근거상 솔 전세자금대출 중도상환 수수료율은 0.5%인데 답변은 0.7%라고 했다.", "review_score": 1}
+{"case_id": "a1709acfc818", "review_note": "신규가입 쿠폰 5,000원과 발급일부터 30일 유효라는 두 내용이 모두 근거와 일치한다.", "review_score": 5}
+{"case_id": "75a0ae43694d", "review_note": "근거상 일반과 실버 등급은 가격보상을 받을 수 없는데 답변은 받을 수 있다고 반대로 말했다.", "review_score": 1}
+{"case_id": "281f06b59e35", "review_note": "도착 후 5영업일 내 수리와 양쪽 이어폰 및 충전 케이스를 함께 보내야 한다는 답이 모두 근거와 일치한다.", "review_score": 5}
+{"case_id": "b0bcd638f0a5", "reason": "주장 둘 중 하나(핵심 답)만 근거에 있어 4점 정의(사소한 주장 하나)와 3점 정의(반반)에 모두 맞는다. 스펙 3-2절이 ③에서 막은 모양이 ④에서 생겼다", "review_note": "혜택 환급액이 다음 달 15일 입금된다는 내용은 맞지만 앱 축하 알림음 주장은 근거에 없다.", "review_score": 4, "user_decision": "drop"}
+{"case_id": "8497e8761d6d", "review_note": "근거상 배우자의 다태아 출산 휴가는 15일인데 답변은 13일이라고 했다.", "review_score": 1}
+{"case_id": "d1fc6de3983f", "review_note": "동기화하지 않은 기록을 최대 7일치 저장한다는 답변이 근거와 일치한다.", "review_score": 5}
+{"case_id": "38972098760f", "review_note": "플래티넘 등급 기준이 평균 총수신잔액 5,000만원 이상이라는 답변이 근거와 일치한다.", "review_score": 5}
+{"case_id": "cd77b3816bfd", "review_note": "평일 오후 2시 이전 당일 출고와 도착까지 1~2영업일은 맞지만 캐릭터 스티커 다운로드 주장은 근거에 없다.", "review_score": 4}
+{"case_id": "02d06fa0dea9", "reason": "주장 둘 중 하나(핵심 답)만 근거에 있어 4점 정의(사소한 주장 하나)와 3점 정의(반반)에 모두 맞는다. 스펙 3-2절이 ③에서 막은 모양이 ④에서 생겼다", "review_note": "S5 기본 바닥 브러시 사용 시 E3가 나지 않는다는 답은 맞지만 뒤쪽 바퀴 두 개 주장은 근거에 없다.", "review_score": 4, "user_decision": "drop"}
+{"case_id": "47be8f306a61", "review_note": "4~6등급은 연소득의 100% 이내에서 최대 5,000만원이라는 답변이 근거와 일치한다.", "review_score": 5}
+{"case_id": "8ae4d2d40d54", "review_note": "배우자 직계가족 사망 시 조의금 30만원과 휴가 3일은 맞지만 생일 케이크 쿠폰 주장은 근거에 없다.", "review_score": 4}
+{"case_id": "d45350c65db0", "review_note": "근거상 예약 청소는 하루 최대 3회이고 배터리 30% 미만이면 건너뛰는데 답변은 두 수치와 등록 방법을 모두 다르게 말했다.", "review_score": 1}
+{"case_id": "f4a1829784f6", "review_note": "심사를 매년 1월과 7월에 하고 HR-310으로 신청한다는 답은 맞지만 주차장 이용 시간은 근거에 없다.", "review_score": 4}
+{"case_id": "e0205fd9efa8", "review_note": "거치대 아래 끝을 바닥에서 90~110cm에 두고 석고보드 전용 앵커를 따로 사야 한다는 답이 근거와 일치한다.", "review_score": 5}
+{"case_id": "c4aed0bfe912", "review_note": "근거상 무통장입금 환불은 2영업일 이내인데 답변은 6영업일이라고 했다.", "review_score": 1}
+{"case_id": "afe2d73bd679", "review_note": "주문일부터 3일 안에 입금해야 한다는 내용은 맞지만 상담원 확인 전화는 근거에 없고 미입금 시 자동 취소를 답하지 않았다.", "review_score": 3}
+{"case_id": "5488a9648df4", "review_note": "근거상 하람페이 환불은 1영업일 이내인데 답변은 4영업일 이내라고 했다.", "review_score": 1}
+{"case_id": "4e713b00946d", "reason": "주장 둘 중 하나(핵심 답)만 근거에 있어 4점 정의(사소한 주장 하나)와 3점 정의(반반)에 모두 맞는다. 스펙 3-2절이 ③에서 막은 모양이 ④에서 생겼다", "review_note": "W1은 샤워와 수영 때 풀어야 한다는 핵심은 맞지만 긁힘 방지 코팅 주장은 근거에 없다.", "review_score": 4, "user_decision": "drop"}
+{"case_id": "301c33466f24", "review_note": "우대 금리 최대 연 0.30%p는 맞지만 볼펜 사은품은 근거에 없고 모바일 가입 시 0.10%p 추가를 답하지 않았다.", "review_score": 3}
+{"case_id": "d1257a5ea4d4", "review_note": "근거상 S5 정품 교체 배터리는 69,000원인데 답변은 75,000원이라고 했다.", "review_score": 1}
+{"case_id": "4106813853a4", "review_note": "근거상 금요일에 주문한 냉장 신선식품은 다음 주 월요일 출고인데 답변은 근거 없는 3일째 출고와 순번제를 말했다.", "review_score": 1}
+{"case_id": "d40028fd1080", "review_note": "근거상 사진 후기 적립금은 500P인데 답변은 동영상 후기 금액인 1,000P라고 했다.", "review_score": 1}
+{"case_id": "107ebaaacdc6", "review_note": "하루핏 W1에서 AOD를 켜면 약 3일 쓸 수 있다는 답변이 근거와 일치한다.", "review_score": 5}
+{"case_id": "e89e77a40b46", "review_note": "E1이 모터 또는 배터리 과열이라는 내용만 맞고 리셋·펌웨어·통풍구 조치는 근거에 없으며 30분 식히라는 조치도 빠졌다.", "review_score": 2}
+{"case_id": "e2cb9c0ba0ee", "review_note": "결제한 달이 지난 휴대폰 결제 취소분은 등록 환불 계좌로 3영업일 이내 입금된다는 답이 근거와 일치한다.", "review_score": 5}
+{"case_id": "fd2506428f6d", "review_note": "근거상 잔액 50만원 이상 계좌는 3년간 거래가 없으면 중지되는데 답변은 4년이라고 했다.", "review_score": 1}
+{"case_id": "67e693f08b7b", "review_note": "계약직 기본 근무 주 35시간은 맞지만 사물함 배정은 근거에 없고 출근 시각 오전 9시를 답하지 않았다.", "review_score": 3}
+{"case_id": "fac710cff9c8", "review_note": "상품 쿠폰 1장과 장바구니 쿠폰 1장까지 함께 쓸 수 있다는 내용은 맞지만 할인 영수증은 근거에 없고 정기배송 쿠폰 불가를 답하지 않았다.", "review_score": 3}
+{"case_id": "64de330f2329", "reason": "주장 둘 중 하나(핵심 답)만 근거에 있어 4점 정의(사소한 주장 하나)와 3점 정의(반반)에 모두 맞는다. 스펙 3-2절이 ③에서 막은 모양이 ④에서 생겼다", "review_note": "VIP 기준이 직전 6개월 구매확정액 150만원 이상이라는 내용은 맞지만 우편 엽서 안내 주장은 근거에 없다.", "review_score": 4, "user_decision": "drop"}
+{"case_id": "6f92a86618a6", "review_note": "방문 날짜는 한 번 무료 변경 가능하고 두 번째부터 20,000원이라는 답변이 근거와 일치한다.", "review_score": 5}
+{"case_id": "645c02008cad", "review_note": "적립금은 1,000P 이상부터 쓰며 한 주문에서 상품 금액의 최대 30%까지라는 답이 근거와 일치한다.", "review_score": 5}
+{"case_id": "2df38e32db11", "review_note": "3~6개월 미만 정기예금에 기본 금리의 30%를 적용한다는 내용만 맞고 키오스크·달력·상담실 주장은 모두 근거에 없다.", "review_score": 2}
+{"case_id": "01820939c477", "review_note": "40년은 만 39세 이하만 가능하고 거치는 최대 1년이라는 답은 맞지만 상담실 위치는 근거에 없다.", "review_score": 4}
+{"case_id": "478c371be050", "review_note": "클린윙 S7을 강 모드에서 약 18분 쓸 수 있다는 답변이 근거와 일치한다.", "review_score": 5}
+{"case_id": "6895759db948", "review_note": "근거상 B지역 주재 수당은 월 150만원인데 답변은 A지역 금액인 200만원이라고 했다.", "review_score": 1}
+{"case_id": "c3cd8c81ac51", "review_note": "회의실을 한 번에 최대 3시간, 최대 4주 앞까지 예약할 수 있다는 답이 근거와 일치한다.", "review_score": 5}
+{"case_id": "a6531e958963", "review_note": "형제자매 결혼에는 휴가가 없고 축의금 20만원만 지급한다는 답변이 근거와 일치한다.", "review_score": 5}
+{"case_id": "71a6e52b77ce", "review_note": "기간 1·2·3년과 원리금균등분할상환 방식은 맞지만 대출 고객 무료 주차 주장은 근거에 없다.", "review_score": 4}
+{"case_id": "b4c7310fb417", "review_note": "근거상 해외직구 단순 변심 반품 배송비는 25,000원인데 답변은 일반 교환비인 6,000원이라고 했다.", "review_score": 1}
+{"case_id": "7980952e29c1", "review_note": "가입 기간 12개월과 월 한도 50만원은 맞지만 마스코트 열쇠고리 제공 주장은 근거에 없다.", "review_score": 4}
+{"case_id": "cc69ddd3a2fa", "review_note": "B2 Pro 케이스를 유선으로 완전 충전하는 데 약 2시간 걸린다는 답변이 근거와 일치한다.", "review_score": 5}
+{"case_id": "50a2a69beba9", "review_note": "금리 연 4.20%와 신혼부부 0.20%p 우대는 맞지만 이사용 상자 제공 주장은 근거에 없다.", "review_score": 4}
+{"case_id": "98427d44af2b", "review_note": "휴대폰 결제 1회 한도 300,000원은 맞지만 앱 분류 기능은 근거에 없고 월 한도 500,000원을 답하지 않았다.", "review_score": 3}
+{"case_id": "50abc8836ca8", "review_note": "골드 등급은 직전 6개월 구매확정액 70만원 이상이라는 답변이 근거와 일치한다.", "review_score": 5}
+{"case_id": "c805cac0d886", "review_note": "근거상 근속 10년 포상은 200만원과 유급휴가 5일인데 답변은 두 수치와 수여 방식까지 다르게 말했다.", "review_score": 1}
+{"case_id": "1cefb5203e46", "review_note": "발급 후 14일 안에 미사용 상태로 해지하면 연회비를 전액 돌려준다는 답변이 근거와 일치한다.", "review_score": 5}
+{"case_id": "19a9bd832ff5", "review_note": "소액 신용 월 30만원 한도는 맞지만 디자인 변경은 근거에 없고 해당 금액은 할부할 수 없다는 답이 빠졌다.", "review_score": 3}
+{"case_id": "0552647cf2db", "review_note": "생년월일 변경이 1년에 한 번으로 제한된다는 답변이 근거와 일치한다.", "review_score": 5}
+{"case_id": "933f70d12203", "review_note": "근거상 의자 지원 한도는 40만원인데 답변은 25만원이라고 했다.", "review_score": 1}
+{"case_id": "9e3079ecf7b0", "review_note": "보안카드의 1회 이체 한도가 500만원이라는 답변이 근거와 일치한다.", "review_score": 5}
+{"case_id": "1a371df61d04", "review_note": "해외지사 근무자의 자녀 결혼 휴가가 3일이라는 답변이 근거와 일치한다.", "review_score": 5}
+{"case_id": "2fb2716fef2b", "review_note": "증빙이 없으면 제조 연월에 3개월을 더한 날을 구입일로 본다는 답은 맞지만 영수증 촬영 조언은 근거에 없다.", "review_score": 4}
+{"case_id": "6c91c5c85d64", "review_note": "근거는 어학 학원비를 지원하지 않는다고 명시하나 답변은 한도와 환급 절차를 지어냈다.", "review_score": 1}
+{"case_id": "51d3f2d73e12", "review_note": "근거상 숨결 공기청정기 팬 모터의 무상 보증은 5년인데 답변은 3년이라고 했다.", "review_score": 1}
+{"case_id": "9abd569f4f27", "review_note": "카드를 6개월 이상 써야 한다는 내용은 맞지만 전담 상담사 전화는 근거에 없고 최대 한도 5,000만원을 답하지 않았다.", "review_score": 3}
+{"case_id": "506a30317e92", "review_note": "현재 직장 6개월 이상 재직 조건만 맞고 대표 추천서·화상 상담·인형 제공은 근거에 없으며 연소득 2,400만원 조건도 답하지 않았다.", "review_score": 2}

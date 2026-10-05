@@ -16,14 +16,15 @@ import tempfile
 from pathlib import Path
 
 from .judge5 import (
-    CRITERIA, MAX_NEW_TOKENS, MODELS, RUBRIC, SCALE,
+    CRITERIA, MAX_NEW_TOKENS, MODELS, RUBRIC, RULES_V2, SCALE, Comparison,
     build_messages, compare, prompt_sha256, smoke_messages, linear_weighted_kappa, parse_result, pick_best,
-    replacement_failures, sign_test_p, summarize, to_three,
+    replacement_failures, sha256_file, sign_test_p, summarize, to_three,
 )
+from . import judge5_cloudflare
 from .judge5_cloudflare import done_ids, foreign_lines, result_line
 from . import judge5_report
 from .judge5_report import ReportProblem, cut_unread, load_run, scores_of
-from .judge5_export import CASES_SHA, NEW_LABELS, ROOT, labels_ready, make_cases, make_label_file
+from .judge5_export import CASES, CASES_SHA, NEW_LABELS, RESULTS_DIR, ROOT, labels_ready, make_cases, make_label_file
 from .judge_label_server import LabelRejected, apply_label
 
 _SOURCES = [
@@ -430,6 +431,90 @@ def check_load_run_refuses_partial_or_foreign_files() -> None:
         assert load_run(p, {"aa"}, "s") == {"aa": "[RESULT] 5"}
 
 
+def check_parse_v1_ignores_bracket_tail() -> None:
+    """앞 실험 판은 그대로다. 대괄호로 끝나는 출력을 v1 이 읽기 시작하면 앞 실험의 M4 점수가 바뀐다."""
+    assert parse_result("이유를 적었다. [4]") == (None, "missing")
+    assert parse_result("이유를 적었다. [4]", "stop") == (None, "missing")
+
+
+def check_parse_v2_reads_bracket_tail() -> None:
+    """v2 스펙 6-4절: [RESULT] 가 없고 맨 끝이 대괄호 정수 하나이면 읽는다. 꾸밈은 [RESULT] 와 똑같이 받는다."""
+    def v2(text: str, finish: str | None = "stop") -> tuple[int | None, str]:
+        return parse_result(text, finish, rules=RULES_V2)
+
+    assert v2("이유를 적었다. [4]") == (4, "ok")
+    assert v2("이유를 적었다. [4]  \n") == (4, "ok")           # 뒤의 공백은 무시한다
+    for tail in ("[４]", "[4/5]", "**[4]**", "[**4**]", "[ 4 ]"):
+        assert v2("이유 " + tail) == (4, "ok"), tail
+    assert v2("이유 [05]") == (5, "ok")                         # 앞의 0
+    assert v2("근거 [1] 을 보면 맞다. [3]") == (3, "ok")         # 앞의 대괄호는 무시하고 맨 끝만 본다
+
+
+def check_parse_v2_tail_is_strict() -> None:
+    """1~5 정수가 아니거나 맨 끝이 아니면 규칙을 적용하지 않으므로 missing 이다(out_of_range 가 아니다)."""
+    for text in ("이유 [7]", "이유 [4.5]", "이유 [4/10]", "이유 [0]", "이유 [-1]", "이유 [4].", "이유 [4] 끝", "점수 없음"):
+        assert parse_result(text, "stop", rules=RULES_V2) == (None, "missing"), text
+
+
+def check_parse_v2_refuses_truncated_tail() -> None:
+    """512 토큰에서 잘린 출력의 끝은 모델이 점수를 적은 자리가 아니다(v2 스펙 6-4절 세부 규칙 2)."""
+    assert parse_result("이유가 길어서 잘렸다 [2]", "length", rules=RULES_V2) == (None, "missing")
+    assert parse_result("잘렸는지 모른다 [4]", None, rules=RULES_V2) == (None, "missing")   # None 은 "모른다"
+
+
+def check_parse_v2_keeps_result_rules() -> None:
+    """[RESULT] 가 있으면 대괄호 끝 규칙을 쓰지 않는다. 앞 판의 상태가 그대로 나와야 한다."""
+    v2 = lambda t: parse_result(t, "stop", rules=RULES_V2)   # noqa: E731 - 점검 안에서만 쓰는 줄임
+    assert v2("[RESULT] 4 그리고 [2]") == (4, "ok")
+    assert v2("[RESULT] 점수 [3]") == (None, "out_of_range")
+    assert v2("[RESULT] 2 [RESULT] 3") == (None, "conflict")
+    try:
+        parse_result("[RESULT] 4", rules="v3")
+    except ValueError:
+        return
+    raise AssertionError("모르는 판은 거절해야 한다")
+
+
+def check_verdict_basis_and_severe_criterion() -> None:
+    """v2 는 사람이 아니라 대응표와 대조한다(스펙 1-3절). 기준 4는 severe 를 줄 때만 본다(앞 실험 보고서 보존)."""
+    win = Comparison(0, 10, 0, 0, 0.002)
+    assert win.verdict("M3", "M1") == "M3 가 사람에 더 가깝다"
+    assert win.verdict("M3", "M1", basis="대응표") == "M3 가 대응표에 더 가깝다"
+    s = summarize([(5, 5)] * 3)
+    tie = Comparison(0, 0, 0, 3, 1.0)
+    assert replacement_failures(s, s, tie) == []
+    assert replacement_failures(s, s, tie, severe=(1, 1)) == []
+    assert replacement_failures(s, s, tie, severe=(2, 1)) == ["심각한 놓침이 M1 보다 많다(2 > 1)"]
+    lose = Comparison(0, 0, 10, 0, 0.002)
+    assert replacement_failures(s, s, lose, basis="대응표") == ["부호 검정에서 M1 이 대응표에 더 가깝다(p = 0.0020)"]
+
+
+def check_cloudflare_defaults_are_v1_paths() -> None:
+    """인자 없이 부르면 앞 실험과 같은 시험지와 결과 폴더다(v2 스펙 8-3절)."""
+    args = judge5_cloudflare._parser().parse_args([])
+    assert args.cases == CASES and args.results_dir == RESULTS_DIR
+    assert judge5_cloudflare.sha_path(CASES) == CASES.parent / "cases.sha256"
+
+
+def check_cloudflare_run_all_takes_paths_and_copies_domain() -> None:
+    """v2 시험지로 돌리면 결과 줄에 분야가 옮겨진다. 분야가 없는 줄(앞 실험)에는 domain 키를 만들지 않는다."""
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        cases = d / "cases.jsonl"
+        cases.write_text(
+            json.dumps({"case_id": "aa", "domain": "shop", "messages": []}) + "\n"
+            + json.dumps({"case_id": "bb", "messages": []}) + "\n", encoding="utf-8")
+        (d / "cases.sha256").write_text(f"{sha256_file(cases)}  cases.jsonl\n", encoding="utf-8")
+        saved = judge5_cloudflare._call
+        judge5_cloudflare._call = lambda messages: ("[RESULT] 5", "stop")   # 외부 API 대신 가짜 응답
+        try:
+            assert judge5_cloudflare.run_all(None, cases, d / "res") == 0
+        finally:
+            judge5_cloudflare._call = saved   # 모듈 전역을 바꿨으므로 반드시 되돌린다
+        rows = [json.loads(l) for l in (d / "res" / "M1_run1.jsonl").read_text(encoding="utf-8").splitlines()]
+    assert rows[0]["domain"] == "shop" and "domain" not in rows[1]
+
+
 def check_scores_of_counts_each_failure_kind() -> None:
     scores, kinds = scores_of({"a": "[RESULT] 5", "b": "점수 없음", "c": "[RESULT] 9", "d": "[RESULT] 2 [RESULT] 3"})
     assert scores == {"a": 5, "b": None, "c": None, "d": None}
@@ -522,6 +607,14 @@ CHECKS = [
     check_scores_of_counts_each_failure_kind,
     check_cut_unread_counts_only_truncated,
     check_build_compares_in_the_right_direction,
+    check_parse_v1_ignores_bracket_tail,
+    check_parse_v2_reads_bracket_tail,
+    check_parse_v2_tail_is_strict,
+    check_parse_v2_refuses_truncated_tail,
+    check_parse_v2_keeps_result_rules,
+    check_verdict_basis_and_severe_criterion,
+    check_cloudflare_defaults_are_v1_paths,
+    check_cloudflare_run_all_takes_paths_and_copies_domain,
 ]
 
 

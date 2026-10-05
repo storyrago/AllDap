@@ -1,0 +1,38 @@
+{
+ "finance-007": {
+  "note": "정답 청크가 검색 top5 밖. 근거에는 다른 상품의 값만 있다",
+  "reason": "answer_not_in_top5"
+ },
+ "finance-010": {
+  "note": "정답 청크가 검색 top5 밖. 근거에는 다른 상품의 값만 있다",
+  "reason": "answer_not_in_top5"
+ },
+ "finance-016": {
+  "note": "정답 청크가 검색 top5 밖. 근거 5청크에 답이 없다",
+  "reason": "answer_not_in_top5"
+ },
+ "finance-026": {
+  "note": "정답이 든 절이 검색 top5 밖. 근거 5청크에 답이 없다",
+  "reason": "answer_not_in_top5"
+ },
+ "finance-027": {
+  "note": "정답이 든 절이 검색 top5 밖. 근거 5청크에 답이 없다",
+  "reason": "answer_not_in_top5"
+ },
+ "finance-036": {
+  "note": "정답 청크가 검색 top5 밖. 근거 5청크에 답이 없다",
+  "reason": "answer_not_in_top5"
+ },
+ "finance-040": {
+  "note": "정답 청크가 검색 top5 밖. 근거 5청크에 답이 없다",
+  "reason": "answer_not_in_top5"
+ },
+ "hr-048": {
+  "note": "답이 두 가지인 질문. 한쪽의 정답 청크가 검색 top5 밖",
+  "reason": "partial_answer_not_in_top5"
+ },
+ "shop-061": {
+  "note": "답이 두 가지인 질문. 한쪽의 정답 청크가 검색 top5 밖",
+  "reason": "partial_answer_not_in_top5"
+ }
+}

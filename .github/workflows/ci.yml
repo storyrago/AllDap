@@ -252,6 +252,7 @@ jobs:
       #    ✅ tools.import_boundary_check 는 app 이 tools 를 import 하지 않는지 본다. 운영 이미지는
       #       app/ 만 복사하므로, 어기면 여기서는 초록인데 운영 컨테이너에서만 죽는다.
       #    ✅ tools.judge5_check 는 채점 모델 비교 실험의 순수 함수(점수 읽기, 대조 수치, 부호 검정)만 본다.
+      #    ✅ tools.judge5v2_check 는 채점 모델 비교 v2 의 도구(검색은 가짜 함수로), 노트북 대조, 커밋된 시험지와 배정만 본다.
       - name: 자체 점검 (DB·외부 API 없이 도는 것만)
         run: |
           python -m tools.parsers_check
@@ -273,6 +274,7 @@ jobs:
           python -m tools.inject_probe_check
           python -m tools.import_boundary_check
           python -m tools.judge5_check
+          python -m tools.judge5v2_check
           python -m loadtest.fake_cf_check
           python -m loadtest.s3_check
           python -m loadtest.s4_check

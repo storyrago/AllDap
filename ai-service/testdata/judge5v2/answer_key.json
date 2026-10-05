@@ -1,0 +1,2164 @@
+{
+  "cases": {
+    "0077975b2d68": {
+      "decision": "match",
+      "domain": "finance",
+      "qid": "finance-029",
+      "review_score": 5,
+      "score": 5,
+      "table_score": 5,
+      "type": 2
+    },
+    "01538a8be8ba": {
+      "decision": "match",
+      "domain": "finance",
+      "qid": "finance-049",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "type": 7
+    },
+    "01820939c477": {
+      "decision": "match",
+      "domain": "finance",
+      "qid": "finance-035",
+      "review_score": 4,
+      "score": 4,
+      "table_score": 4,
+      "type": 3
+    },
+    "0455f0bf52bb": {
+      "decision": "match",
+      "domain": "hr",
+      "qid": "hr-003",
+      "review_score": 5,
+      "score": 5,
+      "table_score": 5,
+      "type": 1
+    },
+    "0552647cf2db": {
+      "decision": "match",
+      "domain": "shop",
+      "qid": "shop-004",
+      "review_score": 5,
+      "score": 5,
+      "table_score": 5,
+      "type": 2
+    },
+    "07d706d1fc57": {
+      "decision": "match",
+      "domain": "hr",
+      "qid": "hr-056",
+      "review_score": 4,
+      "score": 4,
+      "table_score": 4,
+      "type": 3
+    },
+    "0a5cf8ce86f8": {
+      "decision": "match",
+      "domain": "finance",
+      "qid": "finance-038",
+      "review_score": 5,
+      "score": 5,
+      "table_score": 5,
+      "type": 1
+    },
+    "0a8f47179748": {
+      "decision": "match",
+      "domain": "manual",
+      "qid": "manual-057",
+      "review_score": 2,
+      "score": 2,
+      "table_score": 2,
+      "type": 5
+    },
+    "0f3a6c132cd4": {
+      "decision": "match",
+      "domain": "finance",
+      "qid": "finance-056",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "type": 8
+    },
+    "0fcacab1c95e": {
+      "decision": "match",
+      "domain": "manual",
+      "qid": "manual-068",
+      "review_score": 5,
+      "score": 5,
+      "table_score": 5,
+      "type": 2
+    },
+    "0fed27616767": {
+      "decision": "match",
+      "domain": "manual",
+      "qid": "manual-031",
+      "review_score": 4,
+      "score": 4,
+      "table_score": 4,
+      "type": 3
+    },
+    "105bb18eb466": {
+      "decision": "match",
+      "domain": "shop",
+      "qid": "shop-022",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "type": 7
+    },
+    "107ebaaacdc6": {
+      "decision": "match",
+      "domain": "manual",
+      "qid": "manual-056",
+      "review_score": 5,
+      "score": 5,
+      "table_score": 5,
+      "type": 2
+    },
+    "13132e38e748": {
+      "decision": "match",
+      "domain": "hr",
+      "qid": "hr-012",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "type": 7
+    },
+    "13ce97b81222": {
+      "decision": "match",
+      "domain": "manual",
+      "qid": "manual-025",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "type": 6
+    },
+    "1468fd4f77cd": {
+      "decision": "match",
+      "domain": "manual",
+      "qid": "manual-038",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "type": 8
+    },
+    "15458e2ba26a": {
+      "decision": "match",
+      "domain": "finance",
+      "qid": "finance-015",
+      "review_score": 5,
+      "score": 5,
+      "table_score": 5,
+      "type": 1
+    },
+    "15ff2740d304": {
+      "decision": "match",
+      "domain": "hr",
+      "qid": "hr-074",
+      "review_score": 5,
+      "score": 5,
+      "table_score": 5,
+      "type": 1
+    },
+    "165becc12ec3": {
+      "decision": "match",
+      "domain": "hr",
+      "qid": "hr-046",
+      "review_score": 5,
+      "score": 5,
+      "table_score": 5,
+      "type": 2
+    },
+    "16e08688432f": {
+      "decision": "match",
+      "domain": "hr",
+      "qid": "hr-067",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "type": 6
+    },
+    "18051558e732": {
+      "decision": "match",
+      "domain": "manual",
+      "qid": "manual-042",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "type": 8
+    },
+    "18f11e98993f": {
+      "decision": "match",
+      "domain": "hr",
+      "qid": "hr-053",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "type": 6
+    },
+    "19a9bd832ff5": {
+      "decision": "match",
+      "domain": "finance",
+      "qid": "finance-044",
+      "review_score": 3,
+      "score": 3,
+      "table_score": 3,
+      "type": 4
+    },
+    "1a371df61d04": {
+      "decision": "match",
+      "domain": "hr",
+      "qid": "hr-066",
+      "review_score": 5,
+      "score": 5,
+      "table_score": 5,
+      "type": 2
+    },
+    "1a3cafb82f72": {
+      "decision": "match",
+      "domain": "shop",
+      "qid": "shop-006",
+      "review_score": 4,
+      "score": 4,
+      "table_score": 4,
+      "type": 3
+    },
+    "1a7870f25411": {
+      "decision": "match",
+      "domain": "shop",
+      "qid": "shop-066",
+      "review_score": 5,
+      "score": 5,
+      "table_score": 5,
+      "type": 1
+    },
+    "1c4b4a0c4ac0": {
+      "decision": "match",
+      "domain": "finance",
+      "qid": "finance-071",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "type": 8
+    },
+    "1cefb5203e46": {
+      "decision": "match",
+      "domain": "finance",
+      "qid": "finance-047",
+      "review_score": 5,
+      "score": 5,
+      "table_score": 5,
+      "type": 2
+    },
+    "212485b27360": {
+      "decision": "match",
+      "domain": "shop",
+      "qid": "shop-030",
+      "review_score": 3,
+      "score": 3,
+      "table_score": 3,
+      "type": 4
+    },
+    "234e5d5f5fd8": {
+      "decision": "match",
+      "domain": "hr",
+      "qid": "hr-039",
+      "review_score": 5,
+      "score": 5,
+      "table_score": 5,
+      "type": 1
+    },
+    "237de8049963": {
+      "decision": "match",
+      "domain": "manual",
+      "qid": "manual-064",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "type": 7
+    },
+    "237f5dfb7eb1": {
+      "decision": "match",
+      "domain": "shop",
+      "qid": "shop-044",
+      "review_score": 2,
+      "score": 2,
+      "table_score": 2,
+      "type": 5
+    },
+    "24dc600f4916": {
+      "decision": "match",
+      "domain": "finance",
+      "qid": "finance-043",
+      "review_score": 5,
+      "score": 5,
+      "table_score": 5,
+      "type": 2
+    },
+    "281f06b59e35": {
+      "decision": "match",
+      "domain": "manual",
+      "qid": "manual-069",
+      "review_score": 5,
+      "score": 5,
+      "table_score": 5,
+      "type": 2
+    },
+    "2a1e579b700d": {
+      "decision": "match",
+      "domain": "manual",
+      "qid": "manual-075",
+      "review_score": 5,
+      "score": 5,
+      "table_score": 5,
+      "type": 1
+    },
+    "2b331b50f9ee": {
+      "decision": "match",
+      "domain": "manual",
+      "qid": "manual-074",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "type": 8
+    },
+    "2c1c0a3e146b": {
+      "decision": "match",
+      "domain": "manual",
+      "qid": "manual-017",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "type": 7
+    },
+    "2df38e32db11": {
+      "decision": "match",
+      "domain": "finance",
+      "qid": "finance-020",
+      "review_score": 2,
+      "score": 2,
+      "table_score": 2,
+      "type": 5
+    },
+    "2fb2716fef2b": {
+      "decision": "match",
+      "domain": "manual",
+      "qid": "manual-065",
+      "review_score": 4,
+      "score": 4,
+      "table_score": 4,
+      "type": 3
+    },
+    "301c33466f24": {
+      "decision": "match",
+      "domain": "finance",
+      "qid": "finance-011",
+      "review_score": 3,
+      "score": 3,
+      "table_score": 3,
+      "type": 4
+    },
+    "304230e1d39e": {
+      "decision": "match",
+      "domain": "manual",
+      "qid": "manual-010",
+      "review_score": 4,
+      "score": 4,
+      "table_score": 4,
+      "type": 3
+    },
+    "32c8756733a9": {
+      "decision": "match",
+      "domain": "hr",
+      "qid": "hr-042",
+      "review_score": 3,
+      "score": 3,
+      "table_score": 3,
+      "type": 4
+    },
+    "3502f777b7a2": {
+      "decision": "match",
+      "domain": "manual",
+      "qid": "manual-043",
+      "review_score": 4,
+      "score": 4,
+      "table_score": 4,
+      "type": 3
+    },
+    "38972098760f": {
+      "decision": "match",
+      "domain": "finance",
+      "qid": "finance-004",
+      "review_score": 5,
+      "score": 5,
+      "table_score": 5,
+      "type": 2
+    },
+    "3909377dbed6": {
+      "decision": "keep",
+      "domain": "shop",
+      "qid": "shop-070",
+      "reason": "질문이 묻는 핵심 값이 근거와 다르므로 1점 정의(근거와 반대되는 내용)에 맞는다",
+      "review_score": 3,
+      "score": 1,
+      "table_score": 1,
+      "type": 6
+    },
+    "3969c30543ff": {
+      "decision": "match",
+      "domain": "finance",
+      "qid": "finance-057",
+      "review_score": 2,
+      "score": 2,
+      "table_score": 2,
+      "type": 5
+    },
+    "3b645b3f27bd": {
+      "decision": "match",
+      "domain": "hr",
+      "qid": "hr-008",
+      "review_score": 4,
+      "score": 4,
+      "table_score": 4,
+      "type": 3
+    },
+    "3ba6b1fcb5f5": {
+      "decision": "match",
+      "domain": "shop",
+      "qid": "shop-067",
+      "review_score": 2,
+      "score": 2,
+      "table_score": 2,
+      "type": 5
+    },
+    "3c6f79d68873": {
+      "decision": "match",
+      "domain": "finance",
+      "qid": "finance-058",
+      "review_score": 4,
+      "score": 4,
+      "table_score": 4,
+      "type": 3
+    },
+    "3d7d080f9c24": {
+      "decision": "match",
+      "domain": "shop",
+      "qid": "shop-062",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "type": 6
+    },
+    "3e1e3d522533": {
+      "decision": "match",
+      "domain": "manual",
+      "qid": "manual-020",
+      "review_score": 3,
+      "score": 3,
+      "table_score": 3,
+      "type": 4
+    },
+    "3ed5398a96c7": {
+      "decision": "match",
+      "domain": "hr",
+      "qid": "hr-033",
+      "review_score": 5,
+      "score": 5,
+      "table_score": 5,
+      "type": 1
+    },
+    "3fbdde6aa7bb": {
+      "decision": "keep",
+      "domain": "manual",
+      "qid": "manual-071",
+      "reason": "질문이 묻는 핵심 값이 근거와 다르므로 1점 정의(근거와 반대되는 내용)에 맞는다",
+      "review_score": 3,
+      "score": 1,
+      "table_score": 1,
+      "type": 6
+    },
+    "4055230ba679": {
+      "decision": "match",
+      "domain": "finance",
+      "qid": "finance-033",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "type": 6
+    },
+    "4106813853a4": {
+      "decision": "match",
+      "domain": "shop",
+      "qid": "shop-056",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "type": 7
+    },
+    "45b699cfd61f": {
+      "decision": "match",
+      "domain": "finance",
+      "qid": "finance-032",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "type": 7
+    },
+    "477c05d34b32": {
+      "decision": "match",
+      "domain": "hr",
+      "qid": "hr-072",
+      "review_score": 4,
+      "score": 4,
+      "table_score": 4,
+      "type": 3
+    },
+    "478c371be050": {
+      "decision": "match",
+      "domain": "manual",
+      "qid": "manual-007",
+      "review_score": 5,
+      "score": 5,
+      "table_score": 5,
+      "type": 1
+    },
+    "47be8f306a61": {
+      "decision": "match",
+      "domain": "finance",
+      "qid": "finance-025",
+      "review_score": 5,
+      "score": 5,
+      "table_score": 5,
+      "type": 2
+    },
+    "4a686eebf9a6": {
+      "decision": "match",
+      "domain": "shop",
+      "qid": "shop-064",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "type": 8
+    },
+    "4ba1c4915b36": {
+      "decision": "match",
+      "domain": "finance",
+      "qid": "finance-013",
+      "review_score": 5,
+      "score": 5,
+      "table_score": 5,
+      "type": 1
+    },
+    "4c1a11418445": {
+      "decision": "match",
+      "domain": "shop",
+      "qid": "shop-011",
+      "review_score": 5,
+      "score": 5,
+      "table_score": 5,
+      "type": 1
+    },
+    "4cb25388cc15": {
+      "decision": "match",
+      "domain": "shop",
+      "qid": "shop-039",
+      "review_score": 3,
+      "score": 3,
+      "table_score": 3,
+      "type": 4
+    },
+    "4d07d89110ab": {
+      "decision": "match",
+      "domain": "manual",
+      "qid": "manual-060",
+      "review_score": 5,
+      "score": 5,
+      "table_score": 5,
+      "type": 1
+    },
+    "4ed86d93a105": {
+      "decision": "match",
+      "domain": "manual",
+      "qid": "manual-046",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "type": 8
+    },
+    "502fc9941050": {
+      "decision": "match",
+      "domain": "manual",
+      "qid": "manual-030",
+      "review_score": 2,
+      "score": 2,
+      "table_score": 2,
+      "type": 5
+    },
+    "50631c3399ae": {
+      "decision": "match",
+      "domain": "hr",
+      "qid": "hr-026",
+      "review_score": 5,
+      "score": 5,
+      "table_score": 5,
+      "type": 1
+    },
+    "506a30317e92": {
+      "decision": "match",
+      "domain": "finance",
+      "qid": "finance-024",
+      "review_score": 2,
+      "score": 2,
+      "table_score": 2,
+      "type": 5
+    },
+    "506daf7a8e28": {
+      "decision": "match",
+      "domain": "manual",
+      "qid": "manual-052",
+      "review_score": 5,
+      "score": 5,
+      "table_score": 5,
+      "type": 1
+    },
+    "50a2a69beba9": {
+      "decision": "match",
+      "domain": "finance",
+      "qid": "finance-037",
+      "review_score": 4,
+      "score": 4,
+      "table_score": 4,
+      "type": 3
+    },
+    "50abc8836ca8": {
+      "decision": "match",
+      "domain": "shop",
+      "qid": "shop-007",
+      "review_score": 5,
+      "score": 5,
+      "table_score": 5,
+      "type": 1
+    },
+    "516b95f53793": {
+      "decision": "match",
+      "domain": "hr",
+      "qid": "hr-038",
+      "review_score": 2,
+      "score": 2,
+      "table_score": 2,
+      "type": 5
+    },
+    "51d3f2d73e12": {
+      "decision": "match",
+      "domain": "manual",
+      "qid": "manual-063",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "type": 6
+    },
+    "536b5d401a64": {
+      "decision": "match",
+      "domain": "shop",
+      "qid": "shop-048",
+      "review_score": 2,
+      "score": 2,
+      "table_score": 2,
+      "type": 5
+    },
+    "53b63bfc6340": {
+      "decision": "match",
+      "domain": "shop",
+      "qid": "shop-015",
+      "review_score": 5,
+      "score": 5,
+      "table_score": 5,
+      "type": 1
+    },
+    "5488a9648df4": {
+      "decision": "match",
+      "domain": "shop",
+      "qid": "shop-035",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "type": 6
+    },
+    "54df991d2f01": {
+      "decision": "match",
+      "domain": "manual",
+      "qid": "manual-016",
+      "review_score": 5,
+      "score": 5,
+      "table_score": 5,
+      "type": 2
+    },
+    "5502fad4a31c": {
+      "decision": "match",
+      "domain": "shop",
+      "qid": "shop-012",
+      "review_score": 5,
+      "score": 5,
+      "table_score": 5,
+      "type": 2
+    },
+    "551f85948ef0": {
+      "decision": "match",
+      "domain": "finance",
+      "qid": "finance-039",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "type": 6
+    },
+    "5979be20f553": {
+      "decision": "match",
+      "domain": "finance",
+      "qid": "finance-018",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "type": 7
+    },
+    "5a02c19871dd": {
+      "decision": "match",
+      "domain": "hr",
+      "qid": "hr-002",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "type": 6
+    },
+    "5a6f05c7b43a": {
+      "decision": "match",
+      "domain": "finance",
+      "qid": "finance-028",
+      "review_score": 5,
+      "score": 5,
+      "table_score": 5,
+      "type": 1
+    },
+    "5ad7b9413de8": {
+      "decision": "match",
+      "domain": "hr",
+      "qid": "hr-069",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "type": 8
+    },
+    "5de448ae9b59": {
+      "decision": "match",
+      "domain": "manual",
+      "qid": "manual-049",
+      "review_score": 4,
+      "score": 4,
+      "table_score": 4,
+      "type": 3
+    },
+    "5e2479940ada": {
+      "decision": "match",
+      "domain": "finance",
+      "qid": "finance-009",
+      "review_score": 5,
+      "score": 5,
+      "table_score": 5,
+      "type": 2
+    },
+    "5f9d4ade362a": {
+      "decision": "match",
+      "domain": "hr",
+      "qid": "hr-071",
+      "review_score": 5,
+      "score": 5,
+      "table_score": 5,
+      "type": 2
+    },
+    "60fdfd232037": {
+      "decision": "match",
+      "domain": "hr",
+      "qid": "hr-011",
+      "review_score": 4,
+      "score": 4,
+      "table_score": 4,
+      "type": 3
+    },
+    "633b12eb69ed": {
+      "decision": "match",
+      "domain": "finance",
+      "qid": "finance-005",
+      "review_score": 2,
+      "score": 2,
+      "table_score": 2,
+      "type": 5
+    },
+    "63b5b850ffff": {
+      "decision": "match",
+      "domain": "finance",
+      "qid": "finance-042",
+      "review_score": 5,
+      "score": 5,
+      "table_score": 5,
+      "type": 2
+    },
+    "645c02008cad": {
+      "decision": "match",
+      "domain": "shop",
+      "qid": "shop-043",
+      "review_score": 5,
+      "score": 5,
+      "table_score": 5,
+      "type": 2
+    },
+    "679df7b2d03a": {
+      "decision": "match",
+      "domain": "shop",
+      "qid": "shop-028",
+      "review_score": 5,
+      "score": 5,
+      "table_score": 5,
+      "type": 1
+    },
+    "67e693f08b7b": {
+      "decision": "match",
+      "domain": "hr",
+      "qid": "hr-007",
+      "review_score": 3,
+      "score": 3,
+      "table_score": 3,
+      "type": 4
+    },
+    "6895759db948": {
+      "decision": "match",
+      "domain": "hr",
+      "qid": "hr-055",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "type": 8
+    },
+    "68b4f7939edd": {
+      "decision": "match",
+      "domain": "shop",
+      "qid": "shop-075",
+      "review_score": 5,
+      "score": 5,
+      "table_score": 5,
+      "type": 1
+    },
+    "69efaa3278d8": {
+      "decision": "match",
+      "domain": "manual",
+      "qid": "manual-044",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "type": 7
+    },
+    "6a07ec8f6657": {
+      "decision": "match",
+      "domain": "finance",
+      "qid": "finance-054",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "type": 8
+    },
+    "6c7b6955aaae": {
+      "decision": "match",
+      "domain": "hr",
+      "qid": "hr-061",
+      "review_score": 2,
+      "score": 2,
+      "table_score": 2,
+      "type": 5
+    },
+    "6c91c5c85d64": {
+      "decision": "match",
+      "domain": "hr",
+      "qid": "hr-017",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "type": 7
+    },
+    "6f92a86618a6": {
+      "decision": "match",
+      "domain": "shop",
+      "qid": "shop-057",
+      "review_score": 5,
+      "score": 5,
+      "table_score": 5,
+      "type": 2
+    },
+    "716ddbc559f0": {
+      "decision": "match",
+      "domain": "shop",
+      "qid": "shop-055",
+      "review_score": 3,
+      "score": 3,
+      "table_score": 3,
+      "type": 4
+    },
+    "71a6e52b77ce": {
+      "decision": "match",
+      "domain": "finance",
+      "qid": "finance-030",
+      "review_score": 4,
+      "score": 4,
+      "table_score": 4,
+      "type": 3
+    },
+    "730dcdc49887": {
+      "decision": "match",
+      "domain": "manual",
+      "qid": "manual-021",
+      "review_score": 3,
+      "score": 3,
+      "table_score": 3,
+      "type": 4
+    },
+    "7439300e730b": {
+      "decision": "match",
+      "domain": "shop",
+      "qid": "shop-069",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "type": 6
+    },
+    "75a0ae43694d": {
+      "decision": "match",
+      "domain": "shop",
+      "qid": "shop-065",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "type": 8
+    },
+    "767685141d93": {
+      "decision": "match",
+      "domain": "manual",
+      "qid": "manual-050",
+      "review_score": 2,
+      "score": 2,
+      "table_score": 2,
+      "type": 5
+    },
+    "7688ecff674f": {
+      "decision": "match",
+      "domain": "hr",
+      "qid": "hr-001",
+      "review_score": 3,
+      "score": 3,
+      "table_score": 3,
+      "type": 4
+    },
+    "78b5d74914ff": {
+      "decision": "match",
+      "domain": "manual",
+      "qid": "manual-029",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "type": 7
+    },
+    "794d668ef11c": {
+      "decision": "match",
+      "domain": "hr",
+      "qid": "hr-063",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "type": 7
+    },
+    "7980952e29c1": {
+      "decision": "match",
+      "domain": "finance",
+      "qid": "finance-017",
+      "review_score": 4,
+      "score": 4,
+      "table_score": 4,
+      "type": 3
+    },
+    "7be084fc7461": {
+      "decision": "match",
+      "domain": "hr",
+      "qid": "hr-073",
+      "review_score": 5,
+      "score": 5,
+      "table_score": 5,
+      "type": 2
+    },
+    "7d1044b2873f": {
+      "decision": "match",
+      "domain": "shop",
+      "qid": "shop-049",
+      "review_score": 2,
+      "score": 2,
+      "table_score": 2,
+      "type": 5
+    },
+    "7e8cf0a37f42": {
+      "decision": "match",
+      "domain": "shop",
+      "qid": "shop-018",
+      "review_score": 4,
+      "score": 4,
+      "table_score": 4,
+      "type": 3
+    },
+    "7ebdb10378ab": {
+      "decision": "match",
+      "domain": "shop",
+      "qid": "shop-003",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "type": 6
+    },
+    "7fe831665128": {
+      "decision": "match",
+      "domain": "shop",
+      "qid": "shop-063",
+      "review_score": 4,
+      "score": 4,
+      "table_score": 4,
+      "type": 3
+    },
+    "8024512b8743": {
+      "decision": "match",
+      "domain": "manual",
+      "qid": "manual-055",
+      "review_score": 5,
+      "score": 5,
+      "table_score": 5,
+      "type": 2
+    },
+    "844a17304e8e": {
+      "decision": "match",
+      "domain": "hr",
+      "qid": "hr-052",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "type": 8
+    },
+    "8497e8761d6d": {
+      "decision": "match",
+      "domain": "hr",
+      "qid": "hr-023",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "type": 6
+    },
+    "8547767176c3": {
+      "decision": "match",
+      "domain": "hr",
+      "qid": "hr-049",
+      "review_score": 3,
+      "score": 3,
+      "table_score": 3,
+      "type": 4
+    },
+    "85f463553a92": {
+      "decision": "match",
+      "domain": "finance",
+      "qid": "finance-014",
+      "review_score": 5,
+      "score": 5,
+      "table_score": 5,
+      "type": 1
+    },
+    "86f52ac3f861": {
+      "decision": "match",
+      "domain": "hr",
+      "qid": "hr-029",
+      "review_score": 2,
+      "score": 2,
+      "table_score": 2,
+      "type": 5
+    },
+    "884b0f4a140f": {
+      "decision": "match",
+      "domain": "manual",
+      "qid": "manual-024",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "type": 6
+    },
+    "899ed262ef2c": {
+      "decision": "match",
+      "domain": "finance",
+      "qid": "finance-069",
+      "review_score": 3,
+      "score": 3,
+      "table_score": 3,
+      "type": 4
+    },
+    "8ae4d2d40d54": {
+      "decision": "match",
+      "domain": "hr",
+      "qid": "hr-024",
+      "review_score": 4,
+      "score": 4,
+      "table_score": 4,
+      "type": 3
+    },
+    "8c8ea3662628": {
+      "decision": "match",
+      "domain": "hr",
+      "qid": "hr-064",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "type": 7
+    },
+    "8dd8e9471547": {
+      "decision": "match",
+      "domain": "shop",
+      "qid": "shop-014",
+      "review_score": 5,
+      "score": 5,
+      "table_score": 5,
+      "type": 2
+    },
+    "8f2faeb71312": {
+      "decision": "match",
+      "domain": "shop",
+      "qid": "shop-032",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "type": 7
+    },
+    "905243c0f77e": {
+      "decision": "match",
+      "domain": "finance",
+      "qid": "finance-045",
+      "review_score": 5,
+      "score": 5,
+      "table_score": 5,
+      "type": 1
+    },
+    "92a406ffec58": {
+      "decision": "match",
+      "domain": "shop",
+      "qid": "shop-001",
+      "review_score": 3,
+      "score": 3,
+      "table_score": 3,
+      "type": 4
+    },
+    "933f70d12203": {
+      "decision": "match",
+      "domain": "hr",
+      "qid": "hr-019",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "type": 6
+    },
+    "94ae06767f84": {
+      "decision": "match",
+      "domain": "finance",
+      "qid": "finance-012",
+      "review_score": 4,
+      "score": 4,
+      "table_score": 4,
+      "type": 3
+    },
+    "950ac3529d61": {
+      "decision": "match",
+      "domain": "manual",
+      "qid": "manual-022",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "type": 8
+    },
+    "96714899ce21": {
+      "decision": "match",
+      "domain": "finance",
+      "qid": "finance-008",
+      "review_score": 2,
+      "score": 2,
+      "table_score": 2,
+      "type": 5
+    },
+    "98427d44af2b": {
+      "decision": "match",
+      "domain": "shop",
+      "qid": "shop-050",
+      "review_score": 3,
+      "score": 3,
+      "table_score": 3,
+      "type": 4
+    },
+    "98e19b1e76c1": {
+      "decision": "match",
+      "domain": "manual",
+      "qid": "manual-067",
+      "review_score": 5,
+      "score": 5,
+      "table_score": 5,
+      "type": 1
+    },
+    "9abd569f4f27": {
+      "decision": "match",
+      "domain": "finance",
+      "qid": "finance-055",
+      "review_score": 3,
+      "score": 3,
+      "table_score": 3,
+      "type": 4
+    },
+    "9dc35f993b70": {
+      "decision": "match",
+      "domain": "manual",
+      "qid": "manual-039",
+      "review_score": 5,
+      "score": 5,
+      "table_score": 5,
+      "type": 2
+    },
+    "9e3079ecf7b0": {
+      "decision": "match",
+      "domain": "finance",
+      "qid": "finance-065",
+      "review_score": 5,
+      "score": 5,
+      "table_score": 5,
+      "type": 1
+    },
+    "9ee0d1f4fe78": {
+      "decision": "match",
+      "domain": "finance",
+      "qid": "finance-059",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "type": 8
+    },
+    "9f81da5d9624": {
+      "decision": "match",
+      "domain": "finance",
+      "qid": "finance-052",
+      "review_score": 5,
+      "score": 5,
+      "table_score": 5,
+      "type": 2
+    },
+    "a1709acfc818": {
+      "decision": "match",
+      "domain": "shop",
+      "qid": "shop-002",
+      "review_score": 5,
+      "score": 5,
+      "table_score": 5,
+      "type": 1
+    },
+    "a2c3723db23c": {
+      "decision": "match",
+      "domain": "shop",
+      "qid": "shop-034",
+      "review_score": 2,
+      "score": 2,
+      "table_score": 2,
+      "type": 5
+    },
+    "a494b95e1332": {
+      "decision": "match",
+      "domain": "manual",
+      "qid": "manual-027",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "type": 6
+    },
+    "a556c32c758f": {
+      "decision": "match",
+      "domain": "hr",
+      "qid": "hr-062",
+      "review_score": 5,
+      "score": 5,
+      "table_score": 5,
+      "type": 1
+    },
+    "a55fc02ffe2e": {
+      "decision": "match",
+      "domain": "finance",
+      "qid": "finance-072",
+      "review_score": 3,
+      "score": 3,
+      "table_score": 3,
+      "type": 4
+    },
+    "a6531e958963": {
+      "decision": "match",
+      "domain": "hr",
+      "qid": "hr-022",
+      "review_score": 5,
+      "score": 5,
+      "table_score": 5,
+      "type": 2
+    },
+    "a77fd2278781": {
+      "decision": "match",
+      "domain": "hr",
+      "qid": "hr-035",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "type": 6
+    },
+    "a83660f08f8f": {
+      "decision": "match",
+      "domain": "hr",
+      "qid": "hr-013",
+      "review_score": 5,
+      "score": 5,
+      "table_score": 5,
+      "type": 2
+    },
+    "ac89afe10eb0": {
+      "decision": "match",
+      "domain": "finance",
+      "qid": "finance-019",
+      "review_score": 4,
+      "score": 4,
+      "table_score": 4,
+      "type": 3
+    },
+    "ad25685ed35c": {
+      "decision": "match",
+      "domain": "hr",
+      "qid": "hr-021",
+      "review_score": 2,
+      "score": 2,
+      "table_score": 2,
+      "type": 5
+    },
+    "ae371c4fe8df": {
+      "decision": "match",
+      "domain": "manual",
+      "qid": "manual-034",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "type": 6
+    },
+    "ae76c65f5a8b": {
+      "decision": "match",
+      "domain": "shop",
+      "qid": "shop-029",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "type": 6
+    },
+    "afe2d73bd679": {
+      "decision": "match",
+      "domain": "shop",
+      "qid": "shop-025",
+      "review_score": 3,
+      "score": 3,
+      "table_score": 3,
+      "type": 4
+    },
+    "b017b9bbb4b2": {
+      "decision": "match",
+      "domain": "finance",
+      "qid": "finance-034",
+      "review_score": 3,
+      "score": 3,
+      "table_score": 3,
+      "type": 4
+    },
+    "b22a6ee8c6d8": {
+      "decision": "match",
+      "domain": "manual",
+      "qid": "manual-036",
+      "review_score": 3,
+      "score": 3,
+      "table_score": 3,
+      "type": 4
+    },
+    "b2729b2b0e53": {
+      "decision": "match",
+      "domain": "shop",
+      "qid": "shop-051",
+      "review_score": 4,
+      "score": 4,
+      "table_score": 4,
+      "type": 3
+    },
+    "b37ad15818cf": {
+      "decision": "match",
+      "domain": "shop",
+      "qid": "shop-021",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "type": 8
+    },
+    "b3f0d71c0a1f": {
+      "decision": "match",
+      "domain": "finance",
+      "qid": "finance-031",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "type": 7
+    },
+    "b4c7310fb417": {
+      "decision": "match",
+      "domain": "shop",
+      "qid": "shop-060",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "type": 8
+    },
+    "b5037e874507": {
+      "decision": "match",
+      "domain": "manual",
+      "qid": "manual-070",
+      "review_score": 2,
+      "score": 2,
+      "table_score": 2,
+      "type": 5
+    },
+    "b57643f51a72": {
+      "decision": "match",
+      "domain": "hr",
+      "qid": "hr-045",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "type": 8
+    },
+    "b625939cfbfc": {
+      "decision": "match",
+      "domain": "shop",
+      "qid": "shop-005",
+      "review_score": 4,
+      "score": 4,
+      "table_score": 4,
+      "type": 3
+    },
+    "b64f014a1acc": {
+      "decision": "match",
+      "domain": "hr",
+      "qid": "hr-006",
+      "review_score": 5,
+      "score": 5,
+      "table_score": 5,
+      "type": 1
+    },
+    "b6613f877c9a": {
+      "decision": "match",
+      "domain": "shop",
+      "qid": "shop-074",
+      "review_score": 5,
+      "score": 5,
+      "table_score": 5,
+      "type": 2
+    },
+    "b7022b2861b0": {
+      "decision": "match",
+      "domain": "finance",
+      "qid": "finance-070",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "type": 6
+    },
+    "b945e7c10aee": {
+      "decision": "match",
+      "domain": "manual",
+      "qid": "manual-047",
+      "review_score": 5,
+      "score": 5,
+      "table_score": 5,
+      "type": 1
+    },
+    "b9d188b9df17": {
+      "decision": "match",
+      "domain": "hr",
+      "qid": "hr-040",
+      "review_score": 5,
+      "score": 5,
+      "table_score": 5,
+      "type": 1
+    },
+    "b9da586fa377": {
+      "decision": "match",
+      "domain": "finance",
+      "qid": "finance-048",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "type": 7
+    },
+    "b9f3a214eb59": {
+      "decision": "match",
+      "domain": "shop",
+      "qid": "shop-058",
+      "review_score": 5,
+      "score": 5,
+      "table_score": 5,
+      "type": 2
+    },
+    "bad56b0e03bf": {
+      "decision": "match",
+      "domain": "hr",
+      "qid": "hr-025",
+      "review_score": 2,
+      "score": 2,
+      "table_score": 2,
+      "type": 5
+    },
+    "bbaa2116d773": {
+      "decision": "match",
+      "domain": "shop",
+      "qid": "shop-041",
+      "review_score": 5,
+      "score": 5,
+      "table_score": 5,
+      "type": 2
+    },
+    "bc182e00ae1a": {
+      "decision": "match",
+      "domain": "finance",
+      "qid": "finance-050",
+      "review_score": 5,
+      "score": 5,
+      "table_score": 5,
+      "type": 2
+    },
+    "c0c6e1d04473": {
+      "decision": "match",
+      "domain": "hr",
+      "qid": "hr-059",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "type": 8
+    },
+    "c0de3115c8b9": {
+      "decision": "match",
+      "domain": "hr",
+      "qid": "hr-015",
+      "review_score": 4,
+      "score": 4,
+      "table_score": 4,
+      "type": 3
+    },
+    "c3cd8c81ac51": {
+      "decision": "match",
+      "domain": "hr",
+      "qid": "hr-036",
+      "review_score": 5,
+      "score": 5,
+      "table_score": 5,
+      "type": 2
+    },
+    "c474c20ded47": {
+      "decision": "match",
+      "domain": "manual",
+      "qid": "manual-011",
+      "review_score": 4,
+      "score": 4,
+      "table_score": 4,
+      "type": 3
+    },
+    "c4aed0bfe912": {
+      "decision": "match",
+      "domain": "shop",
+      "qid": "shop-036",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "type": 6
+    },
+    "c805cac0d886": {
+      "decision": "match",
+      "domain": "hr",
+      "qid": "hr-054",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "type": 7
+    },
+    "ca21e071a81a": {
+      "decision": "match",
+      "domain": "manual",
+      "qid": "manual-018",
+      "review_score": 3,
+      "score": 3,
+      "table_score": 3,
+      "type": 4
+    },
+    "cc3c2b3a0ead": {
+      "decision": "match",
+      "domain": "manual",
+      "qid": "manual-012",
+      "review_score": 2,
+      "score": 2,
+      "table_score": 2,
+      "type": 5
+    },
+    "cc480afc6eac": {
+      "decision": "match",
+      "domain": "finance",
+      "qid": "finance-075",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "type": 6
+    },
+    "cc69ddd3a2fa": {
+      "decision": "match",
+      "domain": "manual",
+      "qid": "manual-037",
+      "review_score": 5,
+      "score": 5,
+      "table_score": 5,
+      "type": 2
+    },
+    "cd77b3816bfd": {
+      "decision": "match",
+      "domain": "shop",
+      "qid": "shop-017",
+      "review_score": 4,
+      "score": 4,
+      "table_score": 4,
+      "type": 3
+    },
+    "ce5b67991596": {
+      "decision": "match",
+      "domain": "manual",
+      "qid": "manual-048",
+      "review_score": 4,
+      "score": 4,
+      "table_score": 4,
+      "type": 3
+    },
+    "ced092f62c07": {
+      "decision": "match",
+      "domain": "shop",
+      "qid": "shop-073",
+      "review_score": 5,
+      "score": 5,
+      "table_score": 5,
+      "type": 1
+    },
+    "cf8bb015d373": {
+      "decision": "match",
+      "domain": "hr",
+      "qid": "hr-075",
+      "review_score": 5,
+      "score": 5,
+      "table_score": 5,
+      "type": 2
+    },
+    "d1257a5ea4d4": {
+      "decision": "match",
+      "domain": "manual",
+      "qid": "manual-009",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "type": 6
+    },
+    "d1874effc950": {
+      "decision": "match",
+      "domain": "hr",
+      "qid": "hr-051",
+      "review_score": 4,
+      "score": 4,
+      "table_score": 4,
+      "type": 3
+    },
+    "d1fc6de3983f": {
+      "decision": "match",
+      "domain": "manual",
+      "qid": "manual-062",
+      "review_score": 5,
+      "score": 5,
+      "table_score": 5,
+      "type": 1
+    },
+    "d40028fd1080": {
+      "decision": "match",
+      "domain": "shop",
+      "qid": "shop-052",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "type": 8
+    },
+    "d45350c65db0": {
+      "decision": "match",
+      "domain": "manual",
+      "qid": "manual-023",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "type": 7
+    },
+    "d52217ee6d8b": {
+      "decision": "match",
+      "domain": "finance",
+      "qid": "finance-003",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "type": 6
+    },
+    "d69c34428a57": {
+      "decision": "match",
+      "domain": "hr",
+      "qid": "hr-041",
+      "review_score": 4,
+      "score": 4,
+      "table_score": 4,
+      "type": 3
+    },
+    "d80b330d93e3": {
+      "decision": "match",
+      "domain": "finance",
+      "qid": "finance-066",
+      "review_score": 2,
+      "score": 2,
+      "table_score": 2,
+      "type": 5
+    },
+    "da71f4f569cb": {
+      "decision": "match",
+      "domain": "shop",
+      "qid": "shop-026",
+      "review_score": 4,
+      "score": 4,
+      "table_score": 4,
+      "type": 3
+    },
+    "dab45d5a0d4f": {
+      "decision": "match",
+      "domain": "finance",
+      "qid": "finance-041",
+      "review_score": 5,
+      "score": 5,
+      "table_score": 5,
+      "type": 1
+    },
+    "dd6c223bb189": {
+      "decision": "match",
+      "domain": "hr",
+      "qid": "hr-037",
+      "review_score": 5,
+      "score": 5,
+      "table_score": 5,
+      "type": 2
+    },
+    "e0205fd9efa8": {
+      "decision": "match",
+      "domain": "manual",
+      "qid": "manual-002",
+      "review_score": 5,
+      "score": 5,
+      "table_score": 5,
+      "type": 2
+    },
+    "e12824441564": {
+      "decision": "match",
+      "domain": "finance",
+      "qid": "finance-067",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "type": 6
+    },
+    "e1975344173f": {
+      "decision": "match",
+      "domain": "finance",
+      "qid": "finance-064",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "type": 8
+    },
+    "e1d32268e6a6": {
+      "decision": "match",
+      "domain": "hr",
+      "qid": "hr-032",
+      "review_score": 3,
+      "score": 3,
+      "table_score": 3,
+      "type": 4
+    },
+    "e22829831e1f": {
+      "decision": "match",
+      "domain": "hr",
+      "qid": "hr-004",
+      "review_score": 3,
+      "score": 3,
+      "table_score": 3,
+      "type": 4
+    },
+    "e2513e8a1902": {
+      "decision": "match",
+      "domain": "shop",
+      "qid": "shop-038",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "type": 7
+    },
+    "e2cb9c0ba0ee": {
+      "decision": "match",
+      "domain": "shop",
+      "qid": "shop-037",
+      "review_score": 5,
+      "score": 5,
+      "table_score": 5,
+      "type": 1
+    },
+    "e3e3e71def2c": {
+      "decision": "match",
+      "domain": "shop",
+      "qid": "shop-045",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "type": 7
+    },
+    "e7f73039a784": {
+      "decision": "match",
+      "domain": "shop",
+      "qid": "shop-027",
+      "review_score": 2,
+      "score": 2,
+      "table_score": 2,
+      "type": 5
+    },
+    "e87227e3a95d": {
+      "decision": "match",
+      "domain": "hr",
+      "qid": "hr-016",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "type": 8
+    },
+    "e89e77a40b46": {
+      "decision": "match",
+      "domain": "manual",
+      "qid": "manual-014",
+      "review_score": 2,
+      "score": 2,
+      "table_score": 2,
+      "type": 5
+    },
+    "e95d8879f7de": {
+      "decision": "match",
+      "domain": "hr",
+      "qid": "hr-030",
+      "review_score": 2,
+      "score": 2,
+      "table_score": 2,
+      "type": 5
+    },
+    "e9703f3c57bf": {
+      "decision": "match",
+      "domain": "hr",
+      "qid": "hr-058",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "type": 6
+    },
+    "e9bcd55c75d1": {
+      "decision": "match",
+      "domain": "finance",
+      "qid": "finance-021",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "type": 8
+    },
+    "eb310e6e1de2": {
+      "decision": "match",
+      "domain": "hr",
+      "qid": "hr-044",
+      "review_score": 3,
+      "score": 3,
+      "table_score": 3,
+      "type": 4
+    },
+    "ec48fff49158": {
+      "decision": "match",
+      "domain": "manual",
+      "qid": "manual-053",
+      "review_score": 5,
+      "score": 5,
+      "table_score": 5,
+      "type": 2
+    },
+    "ecb2b28a2488": {
+      "decision": "match",
+      "domain": "shop",
+      "qid": "shop-071",
+      "review_score": 3,
+      "score": 3,
+      "table_score": 3,
+      "type": 4
+    },
+    "ed40e26ad884": {
+      "decision": "match",
+      "domain": "hr",
+      "qid": "hr-050",
+      "review_score": 3,
+      "score": 3,
+      "table_score": 3,
+      "type": 4
+    },
+    "ee0c3ce1e001": {
+      "decision": "match",
+      "domain": "shop",
+      "qid": "shop-072",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "type": 8
+    },
+    "ef4a878fee50": {
+      "decision": "keep",
+      "domain": "manual",
+      "qid": "manual-072",
+      "reason": "질문이 묻는 핵심 값이 근거와 다르므로 1점 정의(근거와 반대되는 내용)에 맞는다",
+      "review_score": 3,
+      "score": 1,
+      "table_score": 1,
+      "type": 8
+    },
+    "f0f10c0f6818": {
+      "decision": "match",
+      "domain": "finance",
+      "qid": "finance-073",
+      "review_score": 4,
+      "score": 4,
+      "table_score": 4,
+      "type": 3
+    },
+    "f14a10f0f650": {
+      "decision": "match",
+      "domain": "shop",
+      "qid": "shop-033",
+      "review_score": 5,
+      "score": 5,
+      "table_score": 5,
+      "type": 2
+    },
+    "f2847d9706c8": {
+      "decision": "match",
+      "domain": "hr",
+      "qid": "hr-057",
+      "review_score": 3,
+      "score": 3,
+      "table_score": 3,
+      "type": 4
+    },
+    "f2fe53f3ce9f": {
+      "decision": "match",
+      "domain": "finance",
+      "qid": "finance-051",
+      "review_score": 5,
+      "score": 5,
+      "table_score": 5,
+      "type": 1
+    },
+    "f399b349cf7e": {
+      "decision": "match",
+      "domain": "shop",
+      "qid": "shop-054",
+      "review_score": 4,
+      "score": 4,
+      "table_score": 4,
+      "type": 3
+    },
+    "f3a742bd1a91": {
+      "decision": "match",
+      "domain": "manual",
+      "qid": "manual-066",
+      "review_score": 5,
+      "score": 5,
+      "table_score": 5,
+      "type": 1
+    },
+    "f45d6fb75a8b": {
+      "decision": "match",
+      "domain": "manual",
+      "qid": "manual-033",
+      "review_score": 5,
+      "score": 5,
+      "table_score": 5,
+      "type": 1
+    },
+    "f4a1829784f6": {
+      "decision": "match",
+      "domain": "hr",
+      "qid": "hr-009",
+      "review_score": 4,
+      "score": 4,
+      "table_score": 4,
+      "type": 3
+    },
+    "f4cd17de07c5": {
+      "decision": "match",
+      "domain": "finance",
+      "qid": "finance-023",
+      "review_score": 4,
+      "score": 4,
+      "table_score": 4,
+      "type": 3
+    },
+    "f67026c3566e": {
+      "decision": "match",
+      "domain": "shop",
+      "qid": "shop-010",
+      "review_score": 4,
+      "score": 4,
+      "table_score": 4,
+      "type": 3
+    },
+    "f852af735971": {
+      "decision": "match",
+      "domain": "manual",
+      "qid": "manual-001",
+      "review_score": 4,
+      "score": 4,
+      "table_score": 4,
+      "type": 3
+    },
+    "fa0f6a24c2e9": {
+      "decision": "match",
+      "domain": "manual",
+      "qid": "manual-061",
+      "review_score": 4,
+      "score": 4,
+      "table_score": 4,
+      "type": 3
+    },
+    "fac710cff9c8": {
+      "decision": "match",
+      "domain": "shop",
+      "qid": "shop-046",
+      "review_score": 3,
+      "score": 3,
+      "table_score": 3,
+      "type": 4
+    },
+    "fb4ab9e58347": {
+      "decision": "match",
+      "domain": "hr",
+      "qid": "hr-070",
+      "review_score": 5,
+      "score": 5,
+      "table_score": 5,
+      "type": 1
+    },
+    "fd2506428f6d": {
+      "decision": "match",
+      "domain": "finance",
+      "qid": "finance-068",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "type": 6
+    }
+  },
+  "cases_sha256": "bec2b58e943e3b2c296dec8b664dc78ed2548f1b6d6e67062e3a7684fd535fe2",
+  "dropped": {
+    "02d06fa0dea9": {
+      "domain": "manual",
+      "qid": "manual-015",
+      "reason": "주장 둘 중 하나(핵심 답)만 근거에 있어 4점 정의(사소한 주장 하나)와 3점 정의(반반)에 모두 맞는다. 스펙 3-2절이 ③에서 막은 모양이 ④에서 생겼다",
+      "review_score": 4,
+      "table_score": 3,
+      "type": 4
+    },
+    "4ab5867f8501": {
+      "domain": "manual",
+      "qid": "manual-028",
+      "reason": "주장 둘 중 하나(핵심 답)만 근거에 있어 4점 정의(사소한 주장 하나)와 3점 정의(반반)에 모두 맞는다. 스펙 3-2절이 ③에서 막은 모양이 ④에서 생겼다",
+      "review_score": 4,
+      "table_score": 3,
+      "type": 4
+    },
+    "4e713b00946d": {
+      "domain": "manual",
+      "qid": "manual-058",
+      "reason": "주장 둘 중 하나(핵심 답)만 근거에 있어 4점 정의(사소한 주장 하나)와 3점 정의(반반)에 모두 맞는다. 스펙 3-2절이 ③에서 막은 모양이 ④에서 생겼다",
+      "review_score": 4,
+      "table_score": 3,
+      "type": 4
+    },
+    "53f14510bc81": {
+      "domain": "manual",
+      "qid": "manual-059",
+      "reason": "주장 둘 중 하나(핵심 답)만 근거에 있어 4점 정의(사소한 주장 하나)와 3점 정의(반반)에 모두 맞는다. 스펙 3-2절이 ③에서 막은 모양이 ④에서 생겼다",
+      "review_score": 4,
+      "table_score": 3,
+      "type": 4
+    },
+    "64de330f2329": {
+      "domain": "shop",
+      "qid": "shop-008",
+      "reason": "주장 둘 중 하나(핵심 답)만 근거에 있어 4점 정의(사소한 주장 하나)와 3점 정의(반반)에 모두 맞는다. 스펙 3-2절이 ③에서 막은 모양이 ④에서 생겼다",
+      "review_score": 4,
+      "table_score": 3,
+      "type": 4
+    },
+    "9eb65889d5de": {
+      "domain": "finance",
+      "qid": "finance-061",
+      "reason": "주장 둘 중 하나(핵심 답)만 근거에 있어 4점 정의(사소한 주장 하나)와 3점 정의(반반)에 모두 맞는다. 스펙 3-2절이 ③에서 막은 모양이 ④에서 생겼다",
+      "review_score": 4,
+      "table_score": 3,
+      "type": 4
+    },
+    "b0bcd638f0a5": {
+      "domain": "finance",
+      "qid": "finance-062",
+      "reason": "주장 둘 중 하나(핵심 답)만 근거에 있어 4점 정의(사소한 주장 하나)와 3점 정의(반반)에 모두 맞는다. 스펙 3-2절이 ③에서 막은 모양이 ④에서 생겼다",
+      "review_score": 4,
+      "table_score": 3,
+      "type": 4
+    },
+    "ca688accc921": {
+      "domain": "finance",
+      "qid": "finance-074",
+      "reason": "주장 둘 중 하나(핵심 답)만 근거에 있어 4점 정의(사소한 주장 하나)와 3점 정의(반반)에 모두 맞는다. 스펙 3-2절이 ③에서 막은 모양이 ④에서 생겼다",
+      "review_score": 4,
+      "table_score": 3,
+      "type": 4
+    },
+    "cc83d02fd98f": {
+      "domain": "manual",
+      "qid": "manual-051",
+      "reason": "주장 둘 중 하나(핵심 답)만 근거에 있어 4점 정의(사소한 주장 하나)와 3점 정의(반반)에 모두 맞는다. 스펙 3-2절이 ③에서 막은 모양이 ④에서 생겼다",
+      "review_score": 4,
+      "table_score": 3,
+      "type": 4
+    }
+  },
+  "prompt_sha256": "6c45a0b23c895e51204c25a2d32d45e809839fe6f149afeb26129d62ee299212",
+  "seed": 20261005,
+  "stage": "final"
+}

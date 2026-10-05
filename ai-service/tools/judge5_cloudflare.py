@@ -4,6 +4,7 @@
     cd ai-service
     .venv/bin/python -m tools.judge5_cloudflare --smoke   # 가짜 사례 하나로 연결만 확인(44건을 쓰지 않는다)
     .venv/bin/python -m tools.judge5_cloudflare           # 시험지 44건 채점 → testdata/judge5/results/M1_run1.jsonl
+    .venv/bin/python -m tools.judge5_cloudflare --cases testdata/judge5v2/cases.jsonl --results-dir testdata/judge5v2/results
 
 점수는 여기서 읽지 않는다. 출력 원문만 저장하고 점수는 tools.judge5_report 가
 judge5.parse_result 하나로 읽는다. 코랩 결과와 같은 규칙으로 읽기 위해서다.
@@ -26,17 +27,27 @@ from pathlib import Path
 from app import cf
 
 from .judge5 import MAX_NEW_TOKENS, MODELS, parse_result, sha256_file, smoke_messages
-from .judge5_export import CASES, CASES_SHA, RESULTS_DIR
+from .judge5_export import CASES, RESULTS_DIR
 
 MODEL_KEY = "M1"
 RUN = 1
 
 
+def sha_path(cases: Path) -> Path:
+    """시험지 해시 파일의 자리. 시험지와 같은 폴더의 cases.sha256 이다(앞 실험과 v2 모두).
+    with_suffix 는 확장자만 바꾼다: cases.jsonl 이 cases.sha256 이 된다."""
+    return cases.with_suffix(".sha256")
+
+
 def result_line(case_id: str, model: str, repo: str, revision: str, run: int,
-                output: str, finish: str | None, cases_sha256: str) -> dict:
+                output: str, finish: str | None, cases_sha256: str, domain: str | None = None) -> dict:
     """결과 파일 한 줄. 코랩 노트북도 같은 키로 쓴다(계획 파일 구조 절)."""
-    return {"case_id": case_id, "model": model, "repo": repo, "revision": revision, "run": run,
+    line = {"case_id": case_id, "model": model, "repo": repo, "revision": revision, "run": run,
             "output": output, "finish": finish, "cases_sha256": cases_sha256}
+    if domain is not None:
+        # v2 시험지는 문항마다 분야를 적는다(v2 스펙 8-3절). 앞 실험의 줄 모양은 그대로 두려고 있을 때만 넣는다.
+        line["domain"] = domain
+    return line
 
 
 def done_ids(path: Path) -> set[str]:
@@ -84,22 +95,23 @@ def smoke() -> int:
     return 0
 
 
-def run_all(limit: int | None) -> int:
-    expected = CASES_SHA.read_text(encoding="utf-8").split()[0]
-    actual = sha256_file(CASES)
+def run_all(limit: int | None, cases: Path = CASES, results_dir: Path = RESULTS_DIR) -> int:
+    expected = sha_path(cases).read_text(encoding="utf-8").split()[0]
+    actual = sha256_file(cases)
     if actual != expected:
-        print(f"시험지 해시가 다릅니다: 파일 {actual} / 기록 {expected}. tools.judge5_export cases 를 다시 실행하세요.")
+        print(f"시험지 해시가 다릅니다: 파일 {actual} / 기록 {expected}. "
+              f"시험지를 만든 도구(tools.judge5_export cases 또는 tools.judge5v2_export final)를 다시 실행하세요.")
         return 1
-    RESULTS_DIR.mkdir(parents=True, exist_ok=True)
-    out = RESULTS_DIR / f"{MODEL_KEY}_run{RUN}.jsonl"
-    failures = RESULTS_DIR / f"{MODEL_KEY}_failures.jsonl"
+    results_dir.mkdir(parents=True, exist_ok=True)
+    out = results_dir / f"{MODEL_KEY}_run{RUN}.jsonl"
+    failures = results_dir / f"{MODEL_KEY}_failures.jsonl"
     stale = foreign_lines(out, actual)
     if stale:
         print(f"{out.name} 에 다른 시험지로 채점한 줄이 {stale}건 있습니다. 섞이지 않게 멈춥니다.")
         print(f"그 파일을 다른 이름으로 옮긴 뒤 다시 실행하세요(지우지 말고 옮기세요. 뉴런을 들인 결과입니다).")
         return 1
     done = done_ids(out)
-    rows = [json.loads(line) for line in CASES.read_text(encoding="utf-8").splitlines() if line.strip()]
+    rows = [json.loads(line) for line in cases.read_text(encoding="utf-8").splitlines() if line.strip()]
     todo = [r for r in rows if r["case_id"] not in done][:limit]
     failed = 0
     for r in todo:
@@ -118,7 +130,8 @@ def run_all(limit: int | None) -> int:
             print(f"빈 응답 {r['case_id']}: finish={finish}. 결과로 쓰지 않고 다음 실행에서 다시 부른다.")
             _log_failure(failures, r["case_id"], "empty", "", finish)
             continue
-        line = result_line(r["case_id"], MODEL_KEY, MODELS[MODEL_KEY], "cloudflare", RUN, text, finish, actual)
+        line = result_line(r["case_id"], MODEL_KEY, MODELS[MODEL_KEY], "cloudflare", RUN, text, finish, actual,
+                           r.get("domain"))
         # "a" 는 이어 쓰기 모드다. 한 줄씩 바로 써 두면 중간에 멈춰도 그때까지의 결과가 남는다.
         with out.open("a", encoding="utf-8") as f:
             f.write(json.dumps(line, ensure_ascii=False) + "\n")
@@ -130,12 +143,19 @@ def run_all(limit: int | None) -> int:
     return 0
 
 
-def main(argv: list[str] | None = None) -> int:
+def _parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description="M1(Cloudflare)으로 시험지를 채점한다")
     p.add_argument("--smoke", action="store_true", help="가짜 사례 하나로 연결만 확인한다")
     p.add_argument("--limit", type=int, default=None, help="이번 실행에서 부를 최대 사례 수")
-    args = p.parse_args(argv)
-    return smoke() if args.smoke else run_all(args.limit)
+    # 기본값을 앞 실험 경로로 두는 이유: 앞 실험을 같은 명령으로 다시 돌릴 수 있어야 한다(v2 스펙 8-3절).
+    p.add_argument("--cases", type=Path, default=CASES, help="시험지 파일. 해시 파일은 같은 폴더의 cases.sha256")
+    p.add_argument("--results-dir", type=Path, default=RESULTS_DIR, help="결과를 쓸 폴더")
+    return p
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = _parser().parse_args(argv)
+    return smoke() if args.smoke else run_all(args.limit, args.cases, args.results_dir)
 
 
 if __name__ == "__main__":
