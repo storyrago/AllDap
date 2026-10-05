@@ -28,6 +28,8 @@ def _hashes() -> dict[str, str]:
     if F.CASES_SHA.exists():
         out["cases_new"] = F.CASES_SHA.read_text(encoding="utf-8").split()[0]
     if F.TRAIN_SHA.exists():
+        # dict((키, 값) 짝들): 해시 파일의 줄은 "해시  파일이름" 이다. split() 으로 둘로 나누고 reversed 로 뒤집어
+        # (파일이름, 해시) 짝을 만들면, dict 가 파일이름 -> 해시 로 찾는 표가 된다.
         lines = dict(reversed(line.split()) for line in F.TRAIN_SHA.read_text(encoding="utf-8").splitlines())
         out["train"], out["val"] = lines.get("train.jsonl", ""), lines.get("val.jsonl", "")
     return out

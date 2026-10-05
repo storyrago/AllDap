@@ -4,11 +4,15 @@
 """
 from __future__ import annotations
 
+import tempfile
+from pathlib import Path
+
 from .judge5 import RULES_V2, parse_result
 from .judge5v2_export import apply_review
 from .judge5 import build_messages
 from .judgeft_export import (
-    build_train, forbidden_problems, leak_problems, merge_reviews, overlap_problems, pending_rows, split_val,
+    build_train, corpus_problems, forbidden_problems, leak_problems, merge_reviews, overlap_problems, pending_rows,
+    split_val,
     train_short,
 )
 from .judgeft_files import PAIRS, TRAIN_QUOTA
@@ -93,6 +97,40 @@ def check_sentence_overlap_both_ways_and_forbidden_values() -> None:
     assert forbidden_problems({"학습 문항 1": "이체 한도는 \"1일 5억 원\" 이다"}) == ["학습 문항 1: 금지 값 '1일 5억 원' 가 있다(스펙 4-5절)"]
 
 
+TABLE_DOC = """# 요금제 안내
+
+| 요금제 | 데이터 | 통화 | 문자 | 월 요금 |
+|---|---|---|---|---|
+| 베이직 | 월 10GB | 100분 | 100건 | 33,000원 |
+
+베이직 요금제를 쓰는 고객은 남은 데이터를 다음 달로 넘길 수 없다.
+"""
+
+
+def check_table_separator_is_not_a_sentence() -> None:
+    """5칸 표 구분선(21자)은 기호뿐이라 문장으로 세지 않는다. 두 문서가 표 모양만 같으면 겹침이 아니다."""
+    template = "\n".join(m["content"] for m in build_messages("", [], ""))
+    other = "| 등급 | 한도 | 수수료 | 기간 | 비고 |\n|---|---|---|---|---|\n| 일반 | 100만 원 | 없음 | 1년 | - |\n"
+    assert overlap_problems({"학습 문서": TABLE_DOC}, {"시험 문서": other}, template) == []
+
+
+def check_corpus_check_before_upload() -> None:
+    """올리기 전 확인: 금지 값과 다른 분야 문서의 문장을 잡고, README 와 표 구분선은 세지 않는다."""
+    with tempfile.TemporaryDirectory() as t:
+        corpus = Path(t)
+        (corpus / "travel").mkdir()
+        (corpus / "school").mkdir()
+        (corpus / "travel" / "01.md").write_text(TABLE_DOC, encoding="utf-8")
+        copied = "학교 도서관의 대출 기간은 학부생이 14일, 대학원생이 30일이다."
+        (corpus / "school" / "01.md").write_text(copied + "\n", encoding="utf-8")
+        (corpus / "travel" / "README.md").write_text(copied + "\n", encoding="utf-8")   # 메모는 대조하지 않는다
+        assert corpus_problems("travel", corpus, frozen_texts=[]) == []
+        (corpus / "travel" / "02.md").write_text("인증 수단은 OTP 다.\n" + copied + "\n", encoding="utf-8")
+        found = corpus_problems("travel", corpus, frozen_texts=[])
+        assert any("금지 값 'OTP'" in f for f in found) and any("다른 문서" in f and "대출 기간" in f for f in found)
+        assert corpus_problems("hospital", corpus, frozen_texts=[])[0].endswith("문서(.md, README 제외)가 없다")
+
+
 def check_train_refuses_duplicate_variants_and_counts_quota() -> None:
     """같은 질문의 변형 줄이 둘이면 멈추고, 할당량 모자람은 남은 문항으로 센다."""
     qs, rs, a, vs = _fixture()
@@ -138,7 +176,8 @@ def check_supplement_review_flow_reviews_only_new_cases() -> None:
 CHECKS = [check_build_train_drops_only_broken_items_and_their_pairs, check_split_val_keeps_question_together_and_is_stable,
           check_leak_problems_find_overlaps, check_supplement_review_flow_reviews_only_new_cases,
           check_sentence_overlap_both_ways_and_forbidden_values, check_train_refuses_duplicate_variants_and_counts_quota,
-          check_pair_needs_asked_value_in_clean_answer]
+          check_pair_needs_asked_value_in_clean_answer, check_table_separator_is_not_a_sentence,
+          check_corpus_check_before_upload]
 
 
 def main() -> None:

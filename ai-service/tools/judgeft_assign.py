@@ -47,6 +47,7 @@ def pools_by_sheet(questions: list[dict], retrieved: list[dict], excluded: dict,
 
     열지 않은 분야(예비 분야)의 질문은 넣지 않는다. 칸이 하나라도 잘못되면 ValueError 로 전부 알린다.
     """
+    # := 는 값을 이름에 담으면서 그 값으로 바로 if 를 판단한다(파이썬 3.8 의 대입식). 계산을 한 번만 하고 결과를 아래에서 다시 쓴다.
     if bad := excluded_problems(excluded, questions, retrieved):
         raise ValueError("excluded.json 을 고친다:\n  - " + "\n  - ".join(bad))
     ok = {r["qid"]: r for r in latest_by_qid(retrieved) if r["status"] == "ok"}

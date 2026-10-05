@@ -23,6 +23,8 @@ from .judgeft_files import (
 )
 
 
+# @dataclass(frozen=True): 필드만 적으면 __init__ 과 비교(==)를 만들어 주는 장식이다. frozen=True 는 만든 뒤
+# 값을 바꿀 수 없게 한다. 한 번 센 수치가 뒤에서 몰래 바뀌지 않게 하려는 것이다(Java 의 record 와 비슷하다).
 @dataclass(frozen=True)
 class Condition:
     no: int
@@ -54,6 +56,7 @@ def gate_a(runs: list[list[dict]], cases: dict[str, dict]) -> dict:
     out = []
     for i, rows in enumerate(runs, 1):
         got = {r["case_id"]: parse_result(r["output"], r.get("finish"), rules=RULES_V2)[0] for r in rows}
+        # := 는 값을 이름에 담으면서 그 값으로 바로 if 를 판단한다(파이썬 3.8 의 대입식). 계산을 한 번만 하고 결과를 아래에서 다시 쓴다.
         if missing := eighth - set(got):
             raise SystemExit(f"실행 {i} 에 ⑧ 문항 {len(missing)}개의 결과가 없습니다. 마저 채점한 뒤 다시 하세요.")
         unread = sum(1 for c in eighth if got[c] is None)

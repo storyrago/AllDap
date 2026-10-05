@@ -10,6 +10,7 @@
     $PY -m tools.judgeft_export test pending --out <저장소 밖 폴더>/cases.jsonl   # 아직 검수하지 않은 문항만
     $PY -m tools.judgeft_export test append-review <검수 결과 파일>             # review.jsonl 에 덧붙인다
     $PY -m tools.judgeft_export train             # 학습 데이터(학습 묶음, 검증 묶음). 글자 확인과 누출 확인을 함께 한다
+    $PY -m tools.judgeft_export corpus-check --field <분야>   # 문서를 쓴 직후, 올리기 전에 금지 값과 문장 겹침만 본다
 
 새 시험지는 v2 와 같은 모양이라 v2 의 build_cases(⑥, ⑧ 의 글자 확인 포함), apply_review, fence_for 를 그대로 쓴다.
 시험지를 섞는 시드도 v2 의 build_cases 안의 값(20261005)을 그대로 쓴다. 섞는 순서는 결과에 영향이 없고,
@@ -39,6 +40,9 @@ MIN_LEAK_LEN = 20   # 이보다 짧은 근거 청크와 문장은 누출 확인�
 # 문장 경계: 마침표, 물음표, 느낌표 뒤의 공백, 또는 줄바꿈. (?<=...) 는 "바로 앞이 이 글자일 때" 만 맞는 조건이라
 # 마침표 자체는 앞 문장에 남는다.
 _SENTENCE_SPLIT = re.compile(r"(?<=[.!?])\s+|\n+")
+# 한글, 영문자, 숫자가 하나라도 있는 줄만 문장으로 센다. 표 구분선(|---|---|---|---|---|, 21자)처럼 기호만 있는 줄은
+# 어느 문서에나 똑같이 나오므로 겹쳐도 누출이 아니다. 이 줄이 없으면 5칸 표가 있는 문서는 모두 누출로 걸린다.
+_WORDY = re.compile(r"[가-힣A-Za-z0-9]")
 
 
 def _inputs() -> tuple[list[dict], list[dict], dict, list[dict]]:
@@ -94,6 +98,7 @@ def merge_reviews(existing: list[dict], new: list[dict], pending_ids: set[str]) 
         elif cid not in pending_ids:
             problems.append(f"{cid}: 검수할 문항(pending)이 아니다. 이미 검수했거나 시험지에 없다")
         seen.add(cid)
+    # := 는 값을 이름에 담으면서 그 값으로 바로 if 를 판단한다(파이썬 3.8 의 대입식). 계산을 한 번만 하고 결과를 아래에서 다시 쓴다.
     if missing := sorted(pending_ids - seen):
         problems.append(f"검수 결과에 없는 문항 {len(missing)}개: {', '.join(missing[:5])}")
     return existing + new, problems
@@ -260,21 +265,25 @@ def sentences(text: str, template: str) -> set[str]:
     out = set()
     for s in _SENTENCE_SPLIT.split(text):
         s = s.strip()
-        if len(s) >= MIN_LEAK_LEN and s not in template:
+        if len(s) >= MIN_LEAK_LEN and _WORDY.search(s) and s not in template:
             out.add(s)
     return out
 
 
-def overlap_problems(train: dict[str, str], test: dict[str, str], template: str) -> list[str]:
+def overlap_problems(train: dict[str, str], test: dict[str, str], template: str,
+                     labels: tuple[str, str] = ("학습", "시험")) -> list[str]:
     """학습 쪽 글과 시험 쪽 글을 문장 단위로 양쪽에서 대조한다. 이름마다 한 줄만 낸다.
 
     leak_problems 는 학습 문항의 글 전체가 시험지에 들어 있는지만 본다. 문서의 한 문장만 옮겨 쓴 경우나
     시험 쪽 글이 학습 쪽에 들어간 경우는 놓친다. 그래서 문장으로 잘라 두 방향을 모두 본다.
+    labels 는 출력에 쓰는 두 쪽의 이름이다(corpus-check 는 "이 분야" 와 "다른 문서" 로 부른다).
     """
     out = []
-    for name_a, side_a, side_b, where in (("학습", train, test, "시험"), ("시험", test, train, "학습")):
+    a, b = labels
+    for name_a, side_a, side_b, where in ((a, train, test, b), (b, test, train, a)):
         blob = "\n".join(side_b.values())
         for name, text in side_a.items():
+            # next(만들기, None): 조건에 맞는 첫 문장 하나만 꺼내고, 없으면 None 이다. 문서마다 한 줄만 내려는 것이다.
             if hit := next((s for s in sorted(sentences(text, template)) if s in blob), None):
                 out.append(f"{name_a} 쪽 {name} 의 문장이 {where} 쪽에 나온다: {hit[:40]}")
     return out
@@ -287,8 +296,42 @@ def forbidden_problems(texts: dict[str, str]) -> list[str]:
 
 
 def _corpus_texts(dirs: list[Path]) -> dict[str, str]:
+    """폴더들의 문서. README.md 는 뺀다. 출제 세션의 메모(문서 목록과 대상별 규정 표)라 서비스에 올리지 않으므로
+    검색에도 학습에도 쓰이지 않는다(계획 E2 Step 4, v2 의 run_log 에서 README 0행). 대조하면 메모끼리 겹친 것이
+    누출로 잡힌다."""
     return {f"문서 {p.parent.name}/{p.name}": p.read_text(encoding="utf-8")
-            for d in dirs for p in sorted(d.glob("*.md"))}
+            for d in dirs for p in sorted(d.glob("*.md")) if p.name != "README.md"}
+
+
+def corpus_problems(field: str, corpus: Path = CORPUS, frozen_texts: list[str] | None = None) -> list[str]:
+    """문서를 쓴 직후, 올리기 전에 하는 두 확인(스펙 5-3절 확인 5, 6 을 문서에만). 문제 목록(빈 목록이면 통과).
+
+    그 분야의 문서에 금지 값이 있는가, 그 분야의 문서와 다른 문서(이 실험의 다른 분야, v2 의 네 분야, 동결 시험지)가
+    20자 이상 문장을 나눠 갖는가. 학습 데이터를 만든 뒤(E10)에야 알면 문서를 고치고 다시 올려야 하지만, 여기서
+    걸리면 그 자리에서 문서만 고치면 된다. 다른 학습용 분야와 겹쳐도 알린다. 분야를 나눈 이유가 흐려지기 때문이다.
+    """
+    mine = _corpus_texts([corpus / field])
+    if not mine:
+        return [f"{corpus / field} 에 문서(.md, README 제외)가 없다"]
+    others = _corpus_texts([d for d in sorted(corpus.iterdir()) if d.is_dir() and d.name != field]
+                           + list(V2_CORPUS_DIRS.values()))
+    if frozen_texts is None:
+        frozen_texts = [m["content"] for row in read_jsonl(V2_CASES) for m in row["messages"] if m["role"] == "user"]
+    others["동결 시험지"] = "\n".join(frozen_texts)
+    template = "\n".join(m["content"] for m in build_messages("", [], ""))
+    return forbidden_problems(mine) + overlap_problems(mine, others, template, labels=("이 분야", "다른 문서"))
+
+
+def cmd_corpus(field: str | None) -> int:
+    if not field:
+        print("--field 에 분야 이름(예: travel)을 준다.")
+        return 1
+    if problems := corpus_problems(field):
+        print("문서를 고친 뒤 올립니다. 금지 값은 지우거나 다른 값으로 바꾸고, 겹친 문장은 이 분야의 말로 다시 씁니다.\n  - "
+              + "\n  - ".join(problems[:20]))
+        return 1
+    print(f"{field}: 금지 값 없음, 다른 문서와 겹치는 문장 없음.")
+    return 0
 
 
 def overlap_sides(items: list[dict], questions: list[dict], retrieved: list[dict]) -> tuple[dict, dict]:
@@ -373,14 +416,17 @@ def cmd_train() -> int:
 
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description="새 시험지와 학습 데이터를 만든다")
-    p.add_argument("what", choices=("test", "train"))
+    p.add_argument("what", choices=("test", "train", "corpus-check"))
     p.add_argument("stage", nargs="?", choices=("draft", "mismatches", "final", "pending", "append-review"))
     p.add_argument("path", nargs="?", help="append-review 의 검수 결과 파일")
     p.add_argument("--after-supplement", action="store_true", help="보충 회차를 더해 draft 를 다시 만든다")
     p.add_argument("--out", help="pending 이 쓸 파일(저장소 밖)")
+    p.add_argument("--field", help="corpus-check 가 볼 분야")
     args = p.parse_args(argv)
     if args.what == "train":
         return cmd_train()
+    if args.what == "corpus-check":
+        return cmd_corpus(args.field)
     if args.stage is None:
         print("test 에는 draft, mismatches, final, pending, append-review 중 하나를 준다.")
         return 1

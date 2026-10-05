@@ -60,7 +60,7 @@
 | `ai-service/tools/judgeft_assign.py` | ⑧ 자격 세기, 시험용과 학습용 배정, 보충 | 4 |
 | `ai-service/testdata/judgeft/templates.json` | 모범 답안의 영어 문장 틀. 묶음 아홉, 묶음마다 셋 | 5 |
 | `ai-service/tools/judgeft_rationale.py` | 변경 기록과 문장 틀로 모범 답안을 만든다 | 5 |
-| `ai-service/tools/judgeft_export.py` | 새 시험지(검수 전, 불일치 목록, 최종, 보충 뒤 검수할 문항만 뽑기와 검수 결과 덧붙이기)와 학습 데이터, 누출 확인(글 전체, 20자 이상 문장의 두 방향, 금지 값) | 6 |
+| `ai-service/tools/judgeft_export.py` | 새 시험지(검수 전, 불일치 목록, 최종, 보충 뒤 검수할 문항만 뽑기와 검수 결과 덧붙이기)와 학습 데이터, 누출 확인(글 전체, 20자 이상 문장의 두 방향, 금지 값), 올리기 전 문서 확인(`corpus-check`) | 6 |
 | `ai-service/tools/judgeft_labels.py` | 학습 문항 하나를 토큰으로 바꾸는 함수. 노트북이 글자 그대로 담는다 | 7 |
 | `ai-service/tools/judgeft_tokcheck.py` | 실제 M3 토크나이저로 끝 토큰 위치를 확인하고, loss 계산 방식이 같은 값을 내는지 작은 모델로 확인한다(CI 밖) | 7 |
 | `ai-service/tools/judgeft_determinism.py` | 결정성 확인과 모델마다 쓸 결과 파일 목록 | 8 |
@@ -827,6 +827,7 @@ def main(argv: list[str] | None = None) -> int:
         print("testdata/judgeft/bots.json 이 없습니다. 계획 E2 가 봇을 만들고 남기는 파일입니다.")
         return 1
     recorded = read_json(BOTS)
+    # := 는 값을 이름에 담으면서 그 값으로 바로 if 를 판단한다(파이썬 3.8 의 대입식). 계산을 한 번만 하고 결과를 아래에서 다시 쓴다.
     if wrong := [f"{f}={n}(기록은 {recorded.get(f)})" for f, n in bots.items() if recorded.get(f) != n]:
         print(f"--bot 이 bots.json 과 다릅니다: {', '.join(wrong)}")
         return 1
@@ -1128,6 +1129,7 @@ def pools_by_sheet(questions: list[dict], retrieved: list[dict], excluded: dict,
 
     열지 않은 분야(예비 분야)의 질문은 넣지 않는다. 칸이 하나라도 잘못되면 ValueError 로 전부 알린다.
     """
+    # := 는 값을 이름에 담으면서 그 값으로 바로 if 를 판단한다(파이썬 3.8 의 대입식). 계산을 한 번만 하고 결과를 아래에서 다시 쓴다.
     if bad := excluded_problems(excluded, questions, retrieved):
         raise ValueError("excluded.json 을 고친다:\n  - " + "\n  - ".join(bad))
     ok = {r["qid"]: r for r in latest_by_qid(retrieved) if r["status"] == "ok"}
@@ -1822,11 +1824,15 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>" -- ai-service/testdata/
 """
 from __future__ import annotations
 
+import tempfile
+from pathlib import Path
+
 from .judge5 import RULES_V2, parse_result
 from .judge5v2_export import apply_review
 from .judge5 import build_messages
 from .judgeft_export import (
-    build_train, forbidden_problems, leak_problems, merge_reviews, overlap_problems, pending_rows, split_val,
+    build_train, corpus_problems, forbidden_problems, leak_problems, merge_reviews, overlap_problems, pending_rows,
+    split_val,
     train_short,
 )
 from .judgeft_files import PAIRS, TRAIN_QUOTA
@@ -1911,6 +1917,40 @@ def check_sentence_overlap_both_ways_and_forbidden_values() -> None:
     assert forbidden_problems({"학습 문항 1": "이체 한도는 \"1일 5억 원\" 이다"}) == ["학습 문항 1: 금지 값 '1일 5억 원' 가 있다(스펙 4-5절)"]
 
 
+TABLE_DOC = """# 요금제 안내
+
+| 요금제 | 데이터 | 통화 | 문자 | 월 요금 |
+|---|---|---|---|---|
+| 베이직 | 월 10GB | 100분 | 100건 | 33,000원 |
+
+베이직 요금제를 쓰는 고객은 남은 데이터를 다음 달로 넘길 수 없다.
+"""
+
+
+def check_table_separator_is_not_a_sentence() -> None:
+    """5칸 표 구분선(21자)은 기호뿐이라 문장으로 세지 않는다. 두 문서가 표 모양만 같으면 겹침이 아니다."""
+    template = "\n".join(m["content"] for m in build_messages("", [], ""))
+    other = "| 등급 | 한도 | 수수료 | 기간 | 비고 |\n|---|---|---|---|---|\n| 일반 | 100만 원 | 없음 | 1년 | - |\n"
+    assert overlap_problems({"학습 문서": TABLE_DOC}, {"시험 문서": other}, template) == []
+
+
+def check_corpus_check_before_upload() -> None:
+    """올리기 전 확인: 금지 값과 다른 분야 문서의 문장을 잡고, README 와 표 구분선은 세지 않는다."""
+    with tempfile.TemporaryDirectory() as t:
+        corpus = Path(t)
+        (corpus / "travel").mkdir()
+        (corpus / "school").mkdir()
+        (corpus / "travel" / "01.md").write_text(TABLE_DOC, encoding="utf-8")
+        copied = "학교 도서관의 대출 기간은 학부생이 14일, 대학원생이 30일이다."
+        (corpus / "school" / "01.md").write_text(copied + "\n", encoding="utf-8")
+        (corpus / "travel" / "README.md").write_text(copied + "\n", encoding="utf-8")   # 메모는 대조하지 않는다
+        assert corpus_problems("travel", corpus, frozen_texts=[]) == []
+        (corpus / "travel" / "02.md").write_text("인증 수단은 OTP 다.\n" + copied + "\n", encoding="utf-8")
+        found = corpus_problems("travel", corpus, frozen_texts=[])
+        assert any("금지 값 'OTP'" in f for f in found) and any("다른 문서" in f and "대출 기간" in f for f in found)
+        assert corpus_problems("hospital", corpus, frozen_texts=[])[0].endswith("문서(.md, README 제외)가 없다")
+
+
 def check_train_refuses_duplicate_variants_and_counts_quota() -> None:
     """같은 질문의 변형 줄이 둘이면 멈추고, 할당량 모자람은 남은 문항으로 센다."""
     qs, rs, a, vs = _fixture()
@@ -1956,7 +1996,8 @@ def check_supplement_review_flow_reviews_only_new_cases() -> None:
 CHECKS = [check_build_train_drops_only_broken_items_and_their_pairs, check_split_val_keeps_question_together_and_is_stable,
           check_leak_problems_find_overlaps, check_supplement_review_flow_reviews_only_new_cases,
           check_sentence_overlap_both_ways_and_forbidden_values, check_train_refuses_duplicate_variants_and_counts_quota,
-          check_pair_needs_asked_value_in_clean_answer]
+          check_pair_needs_asked_value_in_clean_answer, check_table_separator_is_not_a_sentence,
+          check_corpus_check_before_upload]
 
 
 def main() -> None:
@@ -1994,6 +2035,7 @@ Expected: `ModuleNotFoundError: No module named 'tools.judgeft_export'`
     $PY -m tools.judgeft_export test pending --out <저장소 밖 폴더>/cases.jsonl   # 아직 검수하지 않은 문항만
     $PY -m tools.judgeft_export test append-review <검수 결과 파일>             # review.jsonl 에 덧붙인다
     $PY -m tools.judgeft_export train             # 학습 데이터(학습 묶음, 검증 묶음). 글자 확인과 누출 확인을 함께 한다
+    $PY -m tools.judgeft_export corpus-check --field <분야>   # 문서를 쓴 직후, 올리기 전에 금지 값과 문장 겹침만 본다
 
 새 시험지는 v2 와 같은 모양이라 v2 의 build_cases(⑥, ⑧ 의 글자 확인 포함), apply_review, fence_for 를 그대로 쓴다.
 시험지를 섞는 시드도 v2 의 build_cases 안의 값(20261005)을 그대로 쓴다. 섞는 순서는 결과에 영향이 없고,
@@ -2023,6 +2065,9 @@ MIN_LEAK_LEN = 20   # 이보다 짧은 근거 청크와 문장은 누출 확인�
 # 문장 경계: 마침표, 물음표, 느낌표 뒤의 공백, 또는 줄바꿈. (?<=...) 는 "바로 앞이 이 글자일 때" 만 맞는 조건이라
 # 마침표 자체는 앞 문장에 남는다.
 _SENTENCE_SPLIT = re.compile(r"(?<=[.!?])\s+|\n+")
+# 한글, 영문자, 숫자가 하나라도 있는 줄만 문장으로 센다. 표 구분선(|---|---|---|---|---|, 21자)처럼 기호만 있는 줄은
+# 어느 문서에나 똑같이 나오므로 겹쳐도 누출이 아니다. 이 줄이 없으면 5칸 표가 있는 문서는 모두 누출로 걸린다.
+_WORDY = re.compile(r"[가-힣A-Za-z0-9]")
 
 
 def _inputs() -> tuple[list[dict], list[dict], dict, list[dict]]:
@@ -2078,6 +2123,7 @@ def merge_reviews(existing: list[dict], new: list[dict], pending_ids: set[str]) 
         elif cid not in pending_ids:
             problems.append(f"{cid}: 검수할 문항(pending)이 아니다. 이미 검수했거나 시험지에 없다")
         seen.add(cid)
+    # := 는 값을 이름에 담으면서 그 값으로 바로 if 를 판단한다(파이썬 3.8 의 대입식). 계산을 한 번만 하고 결과를 아래에서 다시 쓴다.
     if missing := sorted(pending_ids - seen):
         problems.append(f"검수 결과에 없는 문항 {len(missing)}개: {', '.join(missing[:5])}")
     return existing + new, problems
@@ -2244,21 +2290,25 @@ def sentences(text: str, template: str) -> set[str]:
     out = set()
     for s in _SENTENCE_SPLIT.split(text):
         s = s.strip()
-        if len(s) >= MIN_LEAK_LEN and s not in template:
+        if len(s) >= MIN_LEAK_LEN and _WORDY.search(s) and s not in template:
             out.add(s)
     return out
 
 
-def overlap_problems(train: dict[str, str], test: dict[str, str], template: str) -> list[str]:
+def overlap_problems(train: dict[str, str], test: dict[str, str], template: str,
+                     labels: tuple[str, str] = ("학습", "시험")) -> list[str]:
     """학습 쪽 글과 시험 쪽 글을 문장 단위로 양쪽에서 대조한다. 이름마다 한 줄만 낸다.
 
     leak_problems 는 학습 문항의 글 전체가 시험지에 들어 있는지만 본다. 문서의 한 문장만 옮겨 쓴 경우나
     시험 쪽 글이 학습 쪽에 들어간 경우는 놓친다. 그래서 문장으로 잘라 두 방향을 모두 본다.
+    labels 는 출력에 쓰는 두 쪽의 이름이다(corpus-check 는 "이 분야" 와 "다른 문서" 로 부른다).
     """
     out = []
-    for name_a, side_a, side_b, where in (("학습", train, test, "시험"), ("시험", test, train, "학습")):
+    a, b = labels
+    for name_a, side_a, side_b, where in ((a, train, test, b), (b, test, train, a)):
         blob = "\n".join(side_b.values())
         for name, text in side_a.items():
+            # next(만들기, None): 조건에 맞는 첫 문장 하나만 꺼내고, 없으면 None 이다. 문서마다 한 줄만 내려는 것이다.
             if hit := next((s for s in sorted(sentences(text, template)) if s in blob), None):
                 out.append(f"{name_a} 쪽 {name} 의 문장이 {where} 쪽에 나온다: {hit[:40]}")
     return out
@@ -2271,8 +2321,42 @@ def forbidden_problems(texts: dict[str, str]) -> list[str]:
 
 
 def _corpus_texts(dirs: list[Path]) -> dict[str, str]:
+    """폴더들의 문서. README.md 는 뺀다. 출제 세션의 메모(문서 목록과 대상별 규정 표)라 서비스에 올리지 않으므로
+    검색에도 학습에도 쓰이지 않는다(계획 E2 Step 4, v2 의 run_log 에서 README 0행). 대조하면 메모끼리 겹친 것이
+    누출로 잡힌다."""
     return {f"문서 {p.parent.name}/{p.name}": p.read_text(encoding="utf-8")
-            for d in dirs for p in sorted(d.glob("*.md"))}
+            for d in dirs for p in sorted(d.glob("*.md")) if p.name != "README.md"}
+
+
+def corpus_problems(field: str, corpus: Path = CORPUS, frozen_texts: list[str] | None = None) -> list[str]:
+    """문서를 쓴 직후, 올리기 전에 하는 두 확인(스펙 5-3절 확인 5, 6 을 문서에만). 문제 목록(빈 목록이면 통과).
+
+    그 분야의 문서에 금지 값이 있는가, 그 분야의 문서와 다른 문서(이 실험의 다른 분야, v2 의 네 분야, 동결 시험지)가
+    20자 이상 문장을 나눠 갖는가. 학습 데이터를 만든 뒤(E10)에야 알면 문서를 고치고 다시 올려야 하지만, 여기서
+    걸리면 그 자리에서 문서만 고치면 된다. 다른 학습용 분야와 겹쳐도 알린다. 분야를 나눈 이유가 흐려지기 때문이다.
+    """
+    mine = _corpus_texts([corpus / field])
+    if not mine:
+        return [f"{corpus / field} 에 문서(.md, README 제외)가 없다"]
+    others = _corpus_texts([d for d in sorted(corpus.iterdir()) if d.is_dir() and d.name != field]
+                           + list(V2_CORPUS_DIRS.values()))
+    if frozen_texts is None:
+        frozen_texts = [m["content"] for row in read_jsonl(V2_CASES) for m in row["messages"] if m["role"] == "user"]
+    others["동결 시험지"] = "\n".join(frozen_texts)
+    template = "\n".join(m["content"] for m in build_messages("", [], ""))
+    return forbidden_problems(mine) + overlap_problems(mine, others, template, labels=("이 분야", "다른 문서"))
+
+
+def cmd_corpus(field: str | None) -> int:
+    if not field:
+        print("--field 에 분야 이름(예: travel)을 준다.")
+        return 1
+    if problems := corpus_problems(field):
+        print("문서를 고친 뒤 올립니다. 금지 값은 지우거나 다른 값으로 바꾸고, 겹친 문장은 이 분야의 말로 다시 씁니다.\n  - "
+              + "\n  - ".join(problems[:20]))
+        return 1
+    print(f"{field}: 금지 값 없음, 다른 문서와 겹치는 문장 없음.")
+    return 0
 
 
 def overlap_sides(items: list[dict], questions: list[dict], retrieved: list[dict]) -> tuple[dict, dict]:
@@ -2357,14 +2441,17 @@ def cmd_train() -> int:
 
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description="새 시험지와 학습 데이터를 만든다")
-    p.add_argument("what", choices=("test", "train"))
+    p.add_argument("what", choices=("test", "train", "corpus-check"))
     p.add_argument("stage", nargs="?", choices=("draft", "mismatches", "final", "pending", "append-review"))
     p.add_argument("path", nargs="?", help="append-review 의 검수 결과 파일")
     p.add_argument("--after-supplement", action="store_true", help="보충 회차를 더해 draft 를 다시 만든다")
     p.add_argument("--out", help="pending 이 쓸 파일(저장소 밖)")
+    p.add_argument("--field", help="corpus-check 가 볼 분야")
     args = p.parse_args(argv)
     if args.what == "train":
         return cmd_train()
+    if args.what == "corpus-check":
+        return cmd_corpus(args.field)
     if args.stage is None:
         print("test 에는 draft, mismatches, final, pending, append-review 중 하나를 준다.")
         return 1
@@ -2382,7 +2469,7 @@ if __name__ == "__main__":
 $PY -m tools.judgeft_export_check | tail -1 && $PY -m tools.judgeft_assign_check | tail -1
 ```
 
-Expected: `7가지 전부 통과.`, `7가지 전부 통과.`
+Expected: `9가지 전부 통과.`, `7가지 전부 통과.`
 
 - [ ] **Step 5: 커밋한다**
 
@@ -2862,6 +2949,8 @@ from .judgeft_files import (
 )
 
 
+# @dataclass(frozen=True): 필드만 적으면 __init__ 과 비교(==)를 만들어 주는 장식이다. frozen=True 는 만든 뒤
+# 값을 바꿀 수 없게 한다. 한 번 센 수치가 뒤에서 몰래 바뀌지 않게 하려는 것이다(Java 의 record 와 비슷하다).
 @dataclass(frozen=True)
 class Condition:
     no: int
@@ -2893,6 +2982,7 @@ def gate_a(runs: list[list[dict]], cases: dict[str, dict]) -> dict:
     out = []
     for i, rows in enumerate(runs, 1):
         got = {r["case_id"]: parse_result(r["output"], r.get("finish"), rules=RULES_V2)[0] for r in rows}
+        # := 는 값을 이름에 담으면서 그 값으로 바로 if 를 판단한다(파이썬 3.8 의 대입식). 계산을 한 번만 하고 결과를 아래에서 다시 쓴다.
         if missing := eighth - set(got):
             raise SystemExit(f"실행 {i} 에 ⑧ 문항 {len(missing)}개의 결과가 없습니다. 마저 채점한 뒤 다시 하세요.")
         unread = sum(1 for c in eighth if got[c] is None)
@@ -3384,6 +3474,8 @@ NAMES = {"M1": "M1", "M3pre": "학습 전 M3", "M3ft": "학습 후 M3"}
 BASIS = "대응표"
 
 
+# @dataclass(frozen=True): 필드만 적으면 __init__ 과 비교(==)를 만들어 주는 장식이다. frozen=True 는 만든 뒤
+# 값을 바꿀 수 없게 한다. 한 번 센 수치가 뒤에서 몰래 바뀌지 않게 하려는 것이다(Java 의 record 와 비슷하다).
 @dataclass(frozen=True)
 class Metrics:
     within1: int
@@ -3430,6 +3522,7 @@ def _kinds_text(k: dict[str, int]) -> str:
 
 
 def metrics(key: dict[str, dict], scores: dict[str, int | None]) -> Metrics:
+    # := 는 값을 이름에 담으면서 그 값으로 바로 if 를 판단한다(파이썬 3.8 의 대입식). 계산을 한 번만 하고 결과를 아래에서 다시 쓴다.
     if missing := set(key) - set(scores):
         raise SystemExit(f"결과에 없는 문항이 {len(missing)}개 있습니다. 보고서를 만들지 않습니다(v2 스펙 6-5절).")
     pairs = [(k["score"], scores[c]) for c, k in key.items()]
@@ -3781,6 +3874,8 @@ def _hashes() -> dict[str, str]:
     if F.CASES_SHA.exists():
         out["cases_new"] = F.CASES_SHA.read_text(encoding="utf-8").split()[0]
     if F.TRAIN_SHA.exists():
+        # dict((키, 값) 짝들): 해시 파일의 줄은 "해시  파일이름" 이다. split() 으로 둘로 나누고 reversed 로 뒤집어
+        # (파일이름, 해시) 짝을 만들면, dict 가 파일이름 -> 해시 로 찾는 표가 된다.
         lines = dict(reversed(line.split()) for line in F.TRAIN_SHA.read_text(encoding="utf-8").splitlines())
         out["train"], out["val"] = lines.get("train.jsonl", ""), lines.get("val.jsonl", "")
     return out
@@ -4322,6 +4417,8 @@ def check_committed_train_rebuilds() -> None:
                            load_templates())
     train, val = split_val(items)
     assert read_jsonl(TRAIN) == train and read_jsonl(VAL) == val, "학습 데이터가 입력에서 다시 만든 것과 다르다"
+    # dict((키, 값) 짝들): 해시 파일의 줄은 "해시  파일이름" 이다. split() 으로 둘로 나누고 reversed 로 뒤집어
+    # (파일이름, 해시) 짝을 만들면, dict 가 파일이름 -> 해시 로 찾는 표가 된다.
     recorded = dict(reversed(line.split()) for line in TRAIN_SHA.read_text(encoding="utf-8").splitlines())
     assert recorded["train.jsonl"] == sha256_file(TRAIN) and recorded["val.jsonl"] == sha256_file(VAL)
 
@@ -4333,6 +4430,7 @@ def check_forbidden_values_absent() -> None:
     for path in (TRAIN, VAL):
         if path.exists():
             texts[path.name] = path.read_text(encoding="utf-8")
+    # := 는 값을 이름에 담으면서 그 값으로 바로 if 를 판단한다(파이썬 3.8 의 대입식). 계산을 한 번만 하고 결과를 아래에서 다시 쓴다.
     assert not (bad := forbidden_problems(texts)), bad
 
 
@@ -4364,7 +4462,7 @@ $PY -m tools.judge5_check | tail -1 && $PY -m tools.judge5v2_check | tail -1
 git -C /Users/cheonjamin/projects/AllDap-judge-ft diff --stat f52a1a6 -- 'ai-service/tools/judge5*.py' ai-service/testdata/judge5v2 'ai-service/notebooks/judge5*_colab.ipynb' ai-service/app
 ```
 
-Expected: `46가지 전부 통과.`, `44가지 전부 통과.`, `66가지 전부 통과.`, 그리고 마지막 명령의 출력이 비어 있다(v2 파일과 서비스 코드가 하나도 바뀌지 않았다). `*` 가 든 경로를 작은따옴표로 감싸는 이유: zsh 는 따옴표 없는 `*` 를 지금 폴더(`ai-service`)에서 먼저 펼치려 하고, 맞는 파일이 없으면 `no matches found` 로 명령 전체를 멈춘다. 감싸면 git 이 저장소 기준으로 펼친다. `f52a1a6` 은 이 브랜치를 딴 `feat/judge-selfhost-v2` 의 커밋이다. 브랜치 이름으로 비교하지 않는 이유: #160 에 커밋이 더해지면 그 차이가 이 브랜치의 변경처럼 보인다.
+Expected: `48가지 전부 통과.`, `44가지 전부 통과.`, `66가지 전부 통과.`, 그리고 마지막 명령의 출력이 비어 있다(v2 파일과 서비스 코드가 하나도 바뀌지 않았다). `*` 가 든 경로를 작은따옴표로 감싸는 이유: zsh 는 따옴표 없는 `*` 를 지금 폴더(`ai-service`)에서 먼저 펼치려 하고, 맞는 파일이 없으면 `no matches found` 로 명령 전체를 멈춘다. 감싸면 git 이 저장소 기준으로 펼친다. `f52a1a6` 은 이 브랜치를 딴 `feat/judge-selfhost-v2` 의 커밋이다. 브랜치 이름으로 비교하지 않는 이유: #160 에 커밋이 더해지면 그 차이가 이 브랜치의 변경처럼 보인다.
 
 - [ ] **Step 3: CI 에 한 줄을 더한다**
 
@@ -4420,9 +4518,20 @@ Expected: `시험용 [...], 학습용 [..., ...], 예비 [...]`. 계획을 쓸 �
 - 실존하는 회사, 상품, 사람의 이름을 쓰지 않는다.
 - **비슷한 항목이 나란히 적히고 항목마다 값이 다른 규정** 을 많이 넣는다(요금표, 등급별 규정, 일수별 수수료). ⑧ 은 근거 청크에 값이 서로 다른 두 대상이 함께 있어야 만들 수 있다. 청크는 소제목마다 잘리므로(v2 결과 7-2절), 비교할 항목은 같은 소제목 아래 표나 목록으로 둔다.
 - 개정 전의 옛 값을 적은 문서는 넣지 않는다. v2 에서 그런 문서는 ⑥ 을 만들 수 없는 근거가 됐다(v2 스펙 3-2절).
-- 폴더에 `README.md` 를 두어 문서 목록과 각 문서의 대상별 규정 표를 적는다. 올리지 않는 메모다.
+- 폴더에 `README.md` 를 두어 문서 목록과 각 문서의 대상별 규정 표를 적는다. 올리지 않는 메모다. 올리지 않으므로 아래 Step 3 의 확인에서도 빠진다.
+- **금지 값(`OTP`, `보안카드`, `1일 5억 원`, `1,000만 원`)을 쓰지 않는다.** 설계 문서의 예에만 쓰는 동결 시험지 문항의 값이다(스펙 4-5절). 문서에 있으면 학습 문항의 근거로 들어가 학습 데이터에 섞인다.
+- **다른 분야의 문서(이 실험의 다른 분야, v2 의 인사 규정, 쇼핑몰, 제품 설명서, 금융 상품)의 문장을 옮겨 쓰지 않는다.** 분야를 나눈 이유(스펙 3-2절)가 사라지고, 학습과 시험 사이의 누출이 된다.
 
-- [ ] **Step 3: 커밋한다**
+- [ ] **Step 3: 올리기 전에 금지 값과 문장 겹침을 본다** (오케스트레이터)
+
+```bash
+cd /Users/cheonjamin/projects/AllDap-judge-ft/ai-service
+$PY -m tools.judgeft_export corpus-check --field <분야>
+```
+
+Expected: `<분야>: 금지 값 없음, 다른 문서와 겹치는 문장 없음.` 과 종료 코드 0. 그 분야의 문서(README 제외)를 이 실험의 다른 분야 문서, v2 의 네 분야 문서, 동결 시험지와 20자 이상 문장으로 두 방향 대조하고, 금지 값을 찾는다(스펙 5-3절 확인 5, 6 을 문서에만 한다). 종료 코드 1 이면 출력의 문서와 문장을 출제 세션에 보여, 그 자리에서 문서를 고치고(금지 값은 지우거나 다른 값으로, 겹친 문장은 이 분야의 말로 다시) 이 명령을 다시 한다. 올리기 전이라 문서만 고치면 된다. E10 에서 같은 확인에 걸리면 문서를 다시 올리고 검색을 다시 해야 한다.
+
+- [ ] **Step 4: 커밋한다**
 
 ```bash
 cd /Users/cheonjamin/projects/AllDap-judge-ft
@@ -4550,7 +4659,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>" -- ai-service/testdata/
 
 ### Task E4: 나머지 분야를 마친다
 
-E1 Step 2, E2, E3 Step 1~3 을 **시험용 분야** 와 **두 번째 학습용 분야** 에 대해 한다. 시험용 분야의 질문은 약 150개다(새 시험지 120 에 25% 여유). 시험용 분야에는 ⑧ 자격 질문이 72개 이상 필요하므로(⑧ 60, 대상이 둘인 ①② 12), 답이 하나인 질문의 다수가 나란히 적힌 항목을 묻도록 쓴다.
+E1 Step 2~3(문서를 쓰고 올리기 전에 `corpus-check` 를 통과시킨다), E2, E3 Step 1~3 을 **시험용 분야** 와 **두 번째 학습용 분야** 에 대해 한다. 분야를 하나 더 쓸 때마다 앞서 쓴 분야도 `corpus-check` 를 다시 돌린다(새 분야와 겹치는지는 새 분야를 쓴 뒤에야 알 수 있다). 시험용 분야의 질문은 약 150개다(새 시험지 120 에 25% 여유). 시험용 분야에는 ⑧ 자격 질문이 72개 이상 필요하므로(⑧ 60, 대상이 둘인 ①② 12), 답이 하나인 질문의 다수가 나란히 적힌 항목을 묻도록 쓴다.
 
 봇을 만들 때 `bots.json` 에 분야를 더하고, 검색은 `--bot` 을 분야마다 준다. 이미 검색한 질문은 다시 검색하지 않는다(`settled_qids`). 업로드와 검색의 뉴런을 단계마다 `run_log.md` 에 적고, 한도에 가까우면 날을 나눈다.
 
@@ -4576,7 +4685,7 @@ Expected: `test 판정: 충분(첫 배정을 그대로 돌려 봤다)` 과 `trai
 - 종료 코드 3 이면 분야를 늘리지 않고, 모자란 유형이 나온 시험지의 분야에 출제 세션이 질문을 더 쓴다(E4 의 질문, 검색, 답변). 그다음 Step 1 을 다시 한다.
 - 시험용이 모자라면 `$PY -m tools.judgeft_fields open test` 로 예비 분야를 연다.
 - 학습용이 모자라면 `$PY -m tools.judgeft_fields open train` 으로 연다. 예비 분야가 이미 시험용으로 쓰였으면 도구가 거절하고, 그때는 출제 세션이 새 분야 하나(스펙 3-1절의 조건, 이미 쓴 분야와 v2 의 네 분야와 겹치지 않는 영어 소문자 이름)를 정해 `--new <이름>` 으로 연다.
-- 연 분야마다 E4 를 한다. 뉴런을 쓴다.
+- 연 분야마다 E4 를 한다(올리기 전의 `corpus-check` 포함). 뉴런을 쓴다.
 - 도구가 "시험용 분야는 2개까지", "학습용 분야는 3개까지" 로 거절하면 멈추고 사용자에게 보인다(스펙 3-3절 3).
 
 - [ ] **Step 3: 커밋한다**
@@ -4617,7 +4726,7 @@ git commit -m "test: 파인튜닝 실험의 시험용과 학습용 유형을 시
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>" -- ai-service/testdata/judgeft/assignment.json
 ```
 
-Expected: `46가지 전부 통과.`(배정 재현 점검이 이제 실제 파일을 본다)
+Expected: `48가지 전부 통과.`(배정 재현 점검이 이제 실제 파일을 본다)
 
 **리뷰 포인트:** 이 커밋 뒤로 회차의 `pool` 에 든 질문의 `questions.jsonl` 줄을 고치지 않는다(v2 계획 E6 의 규칙. 배정 재현 점검이 그 줄을 입력으로 쓴다).
 
@@ -4822,7 +4931,7 @@ Expected: `썼다:` 두 줄, 그리고 `0`(학습 데이터 해시가 빈 글자
 $PY -m tools.judgeft_check | tail -1 && $PY -m tools.judge5_check | tail -1 && $PY -m tools.judge5v2_check | tail -1
 ```
 
-Expected: `46가지 전부 통과.`, `44가지 전부 통과.`, `66가지 전부 통과.`
+Expected: `48가지 전부 통과.`, `44가지 전부 통과.`, `66가지 전부 통과.`
 
 - [ ] **Step 3: 동결 커밋을 한다**
 
@@ -4980,7 +5089,9 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>" -- ai-service/testdata/
 - 학습하는 동안 브라우저 탭을 닫지 않고, 컴퓨터의 잠자기를 끈다(맥: 시스템 설정 > 디스플레이 또는 배터리 > 잠자기 방지).
 - 무료 GPU 한도에 걸려 "GPU 백엔드에 연결할 수 없습니다" 가 뜨면 몇 시간 뒤(보통 다음 날) 다시 열고 `MODE = 'train'` 으로 모두 실행한다. 한 일은 Drive 에 남아 있다.
 - 출력 줄의 `drive_free_gb` 가 3 아래로 내려가면 drive.google.com 의 휴지통에서 **휴지통 비우기** 를 누른다. 노트북이 지운 오래된 체크포인트(하나에 약 0.4GB, 재지 않은 어림)가 휴지통에서 용량을 차지한다.
-- 이어 할 때 처음 세션과 판(GPU, torch, 라이브러리)이 다르면 노트북이 멈춘다. 그 줄을 그대로 알려 받는다(설정을 바꾸지 않고 사용자에게 보인다. 스펙 6-5절).
+- 이어 할 때 처음 세션과 판(GPU, torch, 라이브러리)이 다르면 노트북이 멈춘다. 그 줄을 그대로 알려 받는다(설정을 바꾸지 않고 사용자에게 보인다. 스펙 6-5절). 오케스트레이터는 아래 두 선택지를 사용자에게 보이고, 고르는 것은 사용자다(스펙 8-5절).
+  1. **처음부터 다시 학습한다.** Drive 의 `checkpoints/`, `training_log.jsonl`, `train_env.json` 을 다른 이름의 폴더로 옮겨 두고(지우지 않는다) 새 환경에서 `MODE = 'train'` 으로 처음부터 돌린다. 설정과 데이터는 같으므로 "한 번만 학습한다" 를 어기지 않는다. 다만 관문 (b) 의 시간과 E12, E13 의 학습 전 M3 결과가 옛 환경의 것이므로, 판이 다르면 E12 의 규칙대로 학습 전 M3 를 새 환경에서 다시 돌려야 할 수 있다. 옮긴 이유와 두 환경을 `run_log.md` 에 적는다.
+  2. **새 실험으로 기록한다.** 지금까지의 학습 기록을 그대로 남기고, 환경이 바뀐 지점을 `run_log.md` 에 적은 뒤 이 실험은 학습 단계에서 멈춘 것으로 결과 문서를 쓴다. 환경을 맞춘 학습은 새 실험으로 잡는다.
 - 오류로 멈추면 빨간 오류 글의 마지막 다섯 줄쯤을 복사해 받는다. 학습이 한 단계라도 진행된 뒤의 오류이므로 노트북을 고치지 않고 사용자에게 보인다(스펙 6-5절의 (d)).
 
 - [ ] **Step 2: 산출물을 기록한다** (오케스트레이터)

@@ -31,6 +31,8 @@ NAMES = {"M1": "M1", "M3pre": "학습 전 M3", "M3ft": "학습 후 M3"}
 BASIS = "대응표"
 
 
+# @dataclass(frozen=True): 필드만 적으면 __init__ 과 비교(==)를 만들어 주는 장식이다. frozen=True 는 만든 뒤
+# 값을 바꿀 수 없게 한다. 한 번 센 수치가 뒤에서 몰래 바뀌지 않게 하려는 것이다(Java 의 record 와 비슷하다).
 @dataclass(frozen=True)
 class Metrics:
     within1: int
@@ -77,6 +79,7 @@ def _kinds_text(k: dict[str, int]) -> str:
 
 
 def metrics(key: dict[str, dict], scores: dict[str, int | None]) -> Metrics:
+    # := 는 값을 이름에 담으면서 그 값으로 바로 if 를 판단한다(파이썬 3.8 의 대입식). 계산을 한 번만 하고 결과를 아래에서 다시 쓴다.
     if missing := set(key) - set(scores):
         raise SystemExit(f"결과에 없는 문항이 {len(missing)}개 있습니다. 보고서를 만들지 않습니다(v2 스펙 6-5절).")
     pairs = [(k["score"], scores[c]) for c, k in key.items()]

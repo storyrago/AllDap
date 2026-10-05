@@ -56,6 +56,7 @@ def main(argv: list[str] | None = None) -> int:
         print("testdata/judgeft/bots.json 이 없습니다. 계획 E2 가 봇을 만들고 남기는 파일입니다.")
         return 1
     recorded = read_json(BOTS)
+    # := 는 값을 이름에 담으면서 그 값으로 바로 if 를 판단한다(파이썬 3.8 의 대입식). 계산을 한 번만 하고 결과를 아래에서 다시 쓴다.
     if wrong := [f"{f}={n}(기록은 {recorded.get(f)})" for f, n in bots.items() if recorded.get(f) != n]:
         print(f"--bot 이 bots.json 과 다릅니다: {', '.join(wrong)}")
         return 1

@@ -68,6 +68,8 @@ def check_committed_train_rebuilds() -> None:
                            load_templates())
     train, val = split_val(items)
     assert read_jsonl(TRAIN) == train and read_jsonl(VAL) == val, "학습 데이터가 입력에서 다시 만든 것과 다르다"
+    # dict((키, 값) 짝들): 해시 파일의 줄은 "해시  파일이름" 이다. split() 으로 둘로 나누고 reversed 로 뒤집어
+    # (파일이름, 해시) 짝을 만들면, dict 가 파일이름 -> 해시 로 찾는 표가 된다.
     recorded = dict(reversed(line.split()) for line in TRAIN_SHA.read_text(encoding="utf-8").splitlines())
     assert recorded["train.jsonl"] == sha256_file(TRAIN) and recorded["val.jsonl"] == sha256_file(VAL)
 
@@ -79,6 +81,7 @@ def check_forbidden_values_absent() -> None:
     for path in (TRAIN, VAL):
         if path.exists():
             texts[path.name] = path.read_text(encoding="utf-8")
+    # := 는 값을 이름에 담으면서 그 값으로 바로 if 를 판단한다(파이썬 3.8 의 대입식). 계산을 한 번만 하고 결과를 아래에서 다시 쓴다.
     assert not (bad := forbidden_problems(texts)), bad
 
 
