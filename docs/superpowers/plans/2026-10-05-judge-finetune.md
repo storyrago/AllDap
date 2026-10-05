@@ -3130,7 +3130,7 @@ Expected: `1가지 전부 통과.`
 ```bash
 cd /Users/cheonjamin/projects/AllDap-judge-ft
 git add ai-service/tools/judgeft_cloudflare.py ai-service/tools/judgeft_cloudflare_check.py
-git commit -m "feat: 관문 (a) 통과 뒤에만 도는 M1 새 시험지 채점 도구를 더한다
+git commit -m "feat: 관문 (a), (b) 통과 뒤에만 도는 M1 새 시험지 채점 도구를 더한다
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>" -- ai-service/tools/judgeft_cloudflare.py ai-service/tools/judgeft_cloudflare_check.py
 ```
@@ -3346,7 +3346,7 @@ cd /Users/cheonjamin/projects/AllDap-judge-ft/ai-service
 $PY -m tools.judgeft_report_check
 ```
 
-Expected: `ModuleNotFoundError: No module named 'tools.judgeft_report'`
+Expected: `ImportError: cannot import name 'judgeft_report' from 'tools'`(점검이 `from . import judgeft_report` 로 모듈을 불러 바꿔 끼우므로 `ModuleNotFoundError` 가 아니라 이 오류다)
 
 - [ ] **Step 3: 보고서 도구를 쓴다**
 
@@ -4361,10 +4361,10 @@ if __name__ == "__main__":
 cd /Users/cheonjamin/projects/AllDap-judge-ft/ai-service
 $PY -m tools.judgeft_check | tail -1
 $PY -m tools.judge5_check | tail -1 && $PY -m tools.judge5v2_check | tail -1
-git -C /Users/cheonjamin/projects/AllDap-judge-ft diff --stat f52a1a6 -- ai-service/tools/judge5*.py ai-service/testdata/judge5v2 ai-service/notebooks/judge5*_colab.ipynb ai-service/app
+git -C /Users/cheonjamin/projects/AllDap-judge-ft diff --stat f52a1a6 -- 'ai-service/tools/judge5*.py' ai-service/testdata/judge5v2 'ai-service/notebooks/judge5*_colab.ipynb' ai-service/app
 ```
 
-Expected: `46가지 전부 통과.`, `44가지 전부 통과.`, `66가지 전부 통과.`, 그리고 마지막 명령의 출력이 비어 있다(v2 파일과 서비스 코드가 하나도 바뀌지 않았다). `f52a1a6` 은 이 브랜치를 딴 `feat/judge-selfhost-v2` 의 커밋이다. 브랜치 이름으로 비교하지 않는 이유: #160 에 커밋이 더해지면 그 차이가 이 브랜치의 변경처럼 보인다.
+Expected: `46가지 전부 통과.`, `44가지 전부 통과.`, `66가지 전부 통과.`, 그리고 마지막 명령의 출력이 비어 있다(v2 파일과 서비스 코드가 하나도 바뀌지 않았다). `*` 가 든 경로를 작은따옴표로 감싸는 이유: zsh 는 따옴표 없는 `*` 를 지금 폴더(`ai-service`)에서 먼저 펼치려 하고, 맞는 파일이 없으면 `no matches found` 로 명령 전체를 멈춘다. 감싸면 git 이 저장소 기준으로 펼친다. `f52a1a6` 은 이 브랜치를 딴 `feat/judge-selfhost-v2` 의 커밋이다. 브랜치 이름으로 비교하지 않는 이유: #160 에 커밋이 더해지면 그 차이가 이 브랜치의 변경처럼 보인다.
 
 - [ ] **Step 3: CI 에 한 줄을 더한다**
 
