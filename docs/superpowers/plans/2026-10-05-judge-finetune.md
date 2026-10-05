@@ -38,12 +38,13 @@
 
 ## 스펙과 다른 점과 그 이유
 
-이 계획을 쓰면서 정한 것 중 스펙의 글과 다른 것이 넷 있었다. 모두 측정 규칙(스펙 8절)은 건드리지 않는다. 2026-10-05 에 사용자가 승인해 1~3 번은 스펙(2-2절, 4-5절, 6-2절, 9-3절)에 반영했다. 아래는 그 경위로 남긴다.
+이 계획을 쓰면서 정한 것 중 스펙의 글과 다른 것이 다섯 있었다. 모두 측정 규칙(스펙 8절)은 건드리지 않는다. 2026-10-05 에 사용자가 승인해 1~3 번은 스펙(2-2절, 4-5절, 6-2절, 9-3절)에, 5 번은 스펙 3-3절에 반영했다. 아래는 그 경위로 남긴다.
 
 1. **v2 도구에 인자를 더하지 않고, 새 모듈(`tools/judgeft_*.py`)을 만들어 v2 의 함수를 가져다 쓴다.** 스펙 2-2절과 9-3절은 "v2 도구에 인자를 더하고 기본값은 v2 그대로" 라고 적었다. 그런데 v2 도구의 분야(`DOMAINS`), 할당량(`QUOTA`), 경로는 모듈 수준의 상수라서 인자로 바꾸려면 v2 의 함수 여러 개의 본문을 고쳐야 한다. 고친 함수가 v2 의 보고서와 점검(44가지, 66가지)을 그대로 통과하는지는 고친 뒤에야 안다. 새 모듈이 v2 의 순수 함수(검색 한 건, 자격 조건, ⑥과 ⑧ 의 글자 확인, 검수 반영, 점수 읽기, 부호 검정, 세 오류 수)만 불러 쓰면 v2 파일은 한 글자도 바뀌지 않으므로, 앞 실험의 결과가 바뀔 수 없다. 검색과 채점의 규칙을 두 번 적지 않으므로 한쪽만 고쳐지는 위험도 없다. 이 결정은 `docs/decisions.md` 에 태스크 1 과 함께 적는다.
 2. **trl 을 쓰지 않는다. 그래서 고정하는 판은 transformers, bitsandbytes, peft, accelerate 넷이다.** 스펙 6-2절은 trl 의 판도 고정한다고 적었다. 학습 반복문을 노트북에 직접 짜면(태스크 11) 모범 답안 위치에서만 logits 를 계산하는 것(스펙 6-2절), 체크포인트에 난수 상태까지 넣어 이어 하는 것(스펙 6-4절)을 모두 코드로 읽을 수 있다. trl 을 쓰면 이 둘이 라이브러리 안에 숨고, 판이 바뀌면 동작이 바뀐다. accelerate 는 transformers 가 모델을 GPU 에 올릴 때(`device_map='auto'`) 필요해서 고정한다. torch 는 코랩에 깔린 것을 쓰고 판을 적는다(다시 깔면 약 2GB 를 받는다). torch 판이 v2 와 다르면 스펙 8-1절의 규칙대로 v2 의 결과를 섞지 않는다.
 3. **⑦ 의 지어낸 내용과 ③, ④, ⑤ 의 더한 주장도 따옴표 안 한국어로 모범 답안에 들어간다.** 스펙 4-5절은 "근거의 값과 대상의 이름만 한국어로" 라고 적었다. 이 둘은 근거가 아니라 답변에서 인용하는 구절이지만, 영어로 옮기면 모델이 답변의 어느 글을 가리키는지 대조할 수 없다. 그래서 답변의 구절도 원문 그대로 따옴표 안에 넣는다. 문장 틀 자체에는 한글이 없다(스펙 5-3절 확인 3).
 4. **학습 문항의 근거 머리표는 지시문과 같은 `[근거 i]` 다.** 모범 답안이 근거를 가리킬 때 `"월 10GB" ([근거 1])` 꼴로 쓴다. v2 에서 학습 전 M3 가 쓴 출력도 `근거 1` 로 근거를 가리켰다.
+5. **분야를 여는 조건을 "⑧ 자격 질문의 합계" 에서 "합계, 그리고 첫 배정을 같은 시드와 순서로 돌려 본 결과" 로 넓혔다.** 배정은 ④ 를 ⑧ 보다 먼저 뽑고, 주장이 2 인 ⑧ 자격 질문은 ④ 의 자격도 있어 ④ 가 일부를 가져간다. 그래서 합계가 기준(72, 240)을 넘어도 배정이 모자랄 수 있다. `judgeft_assign count` 가 첫 배정을 저장하지 않고 돌려 본다(태스크 4, 계획 E5).
 
 ---
 
@@ -3266,7 +3267,8 @@ def check_report_builds_when_ended_at_gate_a() -> None:
             text = judgeft_report.build()
             assert "판정: 통과하지 못함" in text and "관문 (b)" in text and "하지 않음(gate_b.json 이 없다" in text
             assert "버린 문항 1개: ⑥" in text and "사용자가 정답 점수 유지 1" in text and "검수 뒤 조건 1: 실패" in text
-            assert "| 학습 후 M3 | 하지 않음 |" in text and "판정하지 않음" in text
+            assert "| 학습 후 M3 | 하지 않음(관문에서 끝났거나 채점하지 않았다. 없는 것: determinism.json 의 post) |" in text
+            assert "new/M1_run1.jsonl, new/M1_run2.jsonl, new/M1_run3.jsonl" in text and "판정하지 않음" in text
             assert "#### 학습 전 M3 (첫 실행)" in text and "### 유형별 (시험지 new" in text   # 혼동행렬과 유형별 표
             assert "| 늘 1점 |" in text
             # 관문을 통과했는데 학습이 끝나지 않았으면 만들지 않는다(스펙 6-5절)
@@ -3309,6 +3311,16 @@ def check_report_builds_full_with_criteria() -> None:
                 x.stop()
         assert "가장 긴 문항 r1(900토큰)" in text and "어댑터 SHA-256 abab" in text
         assert "- 기준 1:" in text and "- 기준 4:" in text and "⑧ 만의 짝 부호 검정(보고 항목)" in text
+        # 세 실행 중 하나만 빠지면 그 파일 이름이 표에 나오고 기준은 판정하지 않는다
+        (d / "results" / "new" / "M1_run2.jsonl").unlink()
+        for x in patches:
+            x.start()
+        try:
+            text = judgeft_report.build()
+        finally:
+            for x in patches:
+                x.stop()
+        assert "없는 것: new/M1_run2.jsonl) |" in text and "판정하지 않음" in text
 
 
 CHECKS = [check_metrics_split_eighth_and_false_alarms, check_pipeline_lines_count_supplements_and_drops, check_criteria_use_worst_post_and_best_comparator,
@@ -3561,15 +3573,20 @@ def gate_lines(gate_a: dict | None, gate_b: dict | None) -> list[str]:
     return out
 
 
-def available(model: str, sheet: str, det: dict) -> list[list[dict]] | None:
-    """그 모델과 시험지의 결과 줄(실행마다). 결정성 판정이 없거나 파일이 하나라도 없으면 None(하지 않음)."""
+def available(model: str, sheet: str, det: dict) -> tuple[list[list[dict]] | None, list[str]]:
+    """(그 모델과 시험지의 결과 줄(실행마다), 없는 것의 이름). 하나라도 없으면 결과는 None(하지 않음)이다.
+
+    없는 것의 이름을 함께 돌려주는 이유: 세 실행 중 하나만 빠진 것과 아예 돌리지 않은 것이 표에서 같은
+    "하지 않음" 으로 보이면, 마저 채점하면 되는 일을 실험이 끝난 것으로 읽게 된다.
+    """
     try:
         paths = runs_for(model, sheet, det)
     except KeyError:   # det 에 pre 나 post 가 없다: 그 확인까지 가지 않았다
-        return None
-    if not all(p.exists() for p in paths):
-        return None
-    return [read_jsonl(p) for p in paths]
+        return None, ["determinism.json 의 " + ("post" if model == "M3ft" else "pre")]
+    # 이름은 "폴더/파일" 로 적는다. 새 실험의 결과는 new/ 와 frozen/, v2 의 결과는 v2 의 results/ 아래다.
+    if missing := [f"{p.parent.name}/{p.name}" for p in paths if not p.exists()]:
+        return None, missing
+    return [read_jsonl(p) for p in paths], []
 
 
 def _confusion(name: str, key: dict[str, dict], scores: dict[str, int | None]) -> list[str]:
@@ -3588,7 +3605,9 @@ def build() -> str:
                          "학습이 끝나기 전에 열지 않습니다(스펙 6-5절).")
     ks = keys()
     det = read_json(DETERMINISM) if DETERMINISM.exists() else {}
-    rows = {mod: {sh: available(mod, sh, det) for sh in SHEETS} for mod in NAMES}
+    found = {mod: {sh: available(mod, sh, det) for sh in SHEETS} for mod in NAMES}
+    rows = {mod: {sh: found[mod][sh][0] for sh in SHEETS} for mod in NAMES}
+    absent = {mod: {sh: found[mod][sh][1] for sh in SHEETS} for mod in NAMES}
     raw = {mod: {sh: [scores_of(r) for r in rows[mod][sh]] if rows[mod][sh] else None for sh in SHEETS} for mod in NAMES}
     m = {mod: {sh: [metrics(ks[sh], x) for x in raw[mod][sh]] if raw[mod][sh] else None for sh in SHEETS} for mod in NAMES}
     dropped = read_json(TRAIN_DROPPED) if TRAIN_DROPPED.exists() else {}
@@ -3610,7 +3629,8 @@ def build() -> str:
                   "| 심각한 놓침 | ⑧ 심각한 놓침 | 정확히 같음 | 평균 거리 | 못 읽음 | 못 읽음의 원인 |", "|" + "---|" * 14]
         for mod, name in NAMES.items():
             if m[mod][sh] is None:
-                lines.append(f"| {name} | 하지 않음 |" + " |" * 12)
+                lines.append(f"| {name} | 하지 않음(관문에서 끝났거나 채점하지 않았다. 없는 것: "
+                             f"{', '.join(absent[mod][sh])}) |" + " |" * 12)
                 continue
             for i, (x, r) in enumerate(zip(m[mod][sh], rows[mod][sh]), 1):
                 lines.append(f"| {name} | {i} | {x.within1} | {x.within1_ex8} | {x.miss} | {x.false_alarm} | {x.fa_two} "
