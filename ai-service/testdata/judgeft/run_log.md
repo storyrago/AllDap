@@ -270,3 +270,26 @@ train: Counter({8: 240, 1: 35, 2: 35, 4: 34, 3: 34, 6: 34, 5: 34, 7: 34}), 짝 1
 
 - 가장 긴 문항은 `5cf5801198db`, T = 1492토큰이다. 관문 (b) 가 이 문항으로 메모리를 잰다. 내려받은 것은 토크나이저 파일 여섯 개뿐이다(로컬 캐시 15MB, 가중치 없음).
 - `$PY -m tools.judgeft_check`: 48가지 가운데 42가지가 통과한 뒤 `check_notebooks_match_generator` 에서 멈췄다(`judgeft_train_colab.ipynb 이 생성 도구의 결과와 다르다`). 노트북은 E11 에서 다시 만들므로 지금 실패하는 것이 맞다. 멈춘 항목 뒤의 다섯 가지(`check_notebooks_have_no_test_questions`, `check_committed_cases_are_blind`, `check_committed_assignment_replays`, `check_committed_train_rebuilds`, `check_forbidden_values_absent`)는 하나씩 따로 불러 모두 통과했다.
+
+### 다시 만듦 (2026-10-06, E10 리뷰)
+
+- 이유: E10 의 학습 데이터 리뷰에서 travel-130 의 ⑧ 근거 인용이 질문 대상(항공기 지연 비용)이 아닌 다른 행(휴대품 손해)을 가리킨 것이 나왔다. `variants.jsonl` 한 줄을 고친 커밋 `d0ae4c4` 기준으로 다시 만들었다.
+- `$PY -m tools.judgeft_export train` (종료 코드 0):
+
+```
+학습 묶음 544문항, 검증 묶음 56문항, 뺀 문항 0개(본 문항 0, 짝 0)
+```
+
+- 바뀐 문항은 travel-130 에서 나온 2개뿐이다(이전 파일과 줄 단위로 비교). 둘 다 학습 묶음이고, 위 표의 수는 그대로다.
+  - `05a19a844aa3` (본 문항, ⑧, 1점, train.jsonl 411번째 줄)
+  - `0a85d94150e6` (짝, ① 꼴, 5점, train.jsonl 494번째 줄)
+- `val.jsonl`, `train_dropped.json`, `cases.sha256` 은 바뀌지 않았다.
+- 새 해시: `train.jsonl` 은 `000d4c335489921a949b12e5e88cdc97dd97e83d7e16a13f155f7bddcf60e280` (이전 `c808518657116173cc3250d1c9f3ac3c88e162449fa59a970c952af6dd17c004`). `train.sha256` 의 다른 세 줄(val.jsonl, templates.json, prompt)은 그대로다.
+- `$PY -m tools.judgeft_tokcheck` (종료 코드 0):
+
+```
+모범 답안 위치만 계산한 loss 가 입력을 가린 전체 loss 와 같습니다.
+600문항 모두 끝 토큰이 정답 쪽 맨 뒤에 있습니다. 가장 긴 문항 5cf5801198db: 1492토큰
+```
+
+- 가장 긴 문항과 T(1492토큰)는 바뀌지 않았다.
