@@ -314,3 +314,15 @@ pre: frozen M3pre_run1 와 v2 M3_run1 를 대조. 같은 문항 231, 다른 문�
 - `determinism.json`: `env_same` true, `env_diff` 없음, `vs_v2` 같은 문항 231 다른 문항 0, `use_v2` true, `runs` 1. 판이 같고 v2 의 run1 과 한 줄도 다르지 않아 run2 는 돌리지 않는다. E13, E16 의 코랩 실행도 한 번씩이다.
 - 판: GPU `Tesla T4`, torch `2.11.0+cu130`, transformers `4.57.6`, bitsandbytes `0.50.2`, python `3.13.15` 로 v2 의 `results/env.json` 과 같다. 이번에는 peft `0.17.1`, accelerate `1.10.1` 도 적었다(v2 는 이 둘을 적지 않았다).
 - 결과 231줄 모두 `repo` `Unbabel/M-Prometheus-14B`, `revision` `f790ee744ba08731697e9347c6ab709f9405a37e`, `cases_sha256` `bec2b58e943e3b2c296dec8b664dc78ed2548f1b6d6e67062e3a7684fd535fe2`(동결 시험지), `finish` `stop`, `adapter_sha256` 없음(학습 전)이다.
+
+## 관문 (a) (2026-10-06)
+
+- 학습 전 M3 로 새 시험지를 코랩에서 한 번 채점했다(`SHEET = 'new'`, `MODEL = 'M3pre'`, `RUN = 1`). zip `alldap_judgeft_new_M3pre_run1.zip` 의 세 파일을 `results/new/` 에 풀었다. 결과 파일은 열지 않았다.
+- `$PY -m tools.judgeft_gate a` (종료 코드 0):
+
+```
+실행 1: ⑧ 60문항, 못 읽음 0, 심각한 놓침 12, 비율 20.0%
+관문 (a): 통과(기준 10% 이상, 비율이 가장 낮은 실행으로 판정)
+```
+
+- 판: `results/new/M3pre_run1.env.json` 이 `results/frozen/M3pre_run1.env.json` 과 글자까지 같다(GPU `Tesla T4`, torch `2.11.0+cu130`, transformers `4.57.6`, bitsandbytes `0.50.2`, peft `0.17.1`, accelerate `1.10.1`, python `3.13.15`).
