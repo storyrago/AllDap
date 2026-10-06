@@ -1,0 +1,38 @@
+{
+  "travel-084": {
+    "reason": "partial_answer_not_in_top5",
+    "note": "크루즈 발코니 객실의 예약금(06 객실 등급별 예약금 청크)이 근거 5청크에 없다. 60일 전 수수료는 있다"
+  },
+  "travel-098": {
+    "reason": "partial_answer_not_in_top5",
+    "note": "해외 장거리 패키지의 예약금(07 상품 유형별 예약금 청크)이 근거 5청크에 없다. 잔금 기한은 있다"
+  },
+  "travel-099": {
+    "reason": "partial_answer_not_in_top5",
+    "note": "국내 패키지의 예약금(07 상품 유형별 예약금 청크)이 근거 5청크에 없다. 잔금 기한은 있다"
+  },
+  "travel-180": {
+    "reason": "answer_not_in_top5",
+    "note": "일본의 가이드와 기사 경비(14 지역별 1일 경비 청크)가 근거 5청크에 없다"
+  },
+  "travel-205": {
+    "reason": "answer_not_in_top5",
+    "note": "보상 대상(16 보상 대상)과 식사 보상(16 변경 유형별 보상) 청크가 둘 다 근거 5청크에 없다"
+  },
+  "travel-208": {
+    "reason": "answer_not_in_top5",
+    "note": "단체 할인율 표(17 인원별 할인율 청크)가 근거 5청크에 없다"
+  },
+  "travel-209": {
+    "reason": "answer_not_in_top5",
+    "note": "단체 할인율 표(17 인원별 할인율 청크)가 근거 5청크에 없다"
+  },
+  "travel-273": {
+    "reason": "answer_not_in_top5",
+    "note": "반려동물 몸무게별 추가 요금(23 몸무게별 추가 요금 청크)이 근거 5청크에 없다"
+  },
+  "travel-283": {
+    "reason": "answer_not_in_top5",
+    "note": "결제 수단별 환불 기한(24 결제 수단별 환불 기한 청크)이 근거 5청크에 없다"
+  }
+}
