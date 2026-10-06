@@ -1,0 +1,295 @@
+{"qid": "travel-001", "domain": "travel", "question": "나들이 등급이 되려면 직전 12개월 결제 합계가 얼마 이상이어야 하나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-002", "domain": "travel", "question": "길벗 등급의 직전 12개월 결제 합계 기준은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-003", "domain": "travel", "question": "하늬 등급을 받으려면 직전 12개월 동안 얼마 이상 결제해야 하나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-004", "domain": "travel", "question": "회원 등급은 매년 몇 월에 다시 정하고, 나들이 등급의 결제 합계 기준은 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-005", "domain": "travel", "question": "새싹 등급의 하늬 포인트 적립률은 몇 %인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-006", "domain": "travel", "question": "나들이 등급은 결제 금액의 몇 %를 하늬 포인트로 쌓아 주나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-007", "domain": "travel", "question": "길벗 등급의 포인트 적립률은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-008", "domain": "travel", "question": "하늬 등급은 결제 금액의 몇 %가 포인트로 쌓이나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-009", "domain": "travel", "question": "포인트를 쌓을 때 결제 금액에서 빼는 것은 무엇이고, 하늬 등급의 적립률은 몇 %인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-010", "domain": "travel", "question": "나들이 등급과 하늬 등급의 포인트 적립률은 각각 몇 %인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-011", "domain": "travel", "question": "길벗 등급은 해외 패키지 취소 수수료를 몇 % 감면받나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-012", "domain": "travel", "question": "하늬 등급의 해외 패키지 취소 수수료 감면율은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-013", "domain": "travel", "question": "하늬 등급은 취소 수수료 감면을 한 해에 몇 번까지 받을 수 있나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-014", "domain": "travel", "question": "길벗 등급의 취소 수수료 감면은 한 해에 몇 회까지인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-015", "domain": "travel", "question": "길벗 등급의 취소 수수료 감면율과 한 해 감면 횟수는 각각 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-016", "domain": "travel", "question": "나들이 등급도 취소 수수료 감면을 받나요, 그리고 하늬 등급의 감면율은 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-017", "domain": "travel", "question": "나들이 등급의 생일 달 국내 숙박 할인 쿠폰은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-018", "domain": "travel", "question": "길벗 등급은 생일이 든 달에 얼마짜리 숙박 할인 쿠폰을 받나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-019", "domain": "travel", "question": "하늬 등급의 생일 쿠폰 금액은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-020", "domain": "travel", "question": "하늬 등급의 생일 쿠폰 금액은 얼마이고, 하늬 등급만 받는 다른 혜택은 무엇인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-021", "domain": "travel", "question": "새싹 등급도 생일 쿠폰을 받나요, 그리고 길벗 등급의 쿠폰은 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-022", "domain": "travel", "question": "국내 패키지를 출발 8일 전에 취소하면 수수료가 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-023", "domain": "travel", "question": "국내 패키지를 출발 5일 전에 취소하면 여행 요금의 몇 %를 내나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-024", "domain": "travel", "question": "국내 패키지를 출발 전날 취소하면 수수료는 몇 %인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-025", "domain": "travel", "question": "국내 패키지 출발 당일에 취소하면 수수료가 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-026", "domain": "travel", "question": "국내 패키지는 출발 며칠 전까지 알리면 수수료 없이 취소할 수 있나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-027", "domain": "travel", "question": "국내 패키지를 출발 3일 전에 취소하면 수수료가 몇 %이고, 출발 2일 전이면 몇 %인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-028", "domain": "travel", "question": "국내 패키지 취소를 오후 7시에 접수하면 언제 접수한 것으로 보고, 출발 7일 전 취소 수수료는 몇 %인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-029", "domain": "travel", "question": "국내 패키지를 수수료 없이 취소할 수 있는 경우는 무엇이고, 그때 무엇을 내야 하나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-030", "domain": "travel", "question": "국내 패키지 규정은 어떤 교통수단을 이용하는 상품에 적용되고, 숙박만 예약한 경우는 어떤 규정을 따르나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-031", "domain": "travel", "question": "해외 패키지 비수기 출발 상품을 출발 25일 전에 취소하면 수수료가 몇 %인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-032", "domain": "travel", "question": "비수기에 출발하는 해외 패키지를 출발 12일 전에 취소하면 수수료는 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-033", "domain": "travel", "question": "비수기 해외 패키지를 출발 8일 전에 취소하면 여행 요금의 몇 %를 내나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-034", "domain": "travel", "question": "비수기 해외 패키지를 출발 3일 전에 취소하면 수수료가 몇 %인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-035", "domain": "travel", "question": "비수기 해외 패키지를 출발 당일 취소하면 수수료는 몇 %인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-036", "domain": "travel", "question": "비수기 해외 패키지는 출발 며칠 전까지 취소하면 수수료가 없나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-037", "domain": "travel", "question": "비수기 해외 패키지를 출발 20일 전에 취소하면 수수료가 몇 %이고, 출발 19일 전이면 몇 %인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-038", "domain": "travel", "question": "성수기 해외 패키지는 출발 며칠 전까지 취소해야 수수료가 없나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-039", "domain": "travel", "question": "성수기에 출발하는 해외 패키지를 출발 35일 전에 취소하면 수수료는 몇 %인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-040", "domain": "travel", "question": "성수기 해외 패키지를 출발 20일 전에 취소하면 여행 요금의 몇 %를 내나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-041", "domain": "travel", "question": "성수기 해외 패키지를 출발 10일 전에 취소하면 수수료는 몇 %인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-042", "domain": "travel", "question": "성수기 해외 패키지를 출발 당일 취소하면 수수료가 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-043", "domain": "travel", "question": "해외 패키지를 출발 당일 취소하면 비수기와 성수기의 수수료가 각각 몇 %인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-044", "domain": "travel", "question": "성수기는 언제이고, 성수기 해외 패키지를 출발 40일 전에 취소하면 수수료가 몇 %인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-045", "domain": "travel", "question": "성수기 해외 패키지를 출발 30일 전과 29일 전에 취소하면 수수료가 각각 몇 %인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-046", "domain": "travel", "question": "항공권을 먼저 발권한 해외 패키지를 취소하면 어떤 비용이 더 붙고, 발권 여부는 어디에 적혀 있나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-047", "domain": "travel", "question": "국내선 항공권 날짜를 바꾸면 여행사 수수료가 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-048", "domain": "travel", "question": "국제선 단거리 항공권의 날짜 변경 수수료는 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-049", "domain": "travel", "question": "국제선 장거리 항공권 날짜를 바꿀 때 여행사 수수료는 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-050", "domain": "travel", "question": "국제선 장거리는 비행시간이 몇 시간을 넘는 노선이고, 그 노선의 날짜 변경 수수료는 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-051", "domain": "travel", "question": "국내선 항공권을 출발 전에 취소하면 여행사 취소 수수료는 한 사람당 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-052", "domain": "travel", "question": "국제선 단거리 항공권의 여행사 취소 수수료는 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-053", "domain": "travel", "question": "국제선 장거리 항공권을 취소하면 여행사 수수료가 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-054", "domain": "travel", "question": "국제선 단거리 항공권의 날짜 변경 수수료와 취소 수수료는 각각 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-055", "domain": "travel", "question": "국내선과 국제선 장거리 항공권의 여행사 취소 수수료는 각각 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-056", "domain": "travel", "question": "국내선 항공권의 날짜 변경 수수료와 취소 수수료는 각각 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-057", "domain": "travel", "question": "국내선 항공권을 탑승하지 않고 출발 시각이 지나면 얼마를 공제하고, 국제선은 무엇을 돌려주나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-058", "domain": "travel", "question": "여권과 이름 철자가 다르면 언제까지 고칠 수 있고, 국제선의 정정 비용은 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-059", "domain": "travel", "question": "국내선 항공권의 이름 철자 정정 비용은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-060", "domain": "travel", "question": "호텔 단독 예약은 언제까지 취소하면 수수료가 없나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-061", "domain": "travel", "question": "리조트 숙박 예약의 무료 취소 기한은 언제인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-062", "domain": "travel", "question": "펜션과 민박은 체크인 며칠 전까지 무료로 취소할 수 있나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-063", "domain": "travel", "question": "한옥 체험 숙소의 무료 취소 기한은 언제까지인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-064", "domain": "travel", "question": "호텔과 펜션의 무료 취소 기한은 각각 언제인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-065", "domain": "travel", "question": "호텔 예약을 무료 취소 기한이 지나 취소하면 수수료가 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-066", "domain": "travel", "question": "리조트를 기한이 지나 취소하면 숙박 요금의 몇 %를 받나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-067", "domain": "travel", "question": "펜션과 민박을 무료 취소 기한 뒤에 취소하면 수수료는 몇 %인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-068", "domain": "travel", "question": "한옥 체험 숙소를 기한이 지난 뒤 취소하면 수수료가 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-069", "domain": "travel", "question": "리조트의 무료 취소 기한은 언제이고, 그 기한이 지나 취소하면 수수료는 몇 %인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-070", "domain": "travel", "question": "한옥 체험 숙소의 무료 취소 기한과 기한 뒤 수수료는 각각 어떻게 되나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-071", "domain": "travel", "question": "리조트와 한옥 체험 숙소를 기한이 지나 취소하면 수수료가 각각 몇 %인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-072", "domain": "travel", "question": "환불 불가 특가 요금으로 예약한 숙소는 취소하면 돌려받을 수 있나요, 그리고 예외가 있나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-073", "domain": "travel", "question": "연박 예약에서 일부 날짜만 줄이면 어떻게 처리하고, 호텔의 무료 취소 기한은 언제인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-074", "domain": "travel", "question": "크루즈 내측 객실의 예약금은 한 사람당 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-075", "domain": "travel", "question": "크루즈 해측 창문 객실 예약금은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-076", "domain": "travel", "question": "크루즈 발코니 객실을 예약하면 예약금이 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-077", "domain": "travel", "question": "크루즈 스위트 객실의 한 사람당 예약금은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-078", "domain": "travel", "question": "크루즈 내측 객실과 스위트 객실의 예약금은 각각 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-079", "domain": "travel", "question": "크루즈를 출발 70일 전에 취소하면 수수료가 몇 %인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-080", "domain": "travel", "question": "크루즈를 출발 45일 전에 취소하면 여행 요금의 몇 %를 내나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-081", "domain": "travel", "question": "크루즈를 출발 20일 전에 취소하면 수수료는 몇 %인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-082", "domain": "travel", "question": "크루즈를 출발 10일 전에 취소하면 수수료가 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-083", "domain": "travel", "question": "크루즈는 출발 며칠 전까지 취소해야 예약금까지 전액 돌려받나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-084", "domain": "travel", "question": "크루즈 발코니 객실의 예약금은 얼마이고, 출발 60일 전에 취소하면 수수료는 몇 %인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-085", "domain": "travel", "question": "크루즈를 출발 90일 전과 89일 전에 취소하면 각각 어떻게 되나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-086", "domain": "travel", "question": "크루즈 기항지 관광은 언제까지 어디서 취소하면 수수료가 없나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-087", "domain": "travel", "question": "크루즈 선상 팁은 하루 얼마이고, 언제 정산하나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-088", "domain": "travel", "question": "국내 패키지의 예약금은 한 사람당 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-089", "domain": "travel", "question": "해외 단거리 패키지 예약금은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-090", "domain": "travel", "question": "해외 장거리 패키지를 예약할 때 예약금은 한 사람당 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-091", "domain": "travel", "question": "허니문 상품의 예약금은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-092", "domain": "travel", "question": "해외 단거리 패키지와 해외 장거리 패키지의 예약금은 각각 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-093", "domain": "travel", "question": "예약금은 예약 후 며칠 안에 내야 하고, 허니문 상품의 예약금은 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-094", "domain": "travel", "question": "국내 패키지 잔금은 출발 며칠 전까지 내야 하나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-095", "domain": "travel", "question": "해외 단거리 패키지의 잔금 납부 기한은 언제인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-096", "domain": "travel", "question": "해외 장거리 패키지는 잔금을 출발 며칠 전까지 내나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-097", "domain": "travel", "question": "허니문 상품의 잔금은 출발 며칠 전까지 내야 하나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-098", "domain": "travel", "question": "해외 장거리 패키지의 예약금과 잔금 납부 기한은 각각 어떻게 되나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-099", "domain": "travel", "question": "국내 패키지의 예약금과 잔금 납부 기한은 각각 어떻게 되나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-100", "domain": "travel", "question": "잔금 기한이 지나도 내지 않으면 회사는 어떻게 하고, 그때 취소는 누구의 사정으로 보나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-101", "domain": "travel", "question": "잔금 기한이 이미 지난 날짜에 예약하면 무엇을 언제까지 내야 하나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-102", "domain": "travel", "question": "국내 패키지의 아동 요금은 성인 요금의 몇 %인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-103", "domain": "travel", "question": "해외 패키지에서 침대를 사용하는 아동의 요금은 성인 요금의 몇 %인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-104", "domain": "travel", "question": "해외 패키지에서 침대를 사용하지 않는 아동은 성인 요금의 몇 %를 내나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-105", "domain": "travel", "question": "크루즈에서 성인 둘과 같은 객실을 쓰는 셋째 사람의 아동 요금은 몇 %인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-106", "domain": "travel", "question": "해외 패키지에서 침대를 사용하는 아동과 사용하지 않는 아동의 요금은 각각 성인 요금의 몇 %인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-107", "domain": "travel", "question": "아동과 유아의 나이 기준은 각각 어떻게 되나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-108", "domain": "travel", "question": "나이는 어느 날짜를 기준으로 따지고, 만 12세 이상은 어떤 요금을 내나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-109", "domain": "travel", "question": "국내 패키지의 유아 요금은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-110", "domain": "travel", "question": "해외 패키지 유아 요금은 성인 요금의 몇 %인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-111", "domain": "travel", "question": "크루즈의 유아 요금은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-112", "domain": "travel", "question": "국내 패키지의 아동 요금과 유아 요금은 각각 어떻게 되나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-113", "domain": "travel", "question": "유아에게 항공 좌석을 따로 주려면 어떤 요금을 내고, 탑승할 수 없는 아기는 누구인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-114", "domain": "travel", "question": "일본과 중국 패키지에서 혼자 객실을 쓰면 추가 요금이 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-115", "domain": "travel", "question": "동남아시아 패키지의 1인 객실 추가 요금은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-116", "domain": "travel", "question": "괌과 사이판 여행에서 1인 객실 추가 요금은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-117", "domain": "travel", "question": "유럽 패키지에서 혼자 객실을 쓰면 추가 요금이 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-118", "domain": "travel", "question": "미주와 대양주 패키지의 1인 객실 추가 요금은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-119", "domain": "travel", "question": "국내 패키지에서 혼자 객실을 쓰면 1박에 얼마를 더 내나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-120", "domain": "travel", "question": "동남아시아와 괌과 사이판의 1인 객실 추가 요금은 각각 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-121", "domain": "travel", "question": "1인 객실 추가 요금은 1박 기준인가요 여행 전체 기간 기준인가요, 그리고 유럽은 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-122", "domain": "travel", "question": "같은 성별의 혼자 여행자와 객실을 나눠 쓰겠다고 신청하면 추가 요금은 어떻게 되고, 출발 10일 전까지 짝을 찾지 못하면 어떻게 되나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-123", "domain": "travel", "question": "기본 플랜의 상해 사망과 후유장해 보상 한도는 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-124", "domain": "travel", "question": "든든 플랜은 상해 사망과 후유장해를 얼마까지 보상하나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-125", "domain": "travel", "question": "기본 플랜의 해외 질병 치료비 한도는 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-126", "domain": "travel", "question": "든든 플랜의 해외 질병 치료비 한도는 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-127", "domain": "travel", "question": "으뜸 플랜은 해외 질병 치료비를 얼마까지 보상하나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-128", "domain": "travel", "question": "든든 플랜의 휴대품 손해 보상 한도는 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-129", "domain": "travel", "question": "으뜸 플랜의 휴대품 손해 한도는 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-130", "domain": "travel", "question": "으뜸 플랜의 항공기 지연 비용 보상 한도는 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-131", "domain": "travel", "question": "기본 플랜은 항공기 지연 비용을 보장하나요, 그리고 든든 플랜의 항공기 지연 비용 한도는 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-132", "domain": "travel", "question": "휴대품 손해는 한 개당 얼마까지 보상하고, 기본 플랜의 휴대품 손해 한도는 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-133", "domain": "travel", "question": "든든 플랜과 으뜸 플랜의 상해 사망과 후유장해 보상 한도는 각각 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-134", "domain": "travel", "question": "기본 플랜과 으뜸 플랜의 해외 질병 치료비 한도는 각각 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-135", "domain": "travel", "question": "해외 패키지와 국내 패키지에는 여행자 보험이 각각 포함돼 있나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-136", "domain": "travel", "question": "만 80세 이상은 어떤 플랜에 가입할 수 없고, 만 15세 미만은 무엇이 빠지나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-137", "domain": "travel", "question": "여행 기간이 7일 이하일 때 든든 플랜으로 바꾸면 보험료를 얼마 더 내나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-138", "domain": "travel", "question": "여행 기간이 7일 이하이면 으뜸 플랜의 추가 보험료는 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-139", "domain": "travel", "question": "여행 기간이 7일을 넘으면 든든 플랜과 으뜸 플랜은 하루당 각각 얼마를 더하나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-140", "domain": "travel", "question": "일반석의 무료 위탁 수하물은 몇 kg 몇 개인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-141", "domain": "travel", "question": "프리미엄 일반석은 무료 위탁 수하물을 얼마나 실을 수 있나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-142", "domain": "travel", "question": "비즈니스석의 무료 위탁 수하물 기준은 무엇인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-143", "domain": "travel", "question": "특가 일반석은 무료 위탁 수하물이 있나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-144", "domain": "travel", "question": "일반석과 프리미엄 일반석의 무료 위탁 수하물은 각각 어떻게 되나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-145", "domain": "travel", "question": "기내에 들고 탈 수 있는 짐은 무엇과 무엇인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-146", "domain": "travel", "question": "골프 가방은 무료 수하물로 어떻게 세고, 자전거는 얼마를 따로 내나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-147", "domain": "travel", "question": "일본과 중국 노선에서 수하물 무게를 넘기면 1kg당 얼마를 내나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-148", "domain": "travel", "question": "동남아시아 노선의 초과 수하물 요금은 1kg당 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-149", "domain": "travel", "question": "유럽과 미주 노선의 초과 수하물 요금은 1kg당 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-150", "domain": "travel", "question": "동남아시아 노선과 유럽과 미주 노선의 초과 수하물 요금은 1kg당 각각 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-151", "domain": "travel", "question": "비즈니스석의 무료 위탁 수하물과 유럽 노선의 1kg당 초과 수하물 요금은 각각 어떻게 되나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-152", "domain": "travel", "question": "일본 노선을 비즈니스석으로 업그레이드하면 편도 요금이 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-153", "domain": "travel", "question": "중국과 대만 노선의 비즈니스석 편도 업그레이드 요금은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-154", "domain": "travel", "question": "동남아시아 노선 비즈니스석 업그레이드는 편도 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-155", "domain": "travel", "question": "유럽 노선의 비즈니스석 편도 업그레이드 요금은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-156", "domain": "travel", "question": "미주 노선을 비즈니스석으로 올리면 편도 요금이 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-157", "domain": "travel", "question": "일본 노선과 미주 노선의 비즈니스석 편도 업그레이드 요금은 각각 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-158", "domain": "travel", "question": "좌석 업그레이드는 출발 며칠 전까지 신청할 수 있고, 언제 확정되나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-159", "domain": "travel", "question": "확정된 업그레이드를 취소하면 얼마를 공제하고, 언제부터는 돌려주지 않나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-160", "domain": "travel", "question": "유럽 노선에서 일반석을 프리미엄 일반석으로 올리는 편도 요금은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-161", "domain": "travel", "question": "미주 노선의 프리미엄 일반석 편도 업그레이드 요금은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-162", "domain": "travel", "question": "유럽 노선의 비즈니스석과 프리미엄 일반석 편도 업그레이드 요금은 각각 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-163", "domain": "travel", "question": "동남아시아 노선에도 프리미엄 일반석이 있나요, 그리고 그 노선의 비즈니스석 업그레이드 요금은 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-164", "domain": "travel", "question": "다낭 바구니 배 체험의 성인 요금은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-165", "domain": "travel", "question": "방콕 수상 시장 보트 선택 관광은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-166", "domain": "travel", "question": "세부 호핑 투어의 성인 요금은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-167", "domain": "travel", "question": "파리 센강 야경 유람선 요금은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-168", "domain": "travel", "question": "스위스 산악 열차 왕복은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-169", "domain": "travel", "question": "다낭 바구니 배 체험과 파리 센강 야경 유람선의 성인 요금은 각각 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-170", "domain": "travel", "question": "선택 관광의 아동 요금은 성인 요금의 몇 %이고, 세부 호핑 투어의 성인 요금은 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-171", "domain": "travel", "question": "선택 관광에 참여하지 않으면 불이익이 있나요, 그리고 참여하지 않는 사람은 무엇을 하나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-172", "domain": "travel", "question": "동남아시아 지역 선택 관광을 시작 24시간 전이 지나 취소하면 얼마를 돌려받나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-173", "domain": "travel", "question": "유럽 지역 선택 관광을 시작 24시간 전이 지나서 취소하면 돌려받을 수 있나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-174", "domain": "travel", "question": "현지에서 신청한 선택 관광은 언제까지 누구에게 말하면 전액 돌려받나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-175", "domain": "travel", "question": "현지 업체가 날씨 때문에 선택 관광을 진행하지 않으면 얼마를 돌려받나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-176", "domain": "travel", "question": "중국 여행의 가이드와 기사 1일 경비는 한 사람당 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-177", "domain": "travel", "question": "동남아시아 지역의 가이드와 기사 경비는 하루 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-178", "domain": "travel", "question": "유럽 여행의 가이드와 기사 1일 경비는 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-179", "domain": "travel", "question": "미주 지역의 가이드와 기사 경비는 하루 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-180", "domain": "travel", "question": "일본 여행도 가이드와 기사 경비를 따로 내나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-181", "domain": "travel", "question": "중국과 미주의 가이드와 기사 1일 경비는 각각 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-182", "domain": "travel", "question": "가이드와 기사 경비는 아동과 유아가 각각 얼마를 내나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-183", "domain": "travel", "question": "가이드와 기사 경비는 어떻게 계산하고, 일수에서 빼는 날은 언제인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-184", "domain": "travel", "question": "가이드와 기사 경비 말고 따로 팁을 줘야 하나요, 그리고 호텔 객실 정리 직원에게는 얼마를 두는 것이 관례인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-185", "domain": "travel", "question": "국내 패키지의 최소 출발 인원은 몇 명인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-186", "domain": "travel", "question": "해외 단거리 패키지는 몇 명 이상이어야 출발하나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-187", "domain": "travel", "question": "해외 장거리 패키지의 최소 출발 인원은 몇 명인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-188", "domain": "travel", "question": "소규모 테마 여행의 최소 출발 인원은 몇 명인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-189", "domain": "travel", "question": "국내 패키지의 최소 출발 인원과 행사 취소 통보 기한은 각각 어떻게 되나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-190", "domain": "travel", "question": "회사가 국내 패키지 행사를 취소하려면 출발 며칠 전까지 알려야 하나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-191", "domain": "travel", "question": "해외 단거리 패키지 행사 취소는 출발 며칠 전까지 알려야 하나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-192", "domain": "travel", "question": "해외 장거리 패키지의 행사 취소 통보 기한은 언제인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-193", "domain": "travel", "question": "소규모 테마 여행의 최소 출발 인원과 행사 취소 통보 기한은 각각 어떻게 되나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-194", "domain": "travel", "question": "해외 단거리 패키지의 최소 출발 인원과 행사 취소 통보 기한은 각각 어떻게 되나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-195", "domain": "travel", "question": "회사가 통보 기한이 지난 뒤 출발 1일 전까지 행사 취소를 알리면 여행 요금의 몇 %를 더 주나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-196", "domain": "travel", "question": "회사가 출발 당일에 행사 취소를 알리면 여행 요금의 몇 %를 더 주나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-197", "domain": "travel", "question": "행사가 취소될 때 취소 대신 무엇을 할 수 있고, 그때 요금은 어떻게 정산하나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-198", "domain": "travel", "question": "회사 사정으로 숙소 등급이 낮아지면 어떻게 보상하나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-199", "domain": "travel", "question": "포함 관광지가 빠지면 보상은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-200", "domain": "travel", "question": "포함 식사가 빠지면 한 끼마다 얼마를 보상하나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-201", "domain": "travel", "question": "회사 사정으로 출발 일자가 미뤄지면 여행 요금의 몇 %를 보상하나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-202", "domain": "travel", "question": "한 번의 여행에서 일정 변경 보상의 합계는 최대 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-203", "domain": "travel", "question": "숙소 등급이 낮아졌을 때와 출발 일자가 미뤄졌을 때의 보상은 각각 어떻게 되나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-204", "domain": "travel", "question": "일정 변경 보상은 귀국 뒤 며칠 안에 신청하고, 회사는 며칠 안에 보상액을 알려 주나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-205", "domain": "travel", "question": "항공사의 운항 취소로 일정이 바뀌면 보상을 받나요, 그리고 포함 식사가 빠지면 얼마를 보상하나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-206", "domain": "travel", "question": "12명이 같은 날짜, 같은 상품으로 예약하면 단체 할인율은 몇 %인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-207", "domain": "travel", "question": "25명이 함께 예약하면 여행 요금을 몇 % 깎아 주나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-208", "domain": "travel", "question": "35명 단체의 할인율은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-209", "domain": "travel", "question": "50명이 한 번에 예약하면 단체 할인율이 몇 %인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-210", "domain": "travel", "question": "10명이 예약했을 때와 45명이 예약했을 때의 단체 할인율은 각각 몇 %인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-211", "domain": "travel", "question": "단체로 20명 이상 예약하면 몇 명마다 한 사람이 무료이고, 무료가 되는 사람은 무엇을 내야 하나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-212", "domain": "travel", "question": "출발 전에 인원이 줄어 할인 구간이 내려가면 어떻게 되고, 차액은 어디서 정산하나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-213", "domain": "travel", "question": "단체 할인과 조기 예약 할인을 함께 쓸 수 있나요, 안 된다면 어떻게 적용하나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-214", "domain": "travel", "question": "출발 120일 이상 남았을 때 예약하면 조기 예약 할인율은 몇 %인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-215", "domain": "travel", "question": "출발 100일 전에 예약금을 내면 조기 예약 할인을 몇 % 받나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-216", "domain": "travel", "question": "출발 70일 남은 때 예약하면 조기 예약 할인율은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-217", "domain": "travel", "question": "출발 50일 남았을 때 예약하면 조기 예약 할인을 받을 수 있나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-218", "domain": "travel", "question": "출발 120일 이상 남은 때와 60일 남은 때의 조기 예약 할인율은 각각 몇 %인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-219", "domain": "travel", "question": "조기 예약 할인을 받은 예약을 취소하고 다시 예약하면 할인율은 어떻게 정하고, 출발 90일 남았을 때의 할인율은 몇 %인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-220", "domain": "travel", "question": "조기 예약 할인을 받을 수 없는 상품은 무엇인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-221", "domain": "travel", "question": "조기 예약 할인은 해외 패키지에서 한 사람당 얼마까지인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-222", "domain": "travel", "question": "국내 패키지의 조기 예약 할인 한도는 한 사람당 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-223", "domain": "travel", "question": "국내 패키지와 해외 패키지의 조기 예약 할인 한도는 각각 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-224", "domain": "travel", "question": "해외 패키지는 하늬 포인트를 상품별로 몇 % 더 쌓아 주나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-225", "domain": "travel", "question": "국내 패키지의 하늬 포인트 추가 적립률은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-226", "domain": "travel", "question": "숙박 단독 예약은 하늬 포인트가 몇 % 더 쌓이나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-227", "domain": "travel", "question": "항공권 단독 예약에도 하늬 포인트 추가 적립이 있나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-228", "domain": "travel", "question": "국내 패키지와 숙박 단독 예약의 하늬 포인트 추가 적립률은 각각 몇 %인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-229", "domain": "travel", "question": "하늬 포인트는 몇 포인트 이상 모여야 쓸 수 있고, 한 번 결제에서 여행 요금의 몇 %까지 쓸 수 있나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-230", "domain": "travel", "question": "하늬 포인트는 언제 쌓이고, 취소한 예약에도 쌓이나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-231", "domain": "travel", "question": "하늬 포인트는 쌓인 날로부터 몇 년이 지나면 사라지나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-232", "domain": "travel", "question": "하늬 등급 회원의 포인트는 몇 년 뒤에 사라지나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-233", "domain": "travel", "question": "하늬 등급 회원의 포인트와 다른 회원의 포인트는 각각 몇 년 뒤에 사라지나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-234", "domain": "travel", "question": "경차 렌터카의 하루 요금은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-235", "domain": "travel", "question": "중형 세단 렌터카는 하루에 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-236", "domain": "travel", "question": "SUV 렌터카 하루 요금은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-237", "domain": "travel", "question": "9인승 승합 렌터카의 하루 요금은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-238", "domain": "travel", "question": "경차와 SUV의 렌터카 하루 요금은 각각 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-239", "domain": "travel", "question": "9인승 승합은 만 몇 세 이상만 빌릴 수 있고, 하루 요금은 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-240", "domain": "travel", "question": "렌터카를 빌리려면 나이와 운전 경력이 각각 어떻게 되어야 하나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-241", "domain": "travel", "question": "렌터카 예약은 언제까지 취소하면 수수료가 없고, 그 뒤에 취소하면 얼마를 받나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-242", "domain": "travel", "question": "경차 렌터카로 사고가 나면 자기부담금은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-243", "domain": "travel", "question": "중형 세단의 사고 자기부담금은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-244", "domain": "travel", "question": "SUV 렌터카의 사고 자기부담금은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-245", "domain": "travel", "question": "9인승 승합 렌터카의 자기부담금은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-246", "domain": "travel", "question": "중형 세단의 하루 요금과 사고 자기부담금은 각각 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-247", "domain": "travel", "question": "완전 면책 보험은 하루 얼마이고, 더하면 자기부담금은 어떻게 되나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-248", "domain": "travel", "question": "중국 단수 비자의 대행 수수료는 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-249", "domain": "travel", "question": "베트남 전자 비자 대행 수수료는 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-250", "domain": "travel", "question": "인도 전자 비자를 대행하면 수수료가 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-251", "domain": "travel", "question": "미국 전자 여행 허가의 대행 수수료는 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-252", "domain": "travel", "question": "중국 단수 비자는 처리 기간이 며칠인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-253", "domain": "travel", "question": "베트남 전자 비자의 처리 기간은 영업일 며칠인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-254", "domain": "travel", "question": "인도 전자 비자는 처리하는 데 영업일 며칠이 걸리나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-255", "domain": "travel", "question": "인도 전자 비자의 대행 수수료와 처리 기간은 각각 어떻게 되나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-256", "domain": "travel", "question": "미국 전자 여행 허가의 대행 수수료와 처리 기간은 각각 어떻게 되나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-257", "domain": "travel", "question": "급행으로 비자를 처리하면 처리 기간과 대행 수수료가 각각 어떻게 바뀌나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-258", "domain": "travel", "question": "비자가 거절되면 대행 수수료와 발급 비용을 돌려받나요, 그리고 미국 전자 여행 허가에 급행이 있나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-259", "domain": "travel", "question": "출발 15일 전까지 서류를 내지 않아 비자가 나오지 않으면 어떻게 처리되나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-260", "domain": "travel", "question": "공항 픽업을 승용차로 하면 편도 요금이 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-261", "domain": "travel", "question": "승합차 공항 픽업은 편도 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-262", "domain": "travel", "question": "미니버스 공항 픽업 요금은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-263", "domain": "travel", "question": "승용차와 미니버스 공항 픽업의 편도 요금은 각각 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-264", "domain": "travel", "question": "승합차는 몇 명까지 탈 수 있고, 공항 픽업 편도 요금은 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-265", "domain": "travel", "question": "항공편이 늦게 도착하면 픽업 차량이 몇 분까지 추가 요금 없이 기다리고, 그 뒤에는 얼마를 더 내나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-266", "domain": "travel", "question": "공항 픽업은 언제까지 취소하면 수수료가 없고, 그 뒤에는 얼마를 받나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-267", "domain": "travel", "question": "길벗 등급은 출발 공항 라운지 무료 이용권을 한 해 몇 매 받나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-268", "domain": "travel", "question": "하늬 등급의 라운지 무료 이용권은 한 해 몇 매인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-269", "domain": "travel", "question": "나들이 등급도 라운지 무료 이용권을 받나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-270", "domain": "travel", "question": "길벗 등급과 하늬 등급의 라운지 무료 이용권은 한 해 각각 몇 매인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-271", "domain": "travel", "question": "라운지 이용권을 따로 사면 한 장에 얼마이고, 하늬 등급은 무료로 한 해 몇 매를 받나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-272", "domain": "travel", "question": "몸무게 5kg 미만 반려동물의 1박 추가 요금은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-273", "domain": "travel", "question": "10kg 반려동물과 함께 묵으면 1박 추가 요금이 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-274", "domain": "travel", "question": "20kg 반려동물의 1박 추가 요금은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-275", "domain": "travel", "question": "몸무게 25kg 이상 반려동물도 함께 갈 수 있나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-276", "domain": "travel", "question": "5kg 미만과 15kg 이상 25kg 미만 반려동물의 1박 추가 요금은 각각 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-277", "domain": "travel", "question": "한 객실에 반려동물을 몇 마리까지 데려갈 수 있고, 두 번째 마리는 요금을 얼마나 내나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-278", "domain": "travel", "question": "반려동물과 함께 갈 수 있는 상품은 무엇인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-279", "domain": "travel", "question": "반려동물 동반에 필요한 서류는 무엇이고, 접종한 지 얼마가 지나면 동반할 수 없나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-280", "domain": "travel", "question": "신용카드로 결제한 경우 환불 기한은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-281", "domain": "travel", "question": "계좌 이체로 낸 요금은 영업일 며칠 안에 돌려받나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-282", "domain": "travel", "question": "하늬 포인트로 낸 금액은 어떻게 환불되나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-283", "domain": "travel", "question": "상품권으로 결제한 금액의 환불 기한은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-284", "domain": "travel", "question": "신용카드와 계좌 이체의 환불 기한은 각각 어떻게 되나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-285", "domain": "travel", "question": "상품권으로 결제했으면 환불 기한은 얼마이고, 무엇으로 돌려받나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-286", "domain": "travel", "question": "환불이 기한보다 늦어지면 어떤 이자를 더해 주나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-287", "domain": "travel", "question": "회원 사정의 취소와 회사 사정의 취소는 환불 금액이 정해지는 날이 각각 언제인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-288", "domain": "travel", "question": "불만을 접수하면 접수 확인 연락은 언제 오나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-289", "domain": "travel", "question": "사실 조사 결과 안내는 접수 뒤 몇 영업일 안에 받나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-290", "domain": "travel", "question": "보상안은 사실 조사 결과 안내 뒤 며칠 안에 제시되나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-291", "domain": "travel", "question": "재검토를 요청하면 몇 영업일 안에 답을 받나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-292", "domain": "travel", "question": "접수 확인 연락과 사실 조사 결과 안내는 각각 언제까지 받나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-293", "domain": "travel", "question": "여행 중에 불만을 접수하려면 어디로 하고, 귀국 뒤에는 어디로 하나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-294", "domain": "travel", "question": "회사 보상안에 동의하지 않으면 어디에 조정을 신청할 수 있고, 회사는 그 결과를 어떻게 하나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "travel-295", "domain": "travel", "question": "여행 중 현지에서 알린 불만은 귀국 뒤 접수한 것과 비교해 어떻게 처리되나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
