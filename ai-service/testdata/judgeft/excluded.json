@@ -1,4 +1,24 @@
 {
+  "school-020": {
+    "reason": "answer_not_in_top5",
+    "note": "정답이 적힌 청크(성적 등급별 평점 청크)가 근거 5청크에 없다"
+  },
+  "school-022": {
+    "reason": "answer_not_in_top5",
+    "note": "정답이 적힌 청크(성적 등급별 평점 청크)가 근거 5청크에 없다"
+  },
+  "school-147": {
+    "reason": "answer_not_in_top5",
+    "note": "정답이 적힌 청크(파견 지역별 교환학생 어학 점수 기준 청크)가 근거 5청크에 없다"
+  },
+  "telecom-002": {
+    "reason": "answer_not_in_top5",
+    "note": "정답이 적힌 청크(5G 요금제별 월정액 청크)가 근거 5청크에 없다"
+  },
+  "telecom-170": {
+    "reason": "answer_not_in_top5",
+    "note": "정답이 적힌 청크(유심 종류별 가격 청크)가 근거 5청크에 없다"
+  },
   "travel-084": {
     "reason": "partial_answer_not_in_top5",
     "note": "크루즈 발코니 객실의 예약금(06 객실 등급별 예약금 청크)이 근거 5청크에 없다. 60일 전 수수료는 있다"
