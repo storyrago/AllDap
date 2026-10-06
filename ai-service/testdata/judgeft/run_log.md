@@ -293,3 +293,11 @@ train: Counter({8: 240, 1: 35, 2: 35, 4: 34, 3: 34, 6: 34, 5: 34, 7: 34}), 짝 1
 ```
 
 - 가장 긴 문항과 T(1492토큰)는 바뀌지 않았다.
+
+## 동결 커밋 (2026-10-06)
+
+- 동결 커밋: `cb972b6c44aa5bbb4f529ea239d2df0374522f65`. 이 커밋 뒤에 처음으로 모델을 돌린다.
+- 동결 대상: `cases.jsonl`, `answer_key.json`, `train.jsonl`, `val.jsonl`, `templates.json`, 노트북 둘(`notebooks/judgeft_train_colab.ipynb`, `notebooks/judgeft_eval_colab.ipynb`). 이 뒤로 바꾸지 않는다.
+- 노트북의 기대 해시: 학습 노트북 `train` `000d4c33...`, `val` `e996a7c3...` 가 `train.sha256` 과, 평가 노트북 `new` `60cf9ee8...` 가 `cases.sha256` 과, `frozen` `bec2b58e...` 가 `testdata/judge5v2/cases.sha256` 과 같다.
+- 점검: `judgeft_check` 48가지, `judge5_check` 44가지, `judge5v2_check` 66가지 전부 통과.
+- travel-130 의 ⑧ 모범 답안이 같은 행을 두 번 인용하는 것(틀린 대상과 질문 대상이 같은 행의 다른 열)은 그대로 둔다. travel-123~129 와 같은 모양(열이 플랜인 표)이라 사용자가 고치지 않기로 했다.
