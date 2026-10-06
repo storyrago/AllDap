@@ -301,3 +301,16 @@ train: Counter({8: 240, 1: 35, 2: 35, 4: 34, 3: 34, 6: 34, 5: 34, 7: 34}), 짝 1
 - 노트북의 기대 해시: 학습 노트북 `train` `000d4c33...`, `val` `e996a7c3...` 가 `train.sha256` 과, 평가 노트북 `new` `60cf9ee8...` 가 `cases.sha256` 과, `frozen` `bec2b58e...` 가 `testdata/judge5v2/cases.sha256` 과 같다.
 - 점검: `judgeft_check` 48가지, `judge5_check` 44가지, `judge5v2_check` 66가지 전부 통과.
 - travel-130 의 ⑧ 모범 답안이 같은 행을 두 번 인용하는 것(틀린 대상과 질문 대상이 같은 행의 다른 열)은 그대로 둔다. travel-123~129 와 같은 모양(열이 플랜인 표)이라 사용자가 고치지 않기로 했다.
+
+## 학습 전 M3 결정성 (2026-10-06)
+
+- 학습 전 M3 로 동결 시험지(`testdata/judge5v2/cases.jsonl`)를 코랩에서 한 번 채점했다(`SHEET = 'frozen'`, `MODEL = 'M3pre'`, `RUN = 1`). zip `alldap_judgeft_frozen_M3pre_run1.zip` 의 세 파일(`M3pre_run1.jsonl`, `M3pre_run1.env.json`, `M3pre_run1_smoke.json`)을 `results/frozen/` 에 풀었다.
+- `$PY -m tools.judgeft_determinism pre` (종료 코드 0):
+
+```
+pre: frozen M3pre_run1 와 v2 M3_run1 를 대조. 같은 문항 231, 다른 문항 0. 쓸 실행 수 1
+```
+
+- `determinism.json`: `env_same` true, `env_diff` 없음, `vs_v2` 같은 문항 231 다른 문항 0, `use_v2` true, `runs` 1. 판이 같고 v2 의 run1 과 한 줄도 다르지 않아 run2 는 돌리지 않는다. E13, E16 의 코랩 실행도 한 번씩이다.
+- 판: GPU `Tesla T4`, torch `2.11.0+cu130`, transformers `4.57.6`, bitsandbytes `0.50.2`, python `3.13.15` 로 v2 의 `results/env.json` 과 같다. 이번에는 peft `0.17.1`, accelerate `1.10.1` 도 적었다(v2 는 이 둘을 적지 않았다).
+- 결과 231줄 모두 `repo` `Unbabel/M-Prometheus-14B`, `revision` `f790ee744ba08731697e9347c6ab709f9405a37e`, `cases_sha256` `bec2b58e943e3b2c296dec8b664dc78ed2548f1b6d6e67062e3a7684fd535fe2`(동결 시험지), `finish` `stop`, `adapter_sha256` 없음(학습 전)이다.
