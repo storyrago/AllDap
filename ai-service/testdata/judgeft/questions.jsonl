@@ -293,3 +293,480 @@
 {"qid": "travel-293", "domain": "travel", "question": "여행 중에 불만을 접수하려면 어디로 하고, 귀국 뒤에는 어디로 하나요?", "two_part": true, "answer": "여행 중에는 현지 가이드나 24시간 긴급 연락처로, 귀국 뒤에는 고객센터나 앱의 문의 메뉴로 접수합니다.", "claims": 2, "contrast": null, "answer_note": null}
 {"qid": "travel-294", "domain": "travel", "question": "회사 보상안에 동의하지 않으면 어디에 조정을 신청할 수 있고, 회사는 그 결과를 어떻게 하나요?", "two_part": true, "answer": "소비자 분쟁 조정 기관에 조정을 신청할 수 있고, 회사는 조정 결과를 따릅니다.", "claims": 2, "contrast": null, "answer_note": null}
 {"qid": "travel-295", "domain": "travel", "question": "여행 중 현지에서 알린 불만은 귀국 뒤 접수한 것과 비교해 어떻게 처리되나요?", "two_part": false, "answer": "여행 중에 현지에서 알린 불만은 귀국 뒤 접수한 것보다 먼저 처리합니다.", "claims": 1, "contrast": null, "answer_note": null}
+{"qid": "telecom-001", "domain": "telecom", "question": "5G 라이트 요금제의 월정액은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-002", "domain": "telecom", "question": "5G 스탠다드 요금제는 한 달에 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-003", "domain": "telecom", "question": "5G 프리미엄 요금제의 월정액은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-004", "domain": "telecom", "question": "5G 무제한 요금제의 월정액은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-005", "domain": "telecom", "question": "5G 라이트와 5G 무제한 요금제의 월정액은 각각 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-006", "domain": "telecom", "question": "5G 스탠다드와 5G 프리미엄 요금제의 월정액은 각각 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-007", "domain": "telecom", "question": "5G 라이트 요금제의 한 달 기본 데이터는 몇 GB인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-008", "domain": "telecom", "question": "5G 스탠다드 요금제는 한 달 기본 데이터를 얼마나 주나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-009", "domain": "telecom", "question": "5G 프리미엄 요금제의 기본 데이터 제공량은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-010", "domain": "telecom", "question": "5G 라이트와 5G 프리미엄 요금제의 기본 데이터 제공량은 각각 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-011", "domain": "telecom", "question": "5G 스탠다드와 5G 프리미엄 요금제의 기본 데이터 제공량은 각각 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-012", "domain": "telecom", "question": "5G 라이트 요금제의 기본 데이터를 다 쓰면 속도가 얼마로 줄어드나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-013", "domain": "telecom", "question": "5G 스탠다드 요금제는 데이터 소진 뒤 속도가 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-014", "domain": "telecom", "question": "5G 프리미엄 요금제의 데이터 소진 뒤 속도는 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-015", "domain": "telecom", "question": "5G 스탠다드와 5G 프리미엄 요금제의 데이터 소진 뒤 속도는 각각 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-016", "domain": "telecom", "question": "5G 라이트와 5G 프리미엄 요금제의 데이터 소진 뒤 속도는 각각 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-017", "domain": "telecom", "question": "5G 무제한 요금제는 하루에 몇 GB를 넘게 쓰면 속도를 줄이고, 줄인 속도는 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-018", "domain": "telecom", "question": "LTE 미니 요금제의 월정액은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-019", "domain": "telecom", "question": "LTE 레귤러 요금제는 한 달에 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-020", "domain": "telecom", "question": "LTE 미니와 LTE 레귤러 요금제의 월정액은 각각 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-021", "domain": "telecom", "question": "LTE 미니 요금제의 한 달 데이터는 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-022", "domain": "telecom", "question": "LTE 레귤러 요금제는 한 달 데이터를 몇 GB 주나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-023", "domain": "telecom", "question": "LTE 레귤러 요금제의 월정액과 한 달 데이터는 각각 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-024", "domain": "telecom", "question": "LTE 미니 요금제의 월정액과 한 달 데이터는 각각 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-025", "domain": "telecom", "question": "LTE 미니 요금제는 한 달에 음성 통화를 몇 분 주고, 넘으면 1초당 얼마를 받나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-026", "domain": "telecom", "question": "LTE 요금제의 데이터를 다 쓰면 LTE 미니와 LTE 레귤러는 각각 어떻게 되나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-027", "domain": "telecom", "question": "청소년 요금제는 만 몇 세 미만만 가입할 수 있나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-028", "domain": "telecom", "question": "시니어 요금제는 만 몇 세 이상부터 가입할 수 있나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-029", "domain": "telecom", "question": "청소년 요금제와 시니어 요금제의 가입 나이는 각각 어떻게 되나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-030", "domain": "telecom", "question": "청소년 요금제는 언제 다른 요금제로 바뀌고, 바뀌는 요금제는 무엇인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-031", "domain": "telecom", "question": "청소년 5G 25 요금제의 월정액은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-032", "domain": "telecom", "question": "청소년 5G 45 요금제는 한 달에 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-033", "domain": "telecom", "question": "시니어 5G 29 요금제의 월정액은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-034", "domain": "telecom", "question": "시니어 5G 49 요금제의 월정액은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-035", "domain": "telecom", "question": "청소년 5G 45와 시니어 5G 49 요금제의 월정액은 각각 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-036", "domain": "telecom", "question": "청소년 5G 25 요금제의 한 달 데이터는 몇 GB인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-037", "domain": "telecom", "question": "청소년 5G 45 요금제는 한 달 데이터를 얼마나 주나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-038", "domain": "telecom", "question": "시니어 5G 29 요금제의 한 달 데이터는 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-039", "domain": "telecom", "question": "시니어 5G 49 요금제의 한 달 데이터는 몇 GB인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-040", "domain": "telecom", "question": "시니어 5G 29 요금제의 월정액과 한 달 데이터는 각각 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-041", "domain": "telecom", "question": "청소년 5G 25 요금제의 월정액과 한 달 데이터는 각각 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-042", "domain": "telecom", "question": "청소년 요금제의 야간 데이터 차단은 몇 시부터 몇 시까지 막나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-043", "domain": "telecom", "question": "시니어 요금제의 안심 통화는 어떤 통화가 무료이고, 보호자 번호는 몇 개까지 정하나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-044", "domain": "telecom", "question": "선택약정 기간이 12개월이면 월정액을 몇 % 할인받나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-045", "domain": "telecom", "question": "선택약정을 24개월로 하면 할인율은 몇 %인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-046", "domain": "telecom", "question": "선택약정 기간별 할인율은 12개월과 24개월이 각각 몇 %인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-047", "domain": "telecom", "question": "선택약정을 적용하지 않는 요금제는 무엇과 무엇인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-048", "domain": "telecom", "question": "선택약정 후 6개월 미만에 해지하면 받은 할인 금액의 몇 %를 위약금으로 내나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-049", "domain": "telecom", "question": "선택약정 후 8개월 만에 해지하면 위약금은 받은 할인 금액의 몇 %인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-050", "domain": "telecom", "question": "선택약정 후 12개월 이상 지나 해지하면 위약금 비율은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-051", "domain": "telecom", "question": "선택약정 후 3개월 만에 해지할 때와 15개월 만에 해지할 때의 위약금 비율은 각각 몇 %인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-052", "domain": "telecom", "question": "선택약정 기간 중에 요금제를 바꾸면 약정은 어떻게 되고, 할인율은 어느 요금제의 월정액에 적용하나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-053", "domain": "telecom", "question": "단말기 12개월 할부의 연 수수료율은 몇 %인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-054", "domain": "telecom", "question": "단말기를 24개월 할부로 사면 수수료율은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-055", "domain": "telecom", "question": "단말기 36개월 할부의 수수료율은 연 몇 %인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-056", "domain": "telecom", "question": "단말기 12개월 할부와 36개월 할부의 수수료율은 각각 몇 %인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-057", "domain": "telecom", "question": "새벽별통신 가입 기간이 1년 미만이면 단말기 할부 한도는 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-058", "domain": "telecom", "question": "새벽별통신에 가입한 지 2년 된 사람의 단말기 할부 한도는 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-059", "domain": "telecom", "question": "새벽별통신 가입 기간이 3년 이상이면 단말기를 얼마까지 할부로 살 수 있나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-060", "domain": "telecom", "question": "새벽별통신 가입 기간이 1년 미만일 때와 3년 이상일 때의 단말기 할부 한도는 각각 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-061", "domain": "telecom", "question": "남은 할부금은 언제 한꺼번에 갚을 수 있고, 미리 갚으면 남은 기간의 수수료는 어떻게 되나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-062", "domain": "telecom", "question": "회선을 해지하면 남은 단말기 할부금은 어떻게 내나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-063", "domain": "telecom", "question": "가족 결합 인원이 2명이면 회선마다 월 얼마를 할인받나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-064", "domain": "telecom", "question": "가족 결합으로 3명을 묶으면 회선마다 월 할인은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-065", "domain": "telecom", "question": "가족 결합 인원이 4명일 때 회선마다 월 할인은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-066", "domain": "telecom", "question": "가족 결합으로 6명을 묶으면 회선마다 매달 얼마를 깎아 주나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-067", "domain": "telecom", "question": "가족 결합 인원이 2명일 때와 5명 이상일 때 회선마다 월 할인은 각각 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-068", "domain": "telecom", "question": "가족 결합 인원이 3명일 때와 4명일 때 회선마다 월 할인은 각각 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-069", "domain": "telecom", "question": "가족 결합으로 묶을 수 있는 가족의 범위는 어디까지이고, 무엇으로 확인하나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-070", "domain": "telecom", "question": "LTE 미니 회선은 가족 결합 인원에 세나요, 그리고 할인을 받나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-071", "domain": "telecom", "question": "100Mbps 인터넷과 휴대폰을 묶으면 휴대폰 월정액을 얼마 할인받나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-072", "domain": "telecom", "question": "500Mbps 인터넷 상품의 휴대폰 결합 할인은 월 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-073", "domain": "telecom", "question": "1Gbps 인터넷과 결합하면 휴대폰 할인은 월 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-074", "domain": "telecom", "question": "100Mbps와 1Gbps 인터넷 상품의 휴대폰 결합 할인은 각각 월 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-075", "domain": "telecom", "question": "인터넷 결합으로 휴대폰은 몇 회선까지 묶을 수 있고, 할인은 어느 회선에 적용하나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-076", "domain": "telecom", "question": "인터넷 결합 할인과 가족 결합 할인은 함께 받을 수 있나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-077", "domain": "telecom", "question": "데이터 충전 1GB 상품의 가격은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-078", "domain": "telecom", "question": "데이터 충전 3GB는 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-079", "domain": "telecom", "question": "데이터 충전 10GB 상품은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-080", "domain": "telecom", "question": "데이터 충전 30GB의 가격은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-081", "domain": "telecom", "question": "데이터 충전 3GB와 30GB 상품의 가격은 각각 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-082", "domain": "telecom", "question": "데이터 충전 1GB와 10GB 상품의 가격은 각각 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-083", "domain": "telecom", "question": "데이터 충전 1GB 상품의 유효 기간은 언제까지인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-084", "domain": "telecom", "question": "데이터 충전 10GB 상품은 언제까지 쓸 수 있나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-085", "domain": "telecom", "question": "데이터 충전 10GB 상품의 가격과 유효 기간은 각각 어떻게 되나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-086", "domain": "telecom", "question": "데이터 충전은 한 달에 몇 번, 금액으로는 얼마까지 할 수 있나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-087", "domain": "telecom", "question": "충전한 데이터를 전혀 쓰지 않았으면 며칠 안에 취소할 수 있고, 얼마를 돌려받나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-088", "domain": "telecom", "question": "5G 스탠다드 요금제는 데이터 함께쓰기로 몇 GB를 나눠 쓸 수 있나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-089", "domain": "telecom", "question": "5G 프리미엄 요금제의 함께쓰기 데이터 한도는 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-090", "domain": "telecom", "question": "5G 무제한 요금제는 함께쓰기로 데이터를 얼마나 나눠 쓸 수 있나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-091", "domain": "telecom", "question": "5G 스탠다드와 5G 무제한 요금제의 함께쓰기 데이터 한도는 각각 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-092", "domain": "telecom", "question": "5G 라이트 요금제도 데이터 함께쓰기를 할 수 있나요, 그리고 5G 프리미엄의 함께쓰기 한도는 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-093", "domain": "telecom", "question": "함께쓰기에 묶는 태블릿 회선의 월 요금은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-094", "domain": "telecom", "question": "함께쓰기 스마트워치 회선은 월 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-095", "domain": "telecom", "question": "함께쓰기 기기 회선 요금은 태블릿과 스마트워치가 각각 월 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-096", "domain": "telecom", "question": "한 요금제에 함께쓰기 기기 회선을 몇 개까지 묶을 수 있나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-097", "domain": "telecom", "question": "일본에서 로밍 하루 요금제를 쓰면 하루에 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-098", "domain": "telecom", "question": "동남아시아 로밍 하루 요금은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-099", "domain": "telecom", "question": "유럽에서 로밍 하루 요금제를 쓰면 하루 요금은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-100", "domain": "telecom", "question": "미주와 대양주의 로밍 하루 요금은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-101", "domain": "telecom", "question": "대만과 유럽의 로밍 하루 요금은 각각 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-102", "domain": "telecom", "question": "동남아시아와 미주와 대양주의 로밍 하루 요금은 각각 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-103", "domain": "telecom", "question": "한 번의 출국에서 로밍 하루 요금의 합계는 최대 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-104", "domain": "telecom", "question": "중국 로밍 하루 요금제의 하루 고속 데이터는 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-105", "domain": "telecom", "question": "동남아시아 로밍의 하루 고속 데이터는 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-106", "domain": "telecom", "question": "유럽 로밍 하루 요금제는 고속 데이터를 하루 얼마나 주나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-107", "domain": "telecom", "question": "미주와 대양주 로밍의 하루 고속 데이터는 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-108", "domain": "telecom", "question": "동남아시아 로밍의 하루 고속 데이터는 얼마이고, 다 쓰면 어떤 속도로 쓸 수 있나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-109", "domain": "telecom", "question": "일본과 유럽 로밍의 하루 고속 데이터는 각각 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-110", "domain": "telecom", "question": "로밍 5일 패스의 가격은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-111", "domain": "telecom", "question": "로밍 10일 패스는 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-112", "domain": "telecom", "question": "로밍 30일 패스의 가격은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-113", "domain": "telecom", "question": "로밍 5일 패스와 30일 패스의 가격은 각각 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-114", "domain": "telecom", "question": "로밍 5일 패스는 데이터를 얼마나 주나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-115", "domain": "telecom", "question": "로밍 10일 패스의 데이터는 몇 GB인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-116", "domain": "telecom", "question": "로밍 30일 패스에는 데이터가 얼마나 들어 있나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-117", "domain": "telecom", "question": "로밍 10일 패스의 가격과 데이터는 각각 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-118", "domain": "telecom", "question": "로밍 30일 패스의 가격과 데이터는 각각 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-119", "domain": "telecom", "question": "로밍 패스에는 하루 통화가 몇 분 들어 있고, 넘으면 1분당 얼마를 받나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-120", "domain": "telecom", "question": "로밍 패스는 언제 시작하고, 시작 전에 취소하면 얼마를 돌려받나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-121", "domain": "telecom", "question": "미국으로 거는 국제전화는 1분에 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-122", "domain": "telecom", "question": "베트남으로 국제전화를 걸면 1분당 요금이 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-123", "domain": "telecom", "question": "유럽 연합 나라로 거는 국제전화의 1분 요금은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-124", "domain": "telecom", "question": "국제전화 4묶음 나라로 걸면 1분에 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-125", "domain": "telecom", "question": "캐나다와 필리핀으로 거는 국제전화의 1분 요금은 각각 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-126", "domain": "telecom", "question": "국제전화 정액 상품은 월 얼마이고, 통화를 몇 분 주나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-127", "domain": "telecom", "question": "해외 번호로 국제 문자를 보내면 한 건에 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-128", "domain": "telecom", "question": "통화 연결음 꾸미기 부가서비스는 월 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-129", "domain": "telecom", "question": "스팸 문자 차단 플러스의 월 요금은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-130", "domain": "telecom", "question": "통화 녹음 보관함의 월 요금은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-131", "domain": "telecom", "question": "클라우드 사진 보관 100GB는 월 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-132", "domain": "telecom", "question": "통화 연결음 꾸미기와 통화 녹음 보관함의 월 요금은 각각 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-133", "domain": "telecom", "question": "처음 가입한 달 요금을 받지 않는 부가서비스는 무엇과 무엇인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-134", "domain": "telecom", "question": "부가서비스는 어디서 해지할 수 있고, 해지한 달 요금은 어떻게 받나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-135", "domain": "telecom", "question": "휴대폰 보험 파손 보장형의 월 보험료는 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-136", "domain": "telecom", "question": "분실과 파손 보장형 휴대폰 보험은 월 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-137", "domain": "telecom", "question": "휴대폰 보험 종합 보장형의 월 보험료는 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-138", "domain": "telecom", "question": "휴대폰 보험 파손 보장형과 종합 보장형의 월 보험료는 각각 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-139", "domain": "telecom", "question": "휴대폰 보험은 단말기를 산 날부터 며칠 안에 가입할 수 있고, 분실과 파손 보장형의 월 보험료는 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-140", "domain": "telecom", "question": "휴대폰 보험 파손 보장형의 자기부담금 비율은 몇 %인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-141", "domain": "telecom", "question": "분실과 파손 보장형은 손해액의 몇 %를 가입자가 내나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-142", "domain": "telecom", "question": "종합 보장형 휴대폰 보험의 자기부담금 비율은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-143", "domain": "telecom", "question": "휴대폰 보험 파손 보장형과 종합 보장형의 자기부담금 비율은 각각 몇 %인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-144", "domain": "telecom", "question": "휴대폰 보험 보상 횟수에서 파손은 몇 번까지 보상받을 수 있나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-145", "domain": "telecom", "question": "휴대폰 보험의 분실 보상 횟수는 몇 번까지인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-146", "domain": "telecom", "question": "휴대폰 보험 기간은 몇 개월이고, 그동안 분실은 몇 번까지 보상하나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-147", "domain": "telecom", "question": "은행 계좌 자동이체로 요금을 내면 몇 %를 할인받나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-148", "domain": "telecom", "question": "신용카드 자동납부의 요금 할인은 몇 %인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-149", "domain": "telecom", "question": "은행 계좌 자동이체와 신용카드 자동납부의 요금 할인은 각각 몇 %인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-150", "domain": "telecom", "question": "요금 납부일을 바꾸면 언제 청구부터 적용하나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-151", "domain": "telecom", "question": "청구서를 종이 우편으로 받으면 한 달에 얼마를 내나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-152", "domain": "telecom", "question": "요금 연체 기간이 2개월이면 어떤 이용 제한을 받나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-153", "domain": "telecom", "question": "연체한 요금에 붙는 연체 가산금은 몇 %이고, 몇 번 더하나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-154", "domain": "telecom", "question": "밀린 요금을 모두 내면 얼마 안에 이용 제한을 풀고, 직권 해지된 회선은 어떻게 되나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-155", "domain": "telecom", "question": "일반 일시정지는 한 번에 최대 얼마 동안 할 수 있나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-156", "domain": "telecom", "question": "해외 체류로 일시정지하면 최대 기간은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-157", "domain": "telecom", "question": "입원으로 일시정지하면 최대 몇 개월까지 멈출 수 있나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-158", "domain": "telecom", "question": "일반 일시정지의 최대 기간과 월 요금은 각각 어떻게 되나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-159", "domain": "telecom", "question": "일반 일시정지 중의 월 요금은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-160", "domain": "telecom", "question": "해외 체류 일시정지의 월 요금은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-161", "domain": "telecom", "question": "해외 체류 일시정지의 최대 기간과 월 요금은 각각 어떻게 되나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-162", "domain": "telecom", "question": "일반 일시정지는 한 해에 몇 번까지 신청할 수 있나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-163", "domain": "telecom", "question": "일시정지한 기간은 선택약정 기간에 들어가나요, 그리고 약정 종료일은 어떻게 되나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-164", "domain": "telecom", "question": "신규 가입은 개통 신청 뒤 얼마 안에 처리하나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-165", "domain": "telecom", "question": "번호이동 개통은 얼마 안에 처리되나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-166", "domain": "telecom", "question": "기기변경 개통 처리 시간은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-167", "domain": "telecom", "question": "신규 가입과 기기변경의 개통 처리 시간은 각각 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-168", "domain": "telecom", "question": "일반 유심의 가격은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-169", "domain": "telecom", "question": "NFC 유심은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-170", "domain": "telecom", "question": "eSIM의 가격은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-171", "domain": "telecom", "question": "일반 유심과 eSIM의 가격은 각각 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-172", "domain": "telecom", "question": "유심을 잃어버리면 재발급 비용은 어떻게 되고, 받은 날부터 몇 개월 안에 고장 나면 무료로 바꿔 주나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-173", "domain": "telecom", "question": "새로 가입한 회선은 개통한 날부터 몇 개월 동안 다른 통신사로 번호이동을 할 수 없나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-174", "domain": "telecom", "question": "해지를 앱으로 신청하면 언제 해지되고, 매장으로 신청하면 언제 해지되나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-175", "domain": "telecom", "question": "해지한 달의 월정액은 어떻게 받나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-176", "domain": "telecom", "question": "멤버십 브론즈 등급의 월정액 기준은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-177", "domain": "telecom", "question": "멤버십 실버 등급의 월정액 기준은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-178", "domain": "telecom", "question": "멤버십 골드 등급이 되려면 월정액이 얼마여야 하나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-179", "domain": "telecom", "question": "멤버십 다이아 등급의 월정액 기준은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-180", "domain": "telecom", "question": "멤버십 실버 등급과 다이아 등급의 월정액 기준은 각각 어떻게 되나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-181", "domain": "telecom", "question": "멤버십 브론즈 등급은 한 해에 영화 할인을 몇 회 받나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-182", "domain": "telecom", "question": "멤버십 실버 등급의 영화 할인 횟수는 몇 회인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-183", "domain": "telecom", "question": "멤버십 골드 등급은 영화 예매 할인을 한 해 몇 번 받나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-184", "domain": "telecom", "question": "멤버십 다이아 등급의 연간 영화 할인 횟수는 몇 회인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-185", "domain": "telecom", "question": "멤버십 브론즈와 다이아 등급의 영화 할인 횟수는 각각 몇 회인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-186", "domain": "telecom", "question": "멤버십 브론즈 등급의 편의점 할인율은 몇 %인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-187", "domain": "telecom", "question": "멤버십 실버 등급은 제휴 편의점에서 몇 % 할인받나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-188", "domain": "telecom", "question": "멤버십 골드 등급의 편의점 할인율은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-189", "domain": "telecom", "question": "멤버십 다이아 등급은 편의점에서 몇 %를 할인받나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-190", "domain": "telecom", "question": "멤버십 골드 등급의 편의점 할인율은 몇 %이고, 한 번에 얼마어치까지 할인하나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-191", "domain": "telecom", "question": "멤버십 브론즈와 다이아 등급의 편의점 할인율은 각각 몇 %인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-192", "domain": "telecom", "question": "멤버십 브론즈 등급은 해마다 포인트를 몇 점 받나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-193", "domain": "telecom", "question": "멤버십 실버 등급의 연간 포인트는 몇 점인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-194", "domain": "telecom", "question": "멤버십 골드 등급은 연간 포인트를 얼마나 받나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-195", "domain": "telecom", "question": "멤버십 다이아 등급의 연간 포인트는 몇 점인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-196", "domain": "telecom", "question": "멤버십 실버와 골드 등급의 연간 포인트는 각각 몇 점인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-197", "domain": "telecom", "question": "단말기를 살 때 멤버십 포인트는 한 번에 최대 몇 점까지 쓸 수 있고, 1점은 얼마로 치나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-198", "domain": "telecom", "question": "멤버십 포인트는 언제 남은 것이 모두 사라지나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-199", "domain": "telecom", "question": "고객센터 전화 상담은 언제 하나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-200", "domain": "telecom", "question": "고객센터 채팅 상담의 운영 시간은 어떻게 되나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-201", "domain": "telecom", "question": "분실 신고 전화는 몇 시간 운영하나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-202", "domain": "telecom", "question": "고객센터 전화 상담과 채팅 상담의 운영 시간은 각각 어떻게 되나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-203", "domain": "telecom", "question": "요금 청구 문의는 접수 뒤 며칠 안에 답변을 받나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-204", "domain": "telecom", "question": "통화 품질 신고의 답변 기한은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-205", "domain": "telecom", "question": "개인정보 열람 요청은 접수 뒤 몇 영업일 안에 답변하나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-206", "domain": "telecom", "question": "요금 청구 문의와 개인정보 열람 요청의 답변 기한은 각각 어떻게 되나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-207", "domain": "telecom", "question": "고객센터 상담 내용은 얼마 동안 보관하나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-208", "domain": "telecom", "question": "분실 신고를 하면 회선은 언제 정지하고, 분실 정지는 최대 며칠까지인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-209", "domain": "telecom", "question": "분실 정지 기간에도 월정액을 내나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-210", "domain": "telecom", "question": "임대폰을 15일 빌리면 하루 대여 요금이 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-211", "domain": "telecom", "question": "임대폰을 45일 빌리면 하루 대여 요금은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-212", "domain": "telecom", "question": "임대폰을 8일부터 30일까지 빌릴 때와 31일부터 60일까지 빌릴 때의 하루 대여 요금은 각각 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-213", "domain": "telecom", "question": "기초생활 수급자의 월 요금 감면 한도는 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-214", "domain": "telecom", "question": "차상위 계층은 요금 감면으로 월 최대 얼마를 감면받나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-215", "domain": "telecom", "question": "등록 장애인은 요금 감면으로 월정액의 몇 %를 감면받나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-216", "domain": "telecom", "question": "기초생활 수급자와 차상위 계층의 월 감면 한도는 각각 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-217", "domain": "telecom", "question": "요금 감면 대상 자격을 잃으면 언제부터 감면을 멈추나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-218", "domain": "telecom", "question": "5G 스탠다드 요금제의 한 달 테더링 한도는 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-219", "domain": "telecom", "question": "5G 프리미엄 요금제는 테더링으로 한 달에 몇 GB를 쓸 수 있나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-220", "domain": "telecom", "question": "5G 무제한 요금제의 테더링 한도는 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-221", "domain": "telecom", "question": "5G 스탠다드와 5G 무제한 요금제의 테더링 한도는 각각 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-222", "domain": "telecom", "question": "5G 프리미엄과 5G 무제한 요금제의 테더링 한도는 각각 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-223", "domain": "telecom", "question": "테더링 한도를 넘기면 무엇을 막고, 휴대폰 데이터는 어떻게 되나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-224", "domain": "telecom", "question": "5G 라이트 요금제는 테더링 한도가 따로 있나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-225", "domain": "telecom", "question": "선택약정 후 10개월 만에 해지하면 위약금은 받은 할인 금액의 몇 %인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-226", "domain": "telecom", "question": "선택약정 후 20개월 만에 해지하면 위약금 비율은 몇 %인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-227", "domain": "telecom", "question": "새벽별통신에 가입한 지 6개월 된 사람의 단말기 할부 한도는 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-228", "domain": "telecom", "question": "새벽별통신 가입 기간이 5년이면 단말기 할부 한도는 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-229", "domain": "telecom", "question": "가족 결합 인원이 5명이면 회선마다 월 할인은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-230", "domain": "telecom", "question": "임대폰을 25일 빌리면 하루 대여 요금은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-231", "domain": "telecom", "question": "임대폰을 60일 빌리면 하루 대여 요금은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-232", "domain": "telecom", "question": "중국으로 거는 국제전화의 1분 요금은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-233", "domain": "telecom", "question": "일본으로 국제전화를 걸면 1분에 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-234", "domain": "telecom", "question": "캐나다로 거는 국제전화는 1분당 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-235", "domain": "telecom", "question": "대만에서 로밍 하루 요금제를 쓰면 하루에 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-236", "domain": "telecom", "question": "중국 로밍 하루 요금은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-237", "domain": "telecom", "question": "대만 로밍의 하루 고속 데이터는 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-238", "domain": "telecom", "question": "일본 로밍 하루 요금제의 하루 고속 데이터는 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-239", "domain": "telecom", "question": "요금 연체 기간이 3개월이면 어떤 이용 제한을 받나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-240", "domain": "telecom", "question": "요금 연체 기간이 4개월이 되면 회선은 어떻게 되나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-241", "domain": "telecom", "question": "군 입대로 일시정지하면 월 요금은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-242", "domain": "telecom", "question": "입원 일시정지 중의 월 요금은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-243", "domain": "telecom", "question": "데이터 충전 3GB 상품의 유효 기간은 언제까지인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-244", "domain": "telecom", "question": "데이터 충전 30GB 상품은 언제까지 쓸 수 있나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-245", "domain": "telecom", "question": "5G 무제한 요금제의 기본 데이터 제공량은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-246", "domain": "telecom", "question": "5G 무제한 요금제는 하루 몇 GB를 넘게 쓰면 속도를 줄이나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-247", "domain": "telecom", "question": "LTE 레귤러 요금제의 데이터를 다 쓰면 속도가 얼마로 줄어드나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-248", "domain": "telecom", "question": "LTE 미니 요금제의 음성 통화는 한 달에 몇 분인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-249", "domain": "telecom", "question": "LTE 레귤러 요금제의 국내 음성 통화는 몇 분인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-250", "domain": "telecom", "question": "청소년 요금제의 야간 데이터 차단은 신청하는 데 비용이 드나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-251", "domain": "telecom", "question": "시니어 요금제의 안심 통화는 보호자 번호 몇 개에 거는 통화가 무료인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-252", "domain": "telecom", "question": "인터넷 결합에서 인터넷 하나에 휴대폰은 몇 회선까지 묶을 수 있나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-253", "domain": "telecom", "question": "데이터 충전은 한 달에 몇 번까지 할 수 있나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-254", "domain": "telecom", "question": "로밍 하루 요금제의 고속 데이터를 다 쓰면 속도는 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-255", "domain": "telecom", "question": "로밍 패스는 신청할 때 정한 날의 몇 시에 시작하나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-256", "domain": "telecom", "question": "국제전화 정액 상품의 월 요금은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-257", "domain": "telecom", "question": "휴대폰 보험은 단말기를 산 날부터 며칠 안에 가입해야 하나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-258", "domain": "telecom", "question": "휴대폰 보험의 보험 기간은 몇 개월인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-259", "domain": "telecom", "question": "지로로 요금을 내면 납부 방법별 할인이 있나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-260", "domain": "telecom", "question": "유심을 받은 날부터 몇 개월 안에 고장 나면 무료로 바꿔 주나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-261", "domain": "telecom", "question": "멤버십 편의점 할인은 한 번에 얼마어치까지 받을 수 있나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-262", "domain": "telecom", "question": "멤버십 포인트는 해마다 언제 주나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-263", "domain": "telecom", "question": "5G 라이트와 5G 스탠다드 요금제의 월정액은 각각 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-264", "domain": "telecom", "question": "5G 라이트와 5G 스탠다드 요금제의 기본 데이터 제공량은 각각 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-265", "domain": "telecom", "question": "LTE 미니와 LTE 레귤러 요금제의 한 달 데이터는 각각 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-266", "domain": "telecom", "question": "청소년 5G 25와 청소년 5G 45 요금제의 월정액은 각각 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-267", "domain": "telecom", "question": "시니어 5G 29와 시니어 5G 49 요금제의 한 달 데이터는 각각 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-268", "domain": "telecom", "question": "청소년 5G 45 요금제의 월정액과 한 달 데이터는 각각 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-269", "domain": "telecom", "question": "시니어 5G 49 요금제의 월정액과 한 달 데이터는 각각 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-270", "domain": "telecom", "question": "선택약정 후 6개월 미만과 6개월 이상 12개월 미만에 해지할 때 위약금 비율은 각각 몇 %인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-271", "domain": "telecom", "question": "단말기 24개월 할부와 36개월 할부의 수수료율은 각각 몇 %인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-272", "domain": "telecom", "question": "새벽별통신 가입 기간이 1년 이상 3년 미만일 때와 3년 이상일 때 단말기 할부 한도는 각각 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-273", "domain": "telecom", "question": "500Mbps와 1Gbps 인터넷 상품의 휴대폰 결합 할인은 각각 월 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-274", "domain": "telecom", "question": "데이터 충전 1GB 상품의 가격과 유효 기간은 각각 어떻게 되나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-275", "domain": "telecom", "question": "데이터 충전 30GB 상품의 가격과 유효 기간은 각각 어떻게 되나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-276", "domain": "telecom", "question": "5G 프리미엄과 5G 무제한 요금제의 함께쓰기 데이터 한도는 각각 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-277", "domain": "telecom", "question": "일본과 유럽의 로밍 하루 요금은 각각 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-278", "domain": "telecom", "question": "중국과 미주와 대양주 로밍의 하루 고속 데이터는 각각 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-279", "domain": "telecom", "question": "로밍 5일 패스와 10일 패스의 가격은 각각 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-280", "domain": "telecom", "question": "로밍 5일 패스의 가격과 데이터는 각각 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-281", "domain": "telecom", "question": "로밍 5일 패스와 30일 패스의 데이터는 각각 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-282", "domain": "telecom", "question": "미국과 베트남으로 거는 국제전화의 1분 요금은 각각 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-283", "domain": "telecom", "question": "유럽 연합 나라와 4묶음 나라로 거는 국제전화의 1분 요금은 각각 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-284", "domain": "telecom", "question": "스팸 문자 차단 플러스와 클라우드 사진 보관 100GB의 월 요금은 각각 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-285", "domain": "telecom", "question": "분실과 파손 보장형과 종합 보장형 휴대폰 보험의 월 보험료는 각각 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-286", "domain": "telecom", "question": "분실과 파손 보장형과 종합 보장형의 자기부담금 비율은 각각 몇 %인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-287", "domain": "telecom", "question": "휴대폰 보험 보상 횟수는 파손과 분실이 각각 몇 번까지인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-288", "domain": "telecom", "question": "입원 일시정지의 최대 기간과 월 요금은 각각 어떻게 되나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-289", "domain": "telecom", "question": "번호이동과 기기변경의 개통 처리 시간은 각각 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-290", "domain": "telecom", "question": "NFC 유심과 eSIM의 가격은 각각 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-291", "domain": "telecom", "question": "멤버십 브론즈와 골드 등급의 월정액 기준은 각각 어떻게 되나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-292", "domain": "telecom", "question": "멤버십 실버와 골드 등급의 영화 할인 횟수는 각각 몇 회인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-293", "domain": "telecom", "question": "멤버십 실버와 골드 등급의 편의점 할인율은 각각 몇 %인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-294", "domain": "telecom", "question": "멤버십 브론즈와 다이아 등급의 연간 포인트는 각각 몇 점인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-295", "domain": "telecom", "question": "통화 품질 신고와 개인정보 열람 요청의 답변 기한은 각각 어떻게 되나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-296", "domain": "telecom", "question": "분실 신고 전화와 고객센터 전화 상담의 운영 시간은 각각 어떻게 되나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-297", "domain": "telecom", "question": "등록 장애인과 차상위 계층의 요금 감면은 각각 어떻게 되나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-298", "domain": "telecom", "question": "5G 스탠다드와 5G 프리미엄 요금제의 테더링 한도는 각각 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-299", "domain": "telecom", "question": "해외 체류와 일반 일시정지의 월 요금은 각각 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "telecom-300", "domain": "telecom", "question": "가족 결합 인원이 2명일 때와 4명일 때 회선마다 월 할인은 각각 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-001", "domain": "school", "question": "1학년의 수강 신청 학점 상한은 몇 학점인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-002", "domain": "school", "question": "2학년은 정규 학기에 최대 몇 학점까지 수강 신청할 수 있나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-003", "domain": "school", "question": "3학년의 수강 신청 학점 상한은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-004", "domain": "school", "question": "4학년은 정규 학기에 몇 학점까지 수강 신청할 수 있나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-005", "domain": "school", "question": "1학년과 4학년의 수강 신청 학점 상한은 각각 몇 학점인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-006", "domain": "school", "question": "직전 학기 평점이 4.2인 학생은 추가 학점을 몇 학점 받나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-007", "domain": "school", "question": "직전 학기 평점이 3.7인 학생은 학점을 얼마나 더 신청할 수 있나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-008", "domain": "school", "question": "직전 학기 평점이 4.0 이상일 때와 3.5 이상 4.0 미만일 때 추가 학점은 각각 몇 학점인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-009", "domain": "school", "question": "직전 학기에 학사경고를 받은 학생은 수강 신청을 몇 학점까지 할 수 있나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-010", "domain": "school", "question": "여름 계절학기는 몇 학점까지 신청할 수 있나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-011", "domain": "school", "question": "겨울 계절학기의 수강 학점 상한은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-012", "domain": "school", "question": "여름과 겨울 계절학기의 수강 학점 상한은 각각 몇 학점인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-013", "domain": "school", "question": "계절학기 이론 과목의 학점당 수강료는 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-014", "domain": "school", "question": "계절학기 실험과 실습 과목은 1학점에 수강료가 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-015", "domain": "school", "question": "계절학기 이론 과목과 실험과 실습 과목의 학점당 수강료는 각각 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-016", "domain": "school", "question": "계절학기 이론 과목은 수강 신청 인원이 몇 명에 못 미치면 폐강하나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-017", "domain": "school", "question": "계절학기 실험과 실습 과목의 폐강 기준 인원은 몇 명인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-018", "domain": "school", "question": "성적 등급 A+의 평점은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-019", "domain": "school", "question": "성적 등급 B+의 평점은 몇 점인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-020", "domain": "school", "question": "성적 등급 C0의 평점은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-021", "domain": "school", "question": "성적 등급 D+는 평점이 몇 점인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-022", "domain": "school", "question": "성적 등급 B0의 평점은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-023", "domain": "school", "question": "성적 등급 A0와 C+의 평점은 각각 몇 점인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-024", "domain": "school", "question": "재수강한 과목의 성적은 어느 등급까지 받을 수 있나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-025", "domain": "school", "question": "수강 인원이 25명인 상대평가 과목의 A 등급 비율 상한은 몇 %인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-026", "domain": "school", "question": "수강 인원이 15명인 상대평가 과목은 A 등급을 몇 %까지 줄 수 있나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-027", "domain": "school", "question": "수강 인원이 30명인 상대평가 과목의 B 등급 이상 비율 상한은 몇 %인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-028", "domain": "school", "question": "수강 인원이 12명인 상대평가 과목의 B 등급 이상 비율 상한은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-029", "domain": "school", "question": "수강 인원이 20명 이상인 상대평가 과목의 A 등급 비율 상한과 B 등급 이상 비율 상한은 각각 몇 %인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-030", "domain": "school", "question": "학기 평점이 얼마 미만이면 학사경고를 받나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-031", "domain": "school", "question": "학사경고를 받은 뒤 두 학기 연속 평점 몇 이상을 받으면 학사경고를 몇 회 지우나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-032", "domain": "school", "question": "일반 휴학은 재학 중 통틀어 최대 몇 년인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-033", "domain": "school", "question": "질병 휴학은 재학 중 통틀어 얼마까지 쓸 수 있나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-034", "domain": "school", "question": "창업 휴학의 최대 기간은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-035", "domain": "school", "question": "일반 휴학과 질병 휴학의 최대 기간은 각각 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-036", "domain": "school", "question": "일반 휴학은 언제부터 언제까지 신청하나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-037", "domain": "school", "question": "1학기에 복학하려면 언제 신청하나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-038", "domain": "school", "question": "2학기 복학 신청 기간은 언제인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-039", "domain": "school", "question": "1학기와 2학기의 복학 신청 기간은 각각 언제인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-040", "domain": "school", "question": "군 입대 휴학을 한 학생은 전역한 날부터 얼마 안에 복학해야 하고, 전역일이 학기 개시 뒤 몇 주 안이면 그 학기에 바로 복학할 수 있나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-041", "domain": "school", "question": "학기 개시 전에 휴학하면 등록금을 몇 % 돌려받나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-042", "domain": "school", "question": "학기 개시 뒤 20일 만에 자퇴하면 등록금 반환 비율은 몇 %인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-043", "domain": "school", "question": "학기 개시 뒤 45일에 휴학하면 등록금을 몇 % 돌려받나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-044", "domain": "school", "question": "학기 개시 뒤 75일에 휴학하면 등록금 반환 비율은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-045", "domain": "school", "question": "학기 개시 뒤 30일 안에 휴학할 때와 31일부터 60일 사이에 휴학할 때 등록금 반환 비율은 각각 몇 %인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-046", "domain": "school", "question": "학부 과정은 등록금을 한 학기에 몇 회까지 나눠 낼 수 있나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-047", "domain": "school", "question": "대학원 과정의 등록금 분할 납부 횟수는 몇 회인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-048", "domain": "school", "question": "마루 장학금의 지급액은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-049", "domain": "school", "question": "누리 장학금은 등록금의 몇 %를 주나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-050", "domain": "school", "question": "버금 장학금의 지급액은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-051", "domain": "school", "question": "누리 장학금과 버금 장학금의 지급액은 각각 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-052", "domain": "school", "question": "마루 장학금을 받으려면 평점이 얼마 이상이어야 하나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-053", "domain": "school", "question": "누리 장학금의 평점 기준은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-054", "domain": "school", "question": "버금 장학금은 평점 몇 이상이어야 받을 수 있나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-055", "domain": "school", "question": "디딤 장학금의 평점 기준은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-056", "domain": "school", "question": "마루 장학금과 디딤 장학금의 평점 기준은 각각 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-057", "domain": "school", "question": "성적 장학금을 받으려면 직전 학기에 몇 학점 이상 이수해야 하나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-058", "domain": "school", "question": "4학년 2학기에 받을 성적 장학금은 4학년 1학기에 몇 학점 이상 이수하면 되나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-059", "domain": "school", "question": "행정 보조 근로의 시간당 근로장학금은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-060", "domain": "school", "question": "도서관 근로는 시간당 근로장학금이 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-061", "domain": "school", "question": "실험실 조교 근로의 시간당 근로장학금은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-062", "domain": "school", "question": "외국인 유학생 도우미 근로는 시간당 얼마를 받나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-063", "domain": "school", "question": "행정 보조 근로와 실험실 조교 근로의 시간당 근로장학금은 각각 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-064", "domain": "school", "question": "근로장학생은 학기 중 한 주에 몇 시간까지 일할 수 있나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-065", "domain": "school", "question": "방학 중 근로장학생의 주당 근무 시간 상한은 몇 시간인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-066", "domain": "school", "question": "근로장학금은 한 달 근무분을 언제 주나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-067", "domain": "school", "question": "인문사회 계열의 졸업 이수 학점은 몇 학점인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-068", "domain": "school", "question": "자연과학 계열은 졸업하려면 몇 학점을 이수해야 하나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-069", "domain": "school", "question": "공학 계열의 졸업 이수 학점은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-070", "domain": "school", "question": "예술체육 계열의 졸업 이수 학점은 몇 학점인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-071", "domain": "school", "question": "인문사회 계열과 공학 계열의 졸업 이수 학점은 각각 몇 학점인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-072", "domain": "school", "question": "인문사회 계열의 전공 이수 학점은 몇 학점인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-073", "domain": "school", "question": "공학 계열은 전공 학점을 몇 학점 채워야 하나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-074", "domain": "school", "question": "예술체육 계열의 전공 이수 학점은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-075", "domain": "school", "question": "자연과학 계열의 전공 이수 학점은 몇 학점인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-076", "domain": "school", "question": "인문사회 계열의 졸업 외국어 인증 점수는 몇 점인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-077", "domain": "school", "question": "예술체육 계열은 졸업 외국어 인증에 몇 점 이상이 필요한가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-078", "domain": "school", "question": "공학 계열의 졸업 외국어 인증 점수는 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-079", "domain": "school", "question": "졸업 외국어 인증 점수를 얻지 못하면 무엇으로 대신할 수 있고, 대체 과목은 어떤 성적 이상이어야 하나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-080", "domain": "school", "question": "1학년을 마친 학생이 전과하려면 몇 학점 이상 이수해야 하나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-081", "domain": "school", "question": "2학년을 마친 학생의 전과 이수 학점 기준은 몇 학점인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-082", "domain": "school", "question": "1학년을 마친 학생은 평점이 얼마 이상이어야 전과를 신청할 수 있나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-083", "domain": "school", "question": "2학년을 마친 학생의 전과 평점 기준은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-084", "domain": "school", "question": "2학년을 마친 학생이 전과하려면 이수 학점과 평점이 각각 얼마 이상이어야 하나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-085", "domain": "school", "question": "복수전공은 두 번째 전공을 몇 학점 이수해야 하나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-086", "domain": "school", "question": "부전공의 이수 학점은 몇 학점인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-087", "domain": "school", "question": "복수전공과 부전공의 이수 학점은 각각 몇 학점인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-088", "domain": "school", "question": "복수전공은 평점이 얼마 이상이어야 신청할 수 있나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-089", "domain": "school", "question": "부전공 신청 자격의 평점 기준은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-090", "domain": "school", "question": "주당 1시간 수업은 결석이 몇 시간을 넘으면 F가 되나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-091", "domain": "school", "question": "주당 2시간 수업의 F 처리 결석 기준은 몇 시간인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-092", "domain": "school", "question": "주당 3시간 수업은 몇 시간 넘게 결석하면 F로 처리하나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-093", "domain": "school", "question": "지각이나 조퇴를 몇 번 하면 결석 한 시간으로 계산하나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-094", "domain": "school", "question": "조부모 또는 형제자매가 사망하면 공결을 며칠 인정받나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-095", "domain": "school", "question": "본인 결혼의 공결 인정 기간은 며칠인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-096", "domain": "school", "question": "부모 또는 배우자 사망의 공결 인정 기간은 며칠인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-097", "domain": "school", "question": "공결은 사유가 끝난 날부터 며칠 안에 신청해야 하나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-098", "domain": "school", "question": "성적 이의 신청은 성적 공개 뒤 며칠 안에 해야 하나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-099", "domain": "school", "question": "성적 이의 신청에 대한 담당 교수의 답변 기한은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-100", "domain": "school", "question": "학과장 재심 신청은 교수 답변 뒤 며칠 안에 하나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-101", "domain": "school", "question": "학과장 재심 결과는 재심 신청 뒤 며칠 안에 나오나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-102", "domain": "school", "question": "학생의 성적 이의 신청 기한과 담당 교수의 답변 기한은 각각 어떻게 되나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-103", "domain": "school", "question": "기숙사 1인실의 학기 사생비는 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-104", "domain": "school", "question": "기숙사 2인실의 학기 사생비는 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-105", "domain": "school", "question": "기숙사 4인실은 한 학기 사생비가 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-106", "domain": "school", "question": "기숙사 1인실과 4인실의 학기 사생비는 각각 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-107", "domain": "school", "question": "방학 중에 기숙사 1인실에 머무르면 한 주에 얼마를 내나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-108", "domain": "school", "question": "방학 중 기숙사 2인실의 주당 사생비는 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-109", "domain": "school", "question": "방학 중 기숙사 4인실은 한 주에 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-110", "domain": "school", "question": "기숙사 식비는 하루 두 끼면 학기에 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-111", "domain": "school", "question": "기숙사에서 하루 세 끼를 먹으면 학기 식비는 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-112", "domain": "school", "question": "기숙사 식비는 하루 두 끼와 하루 세 끼가 학기에 각각 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-113", "domain": "school", "question": "기숙사에서 늦은 귀사를 하면 벌점이 몇 점인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-114", "domain": "school", "question": "허가 없는 외부인 출입의 기숙사 벌점은 몇 점인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-115", "domain": "school", "question": "기숙사 방 안 흡연의 벌점은 몇 점인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-116", "domain": "school", "question": "기숙사 방 안 음주는 벌점이 몇 점인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-117", "domain": "school", "question": "기숙사 소방 시설 훼손의 벌점은 몇 점인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-118", "domain": "school", "question": "기숙사 벌점은 봉사 활동 몇 시간에 1점을 지우고, 한 학기에 몇 점까지 지울 수 있나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-119", "domain": "school", "question": "학부생은 도서관에서 한 번에 몇 권을 빌릴 수 있나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-120", "domain": "school", "question": "대학원생의 도서관 대출 권수는 몇 권인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-121", "domain": "school", "question": "교수는 도서관 책을 몇 권까지 빌릴 수 있나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-122", "domain": "school", "question": "학부생의 도서관 대출 기간은 며칠인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-123", "domain": "school", "question": "교수의 도서관 대출 기간은 며칠인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-124", "domain": "school", "question": "대학원생은 도서관 책을 며칠 동안 빌릴 수 있나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-125", "domain": "school", "question": "대학원생의 도서관 대출 권수와 대출 기간은 각각 어떻게 되나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-126", "domain": "school", "question": "학부생의 도서 대출 연장 기간은 며칠인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-127", "domain": "school", "question": "대학원생은 도서 대출을 며칠 연장할 수 있나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-128", "domain": "school", "question": "시험 기간에는 학부생 대출 권수를 몇 권으로 늘리나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-129", "domain": "school", "question": "학생 징계 가운데 근신의 기간은 어떻게 되나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-130", "domain": "school", "question": "학생 징계 가운데 유기정학의 기간은 어떻게 되나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-131", "domain": "school", "question": "징계를 받은 학생은 통보를 받은 날부터 며칠 안에 재심을 신청할 수 있나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-132", "domain": "school", "question": "교내 무인 발급기로 증명서를 떼면 한 통 수수료가 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-133", "domain": "school", "question": "학사지원팀 창구에서 증명서를 발급받으면 한 통 수수료가 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-134", "domain": "school", "question": "증명서를 우편 발송으로 받으면 한 통 수수료는 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-135", "domain": "school", "question": "교내 무인 발급기와 학사지원팀 창구의 증명서 한 통 수수료는 각각 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-136", "domain": "school", "question": "영문 증명서는 한 통에 얼마를 더 받나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-137", "domain": "school", "question": "재학증명서는 하루에 몇 통까지 발급받을 수 있나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-138", "domain": "school", "question": "성적증명서의 하루 발급 한도는 몇 통인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-139", "domain": "school", "question": "졸업증명서는 하루에 몇 통까지 발급받을 수 있나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-140", "domain": "school", "question": "학부생의 교내 주차 정기권은 한 학기에 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-141", "domain": "school", "question": "대학원생 교내 주차 정기권의 학기 요금은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-142", "domain": "school", "question": "교직원 교내 주차 정기권은 학기 요금이 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-143", "domain": "school", "question": "교내 주차 시간 요금은 처음 몇 분이 무료이고, 그 뒤에는 10분마다 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-144", "domain": "school", "question": "장애인 주차 구역에 주차하면 교내 주차 과태료는 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-145", "domain": "school", "question": "소방차 통로에 주차하면 교내 주차 과태료가 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-146", "domain": "school", "question": "그 밖의 교내 주차 위반 과태료는 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-147", "domain": "school", "question": "영어권으로 교환학생을 가려면 어학 점수 기준이 몇 점인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-148", "domain": "school", "question": "유럽 비영어권 교환학생의 어학 점수 기준은 얼마인가요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-149", "domain": "school", "question": "일본으로 교환학생을 가려면 마루내대학교 일본어 인증 몇 단계 이상이어야 하나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-150", "domain": "school", "question": "중국으로 교환학생을 가려면 마루내대학교 중국어 인증 몇 단계 이상이어야 하나요?", "two_part": false, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-151", "domain": "school", "question": "교환학생은 전체 평점이 얼마 이상이어야 지원할 수 있고, 한 학기에 몇 학점까지 인정받나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-152", "domain": "school", "question": "2학년과 3학년의 수강 신청 학점 상한은 각각 몇 학점인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-153", "domain": "school", "question": "계절학기 폐강 기준 인원은 이론 과목과 실험과 실습 과목이 각각 몇 명인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-154", "domain": "school", "question": "성적 등급 B+와 D0의 평점은 각각 몇 점인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-155", "domain": "school", "question": "수강 인원이 10명 이상 20명 미만인 상대평가 과목의 A 등급 비율 상한과 B 등급 이상 비율 상한은 각각 몇 %인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-156", "domain": "school", "question": "일반 휴학과 창업 휴학의 최대 기간은 각각 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-157", "domain": "school", "question": "학기 개시 전과 학기 개시 뒤 61일부터 90일 사이에 휴학할 때 등록금 반환 비율은 각각 몇 %인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-158", "domain": "school", "question": "학부 과정과 대학원 과정의 등록금 분할 납부 횟수는 각각 몇 회인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-159", "domain": "school", "question": "마루 장학금과 디딤 장학금의 지급액은 각각 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-160", "domain": "school", "question": "누리 장학금과 버금 장학금의 평점 기준은 각각 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-161", "domain": "school", "question": "도서관 근로와 외국인 유학생 도우미 근로의 시간당 근로장학금은 각각 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-162", "domain": "school", "question": "근로장학생의 주당 근무 시간 상한은 학기 중과 방학 중이 각각 몇 시간인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-163", "domain": "school", "question": "자연과학 계열과 예술체육 계열의 졸업 이수 학점은 각각 몇 학점인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-164", "domain": "school", "question": "인문사회 계열과 공학 계열의 전공 이수 학점은 각각 몇 학점인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-165", "domain": "school", "question": "인문사회 계열과 예술체육 계열의 졸업 외국어 인증 점수는 각각 몇 점인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-166", "domain": "school", "question": "1학년을 마친 학생이 전과하려면 이수 학점과 평점이 각각 얼마 이상이어야 하나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-167", "domain": "school", "question": "복수전공과 부전공의 신청 평점 기준은 각각 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-168", "domain": "school", "question": "주당 1시간 수업과 주당 3시간 수업의 F 처리 결석 기준은 각각 몇 시간인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-169", "domain": "school", "question": "학과장 재심 신청 기한과 학과장 재심 결과 기한은 각각 어떻게 되나요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-170", "domain": "school", "question": "방학 중 기숙사 1인실과 4인실의 주당 사생비는 각각 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-171", "domain": "school", "question": "기숙사 늦은 귀사와 방 안 흡연의 벌점은 각각 몇 점인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-172", "domain": "school", "question": "학부생과 교수의 도서관 대출 권수는 각각 몇 권인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-173", "domain": "school", "question": "학부생과 대학원생의 도서 대출 연장 기간은 각각 며칠인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-174", "domain": "school", "question": "재학증명서와 성적증명서의 하루 발급 한도는 각각 몇 통인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-175", "domain": "school", "question": "학부생과 교직원의 교내 주차 정기권 학기 요금은 각각 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-176", "domain": "school", "question": "장애인 주차 구역 주차와 소방차 통로 주차의 교내 주차 과태료는 각각 얼마인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
+{"qid": "school-177", "domain": "school", "question": "영어권과 유럽 비영어권 교환학생의 어학 점수 기준은 각각 몇 점인가요?", "two_part": true, "answer": null, "claims": null, "contrast": null, "answer_note": null}
