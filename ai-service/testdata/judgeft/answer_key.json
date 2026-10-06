@@ -1,0 +1,1209 @@
+{
+  "cases": {
+    "0067a7e0a0b0": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-095",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "two_targets": false,
+      "type": 7
+    },
+    "02c67dd0ea08": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-175",
+      "review_score": 3,
+      "score": 3,
+      "table_score": 3,
+      "two_targets": false,
+      "type": 4
+    },
+    "03314d4bdeac": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-125",
+      "review_score": 4,
+      "score": 4,
+      "table_score": 4,
+      "two_targets": false,
+      "type": 3
+    },
+    "042b0da5e973": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-090",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "two_targets": true,
+      "type": 8
+    },
+    "061caf525c3d": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-088",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "two_targets": true,
+      "type": 8
+    },
+    "094ef383b293": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-082",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "two_targets": true,
+      "type": 8
+    },
+    "09525c2b7d1a": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-086",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "two_targets": true,
+      "type": 8
+    },
+    "0c82ff987336": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-005",
+      "review_score": 4,
+      "score": 4,
+      "table_score": 4,
+      "two_targets": false,
+      "type": 3
+    },
+    "0d1da456e77e": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-108",
+      "review_score": 5,
+      "score": 5,
+      "table_score": 5,
+      "two_targets": true,
+      "type": 1
+    },
+    "0e5ea16a69e1": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-057",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "two_targets": false,
+      "type": 6
+    },
+    "1211b9ea7841": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-089",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "two_targets": true,
+      "type": 6
+    },
+    "12aa73104c6f": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-136",
+      "review_score": 5,
+      "score": 5,
+      "table_score": 5,
+      "two_targets": false,
+      "type": 2
+    },
+    "12c574df42ff": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-072",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "two_targets": true,
+      "type": 8
+    },
+    "1301b2939234": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-096",
+      "review_score": 5,
+      "score": 5,
+      "table_score": 5,
+      "two_targets": false,
+      "type": 1
+    },
+    "141b36325a1f": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-154",
+      "review_score": 3,
+      "score": 3,
+      "table_score": 3,
+      "two_targets": false,
+      "type": 4
+    },
+    "1741759102b1": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-052",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "two_targets": true,
+      "type": 8
+    },
+    "188ca5ce5733": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-044",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "two_targets": true,
+      "type": 8
+    },
+    "1a38e3585225": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-173",
+      "review_score": 2,
+      "score": 2,
+      "table_score": 2,
+      "two_targets": false,
+      "type": 5
+    },
+    "1a5b7c45d013": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-146",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "two_targets": true,
+      "type": 8
+    },
+    "1d6972772155": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-124",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "two_targets": true,
+      "type": 8
+    },
+    "1f8b25399e5e": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-100",
+      "review_score": 5,
+      "score": 5,
+      "table_score": 5,
+      "two_targets": true,
+      "type": 2
+    },
+    "22dcef8ce318": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-137",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "two_targets": true,
+      "type": 8
+    },
+    "250c949a4f4b": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-159",
+      "review_score": 3,
+      "score": 3,
+      "table_score": 3,
+      "two_targets": false,
+      "type": 4
+    },
+    "2bc7a9524dab": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-019",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "two_targets": true,
+      "type": 8
+    },
+    "2c2ef536cf75": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-060",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "two_targets": true,
+      "type": 8
+    },
+    "3079c918568f": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-113",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "two_targets": true,
+      "type": 8
+    },
+    "331cae8911a2": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-126",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "two_targets": true,
+      "type": 8
+    },
+    "35e3929a2f98": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-148",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "two_targets": true,
+      "type": 8
+    },
+    "36273d31aec5": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-110",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "two_targets": true,
+      "type": 6
+    },
+    "3a5931b37525": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-003",
+      "review_score": 2,
+      "score": 2,
+      "table_score": 2,
+      "two_targets": true,
+      "type": 5
+    },
+    "3de19b35ac78": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-122",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "two_targets": true,
+      "type": 8
+    },
+    "3df1fbe6a0d7": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-142",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "two_targets": true,
+      "type": 8
+    },
+    "4087a1e22bb0": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-171",
+      "review_score": 4,
+      "score": 4,
+      "table_score": 4,
+      "two_targets": false,
+      "type": 3
+    },
+    "46985d30e0fc": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-032",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "two_targets": false,
+      "type": 6
+    },
+    "4baf6dbeb34b": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-109",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "two_targets": true,
+      "type": 8
+    },
+    "4ecc9d0fb228": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-062",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "two_targets": true,
+      "type": 8
+    },
+    "4ecd672f9483": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-123",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "two_targets": true,
+      "type": 8
+    },
+    "4f73f6d340a7": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-031",
+      "review_score": 5,
+      "score": 5,
+      "table_score": 5,
+      "two_targets": false,
+      "type": 2
+    },
+    "4f8cbe8a6a62": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-011",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "two_targets": true,
+      "type": 8
+    },
+    "560417fdb20f": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-118",
+      "review_score": 2,
+      "score": 2,
+      "table_score": 2,
+      "two_targets": false,
+      "type": 5
+    },
+    "56b30c9c0b21": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-091",
+      "review_score": 5,
+      "score": 5,
+      "table_score": 5,
+      "two_targets": true,
+      "type": 1
+    },
+    "57b9a2f4cb58": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-097",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "two_targets": false,
+      "type": 7
+    },
+    "598e0d4446a2": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-069",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "two_targets": true,
+      "type": 8
+    },
+    "5dd0608efe49": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-054",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "two_targets": true,
+      "type": 8
+    },
+    "60385240607c": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-141",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "two_targets": true,
+      "type": 8
+    },
+    "61454bd2bfcb": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-047",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "two_targets": true,
+      "type": 8
+    },
+    "64a2b3c8fda5": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-093",
+      "review_score": 2,
+      "score": 2,
+      "table_score": 2,
+      "two_targets": false,
+      "type": 5
+    },
+    "6e615d7759a9": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-099",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "two_targets": true,
+      "type": 8
+    },
+    "7273332fb553": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-009",
+      "review_score": 5,
+      "score": 5,
+      "table_score": 5,
+      "two_targets": false,
+      "type": 2
+    },
+    "728e33c90e63": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-077",
+      "review_score": 5,
+      "score": 5,
+      "table_score": 5,
+      "two_targets": true,
+      "type": 1
+    },
+    "72e247ba9a4f": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-149",
+      "review_score": 5,
+      "score": 5,
+      "table_score": 5,
+      "two_targets": true,
+      "type": 1
+    },
+    "73d4f59ca754": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-169",
+      "review_score": 4,
+      "score": 4,
+      "table_score": 4,
+      "two_targets": false,
+      "type": 3
+    },
+    "784af7e25ef2": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-043",
+      "review_score": 5,
+      "score": 5,
+      "table_score": 5,
+      "two_targets": true,
+      "type": 2
+    },
+    "7b3bd247f19a": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-017",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "two_targets": true,
+      "type": 8
+    },
+    "7b5beccde4b7": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-087",
+      "review_score": 5,
+      "score": 5,
+      "table_score": 5,
+      "two_targets": false,
+      "type": 1
+    },
+    "7cc188711a40": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-016",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "two_targets": true,
+      "type": 6
+    },
+    "80803da5b479": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-140",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "two_targets": true,
+      "type": 8
+    },
+    "81c9a57cab76": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-160",
+      "review_score": 4,
+      "score": 4,
+      "table_score": 4,
+      "two_targets": false,
+      "type": 3
+    },
+    "84a413f144c1": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-004",
+      "review_score": 5,
+      "score": 5,
+      "table_score": 5,
+      "two_targets": true,
+      "type": 1
+    },
+    "854197e9d226": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-157",
+      "review_score": 3,
+      "score": 3,
+      "table_score": 3,
+      "two_targets": false,
+      "type": 4
+    },
+    "87e5a0f0bd88": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-049",
+      "review_score": 2,
+      "score": 2,
+      "table_score": 2,
+      "two_targets": true,
+      "type": 5
+    },
+    "89d40070a433": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-138",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "two_targets": true,
+      "type": 8
+    },
+    "8cd9d186c001": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-132",
+      "review_score": 5,
+      "score": 5,
+      "table_score": 5,
+      "two_targets": true,
+      "type": 2
+    },
+    "8d0068eb405f": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-102",
+      "review_score": 5,
+      "score": 5,
+      "table_score": 5,
+      "two_targets": false,
+      "type": 1
+    },
+    "8d1869b5c052": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-127",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "two_targets": true,
+      "type": 8
+    },
+    "8dc6b7910535": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-041",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "two_targets": true,
+      "type": 6
+    },
+    "8f874262b79d": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-081",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "two_targets": true,
+      "type": 8
+    },
+    "93fc8e68081f": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-153",
+      "review_score": 3,
+      "score": 3,
+      "table_score": 3,
+      "two_targets": false,
+      "type": 4
+    },
+    "9bf5b78345a7": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-063",
+      "review_score": 3,
+      "score": 3,
+      "table_score": 3,
+      "two_targets": false,
+      "type": 4
+    },
+    "9c5bccb55d1c": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-012",
+      "review_score": 4,
+      "score": 4,
+      "table_score": 4,
+      "two_targets": false,
+      "type": 3
+    },
+    "9e447ccd9396": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-165",
+      "review_score": 5,
+      "score": 5,
+      "table_score": 5,
+      "two_targets": false,
+      "type": 1
+    },
+    "9e892156be75": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-056",
+      "review_score": 3,
+      "score": 3,
+      "table_score": 3,
+      "two_targets": false,
+      "type": 4
+    },
+    "9e9716dcf5f0": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-059",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "two_targets": true,
+      "type": 8
+    },
+    "a445bfaf271a": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-139",
+      "review_score": 5,
+      "score": 5,
+      "table_score": 5,
+      "two_targets": true,
+      "type": 2
+    },
+    "a911db21eb91": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-116",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "two_targets": true,
+      "type": 8
+    },
+    "acc961826143": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-013",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "two_targets": true,
+      "type": 8
+    },
+    "ad170dc49a2a": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-075",
+      "review_score": 5,
+      "score": 5,
+      "table_score": 5,
+      "two_targets": true,
+      "type": 2
+    },
+    "ae8d5ca7367b": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-030",
+      "review_score": 2,
+      "score": 2,
+      "table_score": 2,
+      "two_targets": false,
+      "type": 5
+    },
+    "afbf98a7db3b": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-007",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "two_targets": true,
+      "type": 8
+    },
+    "afd0474ead41": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-037",
+      "review_score": 5,
+      "score": 5,
+      "table_score": 5,
+      "two_targets": false,
+      "type": 2
+    },
+    "b0d55c7be7a3": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-167",
+      "review_score": 4,
+      "score": 4,
+      "table_score": 4,
+      "two_targets": false,
+      "type": 3
+    },
+    "b26b96601637": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-080",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "two_targets": true,
+      "type": 7
+    },
+    "b3ae999203ba": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-150",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "two_targets": true,
+      "type": 8
+    },
+    "b72f973cb656": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-120",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "two_targets": true,
+      "type": 8
+    },
+    "bc3bf35b27df": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-025",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "two_targets": true,
+      "type": 8
+    },
+    "bd5c3aa9ca00": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-027",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "two_targets": true,
+      "type": 6
+    },
+    "bde641b5fe57": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-014",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "two_targets": true,
+      "type": 8
+    },
+    "c5a3a4b31478": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-010",
+      "review_score": 5,
+      "score": 5,
+      "table_score": 5,
+      "two_targets": true,
+      "type": 1
+    },
+    "c5d9fa14151b": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-002",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "two_targets": true,
+      "type": 7
+    },
+    "c99352d31ff2": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-028",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "two_targets": true,
+      "type": 8
+    },
+    "cbc94359b31e": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-098",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "two_targets": true,
+      "type": 8
+    },
+    "ce6008d349a3": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-103",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "two_targets": true,
+      "type": 8
+    },
+    "cefef64fed31": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-174",
+      "review_score": 3,
+      "score": 3,
+      "table_score": 3,
+      "two_targets": false,
+      "type": 4
+    },
+    "d2fb3c759ccd": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-176",
+      "review_score": 3,
+      "score": 3,
+      "table_score": 3,
+      "two_targets": false,
+      "type": 4
+    },
+    "d3d5dbee2bd5": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-130",
+      "review_score": 2,
+      "score": 2,
+      "table_score": 2,
+      "two_targets": false,
+      "type": 5
+    },
+    "d72e4107bba9": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-105",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "two_targets": true,
+      "type": 8
+    },
+    "dac45a3ca00e": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-152",
+      "review_score": 4,
+      "score": 4,
+      "table_score": 4,
+      "two_targets": false,
+      "type": 3
+    },
+    "dbe0a3c26f38": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-104",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "two_targets": true,
+      "type": 8
+    },
+    "dc5dec2716d6": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-111",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "two_targets": true,
+      "type": 7
+    },
+    "ddb1846ef204": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-092",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "two_targets": true,
+      "type": 8
+    },
+    "de3ffc6700d8": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-001",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "two_targets": true,
+      "type": 8
+    },
+    "deb049c19a61": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-076",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "two_targets": true,
+      "type": 8
+    },
+    "ebbd75c9e94f": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-040",
+      "review_score": 3,
+      "score": 3,
+      "table_score": 3,
+      "two_targets": false,
+      "type": 4
+    },
+    "efa0b46dacdc": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-114",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "two_targets": true,
+      "type": 8
+    },
+    "f2c4aebfdf50": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-068",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "two_targets": true,
+      "type": 8
+    },
+    "f2e5bf786130": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-166",
+      "review_score": 4,
+      "score": 4,
+      "table_score": 4,
+      "two_targets": false,
+      "type": 3
+    },
+    "f39155d5b11f": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-107",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "two_targets": true,
+      "type": 8
+    },
+    "f42312c7b0c5": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-085",
+      "review_score": 5,
+      "score": 5,
+      "table_score": 5,
+      "two_targets": true,
+      "type": 2
+    },
+    "f47414b13e49": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-131",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "two_targets": false,
+      "type": 6
+    },
+    "f7fa58fac99c": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-151",
+      "review_score": 4,
+      "score": 4,
+      "table_score": 4,
+      "two_targets": false,
+      "type": 3
+    },
+    "f9e199d3140a": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-046",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "two_targets": true,
+      "type": 8
+    },
+    "fa35bb63e509": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-018",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "two_targets": true,
+      "type": 8
+    },
+    "fb5449e8d94d": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-070",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "two_targets": true,
+      "type": 8
+    },
+    "fc0db05b44c3": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-117",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "two_targets": true,
+      "type": 8
+    },
+    "fc4094147a43": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-073",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "two_targets": true,
+      "type": 8
+    },
+    "fc9738bcc125": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-064",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "two_targets": true,
+      "type": 8
+    },
+    "fced23bb14dd": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-050",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "two_targets": true,
+      "type": 8
+    },
+    "fdf30495933a": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-074",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "two_targets": true,
+      "type": 8
+    },
+    "fe1f9da4cd97": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-133",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "two_targets": true,
+      "type": 8
+    },
+    "ffb907a9cb34": {
+      "decision": "match",
+      "domain": "school",
+      "qid": "school-006",
+      "review_score": 1,
+      "score": 1,
+      "table_score": 1,
+      "two_targets": true,
+      "type": 8
+    }
+  },
+  "cases_sha256": "60cf9ee8d513085da28feb5eb49eec1621a486503f73103ed14f1c7dbc993461",
+  "dropped": {},
+  "prompt_sha256": "6c45a0b23c895e51204c25a2d32d45e809839fe6f149afeb26129d62ee299212",
+  "seed": 20261006,
+  "stage": "final"
+}
