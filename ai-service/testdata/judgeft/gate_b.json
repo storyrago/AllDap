@@ -1,0 +1,23 @@
+{
+  "longest_id": "5cf5801198db",
+  "longest_tokens": 1492,
+  "losses": [
+    1.5485544204711914,
+    1.5485544204711914
+  ],
+  "env": {
+    "gpu": "Tesla T4",
+    "torch": "2.11.0+cu130",
+    "python": "3.13.15",
+    "transformers": "4.57.6",
+    "bitsandbytes": "0.50.2",
+    "peft": "0.17.1",
+    "accelerate": "1.10.1"
+  },
+  "finite": true,
+  "peak_gb": 11.75,
+  "step_seconds": 70.3,
+  "total_steps": 136,
+  "est_hours": 2.7,
+  "save_every": 25
+}

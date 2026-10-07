@@ -326,3 +326,25 @@ pre: frozen M3pre_run1 와 v2 M3_run1 를 대조. 같은 문항 231, 다른 문�
 ```
 
 - 판: `results/new/M3pre_run1.env.json` 이 `results/frozen/M3pre_run1.env.json` 과 글자까지 같다(GPU `Tesla T4`, torch `2.11.0+cu130`, transformers `4.57.6`, bitsandbytes `0.50.2`, peft `0.17.1`, accelerate `1.10.1`, python `3.13.15`).
+
+## 관문 (b) (2026-10-07)
+
+- 학습 노트북을 `MODE = 'gate_b'` 로 코랩에서 돌렸다. 첫 시도는 Drive 연결에서 `ValueError: mount failed` 로 멈췄다. 권한 창 문제라 세션을 다시 시작하고 코드를 고치지 않은 채 그대로 다시 실행해 끝났다. 학습 단계에 들어가기 전의 실패라 노트북을 고치는 경우(E14 Step 2 의 셋째 경우)가 아니다.
+- zip `alldap_judgeft_train.zip` 에서 `gate_b.json` 만 꺼냈다. 같은 zip 의 `training_log.jsonl` 은 세션 시작 시각, `mode` `gate_b`, 판만 담은 한 줄이고, E15 의 zip 이 같은 이름을 다시 내므로 옮기지 않는다.
+
+| 값 | 결과 |
+|---|---|
+| `longest_id`, `longest_tokens` | `5cf5801198db`, 1492토큰 |
+| `losses` | 1.5485544204711914, 1.5485544204711914 |
+| `finite` | true |
+| `peak_gb` | 11.75 |
+| `step_seconds` | 70.3 |
+| `total_steps` | 136 |
+| `est_hours` | 2.7 |
+| `save_every` | 25 |
+
+- 가장 긴 문항이 E10 의 tokcheck 결과(`5cf5801198db`, 1492토큰)와 같다.
+- 판: `gate_b.json` 의 `env` 가 `results/frozen/M3pre_run1.env.json` 과 같다(GPU `Tesla T4`, torch `2.11.0+cu130`, transformers `4.57.6`, bitsandbytes `0.50.2`, peft `0.17.1`, accelerate `1.10.1`, python `3.13.15`).
+- gradient checkpointing: `judgeft_notebooks.py` 의 `gate_cell` 은 `model.train()` 뒤 모든 층이 `gradient_checkpointing and training` 인지 단언하고, 두 단계 각각 뒤에도 같은 단언을 한다. 노트북이 단언에 걸리지 않고 끝났으므로 켠 채로 잰 값이다.
+- `losses` 두 값이 같은 것은 코드상 예상된 결과다. 두 단계 모두 같은 문항(가장 긴 문항을 `GRAD_ACCUM` 8번 되풀이)을 쓰고, loss 는 각 단계에서 갱신하기 전에 계산한다. 첫 단계의 갱신은 학습률이 0 이다. `get_cosine_schedule_with_warmup` 의 warmup(4단계 = round(0.03 x 136))에서 단계 0 의 배율이 0/4 이기 때문이다(코랩과 같은 transformers 4.57.6 의 소스로 확인). 그래서 둘째 단계의 loss 를 잴 때 가중치는 첫 단계와 같다. 또 LoRA 의 B 행렬은 0 으로 시작하므로 갱신 전에는 LoRA 출력이 0 이고, `lora_dropout` 0.05 의 무작위 마스크도 loss 를 바꾸지 못한다. 첫 단계에서 GradScaler 가 갱신을 건너뛰었어도 같은 결과가 나오는데, 노트북이 그 여부를 기록하지 않아 둘 중 무엇이었는지는 이 결과로 가를 수 없다. 이 관문은 메모리, 시간, loss 가 숫자인지를 재는 것이지, 갱신이 loss 를 움직이는지는 재지 않는다.
+- 어림 학습 시간 2.7시간을 사용자에게 알렸다. `step_seconds` 는 가장 긴 문항 8개로 잰 단계라 실제 평균 단계보다 길 것이므로, 2.7시간은 위쪽으로 잡은 어림이다.
