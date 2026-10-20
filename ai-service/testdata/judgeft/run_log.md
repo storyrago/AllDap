@@ -348,3 +348,28 @@ pre: frozen M3pre_run1 와 v2 M3_run1 를 대조. 같은 문항 231, 다른 문�
 - gradient checkpointing: `judgeft_notebooks.py` 의 `gate_cell` 은 `model.train()` 뒤 모든 층이 `gradient_checkpointing and training` 인지 단언하고, 두 단계 각각 뒤에도 같은 단언을 한다. 노트북이 단언에 걸리지 않고 끝났으므로 켠 채로 잰 값이다.
 - `losses` 두 값이 같은 것은 코드상 예상된 결과다. 두 단계 모두 같은 문항(가장 긴 문항을 `GRAD_ACCUM` 8번 되풀이)을 쓰고, loss 는 각 단계에서 갱신하기 전에 계산한다. 첫 단계의 갱신은 학습률이 0 이다. `get_cosine_schedule_with_warmup` 의 warmup(4단계 = round(0.03 x 136))에서 단계 0 의 배율이 0/4 이기 때문이다(코랩과 같은 transformers 4.57.6 의 소스로 확인). 그래서 둘째 단계의 loss 를 잴 때 가중치는 첫 단계와 같다. 또 LoRA 의 B 행렬은 0 으로 시작하므로 갱신 전에는 LoRA 출력이 0 이고, `lora_dropout` 0.05 의 무작위 마스크도 loss 를 바꾸지 못한다. 첫 단계에서 GradScaler 가 갱신을 건너뛰었어도 같은 결과가 나오는데, 노트북이 그 여부를 기록하지 않아 둘 중 무엇이었는지는 이 결과로 가를 수 없다. 이 관문은 메모리, 시간, loss 가 숫자인지를 재는 것이지, 갱신이 loss 를 움직이는지는 재지 않는다.
 - 어림 학습 시간 2.7시간을 사용자에게 알렸다. `step_seconds` 는 가장 긴 문항 8개로 잰 단계라 실제 평균 단계보다 길 것이므로, 2.7시간은 위쪽으로 잡은 어림이다.
+
+## 학습 (2026-10-20)
+
+- 학습 노트북을 `MODE = 'train'` 으로 코랩 T4 에서 돌렸다(2026-10-07 에는 무료 GPU 한도로 시작하지 못했다). zip `alldap_judgeft_train (1).zip` 에서 `training_log.jsonl`, `train_done.json`, `train_env.json` 을 옮겼다. 같은 zip 의 `gate_b.json` 은 이미 커밋한 것과 글자까지 같아 다시 옮기지 않았다.
+- 어댑터 SHA-256: `f829d13d09200ac73b1b6d858df1115dfa827cb0c1ed6ab199e7541c0726b85c`. 어댑터 파일은 Drive 의 `MyDrive/alldap_judgeft/adapter/` 에 있고 git 에 넣지 않는다.
+- `train_done.json` 의 `steps` 136 이 관문 (b) 의 `total_steps` 136 과 같다. 끝까지 갔다.
+- 끊긴 횟수 0(`resumed_from` 줄 없음), 깨진 체크포인트 0(`bad_checkpoint` 줄 없음). 단계 줄 136개, 단계 번호가 겹치는 줄 없음.
+- loss scaling 으로 건너뛴 단계 0. `scale` 은 모든 단계에서 65536 이다.
+- 판: `train_env.json` 이 `gate_b.json` 의 `env` 와 같다(GPU `Tesla T4`, torch `2.11.0+cu130`, transformers `4.57.6`, bitsandbytes `0.50.2`, peft `0.17.1`, accelerate `1.10.1`, python `3.13.15`). `training_log.jsonl` 의 첫 줄은 관문 (b) 세션의 `session_start` 줄이다(같은 Drive 파일에 이어 적혔다).
+- 시간: 세션 시작부터 마지막 단계까지 2.97시간. 모델을 올리고 첫 단계가 끝나기까지 765초, 그 뒤 단계 평균 73.4초. 관문 (b) 에서 "위쪽으로 잡은 어림" 이라고 적은 2.7시간보다 길었다. `step_seconds` 70.3 이 실제 평균(73.4)보다 짧았고, 모델을 올리는 시간과 검증 loss 계산(6회)을 어림에 넣지 않았기 때문이다. 관문 (b) 절의 그 문장은 틀렸다.
+
+| 단계 | train loss | val loss |
+|---|---|---|
+| 1 | 1.358 | |
+| 10 | 0.416 | |
+| 20 | 0.104 | |
+| 25 | | 0.100 |
+| 50 | | 0.038 |
+| 75 | | 0.030 |
+| 100 | 0.015 | 0.022 |
+| 125 | | 0.020 |
+| 136 | 0.022 | 0.020 |
+
+- 검증 loss 는 끝까지 내려가거나 평평했고 올라간 구간이 없다. 체크포인트는 고르지 않고 마지막 단계의 어댑터를 쓴다(스펙 6-3절).
+- loss 가 0.02 까지 내려간 것은 모범 답안이 변경 기록으로 만든 영어 틀이라 문장 대부분이 예측 가능하기 때문으로 본다(재지 않은 해석). 낮은 loss 는 틀을 익혔다는 뜻이지 판정이 맞는다는 뜻이 아니다. 판정은 E16 의 채점으로만 본다.
