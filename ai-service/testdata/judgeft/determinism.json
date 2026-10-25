@@ -1,4 +1,14 @@
 {
+  "post": {
+    "compared": [
+      "new M3ft_run1",
+      "new M3ft_run2"
+    ],
+    "diff": 0,
+    "diff_ids": [],
+    "runs": 1,
+    "same": 120
+  },
   "pre": {
     "compared": [
       "frozen M3pre_run1",
