@@ -43,66 +43,87 @@ U+2600-26FF,U+3000-303F,U+1100-11FF,U+3130-318F,U+FF01-FF60" \
 */
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   색 토큰 — Claude Design 의 AllDap 디자인 시스템 값
+   색 토큰: Figma 시안 "00 Foundations" 의 변수 값 (2026-10-26)
    ─────────────────────────────────────────────────────────────────────────────
-   ⚠️ `--accent` 는 <프라이머리 버튼 색이 아니다.> 민트(#7ED0C0)는 밝아서
-      그 위에 흰 글자를 올리면 읽을 수 없다. 디자인의 프라이머리 버튼은
-      `--foreground`(거의 검정) 배경에 흰 글자다. 화면 코드에서도 그렇게 쓴다:
-          ✅ bg-foreground text-surface      ❌ bg-accent text-white
-      accent 는 <작은 강조>에만 쓴다 — 상태 점, 포커스 링, 선택된 항목 표시.
+   시안: https://www.figma.com/design/yiT59MiEdHsEYPnZq6etEF
+   방향은 저장소 루트 DESIGN.md (Mobbin 분석). 흰 바탕 + 거의 검정 글자 + 옅은 회색 단계,
+   색은 강조 파랑 하나뿐이다. 예전 점토빛 배경(#eae0de)과 민트(#7ed0c0)는 버렸다.
 
-   ⚠️ 다크 모드는 <일부러 없앴다.> 예전에는 prefers-color-scheme 블록이 있었는데,
-      화면 12개를 라이트 기준으로만 다듬어놓고 다크를 자동 적용하면 아무도 안 본
-      색 조합이 사용자에게 그대로 나간다. 필요해지면 그때 화면과 함께 설계한다.
+   [이름을 왜 안 바꿨나]
+     시안의 변수 이름은 canvas · ink · hairline 인데, 코드는 background · foreground ·
+     subtle 로 이미 500곳 넘게 쓰고 있다. 이 PR 에서 이름까지 바꾸면 diff 가 전 화면에
+     퍼져 "토큰 값이 바뀐 것" 이 묻힌다. 그래서 <값만> 시안으로 바꾸고 대응표를 남긴다.
+     시안에만 있던 단계(canvas-soft · field 등)는 시안 이름 그대로 새로 만든다.
+
+        코드 토큰        시안 변수            값
+        background      color/canvas        #ffffff
+        surface         color/canvas        #ffffff   (카드도 흰색. 구분은 테두리나 canvas-soft 로)
+        foreground      color/ink, primary  #141414
+        subtle          color/hairline      #e0e0e0
+        muted           color/text-muted    #707070
+        accent          color/accent        #0066ff
+
+   ⚠️ `--accent` 의 쓰임이 바뀌었다. 예전 민트는 밝아서 흰 글자를 못 올렸지만,
+      파랑은 흰 글자와 대비 4.8:1 이라 버튼 바탕으로도 된다. 다만 시안의 기본 버튼은
+      여전히 검정(foreground)이다. 파랑은 <눈길을 끌어야 하는 한 군데>에만 쓴다
+      (DESIGN.md: "One electric blue accent is reserved for commercial signals").
+
+   ⚠️ `--text-faint`(#adadad)는 흰 바탕 대비 2.3:1 이라 <읽어야 하는 글자에 쓰면 안 된다.>
+      입력칸 placeholder 처럼 "비어 있음" 을 알리는 자리에만 쓴다.
+
+   ⚠️ 다크 모드는 <일부러 없앴다.> 화면을 라이트 기준으로만 다듬어놓고 다크를 자동 적용하면
+      아무도 안 본 색 조합이 사용자에게 그대로 나간다. 필요해지면 그때 화면과 함께 설계한다.
 */
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   루트 글자 크기 18px (2026-09-07)
+   루트 글자 크기 16px (2026-10-26 에 18px 에서 되돌렸다)
    ─────────────────────────────────────────────────────────────────────────────
-   본문 대부분이 text-sm(14px), 보조 글자가 text-xs(12px)였다 — 한국어 UI 로 작다.
-   Tailwind 는 크기를 전부 루트 글자 크기 배율(rem)로 계산하므로 이 한 줄이면
-   237곳의 클래스를 안 건드리고 전체가 12.5% 비례 확대된다(14 → 15.75 · 12 → 13.5).
-   여백·카드 폭도 같이 커져 "확대"한 것처럼 균형이 유지된다.
+   2026-09-07 에 18px 로 키웠던 이유는 "본문이 text-sm(14px) 이라 한국어 UI 로 작다" 였다.
+   시안은 그 문제를 루트 배율이 아니라 <글자 단계 자체>로 푼다: 본문이 16px(text-base)이다.
 
-   ⚠️ 반응형 경계(sm: = 40rem)도 rem 이라 640 → 720px 로 함께 옮겨간다.
-      관리자 화면은 데스크톱 전용이라 무관하고, 위젯(/w/[publicKey])은 브라우저로 확인했다.
-   ⚠️ 랜딩 히어로 장면은 px 고정값이라 이 값의 영향을 받지 않는다. */
+   왜 되돌리나: Tailwind 는 크기·여백을 전부 루트 배율(rem)로 계산한다. 18px 로 두면 시안의
+   16px 이 18px 로, 여백 24px 이 27px 로 나와 시안과 숫자가 영영 안 맞는다. 16px 이면
+   시안의 간격 변수(4 · 8 · 12 · 16 · 24 · 32)가 Tailwind 기본값(1 · 2 · 3 · 4 · 6 · 8)과,
+   모서리(16 · 24 · 9999)가 rounded-2xl · rounded-3xl · rounded-full 과 그대로 맞는다.
+   그래서 간격·모서리 토큰은 새로 만들지 않았다.
+
+   ⚠️ 대가: 아직 시안대로 고치지 않은 화면은 text-sm 이 다시 14px 로 작아진다(12.5% 축소).
+      화면별 PR 에서 본문을 text-base 로 올리며 하나씩 풀린다. 알고 택했다. */
 html {
-  font-size: 18px;
+  font-size: 16px;
 }
 
 :root {
-  --background: #eae0de; /* 페이지 바탕 (따뜻한 점토빛) */
-  --foreground: #171514; /* 본문 글자 · 프라이머리 버튼 배경 */
+  --background: #ffffff; /* 페이지 바탕 (시안 color/canvas) */
+  --foreground: #141414; /* 본문 글자 · 기본 버튼 배경 (color/ink) */
   --surface: #ffffff; /* 카드 배경 */
-  /* 테두리. 🔴 2026-09-08 에 #e2d8d6 에서 어둡게 바꿨다 — 그 값은 <페이지 배경 위에서 안 보였다>.
-     실측 대비: 배경(#eae0de) 위 1.08:1 · 카드(흰색) 위 1.40:1. 1.08 은 사실상 선이 없는 것이다.
-     그래서 제목 아래 구분선도 카드 테두리도 배경에 묻혀 화면이 뭉개져 보였다(사용자 지적).
-     바꾼 뒤: 배경 위 1.44:1 · 카드 위 1.86:1.
+  --border-subtle: #e0e0e0; /* 테두리 (color/hairline). 흰 바탕 대비 1.3:1 */
+  --muted: #707070; /* 보조 글자 (color/text-muted). 흰 바탕 대비 4.9:1 로 본문 기준(4.5) 통과 */
+  --accent: #0066ff; /* 강조 파랑. 위 주석 참고 */
 
-     ⚠️ <이 문제를 이미 한 번 겪고 한 곳에서만 우회했다.> components/Toggle.tsx 의 주석이
-        같은 말을 한다 — "카드(surface) 위에서만 보고 정하면 놓친다 — 실제로 놓쳤다".
-        거기서는 알파 틴트(foreground/15)로 피했는데, 원인은 토큰 자체였다. 여기서 고친다.
-     ⚠️ 새 색을 정할 때는 <흰 카드 위에서만 보지 말 것.> 이 팔레트의 테두리는 두 배경 위에
-        동시에 놓인다 — 점토색 페이지 바탕과 흰 카드 안쪽. 한쪽만 보면 반드시 다시 놓친다. */
-  --border-subtle: #cdbab5;
-  --muted: #7c716e; /* 보조 글자 */
-  --accent: #7ed0c0; /* 강조(민트) — 배경으로 쓰되 그 위 글자는 어둡게 */
-  --accent-ink: #b4635a; /* 링크 hover */
+  /* 시안에만 있던 단계: 그림자 대신 <옅은 회색 면>으로 영역을 나눈다(DESIGN.md) */
+  --ink-soft: #262626; /* 검정 버튼 hover */
+  --canvas-soft: #f3f3f3; /* 회색 카드 · 보조 버튼 · 선택된 사이드바 행 */
+  --field: #f0f0f0; /* 입력칸 바탕 */
+  --hairline-soft: #f0f0f0; /* 목록 행 사이처럼 아주 옅은 구분선 */
+  --text-faint: #adadad; /* placeholder 전용. 읽을 글자에 쓰지 말 것 */
 
-  /* 상태색. 예전에는 화면마다 red-600 / green-100 처럼 Tailwind 기본 팔레트를
-     직접 박아 썼는데, 그 색들은 파란기가 돌아 이 따뜻한 배경 위에서 겉돈다.
-     토큰으로 모으면 색이 통일되고 다크 변형을 화면마다 적을 일도 없다. */
-  --danger: #b4443c;
-  --danger-surface: #fbeae8;
-  --warning: #8a5a2b;
-  --warning-surface: #fbf1e4;
-  --success: #2f7d68;
-  --success-surface: #e7f4f0;
+  /* 상태색. ⚠️ 시안에는 없다: 시안은 흑백이라 오류·경고·성공을 색으로 구분하는 화면이 없다.
+     하지만 코드는 이미 100곳 넘게 쓰고 있고(오류 안내, 지표 경고) 그 구분은 기능이다.
+     그래서 이름은 두고 <값만> 흰 바탕에 맞게 바꿨다. 예전 값은 점토색 배경에 맞춘 따뜻한 색이라
+     흰 바탕에서 탁해 보인다. 글자색은 전부 흰 바탕 대비 4.5:1 이상이다. */
+  --danger: #d92d20;
+  --danger-surface: #fef3f2;
+  --warning: #b54708;
+  --warning-surface: #fffaeb;
+  --success: #067647;
+  --success-surface: #ecfdf3;
 }
 
 /* Tailwind v4 는 @theme 에 선언한 값을 그대로 유틸리티 클래스로 만들어준다.
-   예: --color-surface → `bg-surface` / `text-surface` / `border-surface` */
+   예: --color-surface → `bg-surface` / `text-surface` / `border-surface`
+   `inline` 은 "값을 var(--surface) 참조로 두지 말고 그 자리에 풀어 넣어라" 는 뜻이다.
+   위 :root 를 한 곳에서만 고치면 되도록 여기서는 참조만 한다. */
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -110,7 +131,11 @@ html {
   --color-subtle: var(--border-subtle);
   --color-muted: var(--muted);
   --color-accent: var(--accent);
-  --color-accent-ink: var(--accent-ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-canvas-soft: var(--canvas-soft);
+  --color-field: var(--field);
+  --color-hairline-soft: var(--hairline-soft);
+  --color-faint: var(--text-faint);
   --color-danger: var(--danger);
   --color-danger-surface: var(--danger-surface);
   --color-warning: var(--warning);
@@ -119,6 +144,42 @@ html {
   --color-success-surface: var(--success-surface);
 }
 
+/* ─────────────────────────────────────────────────────────────────────────────
+   글자 단계: 시안의 텍스트 스타일
+   ─────────────────────────────────────────────────────────────────────────────
+   본문 쪽은 Tailwind 기본값과 크기·줄간격이 이미 맞아서 새로 만들지 않는다.
+        시안 body     16px / 400  →  text-base
+        시안 body-sm  14px / 400  →  text-sm
+        시안 caption  12px / 400  →  text-xs
+        시안 label    12px / 500  →  text-xs font-medium
+   제목 쪽은 Tailwind 에 같은 크기가 없어서(30 · 36 · 48 은 있어도 32 · 44 · 56 이 없다) 만든다.
+   `--text-이름--line-height` 처럼 뒤에 붙인 값은 Tailwind v4 문법이다. `text-heading-2`
+   클래스 하나가 크기·줄간격·굵기를 함께 건다. 굵기를 따로 적다 빠뜨리는 일이 없다.
+
+   ⚠️ 굵기 700 은 시안(Noto Sans KR 로 그림)의 값이다. 원본 DESIGN.md 는 Saans 652 인데,
+      Figma MCP 가 Pretendard 를 못 써서 시안을 Noto 로 그렸다. 코드는 Pretendard 그대로다
+      (가변 폰트라 700 이 진짜 굵기로 나온다).
+   여기는 var() 참조가 아니라 고정값이라 `inline` 이 필요 없다. */
+@theme {
+  --text-display: 5rem; /* 80px 랜딩 첫 화면 */
+  --text-display--line-height: 1;
+  --text-display--font-weight: 700;
+  --text-heading-1: 3.5rem; /* 56px */
+  --text-heading-1--line-height: 1;
+  --text-heading-1--font-weight: 700;
+  --text-heading-2: 2.75rem; /* 44px 페이지 제목 */
+  --text-heading-2--line-height: 1.13;
+  --text-heading-2--font-weight: 700;
+  --text-heading-3: 2rem; /* 32px */
+  --text-heading-3--line-height: 1.13;
+  --text-heading-3--font-weight: 700;
+  --text-heading-4: 1.5rem; /* 24px 섹션 제목 */
+  --text-heading-4--line-height: 1.25;
+  --text-heading-4--font-weight: 700;
+  --text-title: 1.25rem; /* 20px 카드 제목 · 헤더 로고 */
+  --text-title--line-height: 1.3;
+  --text-title--font-weight: 500;
+}
 /* ─────────────────────────────────────────────────────────────────────────────
    랜딩 히어로(components/ReceptionHero.tsx) 전용
    ─────────────────────────────────────────────────────────────────────────────

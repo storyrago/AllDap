@@ -52,8 +52,8 @@ export default function GlobalError({
           justifyContent: "center",
           padding: "24px",
           // globals.css 의 --background / --foreground / --muted 값을 글자로 옮겨 적은 것.
-          backgroundColor: "#eae0de",
-          color: "#171514",
+          backgroundColor: "#ffffff",
+          color: "#141414",
           // 폰트도 못 실린다(next/font 는 루트 레이아웃이 붙인다). OS 기본 스택으로 떨어진다.
           fontFamily:
             "-apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', system-ui, sans-serif",
@@ -70,11 +70,11 @@ export default function GlobalError({
             화면을 불러오지 못했습니다
           </h1>
 
-          <p style={{ marginTop: "12px", fontSize: "0.875rem", color: "#7c716e" }}>
+          <p style={{ marginTop: "12px", fontSize: "0.875rem", color: "#707070" }}>
             페이지를 그리는 중에 문제가 생겼습니다. 아래 [다시 시도] 를 눌러주세요.
           </p>
           {/* 재시도로 안 풀리는 경우까지 적는 이유는 app/error.tsx 의 같은 주석 참고 */}
-          <p style={{ marginTop: "4px", fontSize: "0.875rem", color: "#7c716e" }}>
+          <p style={{ marginTop: "4px", fontSize: "0.875rem", color: "#707070" }}>
             다시 시도해도 같은 화면이면 일시적인 장애가 아닙니다. 브라우저를 새로고침해도
             그대로라면 아래 오류 정보를 첨부해 문의해주세요.
           </p>
@@ -86,7 +86,7 @@ export default function GlobalError({
               marginTop: "24px",
               border: "none",
               borderRadius: "6px",
-              backgroundColor: "#171514",
+              backgroundColor: "#141414",
               color: "#ffffff",
               padding: "10px 18px",
               fontSize: "0.875rem",
@@ -112,7 +112,7 @@ export default function GlobalError({
                 marginTop: "24px",
                 fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
                 fontSize: "0.75rem",
-                color: "#7c716e",
+                color: "#707070",
               }}
             >
               {error.digest ? `오류 번호: ${error.digest}` : `오류 내용: ${error.message}`}

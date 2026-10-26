@@ -281,7 +281,8 @@ const inputClass =
   "w-full rounded-md border border-subtle bg-surface px-3 py-2 text-sm outline-none focus:border-accent " +
   /* 🔴 outline-none 이 브라우저 기본 포커스 링을 지우는데, 대체가 1px 민트 테두리뿐이었다.
      민트(#7ED0C0)는 흰 배경 대비 1.8:1 이고 <테두리 색이 바뀌는 것>만 보면 1.29:1 이라
-     WCAG 1.4.11 의 3:1 에 한참 못 미친다. 값은 globals.css 의 .alldap-scene-nav
+     WCAG 1.4.11 의 3:1 에 한참 못 미친다. (2026-10-26 에 accent 가 파랑 #0066ff 로 바뀌어
+     테두리만으로도 3:1 은 넘지만, 색 하나 바뀐 것에 기대지 않도록 아래 링은 그대로 둔다.) 값은 globals.css 의 .alldap-scene-nav
      a:focus-visible 과 같은 언어이고, outline 은 레이아웃을 밀지 않아 간격이 안 바뀐다.
      ⚠️ outline-solid 를 빼면 안 된다 — outline-none 이 --tw-outline-style 을 none 으로
         박아둬서, 폭만 2px 로 줘봐야 선이 안 그려진다. */

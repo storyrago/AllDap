@@ -45,7 +45,9 @@ export function Toggle({
           바탕이 흰 카드든 점토색 배경이든 같은 만큼 어두워지므로 두 곳에서 함께 성립한다.
           ✅ 2026-09-08 에 토큰 자체가 어두워졌지만(#e2d8d6 → #cdbab5, globals.css 참고)
              여기는 알파 틴트를 그대로 둔다 — 트랙은 <면>이라 선보다 더 진해야 하고,
-             알파는 배경이 무엇이든 같은 만큼 어두워진다는 성질이 여기서는 여전히 유리하다. */}
+             알파는 배경이 무엇이든 같은 만큼 어두워진다는 성질이 여기서는 여전히 유리하다.
+          ✅ 2026-10-26 Figma 시안으로 바탕이 흰색, 켜짐 색(accent)이 민트에서 파랑으로 바뀌었다.
+             흰 바탕에서도 알파 틴트가 그대로 성립하므로 클래스는 손대지 않았다. */}
       <span
         aria-hidden
         className={`mt-0.5 inline-flex h-5 w-9 shrink-0 items-center rounded-full border transition-colors ${
