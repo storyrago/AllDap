@@ -1,0 +1,47 @@
+{
+  "five_target": [
+    "The question asks about \"{target}\". For \"{target}\", the evidence states {evidence}. The response gives the same information for \"{target}\", so every claim in the response is supported by the evidence for the item asked.",
+    "The item the question asks about is \"{target}\". Each claim in the response matches what the evidence says about \"{target}\": {evidence}. The response adds nothing that the evidence does not state.",
+    "First, the response must be checked against the evidence for \"{target}\", which is what the question asks about. The evidence states {evidence}, and the response says the same for \"{target}\". All claims are supported by the evidence."
+  ],
+  "five_plain": [
+    "Every claim in the response is stated in the evidence: {evidence}. The response adds nothing beyond the evidence.",
+    "The response matches the evidence, which states {evidence}. No claim in the response goes beyond what the evidence says.",
+    "Checking each claim against the evidence: {evidence}. All claims in the response are supported by the evidence."
+  ],
+  "four": [
+    "The core answer agrees with the evidence: {evidence}. However, the response also says {added}, which the evidence does not mention. This is one minor claim that is not supported by the evidence.",
+    "Most of the response is supported by the evidence, which states {evidence}. The added remark {added} does not appear anywhere in the evidence, so the response contains one minor unsupported claim.",
+    "The response answers the question in line with the evidence ({evidence}), but it adds {added}. The evidence says nothing about this, so there is one minor unsupported claim."
+  ],
+  "three": [
+    "One part of the response is supported by the evidence: {evidence}. The other part, {added}, is not found in the evidence. Supported and unsupported claims are mixed in roughly equal measure.",
+    "The response contains a claim backed by the evidence ({evidence}) and a claim that the evidence does not mention ({added}). Half of the response is supported and half is not.",
+    "Comparing the response with the evidence, {evidence} is supported, while {added} does not appear in the evidence. The response is an even mix of supported and unsupported claims."
+  ],
+  "two": [
+    "Only one claim in the response is supported by the evidence: {evidence}. The other claims, {added}, do not appear in the evidence. Most of the response is not supported by the evidence.",
+    "The evidence supports {evidence}, but the rest of the response ({added}) is not stated anywhere in the evidence. The majority of the claims are unsupported.",
+    "Apart from {evidence}, which the evidence states, the response adds {added}. None of these additional claims is found in the evidence, so most of the response is unsupported."
+  ],
+  "six_target": [
+    "The question asks about \"{target}\". For \"{target}\", the evidence states {evidence}. The response instead gives \"{value}\", which does not appear anywhere in the evidence. The core answer contradicts the evidence.",
+    "The response gives \"{value}\" for \"{target}\". The evidence, however, states {evidence} for \"{target}\", and \"{value}\" is not found in the evidence at all. The response contradicts the evidence on the main point.",
+    "For the item asked about, \"{target}\", the evidence says {evidence}. The value in the response, \"{value}\", is different and is not supported anywhere in the evidence, so the core answer goes against the evidence."
+  ],
+  "six_plain": [
+    "The evidence states {evidence}. The response instead gives \"{value}\", which does not appear anywhere in the evidence. The core answer contradicts the evidence.",
+    "The response gives \"{value}\", but the evidence states {evidence}, and \"{value}\" is not found in the evidence at all. The response contradicts the evidence on the main point.",
+    "According to the evidence, {evidence}. The value in the response, \"{value}\", differs from this and is not supported anywhere in the evidence, so the core answer goes against the evidence."
+  ],
+  "seven": [
+    "The response says {gist}, but nothing like this appears in the evidence. The answer is made up rather than drawn from the evidence.",
+    "None of the response is grounded in the evidence. It describes {gist}, which the evidence does not mention at all.",
+    "The evidence does not support the response. The response claims {gist}, which has no basis in any part of the evidence."
+  ],
+  "eight": [
+    "The question asks about \"{target}\". In the evidence, the value for \"{target}\" is {evidence}. The response states \"{value}\", which is the value the evidence gives for \"{other_target}\" ({other_evidence}), not for \"{target}\". The response therefore contradicts the evidence for the item asked.",
+    "The response gives \"{value}\". This value does appear in the evidence, but it belongs to \"{other_target}\": {other_evidence}. For \"{target}\", which is what the question asks about, the evidence states {evidence}. Because the response attributes another item's value to the item asked, it contradicts the evidence.",
+    "Two items appear side by side in the evidence: \"{target}\" and \"{other_target}\". The question asks about \"{target}\", for which the evidence states {evidence}. The response answers with \"{value}\", which is the value for \"{other_target}\" ({other_evidence}). This is the wrong item's value, so the response contradicts the evidence."
+  ]
+}

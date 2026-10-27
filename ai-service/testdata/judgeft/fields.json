@@ -1,0 +1,20 @@
+{
+  "opened": [],
+  "order": [
+    "school",
+    "travel",
+    "telecom",
+    "hospital"
+  ],
+  "reserve": [
+    "hospital"
+  ],
+  "seed": 20261006,
+  "test": [
+    "school"
+  ],
+  "train": [
+    "travel",
+    "telecom"
+  ]
+}

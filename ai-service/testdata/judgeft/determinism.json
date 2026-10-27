@@ -1,0 +1,29 @@
+{
+  "post": {
+    "compared": [
+      "new M3ft_run1",
+      "new M3ft_run2"
+    ],
+    "diff": 0,
+    "diff_ids": [],
+    "runs": 1,
+    "same": 120
+  },
+  "pre": {
+    "compared": [
+      "frozen M3pre_run1",
+      "v2 M3_run1"
+    ],
+    "diff": 0,
+    "diff_ids": [],
+    "env_diff": {},
+    "env_same": true,
+    "runs": 1,
+    "same": 231,
+    "use_v2": true,
+    "vs_v2": {
+      "diff": 0,
+      "same": 231
+    }
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "pass": true,
+  "runs": [
+    {
+      "eighth": 60,
+      "ratio": 0.2,
+      "run": 1,
+      "severe": 12,
+      "unread": 0
+    }
+  ],
+  "threshold": 0.1
+}

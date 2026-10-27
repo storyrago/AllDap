@@ -207,6 +207,7 @@ Spring 은 요청 160건을 받았는데 Python 은 80건만 동시에 처리합
 | [`docs/VERIFICATION.md`](docs/VERIFICATION.md) | 무엇이 어디까지 검증됐나. **"안 나빠졌다" 와 "재보지 않았다" 의 구분** |
 | [`docs/DEPLOY.md`](docs/DEPLOY.md) | 배포 절차와 그 과정에서 밟은 함정 |
 | [`docs/부하테스트-리포트.md`](docs/부하테스트-리포트.md) | 부하테스트 시리즈 종합 |
+| [`docs/superpowers/plans/2026-10-05-judge-finetune-results.md`](docs/superpowers/plans/2026-10-05-judge-finetune-results.md) | 채점 모델을 직접 돌리는 모델로 바꿀 수 있는지 잰 실험 (파인튜닝) |
 | [`docs/PRD_v0.4.md`](docs/PRD_v0.4.md) | 제품 요구사항 정의서 |
 | [`docs/decisions.md`](docs/decisions.md) | 설계 결정 로그 (날짜 \| 무엇을 \| 왜 \| 검토한 대안) |
 | [`docs/W1-이해노트.md`](docs/W1-이해노트.md) | RAG 파이프라인을 왜 그렇게 짰는가 |
