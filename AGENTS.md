@@ -403,11 +403,11 @@ Flyway 규칙 5번이 말하는 "진행 상황 표의 요금제 선택 (2026-09-
 
 ### ▶ 다음 세션은 여기서 시작한다
 
-🔴 **가장 최신 상태는 [`docs/superpowers/handoff-2026-10-07.md`](docs/superpowers/handoff-2026-10-07.md) 다.**
-   채점 모델 비교 v2 가 끝났고, M3 의 약점을 줄이는 방향으로 이어 간다.
-   채점 모델 비교 v2 의 결과는
-   [`plans/2026-10-05-judge-selfhost-v2-results.md`](docs/superpowers/plans/2026-10-05-judge-selfhost-v2-results.md).
-   (앞 슬라이스는 [`handoff-2026-10-06.md`](docs/superpowers/handoff-2026-10-06.md) · [`handoff-2026-10-05.md`](docs/superpowers/handoff-2026-10-05.md) ·
+🔴 **가장 최신 상태는 [`docs/superpowers/handoff-2026-10-27.md`](docs/superpowers/handoff-2026-10-27.md) 다.**
+   채점 모델 M3 의 파인튜닝 실험이 끝났다. 서비스의 채점 모델은 바꾸지 않았다.
+   결과는
+   [`plans/2026-10-05-judge-finetune-results.md`](docs/superpowers/plans/2026-10-05-judge-finetune-results.md).
+   (앞 슬라이스는 [`handoff-2026-10-07.md`](docs/superpowers/handoff-2026-10-07.md) · [`handoff-2026-10-06.md`](docs/superpowers/handoff-2026-10-06.md) · [`handoff-2026-10-05.md`](docs/superpowers/handoff-2026-10-05.md) ·
    [`handoff-2026-10-04.md`](docs/superpowers/handoff-2026-10-04.md) · [`handoff-2026-10-03.md`](docs/superpowers/handoff-2026-10-03.md) · [`handoff-2026-10-02.md`](docs/superpowers/handoff-2026-10-02.md) ·
    [`handoff-2026-10-01.md`](docs/superpowers/handoff-2026-10-01.md) ·
    [`handoff-2026-09-26.md`](docs/superpowers/handoff-2026-09-26.md) ·
