@@ -28,3 +28,8 @@ prometheus-client==0.26.0
 
 pymupdf==1.25.1
 python-docx==1.1.2
+# 문서 처리 워커 (2026-11-06). Redis 를 브로커로 쓴다.
+# 🔴 RQ 가 아니라 Celery 인 이유는 docs/decisions.md 2026-11-06 항목.
+celery[redis]==5.7.0
+# celery[redis] 가 끌어오지만 버전을 못박는다(실제 설치된 값).
+redis==8.1.0
