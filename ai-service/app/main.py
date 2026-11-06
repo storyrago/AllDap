@@ -612,7 +612,7 @@ def generate_eval_questions(
     <폴링할 행>이 있기 때문이다. 화면이 pending → ready 를 지켜볼 수 있다.
     그런데 `eval_questions` 에는 상태 컬럼이 없다. 202 를 돌려줘도
     프론트가 무엇을 폴링해야 할지가 없고, 그걸 만들려면 V2 마이그레이션이 필요하다.
-    게다가 BackgroundTasks 는 프로세스가 죽으면 작업이 유실되는데(위 _process_document 주석),
+    게다가 BackgroundTasks 는 프로세스가 죽으면 작업이 유실되는데(업로드는 2026-11-06 에 Celery 워커로 옮겼지만 이 경로는 아직이다),
     여기엔 "유실됐다"를 적어둘 자리조차 없다.
     → 대신 count 상한으로 응답 시간을 통제한다. Spring 의 읽기 타임아웃은 120초다.
     TODO(W3): 실측 지연이 상한에 가까워지면 그때 상태 컬럼(V2)과 함께 비동기로 바꾼다.
@@ -777,7 +777,7 @@ def start_eval_run(bot_id: Id, background: BackgroundTasks) -> EvalRunOut:
     그리고 여기는 질문 수만큼 (검색 + 생성 + 채점)이 돌아 <반드시> 수십 초를 넘긴다.
     질문 20개면 호출이 40번이다. 동기로 두면 Spring 의 읽기 타임아웃(120초)에 걸린다.
 
-    ⚠️ BackgroundTasks 는 프로세스가 죽으면 작업이 유실된다(업로드와 같은 한계).
+    ⚠️ BackgroundTasks 는 프로세스가 죽으면 작업이 유실된다(업로드는 2026-11-06 에 Celery 워커로 옮겼다. 평가 실행은 아직 이 한계가 그대로다).
        다만 여기는 유실돼도 status 가 'running' 으로 남아 <흔적이 보인다>.
        TODO(W4): 오래 running 인 실행을 failed 로 정리하는 절차가 필요하다.
     """

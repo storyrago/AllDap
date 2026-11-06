@@ -747,7 +747,7 @@ Run:
 ```bash
 curl -s -F "file=@testdata/fixtures/$(ls testdata/fixtures | grep docx | head -1)" localhost:8001/internal/bots/1/documents
 sleep 15
-curl -s localhost:8001/internal/bots/1/documents | .venv/bin/python -c "import json,sys; [print(d['id'], d['status'], d['chunk_count']) for d in json.load(sys.stdin)[-3:]]"
+curl -s localhost:8001/internal/bots/1/documents | .venv/bin/python -c "import json,sys; [print(d['id'], d['status'], d['chunk_count']) for d in json.load(sys.stdin)[:3]]"
 ls uploads/1/
 ```
 Expected: 업로드 응답 `"status":"pending"`, 워커 로그에 `documents.process[...] succeeded`, 목록에서 그 문서가 `ready`, `uploads/1/` 에 그 doc_id 파일이 있다. (fixture 가 없으면 `.venv/bin/python -m testdata.make_fixtures` 로 먼저 만든다.)
@@ -1132,7 +1132,7 @@ Expected: 그 문서가 `ready`. 쪽지가 Redis 에 남아 있었다는 뜻이�
 ```bash
 docker compose stop redis
 time curl -s -w "\n%{http_code}\n" -F "file=@testdata/fixtures/$(ls testdata/fixtures | grep docx | head -1)" localhost:8001/internal/bots/1/documents
-curl -s localhost:8001/internal/bots/1/documents | .venv/bin/python -c "import json,sys; d=json.load(sys.stdin)[-1]; print(d['status'], d.get('error_message'))"
+curl -s localhost:8001/internal/bots/1/documents | .venv/bin/python -c "import json,sys; d=json.load(sys.stdin)[0]; print(d['status'], d.get('error_message'))"
 docker compose start redis
 ```
 Expected: `503`, 본문에 "작업 대기열에 연결하지 못했습니다...", 마지막 문서가 `failed` 에 같은 사유. **`real` 시간을 기록한다.** 5초를 넘으면 `worker.py` 의 `broker_connection_timeout` 과 `task_publish_retry` 가 실제로 먹는지 확인하고, 고친 값과 다시 잰 시간을 함께 기록한다.
@@ -1145,7 +1145,7 @@ Expected: `503`, 본문에 "작업 대기열에 연결하지 못했습니다..."
 curl -s -F "file=@testdata/fixtures/$(ls testdata/fixtures | grep pdf | head -1)" localhost:8001/internal/bots/1/documents
 pkill -9 -f "celery -A app.worker"
 sleep 2
-curl -s localhost:8001/internal/bots/1/documents | .venv/bin/python -c "import json,sys; d=json.load(sys.stdin)[-1]; print(d['id'], d['status'])"
+curl -s localhost:8001/internal/bots/1/documents | .venv/bin/python -c "import json,sys; d=json.load(sys.stdin)[0]; print(d['id'], d['status'])"
 docker exec alldap-redis redis-cli LLEN celery
 ```
 Expected: 문서가 `processing`(이미 가드를 지났으면) 또는 `pending`(아직 안 꺼냈으면)이다. **둘 중 무엇이 나왔는지, 그리고 `LLEN` 값을 그대로 기록한다.** `processing` 이면 워커를 다시 띄워도 그대로 멈춰 있는 것까지 확인한다(이 조각의 한계, 스펙 7절 1번). `pending` 이 나오면 처리가 늦게 시작되도록 더 큰 문서로 다시 한 번 시도하고, 두 결과를 모두 적는다.
