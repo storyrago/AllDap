@@ -464,6 +464,7 @@ def list_documents(bot_id: Id) -> list[DocumentOut]:
 def delete_document(bot_id: Id, doc_id: Id) -> None:
     """
     문서 1건을 지운다. 청크는 CASCADE 로 함께 사라진다.
+    업로드 원본(uploads/{bot_id}/{doc_id})도 지운다. 단 DB 에서 1행이 지워졌을 때만이다.
 
     🔴 <b>경로에 bot_id 가 반드시 있어야 한다.</b> `/internal/*` 에는 인증이 없어서
     doc_id 만으로 DELETE 하면 <남의 봇 문서를 통째로 지울 수 있다.> 그리고 이건
@@ -479,9 +480,23 @@ def delete_document(bot_id: Id, doc_id: Id) -> None:
     "없는 문서" 판단은 Spring 이 이 호출 <전에> DB 조회로 끝낸다.
     """
     with cursor(commit=True) as cur:
+        # RETURNING id: 지운 행이 있으면 그 id 를 돌려준다. 0행이면 fetchone() 이 None 이다.
         cur.execute(
-            "DELETE FROM documents WHERE id=%s AND bot_id=%s", (doc_id, bot_id)
+            "DELETE FROM documents WHERE id=%s AND bot_id=%s RETURNING id", (doc_id, bot_id)
         )
+        deleted = cur.fetchone() is not None
+
+    # 🔴 DB 가 "네 봇의 문서가 맞다" 고 확인해 준 경우에만 원본을 지운다(스펙 4-3).
+    #    /internal/* 에는 인증이 없다. 남의 bot_id 로 부르면 위 DELETE 는 0행인데,
+    #    파일 삭제가 그와 무관하게 돌면 격리가 깨진다.
+    # 🔴 DB 먼저, 파일 나중. 반대면 "행은 있는데 원본이 없는" 문서가 생길 수 있다.
+    #    이 순서의 최악은 고아 파일이고, 고아는 다음 조각의 스위퍼가 치운다.
+    if deleted:
+        try:
+            storage.delete(bot_id, doc_id)
+        except OSError:
+            # 사용자 입장에서 문서는 이미 지워졌다. 204 를 그대로 주고 로그만 남긴다(스펙 5-4).
+            _log.exception("원본 삭제 실패(고아 파일) bot_id=%s doc_id=%s", bot_id, doc_id)
 
 
 # ── 채팅 ─────────────────────────────────────────────────────────────
