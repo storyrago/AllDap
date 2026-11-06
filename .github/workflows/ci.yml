@@ -249,6 +249,7 @@ jobs:
       #       onnxruntime · transformers · torch 를 import 하지 않고(늦은 import) 모델 파일도
       #       안 읽는다. 🔴 이 둘이 여기서 도는 것 자체가 그 <늦은 import> 의 검사다 -
       #       실수로 모듈 최상단에 올리면 requirements.txt 만 깔린 이 잡이 그 자리에서 죽는다.
+      #    ✅ tools.storage_check 는 업로드 원본의 경로 규칙을 임시 폴더에서만 본다. Redis 도 DB 도 안 쓴다.
       #    ✅ tools.import_boundary_check 는 app 이 tools 를 import 하지 않는지 본다. 운영 이미지는
       #       app/ 만 복사하므로, 어기면 여기서는 초록인데 운영 컨테이너에서만 죽는다.
       #    ✅ tools.judge5_check 는 채점 모델 비교 실험의 순수 함수(점수 읽기, 대조 수치, 부호 검정)만 본다.
@@ -258,6 +259,7 @@ jobs:
         run: |
           python -m tools.parsers_check
           python -m tools.chunker_check
+          python -m tools.storage_check
           python -m tools.eval_set_check
           python -m tools.finetune_split_check
           python -m tools.eval_set_io_check
