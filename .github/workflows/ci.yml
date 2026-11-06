@@ -204,20 +204,21 @@ jobs:
       #    GitHub Actions 의 기본 셸이 `bash -e` 라 첫 실패에서 잡이 빨간불이 된다.
       #    한 줄에 하나씩 적은 이유는 로그에서 <어느 점검이> 깨졌는지 바로 보이게 하려는 것이다.
       #
-      #    🔴 여기 없는 점검 8개는 <못 태우는 것>이지 잊은 것이 아니다.
-      #       마지막 하나를 뺀 일곱은 실행 시점에 진짜 Cloudflare/Gemini 를 부르고 DB 에 붙는다.
-      #       (여덟째 tools.judge_agreement 만 예외다 - 아래 Postgres 문단에 이유가 있다.)
+      #    🔴 여기 없는 점검 9개는 <못 태우는 것>이지 잊은 것이 아니다.
+      #       마지막 하나를 뺀 여덟은 실행 시점에 진짜 Cloudflare/Gemini 를 부르고 DB 에 붙는다.
+      #       (아홉째 tools.judge_agreement 만 예외다 - 아래 Postgres 문단에 이유가 있다.)
       #       CI 에 태우면 PR 하나 열 때마다 하루 API 한도를 태우고,
       #       한도가 마르면 정작 사람이 측정을 못 돌린다.
       #         · tools.fallback_e2e_check   DB(cursor) + 실제 생성 모델 13회
       #         · tools.answerable_check     DB(cursor) + 실제 임베딩 호출
       #         · tools.bot_prompt_check     DB(fetch_bot_prompt) + 실제 생성 모델
       #         · tools.noanswer_check       실제 생성 모델(모델별 비교 실험용)
-      #         · tools.upload_e2e_check     DB(cursor) + 실제 임베딩 호출
+      #         · tools.upload_e2e_check     DB(cursor) + 실제 임베딩 호출 + Redis·Celery 워커
+      #         · tools.upload_queue_e2e_check  DB(cursor) + 실제 임베딩 호출 + Redis·Celery 워커
       #         · tools.local_reranker_e2e_check  진짜 모델 1.1GB + requirements-lab.txt
       #         · tools.inject_probe              DB(cursor) + 실제 임베딩 · 채점자 약 300회
       #         · tools.judge_agreement           DB(cursor). 🔴 <외부 API 는 안 부른다>
-      #       이 여덟은 사람이 손으로 돌린다(AGENTS.md 의 해당 절에 실행 방법이 있다).
+      #       이 아홉은 사람이 손으로 돌린다(AGENTS.md 의 해당 절에 실행 방법이 있다).
       #       ⚠️ 개수를 늘리거나 줄일 때는 위 문장의 수도 함께 고칠 것.
       #
       #    ⚠️ Postgres 서비스 컨테이너는 <일부러> 띄우지 않았다.
