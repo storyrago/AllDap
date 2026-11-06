@@ -78,7 +78,7 @@ def check_pdf() -> None:
 def check_pdf_corrupt_gives_user_message() -> None:
     """깨진 파일은 스택트레이스가 아니라 <사용자가 읽을 수 있는 한국어>로 실패해야 한다.
 
-    이 경로가 깨지면 업로드가 500 으로 나가고, `_process_document` 의
+    이 경로가 깨지면 업로드가 500 으로 나가고, `app/worker.py` 의 `process_document` 의
     `except ParseError` 가 아니라 맨 바깥 `except Exception` 에 걸려
     error_message 가 "처리 중 오류가 발생했습니다: ..." 로 뭉개진다.
     """

@@ -25,8 +25,29 @@ services:
       timeout: 3s
       retries: 10
 
+  # ── Celery 브로커 (2026-11-06, 문서 처리 워커 분리) ───────────────────
+  # 문서 처리 작업 메시지를 보관한다. 메시지에는 doc_id·bot_id 만 들어간다(원본은 디스크).
+  # profiles 없이 둔다: 이제 업로드가 이것 없이는 503 이 된다. db 와 같이 늘 떠 있어야 한다.
+  redis:
+    image: redis:7.4-alpine
+    container_name: alldap-redis
+    # appendonly: 메시지를 디스크에도 적는다. 끄면 Redis 를 재시작할 때 대기 중인 메시지가 사라진다.
+    #   "브로커가 작업을 잃지 않는다" 를 이 조각에서 직접 확인하려고 켠다.
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      # db 와 같은 이유로 127.0.0.1 에만 연다. 인증이 없는 Redis 를 사내망에 열면 누구나 작업을 넣는다.
+      # 호스트 6379 는 다른 Redis(Homebrew 등)가 흔히 쓴다. 겹치면 브로커가 <조용히 엉뚱한 Redis 에 붙는다>(2026-11-06 실제로 겪음). 그래서 6380.
+      - "127.0.0.1:6380:6379"
+    volumes:
+      - alldap-redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
   # ── 로컬 관측 스택 (부하테스트용) ───────────────────────────────────
-  # 🔴 profiles 로 격리한다. `docker compose up -d` 는 예전처럼 db 만 띄우고,
+  # 🔴 profiles 로 격리한다. `docker compose up -d` 는 db 와 redis 만 띄우고,
   #    관측이 필요할 때만 `docker compose --profile obs up -d` 로 켠다.
   #    평소 개발에 250MB 를 상시로 물릴 이유가 없다.
   # 운영(docker-compose.prod.yml)에는 이 둘이 <없다.> t3.micro 는 유휴에 이미 스왑을 쓴다.
@@ -69,3 +90,5 @@ volumes:
   # Grafana 의 내부 SQLite. 대시보드 자체는 프로비저닝 파일이 진실이지만,
   # 이게 없으면 재기동마다 Grafana 가 초기화 로그를 잔뜩 뱉는다.
   alldap-grafana:
+  # Redis 의 appendonly 파일. 지우면 대기 중이던 작업 메시지가 사라진다.
+  alldap-redis:

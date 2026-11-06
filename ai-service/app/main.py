@@ -13,13 +13,13 @@ from contextlib import asynccontextmanager
 
 import anyio.to_thread
 from fastapi import BackgroundTasks, FastAPI, File, HTTPException, Response, UploadFile
+from kombu.exceptions import OperationalError as BrokerUnavailable
 
-from . import cf, conflicts, evaluator, evalrun, metrics, retriever
-from .chunker import chunk_text
+from . import cf, conflicts, evaluator, evalrun, metrics, retriever, storage
 from .config import get_settings
 from .db import close_pool, cursor
 from .generator import GenerationFailed, build_system_prompt, fetch_bot_prompt, generate
-from .parsers import ParseError, extract_text
+from .parsers import ParseError
 from .schemas import (
     ChatRequest,
     ChatResponse,
@@ -33,6 +33,7 @@ from .schemas import (
     Id,
     UpdateEvalQuestionRequest,
 )
+from .worker import process_document
 
 # 🔴 로깅 설정이 <없었다>. 루트 로거에 핸들러가 없으면 파이썬의 lastResort 가
 #    WARNING 이상만 stderr 로 내보낸다 — 즉 `_log.info` 가 <한 번도 안 보였다>.
@@ -84,6 +85,8 @@ def _apply_thread_limit() -> None:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     _apply_thread_limit()
+    # 업로드 폴더를 못 쓰면 여기서 기동을 막는다. 업로드를 받고 나서 실패하는 것보다 낫다(스펙 5-4).
+    storage.ensure_upload_dir()
     yield
     close_pool()
 
@@ -311,62 +314,6 @@ async def prometheus_metrics() -> Response:
 
 # ── 문서 처리 ────────────────────────────────────────────────────────
 
-def _process_document(doc_id: Id, bot_id: Id, filename: str, data: bytes) -> None:
-    """업로드 응답과 분리해 백그라운드에서 실행.
-
-    ※ MVP 한정. 프로세스가 죽으면 작업이 유실되므로,
-       트래픽이 붙으면 Redis + RQ 같은 큐로 옮겨야 한다.
-    """
-    s = get_settings()
-
-    def _fail(reason: str) -> None:
-        with cursor(commit=True) as cur:
-            cur.execute(
-                "UPDATE documents SET status='failed', error_message=%s WHERE id=%s",
-                (reason, doc_id),
-            )
-
-    try:
-        with cursor(commit=True) as cur:
-            cur.execute("UPDATE documents SET status='processing' WHERE id=%s", (doc_id,))
-
-        try:
-            _, text = extract_text(filename, data)
-        except ParseError as e:
-            _fail(str(e))
-            return
-
-        chunks = chunk_text(
-            text,
-            size=s.chunk_size,
-            overlap=s.chunk_overlap,
-            split_headings=s.chunk_split_headings,
-        )
-        if not chunks:
-            _fail("문서에서 유효한 내용을 찾지 못했습니다.")
-            return
-
-        vectors = retriever.embed([c.content for c in chunks])
-
-        with cursor(commit=True) as cur:
-            cur.executemany(
-                """INSERT INTO chunks (document_id, bot_id, chunk_index, content, embedding, meta)
-                   VALUES (%s, %s, %s, %s, %s, %s)""",
-                [
-                    (doc_id, bot_id, c.index, c.content, v, __import__("json").dumps(c.meta))
-                    for c, v in zip(chunks, vectors)
-                ],
-            )
-            cur.execute(
-                """UPDATE documents
-                   SET status='ready', char_count=%s, chunk_count=%s, error_message=NULL
-                   WHERE id=%s""",
-                (len(text), len(chunks), doc_id),
-            )
-    except Exception as e:  # noqa: BLE001 - 어떤 실패든 상태로 남겨야 한다
-        _fail(f"처리 중 오류가 발생했습니다: {type(e).__name__}")
-
-
 @app.post(
     "/internal/bots/{bot_id}/documents",
     response_model=DocumentOut,
@@ -377,7 +324,6 @@ def _process_document(doc_id: Id, bot_id: Id, filename: str, data: bytes) -> Non
 )
 async def upload_document(
     bot_id: Id,
-    background: BackgroundTasks,
     file: UploadFile = File(...),
 ) -> DocumentOut:
     """
@@ -386,16 +332,18 @@ async def upload_document(
     🔴 <b>왜 202 인가:</b> 파싱·청킹까지는 빠르지만 임베딩은 외부 API 호출이라
     수십 초가 걸릴 수 있다. 그 시간을 HTTP 요청 안에서 기다리면 Spring 쪽 타임아웃에
     먼저 걸린다. 그래서 여기서는 <받았다는 사실>만 확정하고(행 생성, `status='pending'`),
-    나머지를 `BackgroundTasks` 로 넘긴다.
+    나머지는 Celery 워커가 한다(app/worker.py).
 
     상태 전이: `pending` → `processing` → `ready` 또는 `failed`.
     실패하면 `error_message` 에 사용자에게 그대로 보여줄 수 있는 한국어 사유가 들어간다.
     진행 상황은 `list_documents` 를 폴링해서 본다.
 
-    🔴 <b>대가가 있다. 알고 남긴 한계다:</b> `BackgroundTasks` 는 이 프로세스 안에서만
-    산다. 처리 도중 프로세스가 죽으면 그 작업은 사라지고, 문서는 `processing` 에
-    <영원히 멈춘다>. 되살려주는 재시도도, 유실을 알려주는 신호도 없다.
-    트래픽이 붙으면 Redis + RQ 같은 외부 큐로 옮겨야 한다(`_process_document` 주석).
+    🔴 <b>순서가 계약이다 (스펙 4-1):</b> 행 INSERT 와 원본 저장을 <한 트랜잭션>에 넣고,
+    메시지는 <커밋 뒤에> 보낸다. 커밋 전에 보내면 워커가 아직 안 보이는 행을 찾다가
+    "없는 문서" 로 건너뛴다. 저장이 실패하면 커밋이 안 되어 "행은 있는데 원본이 없는" 문서가 없다.
+
+    🔴 <b>알고 남긴 한계 (스펙 7절):</b> 워커가 처리 중에 죽으면 문서는 processing 에 멈춘다
+    (acks_late 를 껐다). 커밋과 delay() 사이에 이 프로세스가 죽으면 pending 이 남는다.
 
     여기서 바로 거절하는 것은 셋뿐이다: 용량 초과(413) · 빈 파일(400) ·
     지원하지 않는 확장자(400). 셋 다 파일을 열어보지 않고도 판정할 수 있는 것들이고,
@@ -416,15 +364,48 @@ async def upload_document(
     except ParseError as e:
         raise HTTPException(400, str(e)) from e
 
-    with cursor(commit=True) as cur:
-        cur.execute(
-            """INSERT INTO documents (bot_id, filename, file_type, status)
-               VALUES (%s, %s, %s, 'pending') RETURNING id""",
-            (bot_id, filename, ftype),
-        )
-        doc_id = cur.fetchone()[0]
+    # ── ① 행과 원본을 한 트랜잭션에 ────────────────────────────────────
+    # `with cursor(commit=True)` 블록이 <예외 없이> 끝나야 커밋된다. 저장이 예외를 내면
+    # 커밋을 건너뛰고 연결이 롤백되므로 행도 사라진다.
+    doc_id: Id | None = None
+    try:
+        with cursor(commit=True) as cur:
+            cur.execute(
+                """INSERT INTO documents (bot_id, filename, file_type, status)
+                   VALUES (%s, %s, %s, 'pending') RETURNING id""",
+                (bot_id, filename, ftype),
+            )
+            doc_id = cur.fetchone()[0]
+            storage.save(bot_id, doc_id, data)
+    except Exception as e:
+        # 행은 롤백됐다. 쓰다 만 원본이 있으면 지운다(없어도 예외 없음).
+        if doc_id is not None:
+            storage.delete(bot_id, doc_id)
+        # OSError: 디스크 꽉 참, 권한 등 <파일 쪽> 실패. 사용자 잘못이 아니다 → 503.
+        # 그 밖(DB 오류)은 지금까지처럼 그대로 올린다.
+        if isinstance(e, OSError):
+            _log.exception("업로드 원본 저장 실패 bot_id=%s", bot_id)
+            raise HTTPException(
+                503, "업로드한 파일을 저장하지 못했습니다. 잠시 후 다시 올려주세요."
+            ) from e
+        raise
 
-    background.add_task(_process_document, doc_id, bot_id, filename, data)
+    # ── ② 커밋 뒤에 메시지 ────────────────────────────────────────────
+    # .delay(...) 는 "지금 실행" 이 아니라 "Redis 에 쪽지를 넣는다" 다. 실행은 워커가 한다.
+    try:
+        process_document.delay(doc_id, bot_id)
+    except BrokerUnavailable as e:
+        # Redis 가 꺼져 있다. 그대로 두면 이 문서는 pending 에 영원히 멈춘다(쪽지가 없으니까).
+        # failed 로 바꿔 목록에서 보이게 한다. 원본은 남긴다(보존 원칙, 스펙 5-1).
+        reason = "작업 대기열에 연결하지 못했습니다. 잠시 후 다시 올려주세요."
+        with cursor(commit=True) as cur:
+            cur.execute(
+                "UPDATE documents SET status='failed', error_message=%s WHERE id=%s",
+                (reason, doc_id),
+            )
+        _log.error("브로커 연결 실패로 문서를 failed 로 바꿨다 doc_id=%s: %s", doc_id, e)
+        raise HTTPException(503, reason) from e
+
     return DocumentOut(id=doc_id, filename=filename, file_type=ftype, status="pending")
 
 
@@ -483,6 +464,7 @@ def list_documents(bot_id: Id) -> list[DocumentOut]:
 def delete_document(bot_id: Id, doc_id: Id) -> None:
     """
     문서 1건을 지운다. 청크는 CASCADE 로 함께 사라진다.
+    업로드 원본(uploads/{bot_id}/{doc_id})도 지운다. 단 DB 에서 1행이 지워졌을 때만이다.
 
     🔴 <b>경로에 bot_id 가 반드시 있어야 한다.</b> `/internal/*` 에는 인증이 없어서
     doc_id 만으로 DELETE 하면 <남의 봇 문서를 통째로 지울 수 있다.> 그리고 이건
@@ -498,9 +480,23 @@ def delete_document(bot_id: Id, doc_id: Id) -> None:
     "없는 문서" 판단은 Spring 이 이 호출 <전에> DB 조회로 끝낸다.
     """
     with cursor(commit=True) as cur:
+        # RETURNING id: 지운 행이 있으면 그 id 를 돌려준다. 0행이면 fetchone() 이 None 이다.
         cur.execute(
-            "DELETE FROM documents WHERE id=%s AND bot_id=%s", (doc_id, bot_id)
+            "DELETE FROM documents WHERE id=%s AND bot_id=%s RETURNING id", (doc_id, bot_id)
         )
+        deleted = cur.fetchone() is not None
+
+    # 🔴 DB 가 "네 봇의 문서가 맞다" 고 확인해 준 경우에만 원본을 지운다(스펙 4-3).
+    #    /internal/* 에는 인증이 없다. 남의 bot_id 로 부르면 위 DELETE 는 0행인데,
+    #    파일 삭제가 그와 무관하게 돌면 격리가 깨진다.
+    # 🔴 DB 먼저, 파일 나중. 반대면 "행은 있는데 원본이 없는" 문서가 생길 수 있다.
+    #    이 순서의 최악은 고아 파일이고, 고아는 다음 조각의 스위퍼가 치운다.
+    if deleted:
+        try:
+            storage.delete(bot_id, doc_id)
+        except OSError:
+            # 사용자 입장에서 문서는 이미 지워졌다. 204 를 그대로 주고 로그만 남긴다(스펙 5-4).
+            _log.exception("원본 삭제 실패(고아 파일) bot_id=%s doc_id=%s", bot_id, doc_id)
 
 
 # ── 채팅 ─────────────────────────────────────────────────────────────
@@ -616,7 +612,7 @@ def generate_eval_questions(
     <폴링할 행>이 있기 때문이다. 화면이 pending → ready 를 지켜볼 수 있다.
     그런데 `eval_questions` 에는 상태 컬럼이 없다. 202 를 돌려줘도
     프론트가 무엇을 폴링해야 할지가 없고, 그걸 만들려면 V2 마이그레이션이 필요하다.
-    게다가 BackgroundTasks 는 프로세스가 죽으면 작업이 유실되는데(위 _process_document 주석),
+    게다가 BackgroundTasks 는 프로세스가 죽으면 작업이 유실되는데(업로드는 2026-11-06 에 Celery 워커로 옮겼지만 이 경로는 아직이다),
     여기엔 "유실됐다"를 적어둘 자리조차 없다.
     → 대신 count 상한으로 응답 시간을 통제한다. Spring 의 읽기 타임아웃은 120초다.
     TODO(W3): 실측 지연이 상한에 가까워지면 그때 상태 컬럼(V2)과 함께 비동기로 바꾼다.
@@ -781,7 +777,7 @@ def start_eval_run(bot_id: Id, background: BackgroundTasks) -> EvalRunOut:
     그리고 여기는 질문 수만큼 (검색 + 생성 + 채점)이 돌아 <반드시> 수십 초를 넘긴다.
     질문 20개면 호출이 40번이다. 동기로 두면 Spring 의 읽기 타임아웃(120초)에 걸린다.
 
-    ⚠️ BackgroundTasks 는 프로세스가 죽으면 작업이 유실된다(업로드와 같은 한계).
+    ⚠️ BackgroundTasks 는 프로세스가 죽으면 작업이 유실된다(업로드는 2026-11-06 에 Celery 워커로 옮겼다. 평가 실행은 아직 이 한계가 그대로다).
        다만 여기는 유실돼도 status 가 'running' 으로 남아 <흔적이 보인다>.
        TODO(W4): 오래 running 인 실행을 failed 로 정리하는 절차가 필요하다.
     """

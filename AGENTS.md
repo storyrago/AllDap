@@ -416,11 +416,12 @@ Flyway 규칙 5번이 말하는 "진행 상황 표의 요금제 선택 (2026-09-
    [`handoff-2026-09-19.md`](docs/superpowers/handoff-2026-09-19.md))
 무엇을 먼저 할지는 최신 핸드오프와 `docs/BACKLOG.md` 를 볼 것.
 
-**로컬 실행 순서** (Flyway 는 이미 적용돼 있으므로 스키마 변경이 없으면 `api` 는 건너뛰어도 된다)
+**로컬 실행 순서** (Flyway 는 이미 적용돼 있으므로 스키마 변경이 없으면 `api` 는 건너뛰어도 된다. `docker compose up -d` 가 이제 Redis 도 띄운다(2026-11-06).)
 
 ```
 docker compose up -d
 cd ai-service && .venv/bin/uvicorn app.main:app --port 8001
+cd ai-service && .venv/bin/celery -A app.worker worker --pool=solo --loglevel=info   # 다른 터미널. 없으면 업로드가 pending 에 머문다
 # 봇 id 는 <번호>다 (2026-09-13 BIGINT 전환). 데모 봇은 1 이고, 직접 만든 봇의 번호는
 # psql 로 확인한다: SELECT id, name FROM bots ORDER BY id;
 curl -X POST localhost:8001/internal/bots/1/eval/runs
@@ -622,7 +623,7 @@ RERANKER_PROVIDER=local_int8 .venv/bin/uvicorn app.main:app --port 8001
 한 줄씩만 적는다. 긴 설명과 실측은 [`docs/실측-기록.md`](docs/실측-기록.md) 의 같은 제목 절에 있다.
 
 - 봇별 `system_prompt` 는 전달되지만(Python 이 `bots` 를 직접 읽는다) 봇 지침 한 줄로 `NO_ANSWER` 가 뚫린다. 막지 못하고 잰다: 지침을 바꾼 뒤 `tools/bot_prompt_check.py`.
-- 백그라운드 처리가 FastAPI `BackgroundTasks` 라 프로세스 종료 시 작업이 유실된다. 트래픽이 붙으면 Redis + RQ 로 교체.
+- 문서 처리는 Celery 워커(로컬 전용, 2026-11-06)지만 `acks_late` 를 꺼서 처리 중 워커가 죽으면 문서가 `processing` 에 멈춘다. 평가 실행은 여전히 `BackgroundTasks` 다. 스펙 `docs/superpowers/specs/2026-11-06-celery-document-worker-design.md` 7절.
 - 구버전 `.hwp` 미지원 (바이너리 포맷).
 - pgvector 는 수백만 벡터 규모에서 전용 벡터DB보다 불리하다. 현재 규모에선 문제없다.
 - 임베딩·답변 생성·채점은 외부 API(Cloudflare)다. 직접 돌리는 것은 리랭커 추론과 실험용 채점 모델의 추론과 학습뿐이다(작업 규칙 7번).
@@ -637,7 +638,7 @@ RERANKER_PROVIDER=local_int8 .venv/bin/uvicorn app.main:app --port 8001
 - `AI_SERVICE_TIMEOUT`(504) 안내는 "느려서 못 받았다" 와 "질문이 커서 느리다" 를 가르지 못한다.
 - 로더 없이 `/w/[publicKey]` 를 직접 열면 입력창만 남는다(iframe 전용 구조의 결과. 알고 남겼다).
 - 전체충실성에는 채점자의 판정 차이가 섞인다. 같은 코퍼스 위의 설정 비교는 괜찮고, 코퍼스를 가로지르는 비교는 위험하다.
-- 대용량 문서는 재보지 않았다. 업로드 상한 10MB 는 안 재본 구간을 피하려는 값이다. 상한을 올리려면 먼저 잰다.
+- 대용량 문서는 재보지 않았다. 업로드 상한(운영 10MB, 로컬 기본값 20MB)은 안 재본 구간을 피하려는 값이다. 상한을 올리려면 먼저 잰다.
 
 ## 결정 로그
 

@@ -163,7 +163,9 @@
 ### 3-5. 백그라운드 작업이 프로세스 종료 시 유실된다
 
 FastAPI `BackgroundTasks` 라 업로드 처리 중에 프로세스가 죽으면 그 문서는 `processing` 에
-영원히 남는다. Redis + RQ 로 교체해야 한다. **트리거는 실사용 트래픽이다.**
+영원히 남는다. **문서 처리는 2026-11-06 에 Celery 워커로 옮겼다(로컬 전용).** 다만 `acks_late` 를 꺼서
+처리 중 워커가 죽으면 여전히 `processing` 에 멈춘다. 다음 조각: `acks_late` + 청크 멱등화,
+완료 조건은 "처리 중 kill -9 를 해도 ready". 평가 실행(`evalrun.execute`)은 아직 `BackgroundTasks` 다.
 
 관련해서 **오래 `running` 인 평가 실행을 `failed` 로 정리하는 절차도 없다**
 (`ai-service/app/main.py:786`).

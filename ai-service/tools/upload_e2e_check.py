@@ -1,12 +1,18 @@
 """업로드 파이프라인 종단 점검 - PDF·DOCX·HWPX 를 <status=ready 까지> 태운다.
 
-실행 (둘 중 하나):
-    # ① 인프로세스: 서버를 띄우지 않고 ASGI 앱을 직접 태운다. DB·Cloudflare 는 진짜다.
+실행 (둘 다 Redis 와 Celery 워커가 떠 있어야 한다 - 2026-11-06 부터 처리는 워커가 한다):
+    docker compose up -d                                                   # 저장소 루트
+    cd ai-service && .venv/bin/celery -A app.worker worker --pool=solo     # 다른 터미널
+
+    # ① 인프로세스: API 는 ASGI 앱을 직접 태운다. DB·Redis·워커·Cloudflare 는 진짜다.
     cd ai-service && .venv/bin/python -m tools.upload_e2e_check
 
-    # ② 진짜 HTTP: uvicorn 을 띄워두고 밖에서 두드린다. 폴링도 실제로 돈다.
-    cd ai-service && .venv/bin/uvicorn app.main:app --port 8001   # 다른 터미널
+    # ② 진짜 HTTP: uvicorn 도 띄워두고 밖에서 두드린다.
+    cd ai-service && .venv/bin/uvicorn app.main:app --port 8001   # 또 다른 터미널
     cd ai-service && .venv/bin/python -m tools.upload_e2e_check --base-url http://localhost:8001
+
+🔴 Celery eager 모드(큐 없이 delay() 자리에서 바로 실행)를 쓰지 않는다(스펙 6-3).
+   이 점검이 지나야 할 바로 그 경로(큐)를 건너뛰고 초록불을 준다.
 
 🔴 이 파일이 생긴 이유 - "파서가 된다" 와 "업로드가 된다" 는 다른 사실이다
 ────────────────────────────────────────────────────────────────────
@@ -60,9 +66,11 @@ from pathlib import Path
 
 import httpx
 
+from app import storage
 from app.config import get_settings
 from app.db import cursor
 from app.schemas import Id
+from tools.queue_preflight import require_worker
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from testdata.make_fixtures import FIXTURES, NAMES  # noqa: E402
@@ -85,8 +93,7 @@ def _client(base_url: str | None) -> httpx.Client:
     if base_url:
         return httpx.Client(base_url=base_url, timeout=60.0)
     # TestClient 는 앱을 그대로 호출한다(httpx.Client 를 상속하므로 아래 코드가 같다).
-    # Starlette 가 응답을 낸 뒤 BackgroundTasks 를 같은 호출 안에서 끝내므로,
-    # 인프로세스에서는 첫 폴링에 이미 ready 다.
+    # 처리는 워커가 한다. 인프로세스여도 폴링이 실제로 돈다(2026-11-06 전에는 첫 폴링에 이미 ready 였다).
     #
     # ⚠️ httpx.ASGITransport 를 쓰려다 접었다. 그쪽은 async 전용이라
     #    동기 Client 에 못 물린다(`__enter__` 가 없다). TestClient 가 그 포털을 대신 판다.
@@ -101,13 +108,17 @@ def _purge(bot_id: Id, names: list[str]) -> int:
     """같은 이름의 잔재를 지운다(중간에 죽은 앞 실행 대비).
 
     chunks 는 documents 에 ON DELETE CASCADE 로 딸려 있다(V9__bigint_ids.sql).
+    DB 를 직접 지우므로 업로드 원본도 여기서 함께 지운다(삭제 API 를 안 거치니까).
     """
     with cursor(commit=True) as cur:
         cur.execute(
             "DELETE FROM documents WHERE bot_id = %s AND filename = ANY(%s) RETURNING id",
             (bot_id, names),
         )
-        return len(cur.fetchall())
+        ids = [r[0] for r in cur.fetchall()]
+    for doc_id in ids:
+        storage.delete(bot_id, doc_id)
+    return len(ids)
 
 
 def _chunk_stats(doc_id: Id) -> tuple[int, int, int]:
@@ -207,6 +218,7 @@ def main() -> None:
     ap.add_argument("--only", default=None, help="pdf | docx | hwpx")
     args = ap.parse_args()
 
+    require_worker()
     bot_id = args.bot_id
     names = [n for n in NAMES if args.only is None or n.endswith(f".{args.only}")]
     assert names, f"--only {args.only} 에 해당하는 fixture 가 없다"

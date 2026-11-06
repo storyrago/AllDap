@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import os
 from functools import lru_cache
+from pathlib import Path
 
 from pydantic_settings import BaseSettings
 
@@ -369,6 +370,20 @@ class Settings(BaseSettings):
     answerable_max_distance: float | None = 0.44
 
     upload_max_bytes: int = 20 * 1024 * 1024   # 20MB
+
+    # ── 문서 처리 워커 (2026-11-06) ─────────────────────────────────────
+    # 업로드 원본을 두는 폴더. 경로 규칙은 app/storage.py 만 안다.
+    # 기본값을 <ai-service/uploads> 로 고정한다. 상대경로("uploads")로 두면 uvicorn 과 워커를
+    # 서로 다른 폴더에서 띄웠을 때 둘이 <다른 폴더를 보고> 워커가 파일을 못 찾는다.
+    # 🔴 루트 .gitignore 의 `uploads/` 가 이 폴더를 막는다. 이름을 바꾸면 고객 문서가 커밋될 수 있다.
+    #
+    # Path(__file__) 는 "이 파일(config.py)의 경로" 다. .resolve() 로 절대경로로 바꾸고
+    # .parent 를 두 번 올라가면 app/ → ai-service/ 다.
+    upload_dir: str = str(Path(__file__).resolve().parent.parent / "uploads")
+
+    # Celery 브로커. 끝의 /0 은 Redis 의 0번 DB 라는 뜻이다.
+    # 6380 인 이유는 docker-compose.yml 의 redis 주석.
+    broker_url: str = "redis://localhost:6380/0"
 
     # 평가 (W3)
     # 한 번 호출에 만들 수 있는 질문 수의 상한. 청크 1개당 LLM 을 1번 부르므로
