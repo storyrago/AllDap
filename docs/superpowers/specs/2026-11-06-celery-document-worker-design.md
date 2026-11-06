@@ -82,14 +82,14 @@
     └ process_document.delay(doc_id, bot_id)    ├ 파싱 → 청킹 → 임베딩
             │                                   └ chunks 저장, ready
             ▼                                        ▲
-        [Redis :6379] ── 메시지: {doc_id, bot_id} ───┘
+        [Redis :6380] ── 메시지: {doc_id, bot_id} ───┘
 ```
 
 | 파일 | 할 일 | 새로/수정 |
 |---|---|---|
-| `docker-compose.yml` | `redis` 서비스 추가. `127.0.0.1:6379` 에만 바인딩(db 와 같은 이유). profiles 없이 기본으로 뜬다 | 수정 |
+| `docker-compose.yml` | `redis` 서비스 추가. `127.0.0.1:6380` 에만 바인딩(db 와 같은 이유. 6379 는 호스트의 다른 Redis 와 겹쳐 피했다). profiles 없이 기본으로 뜬다 | 수정 |
 | `ai-service/requirements.txt` | `celery[redis]` 를 실제 설치되는 버전으로 고정 | 수정 |
-| `ai-service/app/config.py` | `upload_dir`(기본값은 루트 `.gitignore` 가 막는 `uploads/` 아래), `broker_url`(기본 `redis://localhost:6379/0`) | 수정 |
+| `ai-service/app/config.py` | `upload_dir`(기본값은 루트 `.gitignore` 가 막는 `uploads/` 아래), `broker_url`(기본 `redis://localhost:6380/0`) | 수정 |
 | `ai-service/app/storage.py` | `save(bot_id, doc_id, data)`, `read(bot_id, doc_id)`, `delete(bot_id, doc_id)`. 경로 규칙은 이 파일만 안다. 클래스·Protocol 은 MinIO 구현 때 만든다 | 새로 |
 | `ai-service/app/worker.py` | Celery 앱과 `process_document` 작업. `_process_document` 본문을 main.py 에서 옮긴다 | 새로 |
 | `ai-service/app/main.py` | 업로드 순서 변경(4-1), 삭제 시 파일 정리(4-3), docstring 갱신 | 수정 |

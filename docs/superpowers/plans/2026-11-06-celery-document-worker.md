@@ -51,7 +51,7 @@
 - Modify: `ai-service/app/config.py:371` 부근 (`upload_max_bytes` 아래)
 
 **Interfaces:**
-- Produces: `Settings.upload_dir: str`, `Settings.broker_url: str`. Redis 가 `127.0.0.1:6379` 에서 뜬다.
+- Produces: `Settings.upload_dir: str`, `Settings.broker_url: str`. Redis 가 `127.0.0.1:6380` 에서 뜬다(호스트 6379 는 다른 Redis 가 쓰고 있어 피했다).
 
 - [ ] **Step 1: compose 에 redis 추가**
 
@@ -69,7 +69,7 @@
     command: ["redis-server", "--appendonly", "yes"]
     ports:
       # db 와 같은 이유로 127.0.0.1 에만 연다. 인증이 없는 Redis 를 사내망에 열면 누구나 작업을 넣는다.
-      - "127.0.0.1:6379:6379"
+      - "127.0.0.1:6380:6379"
     volumes:
       - alldap-redis:/data
     healthcheck:
@@ -122,13 +122,13 @@ redis==<redis 버전>
     upload_dir: str = str(Path(__file__).resolve().parent.parent / "uploads")
 
     # Celery 브로커. 끝의 /0 은 Redis 의 0번 DB 라는 뜻이다.
-    broker_url: str = "redis://localhost:6379/0"
+    broker_url: str = "redis://localhost:6380/0"
 ```
 
 - [ ] **Step 5: 설정이 읽히는지 확인**
 
 Run: `.venv/bin/python -c "from app.config import get_settings as g; s=g(); print(s.upload_dir, s.broker_url)"`
-Expected: `/Users/.../AllDap/ai-service/uploads redis://localhost:6379/0`
+Expected: `/Users/.../AllDap/ai-service/uploads redis://localhost:6380/0`
 
 - [ ] **Step 6: Commit**
 
