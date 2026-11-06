@@ -26,7 +26,7 @@ chunker_check · parsers_check 와 같은 방식이다(`python -m` 으로 돌고
 **다시 잘라서 그 결과와 대조하는 것**이 꼬리표가 실제 청크를 가리킨다는 유일한 증거다.
 
 파일을 읽을 때 `parsers.extract_text` 를 거치는 이유도 같다. 업로드 경로
-(`app/main.py` 의 `_process_document`)가 `extract_text` → `chunk_text` 순으로 돌기 때문에,
+(`app/worker.py` 의 `process_document`)가 `extract_text` → `chunk_text` 순으로 돌기 때문에,
 여기서 `Path.read_text()` 로 바로 읽으면 <정규화 한 겹>이 빠져 실제 적재 결과와 갈린다.
 """
 from __future__ import annotations
