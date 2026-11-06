@@ -139,6 +139,10 @@ def _run_pipeline(doc_id: Id, bot_id: Id, filename: str, data: bytes) -> str:
             )
         return "ready"
     except Exception as e:  # noqa: BLE001 - 어떤 실패든 상태로 남겨야 한다
+        # 옛 main._process_document 에는 없던 줄이다. 그때는 예외가 uvicorn 로그 근처에서
+        # 났지만, 이제는 <별도 워커 프로세스>라 이 줄이 없으면 스택이 어디에도 남지 않고
+        # error_message 의 예외 타입 이름 하나만 남는다. 사용자에게 보이는 문구는 그대로다.
+        _log.exception("문서 처리 실패 doc_id=%s", doc_id)
         _fail(doc_id, f"처리 중 오류가 발생했습니다: {type(e).__name__}")
         return "failed"
 
