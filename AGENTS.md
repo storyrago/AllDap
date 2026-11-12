@@ -623,7 +623,7 @@ RERANKER_PROVIDER=local_int8 .venv/bin/uvicorn app.main:app --port 8001
 한 줄씩만 적는다. 긴 설명과 실측은 [`docs/실측-기록.md`](docs/실측-기록.md) 의 같은 제목 절에 있다.
 
 - 봇별 `system_prompt` 는 전달되지만(Python 이 `bots` 를 직접 읽는다) 봇 지침 한 줄로 `NO_ANSWER` 가 뚫린다. 막지 못하고 잰다: 지침을 바꾼 뒤 `tools/bot_prompt_check.py`.
-- 문서 처리는 Celery 워커(로컬 전용, 2026-11-06)지만 `acks_late` 를 꺼서 처리 중 워커가 죽으면 문서가 `processing` 에 멈춘다. 평가 실행은 여전히 `BackgroundTasks` 다. 스펙 `docs/superpowers/specs/2026-11-06-celery-document-worker-design.md` 7절.
+- 문서 처리는 Celery 워커(2026-11-06. 운영 compose 에는 2026-11-13 에 올렸지만 EC2 를 지운 뒤라 운영에서는 재보지 못했다)지만 `acks_late` 를 꺼서 처리 중 워커가 죽으면 문서가 `processing` 에 멈춘다. 평가 실행은 여전히 `BackgroundTasks` 다. 스펙 `docs/superpowers/specs/2026-11-06-celery-document-worker-design.md` 7절.
 - 구버전 `.hwp` 미지원 (바이너리 포맷).
 - pgvector 는 수백만 벡터 규모에서 전용 벡터DB보다 불리하다. 현재 규모에선 문제없다.
 - 임베딩·답변 생성·채점은 외부 API(Cloudflare)다. 직접 돌리는 것은 리랭커 추론과 실험용 채점 모델의 추론과 학습뿐이다(작업 규칙 7번).
