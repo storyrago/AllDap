@@ -7,7 +7,9 @@
                          ▼
 [EC2 t3.micro 1GB]  Caddy :80/:443  ← Let's Encrypt 자동
                       ├── api (Spring)   ← 바깥에 노출되는 유일한 서비스
-                      └── ai-service     ← 포트를 아예 안 연다
+                      ├── ai-service     ← 포트를 아예 안 연다
+                      ├── worker (Celery) ← ai-service 와 같은 이미지, 업로드 볼륨 공유
+                      └── redis          ← Celery 브로커. 포트 없음
                              │ 같은 VPC
                              ▼
 [RDS db.t3.micro]  Postgres 16 + pgvector   ← 퍼블릭 액세스 비활성

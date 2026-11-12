@@ -115,7 +115,7 @@ PDF · DOCX · HWPX 를 올리면 파싱 → 청킹 → 임베딩이 백그라�
 |---|---|---|
 | **Vercel** | Next.js 16 | `main` 머지 시 자동 |
 | **AWS EC2** t3.micro · 1GB | Caddy · Spring Boot · FastAPI | CI 가 GHCR 에 올린 이미지를 `docker pull` |
-| └ **docker compose 네트워크** | **컨테이너 3개: `caddy` · `api` · `ai-service`** | 한 덩어리가 아니라 **따로 도는 셋**이고, 같은 브리지 네트워크라 서로를 이름으로 부른다 |
+| └ **docker compose 네트워크** | **컨테이너 5개: `caddy` · `api` · `ai-service` · `worker`(Celery) · `redis`** | 한 덩어리가 아니라 **따로 도는 다섯**이고, 같은 브리지 네트워크라 서로를 이름으로 부른다. 포트를 여는 것은 `caddy` 하나뿐이다 |
 | **AWS RDS** | PostgreSQL 16 + pgvector | 관리형. 같은 VPC 라 인터넷을 거치지 않는다 |
 | **외부 API** | Cloudflare · Gemini · Toss | 우리가 배포하지 않는다 |
 | **CI/CD** | GitHub Actions · GHCR | 1GB 서버에서는 Gradle 컴파일이 OOM 이라 빌드를 CI 로 뺐다 |

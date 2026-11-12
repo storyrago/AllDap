@@ -19,7 +19,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY ai-service/app app
 
 # root 로 돌리지 않는다.
-RUN useradd --create-home --shell /usr/sbin/nologin app && chown -R app:app /app
+# uploads 폴더를 <이미지 안에 미리> 만든다. 빈 named volume 을 처음 붙이면 Docker 가 이미지의
+# 그 경로 내용과 소유자를 볼륨에 복사한다. 폴더가 이미지에 없으면 볼륨이 root 소유로 생겨
+# app 사용자가 쓰지 못하고, ensure_upload_dir() 가 기동을 막는다.
+RUN useradd --create-home --shell /usr/sbin/nologin app \
+    && mkdir -p /app/uploads && chown -R app:app /app
 USER app
 
 # 운영에서는 설정이 빠지면 시끄럽게 죽어야 한다(config._check_prod).

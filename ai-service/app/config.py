@@ -527,6 +527,8 @@ class Settings(BaseSettings):
 # 키는 설정 이름, 값은 "그 값이면 안 되는 것".
 _LOCAL_DEFAULTS = {
     "database_url": "postgresql://alldap:alldap@localhost:5432/alldap",
+    # 컨테이너 안의 localhost 에는 Redis 가 없다. 남아 있으면 기동은 되고 업로드마다 503 이 난다.
+    "broker_url": "redis://localhost:6380/0",
 }
 # 비어 있으면 안 되는 값들. 없으면 기동은 되고 <첫 요청에서> 터진다 — 그게 더 나쁘다.
 _REQUIRED_IN_PROD = ("database_url", "cf_account_id", "cf_api_token")
