@@ -108,7 +108,7 @@ PDF · DOCX · HWPX 를 올리면 파싱 → 청킹 → 임베딩이 백그라�
 ## System Architecture
 
 <div align='center'>
-        <img width="643" height="662" alt="image" src="https://github.com/user-attachments/assets/654038ff-6b68-434c-8677-6fd93291d725" />
+        <img width="1000" alt="AllDap 시스템 아키텍처" src="docs/architecture/architecture.png" />
 </div>
 
 | 경계 | 무엇이 도나 | 어떻게 배포되나 |

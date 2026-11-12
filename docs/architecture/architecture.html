@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>AllDap Architecture</title>
+<!--
+  AllDap 시스템 아키텍처 다이어그램 (운영 배포 기준, 2026-11-13).
+  architecture.png 는 이 파일을 헤드리스 Chrome 으로 찍은 것이다 — 고칠 때는 여기를 고치고 다시 찍는다:
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless --disable-gpu \
+      --hide-scrollbars --force-device-scale-factor=2 --window-size=2000,1120 \
+      --screenshot=architecture.png architecture.html
+  로고는 devicon · Simple Icons · Wikimedia Commons · icepanel(AWS 아이콘)에서 받아 logos/ 에 두었다.
+-->
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    width: 2000px; height: 1120px; position: relative; background: #fff; overflow: hidden;
+    font-family: "Helvetica Neue", Helvetica, "Apple SD Gothic Neo", Arial, sans-serif;
+    color: #111; font-weight: 700;
+  }
+  .abs { position: absolute; }
+  .solid { border: 4px solid #111; border-radius: 22px; background: #fff; }
+  .dashed { border: 3px dashed #222; border-radius: 22px; }
+  .caption { position: absolute; width: 100%; text-align: center; font-size: 19px; }
+  .title { font-size: 22px; text-align: center; }
+  .sub { font-size: 14px; font-weight: 600; color: #555; text-align: center; }
+  .row { display: flex; align-items: center; gap: 12px; }
+  .col { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .lbl { font-size: 14px; font-weight: 700; }
+  .edge { position: absolute; font-size: 14px; font-weight: 600; color: #666; background: #fff; padding: 0 4px; white-space: nowrap; }
+</style>
+</head>
+<body>
+
+<!-- ─────────────── 화살표 레이어 ─────────────── -->
+<svg class="abs" width="2000" height="1120" style="left:0;top:0;z-index:5;pointer-events:none">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#111"/>
+    </marker>
+    <marker id="g" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#888"/>
+    </marker>
+  </defs>
+  <g stroke="#111" stroke-width="3" fill="none" marker-start="url(#a)" marker-end="url(#a)">
+    <!-- Client ↔ 프론트 -->
+    <line x1="128" y1="618" x2="180" y2="618"/>
+    <!-- Web ↔ Caddy -->
+    <line x1="494" y1="548" x2="580" y2="548"/>
+    <!-- Widget ↔ Caddy -->
+    <polyline points="494,762 530,762 530,588 580,588"/>
+    <!-- Caddy ↔ Spring -->
+    <line x1="690" y1="566" x2="766" y2="566"/>
+    <!-- Spring ↔ AI -->
+    <line x1="1092" y1="566" x2="1176" y2="566"/>
+    <!-- AI ↔ LLM API -->
+    <line x1="1516" y1="566" x2="1684" y2="566"/>
+    <!-- Spring ↔ RDS -->
+    <line x1="930" y1="244" x2="930" y2="436"/>
+    <!-- AI ↔ RDS -->
+    <polyline points="1066,244 1066,272 1250,272 1250,436"/>
+    <!-- 프론트 ↔ Toss -->
+    <line x1="338" y1="870" x2="338" y2="944"/>
+  </g>
+  <!-- GHCR → EC2 (이미지 pull, 한 방향) -->
+  <polyline points="540,212 540,272 862,272 862,436" stroke="#111" stroke-width="3" fill="none" marker-end="url(#a)"/>
+  <!-- AI ↔ Celery/Redis -->
+  <line x1="1450" y1="694" x2="1450" y2="746" stroke="#111" stroke-width="3" fill="none" marker-start="url(#a)" marker-end="url(#a)"/>
+</svg>
+
+<!-- 화살표 라벨 -->
+<div class="edge" style="left:500px;top:516px;z-index:6">HTTPS</div>
+<div class="edge" style="left:1108px;top:534px;z-index:6">내부망</div>
+<div class="edge" style="left:1612px;top:534px;z-index:6">HTTPS</div>
+<div class="edge" style="left:940px;top:396px;z-index:6;background:transparent">JPA</div>
+<div class="edge" style="left:1260px;top:396px;z-index:6;background:transparent">psycopg</div>
+<div class="edge" style="left:560px;top:240px;z-index:6;background:transparent">image pull · 자동 배포</div>
+
+<!-- ─────────────── Client ─────────────── -->
+<div class="abs col" style="left:30px;top:546px;width:96px">
+  <svg width="70" height="66" viewBox="0 0 70 66" fill="none" stroke="#111" stroke-width="4">
+    <circle cx="35" cy="20" r="15"/><path d="M5 64 C5 44 18 36 35 36 C52 36 65 44 65 64"/>
+  </svg>
+  <div style="font-size:19px">Client</div>
+</div>
+
+<!-- ─────────────── 프론트 그룹 (Vercel + 위젯) ─────────────── -->
+<div class="abs dashed" style="left:182px;top:378px;width:310px;height:490px;border-color:#999;border-width:3px"></div>
+<div class="abs row" style="left:214px;top:396px;font-size:25px;gap:8px">
+  <img src="logos/vercel-original.svg" style="height:22px"> Vercel
+</div>
+<!-- Web -->
+<div class="abs" style="left:208px;top:438px;width:258px;height:212px;border:4px solid #111">
+  <div class="abs" style="left:10px;top:10px;right:10px;bottom:10px;border:3px solid #111;display:grid;grid-template-columns:1fr 1fr;align-items:center;justify-items:center;padding:6px 0">
+    <div class="col"><img src="logos/nextjs-original.svg" style="height:46px"><div class="lbl">Next.js 16</div></div>
+    <div class="col"><img src="logos/react-original.svg" style="height:46px"><div class="lbl" style="color:#149eca">React 19</div></div>
+    <div class="col"><img src="logos/typescript-original.svg" style="height:46px"><div class="lbl" style="color:#3178c6">TypeScript</div></div>
+    <div class="col"><img src="logos/tailwindcss-original.svg" style="height:46px"><div class="lbl" style="color:#06b6d4">Tailwind CSS</div></div>
+  </div>
+</div>
+<div class="abs sub" style="left:208px;top:656px;width:258px;color:#222;font-size:16px">Web · 관리자 대시보드 / 위젯 페이지</div>
+<!-- Embed Widget -->
+<div class="abs row" style="left:208px;top:708px;width:258px;height:110px;border:4px solid #111;justify-content:center;gap:14px">
+  <img src="logos/javascript-original.svg" style="height:50px">
+  <div>
+    <div style="font-size:24px;color:#b59a00">Embed Widget</div>
+    <div class="sub" style="text-align:left">&lt;script&gt; 한 줄 설치</div>
+  </div>
+</div>
+<div class="abs sub" style="left:208px;top:824px;width:258px;color:#222;font-size:16px">고객 사이트</div>
+
+<!-- Toss Payments -->
+<div class="abs col" style="left:248px;top:950px;width:180px">
+  <img src="logos/toss.svg" style="height:40px">
+  <div style="font-size:18px;margin-top:6px">Toss Payments</div>
+  <div class="sub">카드 등록 · 빌링키</div>
+</div>
+
+<!-- ─────────────── CI/CD (레퍼런스의 Storage 자리) ─────────────── -->
+<div class="abs title" style="left:420px;top:52px;width:240px">CI/CD</div>
+<div class="abs solid row" style="left:430px;top:86px;width:220px;height:124px;justify-content:center;gap:18px">
+  <div class="col"><img src="logos/githubactions-original.svg" style="height:48px"><div class="lbl">GitHub Actions</div></div>
+  <div class="col"><img src="logos/github.svg" style="height:48px"><div class="lbl">GHCR</div></div>
+</div>
+
+<!-- ─────────────── DB ─────────────── -->
+<div class="abs title" style="left:726px;top:4px;width:408px">DB</div>
+<div class="abs solid" style="left:726px;top:38px;width:408px;height:204px">
+  <div class="abs row" style="left:22px;top:14px;font-size:26px;gap:10px">
+    <img src="logos/rds.svg" style="height:36px;border-radius:6px"> Amazon RDS
+  </div>
+  <div class="abs" style="left:0;right:0;top:66px;display:flex;justify-content:space-evenly">
+    <div class="col"><img src="logos/postgresql-original.svg" style="height:78px"><div class="lbl">PostgreSQL 16</div></div>
+    <div class="col">
+      <!-- pgvector 는 공식 로고가 없어 레퍼런스처럼 DB 실린더로 그린다 -->
+      <svg width="64" height="78" viewBox="0 0 64 78" fill="#fff" stroke="#336791" stroke-width="3.5">
+        <path d="M4 12 v54 c0 6 12.5 10 28 10 s28 -4 28 -10 v-54"/>
+        <ellipse cx="32" cy="12" rx="28" ry="9"/>
+        <path d="M4 30 c0 6 12.5 10 28 10 s28 -4 28 -10 M4 48 c0 6 12.5 10 28 10 s28 -4 28 -10" fill="none"/>
+      </svg>
+      <div class="lbl">pgvector</div>
+    </div>
+  </div>
+</div>
+
+<!-- ─────────────── EC2 (레퍼런스의 Team Server) ─────────────── -->
+<div class="abs" style="left:540px;top:296px;width:1062px;height:612px;border:4px solid #f5a95a;border-radius:46px"></div>
+<div class="abs row" style="left:584px;top:316px;font-size:21px;color:#c46a12;gap:8px">
+  <img src="logos/ec2.svg" style="height:26px;border-radius:4px"> AWS EC2 <span style="font-weight:600;font-size:16px">(t3.micro · 1GB)</span>
+</div>
+
+<!-- Docker -->
+<div class="abs" style="left:556px;top:360px;width:1030px;height:532px;border:4px solid #1d63ed;border-radius:36px"></div>
+<div class="abs" style="left:1330px;top:322px;background:#fff;padding:0 10px;height:76px;overflow:hidden">
+  <img src="logos/docker-original-wordmark.svg" style="height:84px;display:block;margin-top:-6px">
+</div>
+<div class="abs sub" style="left:1330px;top:400px;width:110px;color:#1d63ed">Compose</div>
+
+<!-- Caddy -->
+<div class="abs col" style="left:566px;top:520px;width:140px;background:#fff">
+  <img src="logos/caddy.svg" style="height:58px">
+  <div style="font-size:16px;color:#1F88C0">Caddy</div>
+  <div style="font-size:15px">Reverse Proxy</div>
+  <div class="sub" style="font-size:12px">HTTPS · Let's Encrypt</div>
+</div>
+
+<!-- Backend -->
+<div class="abs dashed" style="left:770px;top:440px;width:320px;height:252px;background:#fff">
+  <div class="abs row" style="left:0;right:0;top:40px;justify-content:center;gap:12px">
+    <img src="logos/springboot.svg" style="height:56px">
+    <div style="font-size:38px;color:#6DB33F;letter-spacing:-0.5px">Spring Boot</div>
+  </div>
+  <div class="abs row" style="left:0;right:0;top:122px;justify-content:center;gap:20px">
+    <div class="row" style="gap:6px"><img src="logos/java-original.svg" style="height:46px"><span style="font-size:20px;color:#e76f00">Java 21</span></div>
+    <div class="col" style="gap:2px;font-size:14px;color:#444;font-weight:600;align-items:flex-start">
+      <span>Spring Security · JWT</span><span>Spring Data JPA</span><span>Flyway</span>
+    </div>
+  </div>
+</div>
+<div class="abs title" style="left:770px;top:702px;width:320px">Backend API</div>
+
+<!-- AI Service -->
+<div class="abs dashed" style="left:1180px;top:440px;width:334px;height:252px;background:#fff">
+  <div class="abs row" style="left:0;right:0;top:40px;justify-content:center;gap:12px">
+    <img src="logos/fastapi-original.svg" style="height:56px">
+    <div style="font-size:38px;color:#009688">FastAPI</div>
+  </div>
+  <div class="abs row" style="left:0;right:0;top:122px;justify-content:center;gap:20px">
+    <div class="row" style="gap:6px"><img src="logos/python-original.svg" style="height:46px"><span style="font-size:20px;color:#3776ab">Python</span></div>
+    <div class="col" style="gap:2px;font-size:14px;color:#444;font-weight:600;align-items:flex-start">
+      <span>파싱 · 청킹 · 임베딩</span><span>검색 · 리랭킹 · 생성</span><span>품질 평가</span>
+    </div>
+  </div>
+  <div class="abs sub" style="left:0;right:0;top:204px">/internal/* · 호스트 포트를 열지 않는다</div>
+</div>
+<div class="abs title" style="left:1180px;top:702px;width:334px">AI Service</div>
+
+<!-- Celery + Redis -->
+<div class="abs" style="left:1320px;top:750px;width:250px;height:100px;border:3px dashed #222;border-radius:20px;background:#fff;display:flex;align-items:center;justify-content:center;gap:16px">
+  <div class="row" style="gap:6px"><img src="logos/celery.svg" style="height:36px"><span style="font-size:20px;color:#37814A">Celery</span></div>
+  <div class="row" style="gap:6px"><img src="logos/redis-original.svg" style="height:38px"><span style="font-size:20px;color:#d82c20">Redis</span></div>
+</div>
+<div class="abs sub" style="left:1320px;top:856px;width:250px;color:#222;font-size:15px">문서 처리 워커</div>
+
+<!-- ─────────────── LLM API ─────────────── -->
+<div class="abs solid" style="left:1688px;top:446px;width:286px;height:244px">
+  <div class="abs" style="left:24px;top:24px;right:16px">
+    <div class="row" style="gap:10px"><img src="logos/cloudflareworkers.svg" style="height:40px"><span style="font-size:22px;line-height:1.1">Cloudflare<br>Workers AI</span></div>
+    <div class="sub" style="text-align:left;margin:6px 0 0 50px">임베딩 · 답변 생성 · 채점</div>
+  </div>
+  <div class="abs" style="left:24px;top:136px;right:16px">
+    <div class="row" style="gap:10px"><img src="logos/gemini.svg" style="height:40px"><span style="font-size:22px;line-height:1.1">Google<br>Gemini</span></div>
+    <div class="sub" style="text-align:left;margin:6px 0 0 50px">평가 질문 생성</div>
+  </div>
+</div>
+<div class="abs title" style="left:1688px;top:700px;width:286px;font-size:20px">LLM API</div>
+
+</body>
+</html>
