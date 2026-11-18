@@ -12,6 +12,7 @@
 """
 from __future__ import annotations
 
+import asyncio
 import time
 
 import httpx
@@ -62,9 +63,44 @@ def _check_finish() -> None:
     check("실패한 호출은 뉴런에 안 들어간다", cf.neurons_used().get(model) == 1.5)
 
 
+def _check_arun_matches_run() -> None:
+    """🔴 같은 응답을 받으면 run 과 arun 이 <같은 결과>를 내야 한다.
+
+    네트워크 없이 재려고 httpx 의 MockTransport 를 쓴다(요청을 보내는 대신 함수가 응답을 만든다).
+    _client/_aclient 를 갈아 끼우므로 Cloudflare 키도 필요 없다.
+    """
+    cases = [("성공", 200, OK_BODY), ("success:false", 200, FAIL_BODY), ("HTTP 500", 500, {})]
+    real_client, real_aclient = cf._client, cf._aclient
+    try:
+        for name, status, body in cases:
+            def handler(request: httpx.Request, status=status, body=body) -> httpx.Response:
+                return httpx.Response(status, json=body)
+
+            sync_client = httpx.Client(transport=httpx.MockTransport(handler))
+            async_client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+            cf._client = lambda c=sync_client: c
+            cf._aclient = lambda c=async_client: c
+
+            want = _outcome(lambda: cf.run("@test/sync", {}))
+            # asyncio.run(코루틴) 은 이벤트 루프를 하나 만들어 코루틴을 끝까지 돌린다.
+            got = _outcome(lambda: asyncio.run(cf.arun("@test/async", {})))
+            check(f"{name}: run == arun", want == got, f"(run={want}, arun={got})")
+        # 뉴런·지연 기록도 같아야 한다(성공 1건만 뉴런, 3건 모두 지연).
+        check("뉴런 기록이 같다",
+              cf.neurons_used().get("@test/sync") == cf.neurons_used().get("@test/async") == 1.5)
+        # .get 으로 꺼낸다 — arun 이 지연을 아예 안 적으면 KeyError 로 죽는 대신 FAIL 로 보이게.
+        lat = cf.latency_percentiles()
+        check("지연 count 가 같다",
+              lat.get("@test/sync", {}).get("count")
+              == lat.get("@test/async", {}).get("count") == 3)
+    finally:
+        cf._client, cf._aclient = real_client, real_aclient
+
+
 def main() -> int:
     print("app/cf.py 응답 판정 점검")
     _check_finish()
+    _check_arun_matches_run()
     print(f"\n{'실패 ' + ', '.join(_failures) if _failures else '전부 통과'}")
     return 1 if _failures else 0
 

@@ -25,6 +25,7 @@ import httpx
 from .config import get_settings
 
 _http: httpx.Client | None = None
+_ahttp: httpx.AsyncClient | None = None
 
 
 def _headers() -> dict[str, str]:
@@ -93,6 +94,42 @@ def run(model: str, payload: dict) -> dict:
     started = time.perf_counter()
     resp = _client().post(url, json=payload)
     return _finish(model, resp, started)
+
+
+def _aclient() -> httpx.AsyncClient:
+    """async 판 클라이언트. <처음 부를 때> 만든다.
+
+    왜 lifespan 에서 미리 만들지 않나: 만드는 데 `await` 가 없어서 동시에 처음 들어온
+    요청끼리 경쟁할 틈이 없다(async 풀과 다른 점). 그리고 시작할 때 만들면 키가 없는
+    환경에서 서버가 아예 안 뜬다. 지금은 키가 없어도 뜨고 첫 호출에서 오류가 난다 —
+    그 동작을 유지한다.
+    """
+    global _ahttp
+    headers = _headers()
+    if _ahttp is None:
+        _ahttp = httpx.AsyncClient(headers=headers, timeout=120.0)  # 동기 판과 같은 값
+    return _ahttp
+
+
+async def arun(model: str, payload: dict) -> dict:
+    """run 의 async 판. 기다리는 줄(post)만 `await` 이고, 판정은 같은 _finish 다.
+
+    `await` 에서 이 함수는 멈추고, 그동안 이벤트 루프는 <다른 요청의 코드>를 돌린다.
+    스레드를 붙잡고 기다리던 동기 판과의 차이가 이 한 줄이다.
+    예외 종류(httpx.HTTPStatusError, httpx.TimeoutException …)는 동기 판과 같다.
+    """
+    url = _url(model)
+    started = time.perf_counter()
+    resp = await _aclient().post(url, json=payload)
+    return _finish(model, resp, started)
+
+
+async def aclose() -> None:
+    """lifespan 종료에서 부른다. 열린 연결을 정리한다."""
+    global _ahttp
+    if _ahttp is not None:
+        await _ahttp.aclose()
+        _ahttp = None
 
 
 # ── 뉴런(비용) 집계 ────────────────────────────────────────────────────
