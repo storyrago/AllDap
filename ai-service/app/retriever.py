@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import logging
 import re
+from dataclasses import dataclass
 
 from . import cf
 from .config import get_settings
@@ -41,6 +42,17 @@ def embed(texts: list[str], *, task_type: str = "RETRIEVAL_DOCUMENT") -> list[li
         batch = texts[i : i + s.embedding_batch_size]
         out.extend(cf.run(s.embedding_model, {"text": batch})["data"])
 
+    _check_embeddings(texts, out)
+    return out
+
+
+def _check_embeddings(texts: list[str], out: list[list[float]]) -> None:
+    """개수·차원 가드. 동기 embed 와 (나중에 생길) async aembed 가 함께 쓴다.
+
+    가드를 함수로 뺀 이유: 두 판이 각자 복사본을 들면 한쪽만 고쳐지는 날이 온다.
+    기다림(I/O)이 없는 판단이라 동기 함수 하나로 양쪽에서 그대로 부를 수 있다.
+    """
+    s = get_settings()
     if len(out) != len(texts):
         # 입력을 합쳐 벡터 1개만 돌려주는 모델을 쓰면 여기서 걸린다
         # (Gemini 의 embedding-2 가 그렇다). 조용히 뭉개진 채로 DB 에 들어가는 것보다
@@ -56,12 +68,119 @@ def embed(texts: list[str], *, task_type: str = "RETRIEVAL_DOCUMENT") -> list[li
             f"임베딩 차원이 설정과 다릅니다 (설정 {s.embedding_dim}, 응답 {len(out[0])}). "
             f"config 의 embedding_dim 과 DB 의 VECTOR(n) 을 함께 확인하세요."
         )
-    return out
 
 
 def embed_one(text: str) -> list[float]:
     """질문 하나를 임베딩."""
     return embed([text], task_type="RETRIEVAL_QUERY")[0]
+
+
+# ── 검색의 판단 로직 ─────────────────────────────────────────────
+# 아래 함수들은 기다림(DB·HTTP)이 없는 <순수한 판단>만 담는다. 동기 search 와
+# (나중에 생길) async asearch 가 같은 함수를 부르게 하려고 빼냈다.
+# 🔴 환각 억제 1차 방어선(판정·컷)이 여기 있다. 복사본을 만들면 채팅(async)과
+#    평가(동기)가 서로 다른 기준으로 fallback 하게 된다 — 고칠 때는 이 한 곳만 고친다.
+
+
+@dataclass(frozen=True)
+class _SearchPlan:
+    """검색 한 번의 설정값. 인자 None 을 설정 기본값으로 채운 결과다.
+
+    frozen=True 는 "만든 뒤 못 바꾼다" 는 뜻이다. 동기·async 가 같은 계획을 받아
+    도중에 한쪽만 값을 바꾸는 일을 문법으로 막는다.
+    """
+    top_k: int
+    max_distance: float
+    reranker: bool
+    hybrid: bool
+    limit: int
+
+
+def _plan(top_k: int | None, max_distance: float | None,
+          reranker: bool | None, hybrid: bool | None) -> _SearchPlan:
+    s = get_settings()
+    top_k = top_k or s.top_k
+    reranker = s.reranker_enabled if reranker is None else reranker
+    hybrid = s.hybrid_enabled if hybrid is None else hybrid
+    # 리랭커·하이브리드를 쓸 때만 후보를 넉넉히 가져온다. 안 쓸 때 더 가져오면 DB 부담만 는다.
+    limit = top_k
+    if reranker:
+        limit = max(limit, s.rerank_candidates)
+    if hybrid:
+        limit = max(limit, s.hybrid_candidates)
+    return _SearchPlan(
+        top_k=top_k,
+        max_distance=s.max_distance if max_distance is None else max_distance,
+        reranker=reranker,
+        hybrid=hybrid,
+        limit=limit,
+    )
+
+
+# <=> 는 pgvector의 코사인 거리 연산자 (0에 가까울수록 유사)
+_VECTOR_SQL = """
+        SELECT c.id, c.document_id, d.filename, c.content,
+               c.embedding <=> %s::vector AS distance
+        FROM chunks c
+        JOIN documents d ON d.id = c.document_id
+        WHERE c.bot_id = %s AND c.embedding IS NOT NULL
+        ORDER BY distance
+        LIMIT %s
+    """
+
+
+def _answerable(rows: list[tuple]) -> bool:
+    """판정: 근거가 <있는가> (_to_sources 의 max_distance 컷과 별개다).
+
+    rows 는 _VECTOR_SQL 이 돌려준 <벡터 후보 그대로>여야 한다(하이브리드를 합치기 전).
+    """
+    # ── 판정: 근거가 <있는가> (아래 max_distance 컷과 별개다) ─────────
+    #
+    # ⚠️ rows[0] 은 <벡터 최근접>이고, 하이브리드 재정렬 <전에> 봐야 한다:
+    #      · rows 는 ORDER BY distance 로 왔으므로 rows[0] 이 최근접이다.
+    #      · 하이브리드가 덧붙이는 키워드 행은 벡터 top-N <밖>이라 항상 이보다 멀다.
+    #      · 리랭커는 순서만 바꾸고 거리를 안 건드린다.
+    #    → 리랭커·하이브리드를 어떻게 켜든 판정값이 안 흔들린다.
+    #      편의가 아니라 <비교가 성립하기 위한 조건>이다. 판정이 설정에 따라 흔들리면
+    #      무엇 때문에 점수가 변했는지 알 수 없다(같은 이유로 아래 컷도 벡터 거리를 쓴다).
+    #
+    # 빈 목록을 돌려주면 generator.generate 가 LLM 을 안 부르고 fallback 한다.
+    # 새 상태도 새 경로도 만들지 않는다.
+    answerable = get_settings().answerable_max_distance
+    if answerable is None:
+        return True
+    return bool(rows) and rows[0][4] <= answerable
+
+
+def _merge_keyword_rows(rows: list[tuple], kw_rows: list[tuple], k: int) -> list[tuple]:
+    """키워드가 데려온 청크를 <벡터 후보 뒤에> 덧붙인다. 순서는 RRF 가 다시 매긴다."""
+    vec_order = [r[0] for r in rows]
+    seen = set(vec_order)
+    # rows + [...] 는 <새 리스트>를 만든다(+= 처럼 제자리에서 늘리지 않는다). 호출부의 리스트를
+    # 건드리지 않는다 — 판정에 쓴 벡터 후보가 합치기 뒤에도 그대로 남는다.
+    merged = rows + [r for r in kw_rows if r[0] not in seen]
+    return _rrf_reorder(merged, vec_order, [r[0] for r in kw_rows], k)
+
+
+def _to_sources(rows: list[tuple], max_distance: float) -> list[Source]:
+    """DB 행을 Source 로 바꾸면서 max_distance 를 넘는 행을 버린다(컷)."""
+    sources: list[Source] = []
+    for chunk_id, doc_id, filename, content, distance in rows:
+        # ⚠️ 키워드로 올라온 청크에도 <벡터 거리> 컷을 그대로 적용한다.
+        #    여기를 풀면 "질문의 단어가 우연히 들어 있을 뿐 관련 없는 청크"가 근거가 되고,
+        #    환각 억제 1차 방어선이 뚫린다. 성능을 이유로 완화하지 않는다.
+        if distance > max_distance:
+            continue
+        sources.append(
+            Source(
+                chunk_id=chunk_id,
+                document_id=doc_id,
+                filename=filename,
+                score=round(1.0 - float(distance), 4),
+                preview=content[:200],
+            )
+        )
+    return sources
 
 
 def search(
@@ -90,78 +209,26 @@ def search(
             리랭커를 켜면서 fallback 판정 기준까지 바뀌면 무엇 때문에 점수가 변했는지 모른다.
     """
     s = get_settings()
-    top_k = top_k or s.top_k
-    max_distance = s.max_distance if max_distance is None else max_distance
-    reranker = s.reranker_enabled if reranker is None else reranker
-    hybrid = s.hybrid_enabled if hybrid is None else hybrid
+    plan = _plan(top_k, max_distance, reranker, hybrid)
 
     qvec = embed_one(query)
-    # 리랭커·하이브리드를 쓸 때만 후보를 넉넉히 가져온다. 안 쓸 때 더 가져오면 DB 부담만 는다.
-    limit = top_k
-    if reranker:
-        limit = max(limit, s.rerank_candidates)
-    if hybrid:
-        limit = max(limit, s.hybrid_candidates)
-
-    # <=> 는 pgvector의 코사인 거리 연산자 (0에 가까울수록 유사)
-    sql = """
-        SELECT c.id, c.document_id, d.filename, c.content,
-               c.embedding <=> %s::vector AS distance
-        FROM chunks c
-        JOIN documents d ON d.id = c.document_id
-        WHERE c.bot_id = %s AND c.embedding IS NOT NULL
-        ORDER BY distance
-        LIMIT %s
-    """
     with cursor() as cur:
-        cur.execute(sql, (qvec, bot_id, limit))
+        cur.execute(_VECTOR_SQL, (qvec, bot_id, plan.limit))
         rows = list(cur.fetchall())
 
-    # ── 판정: 근거가 <있는가> (아래 max_distance 컷과 별개다) ─────────
-    #
-    # ⚠️ rows[0] 은 <벡터 최근접>이고, 하이브리드 재정렬 <전에> 봐야 한다:
-    #      · rows 는 ORDER BY distance 로 왔으므로 rows[0] 이 최근접이다.
-    #      · 하이브리드가 덧붙이는 키워드 행은 벡터 top-N <밖>이라 항상 이보다 멀다.
-    #      · 리랭커는 순서만 바꾸고 거리를 안 건드린다.
-    #    → 리랭커·하이브리드를 어떻게 켜든 판정값이 안 흔들린다.
-    #      편의가 아니라 <비교가 성립하기 위한 조건>이다. 판정이 설정에 따라 흔들리면
-    #      무엇 때문에 점수가 변했는지 알 수 없다(같은 이유로 아래 컷도 벡터 거리를 쓴다).
-    #
+    # 판정은 하이브리드를 합치기 <전의> 벡터 후보로 한다(_answerable 주석 참고).
     # 빈 목록을 돌려주면 generator.generate 가 LLM 을 안 부르고 fallback 한다.
-    # 새 상태도 새 경로도 만들지 않는다.
-    answerable = s.answerable_max_distance
-    if answerable is not None and (not rows or rows[0][4] > answerable):
+    if not _answerable(rows):
         return []
 
-    if hybrid:
-        # 키워드가 데려온 청크를 <벡터 후보 뒤에> 덧붙인다. 순서는 아래 RRF 가 다시 매긴다.
-        vec_order = [r[0] for r in rows]
+    if plan.hybrid:
         kw_rows = _keyword_rows(bot_id, query, qvec, s.hybrid_candidates)
-        seen = set(vec_order)
-        rows += [r for r in kw_rows if r[0] not in seen]
-        rows = _rrf_reorder(rows, vec_order, [r[0] for r in kw_rows], s.hybrid_rrf_k)
+        rows = _merge_keyword_rows(rows, kw_rows, s.hybrid_rrf_k)
 
-    sources: list[Source] = []
-    for chunk_id, doc_id, filename, content, distance in rows:
-        # ⚠️ 키워드로 올라온 청크에도 <벡터 거리> 컷을 그대로 적용한다.
-        #    여기를 풀면 "질문의 단어가 우연히 들어 있을 뿐 관련 없는 청크"가 근거가 되고,
-        #    환각 억제 1차 방어선이 뚫린다. 성능을 이유로 완화하지 않는다.
-        if distance > max_distance:
-            continue
-        sources.append(
-            Source(
-                chunk_id=chunk_id,
-                document_id=doc_id,
-                filename=filename,
-                score=round(1.0 - float(distance), 4),
-                preview=content[:200],
-            )
-        )
-
-    if reranker and len(sources) > 1:
+    sources = _to_sources(rows, plan.max_distance)
+    if plan.reranker and len(sources) > 1:
         sources = _rerank(query, sources)
-
-    return sources[:top_k]
+    return sources[:plan.top_k]
 
 
 # 한국어 조사. 토큰 끝에 붙어 있으면 떼어낸다.
@@ -213,7 +280,22 @@ def _keyword_rows(bot_id: Id, query: str, qvec: list[float], limit: int) -> list
     keys = _keywords(query)
     if not keys:
         return []
-    sql = """
+    try:
+        with cursor() as cur:
+            cur.execute(_KEYWORD_SQL, (qvec, keys, bot_id, limit))
+            return list(cur.fetchall())
+    except Exception as e:  # noqa: BLE001 - 후보 확장 실패가 검색 실패가 되면 안 된다
+        _log_keyword_failure(e)
+        return []
+
+
+def _log_keyword_failure(e: Exception) -> None:
+    """키워드 검색 실패 로그. 동기·async 판이 같은 문구를 남기도록 한 곳에 둔다."""
+    _log.warning("키워드 검색 실패(벡터 결과만 사용): %s: %s", type(e).__name__, e)
+
+
+# 인자 순서: (qvec, keys, bot_id, limit). _keyword_rows 의 docstring 이 이 질의의 설명이다.
+_KEYWORD_SQL = """
         SELECT id, document_id, filename, content, distance FROM (
             SELECT c.id, c.document_id, d.filename, c.content,
                    c.embedding <=> %s::vector AS distance,
@@ -228,13 +310,6 @@ def _keyword_rows(bot_id: Id, query: str, qvec: list[float], limit: int) -> list
         ORDER BY hits DESC, distance
         LIMIT %s
     """
-    try:
-        with cursor() as cur:
-            cur.execute(sql, (qvec, keys, bot_id, limit))
-            return list(cur.fetchall())
-    except Exception as e:  # noqa: BLE001 - 후보 확장 실패가 검색 실패가 되면 안 된다
-        _log.warning("키워드 검색 실패(벡터 결과만 사용): %s: %s", type(e).__name__, e)
-        return []
 
 
 def _rrf_reorder(items: list, order_a: list, order_b: list, k: int, *, key=lambda r: r[0]) -> list:
@@ -280,6 +355,17 @@ def _rerank(query: str, sources: list[Source]) -> list[Source]:
     대신 리랭커가 <옳게> 크게 끌어올린 것도 덜 올라간다. 그 값을 재는 것이 이 슬라이스다.
     """
     s = get_settings()
+    texts = _rerank_texts(sources, fetch_contents([src.chunk_id for src in sources]))
+    try:
+        order = _rerank_order(query, texts)
+    except Exception as e:  # noqa: BLE001 - 순서 개선 실패가 검색 실패가 되면 안 된다
+        _log_rerank_failure(e)
+        return sources
+    return _fuse(sources, order, fusion=s.rerank_fusion, k=s.rerank_fusion_k)
+
+
+def _rerank_texts(sources: list[Source], contents: dict[Id, str]) -> list[str]:
+    """리랭커에 넘길 본문. 전체 본문이 없으면 preview 로 대신한다."""
     # ⚠️ preview(앞 200자)가 아니라 <전체 본문>을 넘긴다.
     #
     # 🐛 처음엔 preview 를 넘겼고, 그 상태로 "리랭커가 벡터보다 나쁘다"고 판정했다.
@@ -289,23 +375,29 @@ def _rerank(query: str, sources: list[Source]) -> list[Source]:
     #
     # 교훈: <판단하는 쪽은 판단 대상이 본 것과 같은 것을 봐야 한다.>
     #       덜 보여주고 "못 맞힌다"고 판정하면 그건 모델이 아니라 우리 잘못이다.
-    contents = fetch_contents([src.chunk_id for src in sources])
-    texts = [contents.get(src.chunk_id, src.preview) for src in sources]
-    try:
-        order = _rerank_order(query, texts)
-    except Exception as e:  # noqa: BLE001 - 순서 개선 실패가 검색 실패가 되면 안 된다
-        # ⚠️ 로컬 제공자는 Cloudflare 에 없던 실패 모드를 들고 온다
-        #    (모델 파일 없음 · 의존성 없음 · 메모리 부족 · 스레드 고갈).
-        #    그래서 예외 종류를 좁히지 않는다. 다만 <어느 제공자에서> 떨어졌는지는 남긴다.
-        #    조용히 벡터 순서로 도는 것과, 그 사실을 아는 것은 다르다.
-        _log.warning(
-            "리랭킹 실패(원래 순서 유지) provider=%s: %s: %s",
-            s.reranker_provider, type(e).__name__, e,
-        )
-        return sources
+    return [contents.get(src.chunk_id, src.preview) for src in sources]
 
+
+def _log_rerank_failure(e: Exception) -> None:
+    """리랭킹 실패 로그. 동기·async 판이 같은 문구를 남기도록 한 곳에 둔다."""
+    # ⚠️ 로컬 제공자는 Cloudflare 에 없던 실패 모드를 들고 온다
+    #    (모델 파일 없음 · 의존성 없음 · 메모리 부족 · 스레드 고갈).
+    #    그래서 예외 종류를 좁히지 않는다. 다만 <어느 제공자에서> 떨어졌는지는 남긴다.
+    #    조용히 벡터 순서로 도는 것과, 그 사실을 아는 것은 다르다.
+    _log.warning(
+        "리랭킹 실패(원래 순서 유지) provider=%s: %s: %s",
+        get_settings().reranker_provider, type(e).__name__, e,
+    )
+
+
+def _fuse(sources: list[Source], order: list[int], *, fusion: bool, k: int) -> list[Source]:
+    """리랭커 순서를 적용하고, 융합이 켜져 있으면 들어온 순서와 RRF 로 합친다.
+
+    `*` 뒤의 인자는 키워드로만 받는다. fusion·k 를 위치로 넘기면 둘의 자리가
+    바뀌어도 눈에 안 띄기 때문이다.
+    """
     reranked = _apply_order(sources, order)
-    if not s.rerank_fusion:
+    if not fusion:
         return reranked
 
     # 들어온 순서(벡터 또는 하이브리드 RRF)와 리랭커 순서를 RRF 로 합친다.
@@ -313,7 +405,7 @@ def _rerank(query: str, sources: list[Source]) -> list[Source]:
         sources,
         [src.chunk_id for src in sources],
         [src.chunk_id for src in reranked],
-        s.rerank_fusion_k,
+        k,
         key=lambda src: src.chunk_id,
     )
 
@@ -328,15 +420,22 @@ def _rerank_order(query: str, texts: list[str]) -> list[int]:
     """
     s = get_settings()
     if s.reranker_provider == "cloudflare":
-        result = cf.run(s.reranker_model, {
-            "query": query,
-            "contexts": [{"text": text} for text in texts],
-        })
+        result = cf.run(s.reranker_model, _rerank_payload(query, texts))
     else:
         # 여기서 import 하는 이유: local_reranker 자체는 가볍지만(무거운 것은 그 안에서
         # 다시 늦게 import 한다), 제공자 파일을 고르는 자리가 여기임을 코드로 보이려는 것이다.
         from . import local_reranker
         result = local_reranker.rerank(query, texts, variant=s.reranker_provider)
+    return _order_of(result)
+
+
+def _rerank_payload(query: str, texts: list[str]) -> dict:
+    """Cloudflare 리랭커 요청 본문."""
+    return {"query": query, "contexts": [{"text": text} for text in texts]}
+
+
+def _order_of(result: dict) -> list[int]:
+    """제공자 응답 {"response": [{"id": 입력 인덱스, "score": …}, …]} 에서 순서만 꺼낸다."""
     return [item["id"] for item in result["response"]]
 
 

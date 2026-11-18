@@ -7,6 +7,7 @@ DB 도 외부 API 도 부르지 않는다 — 순수 함수(_keywords, _rrf_reor
 from __future__ import annotations
 
 from app import retriever
+from app.config import get_settings
 from app.retriever import _keywords, _rrf_reorder
 from app.schemas import Source
 
@@ -138,13 +139,53 @@ def _check_apply_order_keeps_missing_indexes() -> None:
     assert [s.chunk_id for s in out] == [2, 1, 3], [s.chunk_id for s in out]
 
 
+def _row(cid: int, distance: float) -> tuple:
+    """DB 행 모양 (id, document_id, filename, content, distance)."""
+    return (cid, 1, f"{cid}.pdf", f"본문{cid}", distance)
+
+
+def _check_shared_judgement() -> None:
+    """동기·async 검색이 <함께 쓰는> 판단 함수들. 환각 억제 1차 방어선이 여기 있다.
+
+    🔴 이 함수들을 두 판이 공유하는 것이 이 슬라이스의 핵심이다. 복사본이 생기면
+       채팅(async)과 평가(동기)가 서로 다른 기준으로 fallback 하게 된다.
+    """
+    a = get_settings().answerable_max_distance
+
+    # ① 판정: 행이 없으면 근거 없음. 단 판정값이 꺼져 있으면(None) 판정하지 않는다(원래 동작).
+    assert retriever._answerable([]) is (a is None)
+    if a is not None:
+        assert retriever._answerable([_row(1, a - 0.01)]), "최근접이 판정값 안인데 버렸다"
+        assert not retriever._answerable([_row(1, a + 0.01)]), "최근접이 판정값 밖인데 살렸다"
+
+    # ② 컷: max_distance 를 넘는 행은 빠진다(키워드로 올라왔어도). 점수는 1-거리.
+    out = retriever._to_sources([_row(1, 0.2), _row(2, 0.9), _row(3, 0.3)], 0.5)
+    assert [x.chunk_id for x in out] == [1, 3], [x.chunk_id for x in out]
+    assert out[0].score == 0.8 and out[0].preview == "본문1", out[0]
+
+    # ③ 하이브리드 합치기: 중복은 한 번만, 양쪽에 다 있는 2 가 맨 위.
+    merged = retriever._merge_keyword_rows(
+        [_row(1, 0.2), _row(2, 0.3)], [_row(2, 0.3), _row(3, 0.6)], k=60)
+    assert sorted(r[0] for r in merged) == [1, 2, 3], merged
+    assert merged[0][0] == 2, merged
+
+    # ④ 리랭크 적용: 융합을 끄면 리랭커 순서 그대로.
+    srcs = _sources(1, 2, 3)
+    assert [x.chunk_id for x in retriever._fuse(srcs, [2, 1, 0], fusion=False, k=60)] == [3, 2, 1]
+
+    # ⑤ 융합을 켜면 정반대 두 순서가 비긴다 — 1·3 이 동점(1/61+1/63)으로 2(2/62)보다
+    #    아주 조금 앞서고, 동점은 원래 순서를 지킨다(sorted 는 안정 정렬이다).
+    assert [x.chunk_id for x in retriever._fuse(srcs, [2, 1, 0], fusion=True, k=60)] == [1, 3, 2]
+
+
 def main() -> None:
     _check_keywords()
     _check_rrf()
     _check_rerank_fusion()
     _check_rerank_survives_provider_failure()
     _check_apply_order_keeps_missing_indexes()
-    print("OK — 낱말 추출 8가지 · RRF 4가지 · 리랭커 융합 3가지 · 제공자 실패 2가지 통과")
+    _check_shared_judgement()
+    print("OK — 낱말 추출 8가지 · RRF 4가지 · 리랭커 융합 3가지 · 제공자 실패 2가지 · 공유 판단 5가지 통과")
 
 
 if __name__ == "__main__":
