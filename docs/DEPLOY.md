@@ -2,6 +2,11 @@
 
 프론트는 **Vercel**, 앱은 **EC2 t3.micro 한 대**, DB 는 **RDS(Postgres 16 + pgvector)**.
 
+> 🔴 **이 문서는 지금 돌고 있는 운영이 아니라 <했던 배포의 기록>이다.** EC2 는 2026-11-13 에,
+> RDS 는 그 뒤에 지웠다(2026-11-19 에 삭제를 확인했다. 정확한 삭제일은 기록하지 않았다).
+> 백엔드가 붙을 운영 DB 가 없으므로, 지금 쓰는 DB 는 로컬 `docker compose` 의 `pgvector/pgvector:pg16`
+> 하나뿐이다. 다시 배포하려면 2절(RDS 생성)부터 새로 밟는다. 근거는 `docs/decisions.md` 2026-11-19 항목.
+
 ```
 [Vercel]  web  ──HTTPS──┐
                          ▼
