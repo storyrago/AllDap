@@ -30,6 +30,12 @@ SYSTEM_PROMPT = """당신은 조직의 내부 문서를 근거로 질문에 답�
 
 FALLBACK_TOKEN = "NO_ANSWER"
 
+# 동기 generate 와 (다음 단계의) async agenerate 의 기본 안내 문구. 두 군데 적으면 언젠가 갈린다.
+DEFAULT_FALLBACK = "문서에서 답을 찾지 못했어요. 담당자에게 문의해주세요."
+
+# 동기 fetch_bot_prompt 와 async 판이 같은 SQL 을 쓰도록 문자열을 하나로 둔다. 인자는 (bot_id,).
+_BOT_PROMPT_SQL = "SELECT system_prompt FROM bots WHERE id = %s"
+
 
 def fetch_bot_prompt(bot_id: Id) -> str | None:
     """봇에 설정된 `system_prompt` 를 읽는다. 없으면 None.
@@ -43,7 +49,7 @@ def fetch_bot_prompt(bot_id: Id) -> str | None:
        부수 효과로 Spring 은 한 줄도 안 고쳐도 된다.
     """
     with cursor() as cur:
-        cur.execute("SELECT system_prompt FROM bots WHERE id = %s", (bot_id,))
+        cur.execute(_BOT_PROMPT_SQL, (bot_id,))
         row = cur.fetchone()
     return row[0] if row else None
 
@@ -92,8 +98,13 @@ class GenerationFailed(RuntimeError):
     """
 
 
-def _build_context(sources: list[Source]) -> str:
-    contents = fetch_contents([s.chunk_id for s in sources])
+def _format_context(sources: list[Source], contents: dict[Id, str]) -> str:
+    """근거 블록을 조립한다. 본문을 <가져오는> 일은 부르는 쪽(동기·async)이 한다.
+
+    왜 나눴나: 본문 조회는 DB I/O 라 동기판과 async 판이 다르게 가져와야 하지만,
+    가져온 본문을 프롬프트로 엮는 방식은 <하나>여야 한다. 둘이 갈리면 채팅과 평가가
+    다른 프롬프트로 모델을 부르게 된다.
+    """
     blocks = []
     for i, src in enumerate(sources, 1):
         body = contents.get(src.chunk_id, src.preview)
@@ -101,43 +112,36 @@ def _build_context(sources: list[Source]) -> str:
     return "\n\n".join(blocks)
 
 
-def generate(
-    question: str,
-    sources: list[Source],
-    *,
-    system_prompt: str | None = None,
-    fallback_message: str = "문서에서 답을 찾지 못했어요. 담당자에게 문의해주세요.",
-) -> tuple[str, bool]:
-    """(답변, is_fallback) 반환.
+def _build_context(sources: list[Source]) -> str:
+    # ⚠️ `fetch_contents` 는 <모듈 전역에서> 찾는다. generator_check 가
+    #    `generator.fetch_contents` 를 갈아 끼워 DB 없이 돌기 때문이다.
+    return _format_context(sources, fetch_contents([s.chunk_id for s in sources]))
 
-    system_prompt 는 <이미 결합된> 최종 프롬프트다(`build_system_prompt` 의 결과).
-    이 함수가 직접 DB 를 읽지 않는 이유: 그러면 `generator_check` 와 `noanswer_check` 가
-    DB 없이 돌 수 없게 된다. 두 검사는 <모델이 규칙을 지키는가>만 보는 도구라
-    DB·검색과 분리돼 있어야 한다.
-    """
-    # 검색 단계에서 이미 걸러졌다면 LLM을 부를 필요도 없다 (비용 절감)
-    if not sources:
-        return fallback_message, True
 
+def _chat_payload(question: str, context: str, system_prompt: str | None) -> dict:
+    """모델에 보낼 요청 본문을 만든다. 동기 generate 와 async 판이 같은 요청을 보내게 한다."""
     s = get_settings()
-    user_content = (
-        f"<문서>\n{_build_context(sources)}\n</문서>\n\n"
-        f"질문: {question}"
-    )
-
-    result = cf.run(s.chat_model, {
+    return {
         "messages": [
             # Cloudflare 는 system instruction 을 별도 인자가 아니라 messages 의
             # role="system" 으로 받는다. Gemini 의 system_instruction 과 같은 자리다.
             {"role": "system", "content": system_prompt or SYSTEM_PROMPT},
-            {"role": "user", "content": user_content},
+            {"role": "user", "content": f"<문서>\n{context}\n</문서>\n\n질문: {question}"},
         ],
         "max_tokens": s.max_tokens,
         # 0 = 매번 같은 답. 이 제품은 문서에 있는 사실을 그대로 전달하는 것이 일이라
         # 표현을 바꿔 말하는 것은 기능이 아니라 위험이다. 평가도 이래야 재현된다.
         "temperature": s.chat_temperature,
-    })
+    }
 
+
+def _interpret_reply(result: dict, fallback_message: str) -> tuple[str, bool]:
+    """모델 응답을 (답변, is_fallback) 로 판정한다. 답변을 못 받았으면 GenerationFailed.
+
+    🔴 환각 억제 2차 방어선(NO_ANSWER)이 여기 있다. 동기 generate 와 async 판이
+       <이 함수 하나>를 부른다. 복사하면 채팅과 평가가 다른 기준으로 fallback 한다.
+    """
+    s = get_settings()
     answer = cf.text_of(result).strip()
     reason = cf.finish_reason(result)
 
@@ -174,3 +178,30 @@ def generate(
         )
 
     return answer, False
+
+
+def generate(
+    question: str,
+    sources: list[Source],
+    *,
+    system_prompt: str | None = None,
+    fallback_message: str = DEFAULT_FALLBACK,
+) -> tuple[str, bool]:
+    """(답변, is_fallback) 반환.
+
+    system_prompt 는 <이미 결합된> 최종 프롬프트다(`build_system_prompt` 의 결과).
+    이 함수가 직접 DB 를 읽지 않는 이유: 그러면 `generator_check` 와 `noanswer_check` 가
+    DB 없이 돌 수 없게 된다. 두 검사는 <모델이 규칙을 지키는가>만 보는 도구라
+    DB·검색과 분리돼 있어야 한다.
+
+    판정 로직은 `_interpret_reply`, 요청 조립은 `_chat_payload` 에 있다.
+    여기는 <I/O 를 어떻게 하느냐>(동기 DB 조회 · 동기 cf.run)만 남긴다.
+    ⚠️ `cf.run` 도 <모듈 속성으로> 부른다. generator_check 가 `cf.run` 을 갈아 끼운다.
+    """
+    # 검색 단계에서 이미 걸러졌다면 LLM을 부를 필요도 없다 (비용 절감)
+    if not sources:
+        return fallback_message, True
+
+    s = get_settings()
+    result = cf.run(s.chat_model, _chat_payload(question, _build_context(sources), system_prompt))
+    return _interpret_reply(result, fallback_message)
