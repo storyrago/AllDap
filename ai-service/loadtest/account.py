@@ -102,16 +102,16 @@ def _assert_local_db() -> str:
     return host
 
 
-def _user_id(email: str) -> str | None:
+def _user_id(email: str) -> int | None:
     from app.db import cursor
 
     with cursor() as cur:
         cur.execute("SELECT id FROM users WHERE email=%s", (email,))
         row = cur.fetchone()
-    return str(row[0]) if row else None
+    return row[0] if row else None
 
 
-def _bot_owner_email(bot_id: str) -> tuple[str | None, str | None]:
+def _bot_owner_email(bot_id: int) -> tuple[str | None, str | None]:
     """(봇 이름, 현재 주인 이메일). 주인이 없으면 이메일이 None."""
     from app.db import cursor
 
@@ -127,7 +127,7 @@ def _bot_owner_email(bot_id: str) -> tuple[str | None, str | None]:
     return row[0], row[1]
 
 
-def _move_bot(bot_id: str, user_id: str) -> None:
+def _move_bot(bot_id: int, user_id: int) -> None:
     from app.db import cursor
 
     with cursor(commit=True) as cur:

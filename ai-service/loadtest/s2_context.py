@@ -215,7 +215,7 @@ def judge_fake_cf(before: dict[str, dict], after: dict[str, dict]) -> tuple[bool
     return True, f"OK   가짜 CF 확인: 워밍업 호출 {called}, 뉴런 증가 0"
 
 
-def _assert_fake_cf(ai_base: str, bot_id: str) -> dict[str, int]:
+def _assert_fake_cf(ai_base: str, bot_id: int) -> dict[str, int]:
     """측정을 시작하기 <전에> 실제로 도는 ai-service 를 상대로 확인한다.
 
     ⚠️ 사후 대조가 아니라 여기여야 한다. 다 돌리고 나서 알아봐야 뉴런은 이미 탔다.
@@ -344,7 +344,7 @@ def _pick_bot(bots: list[dict]) -> dict:
     return sorted(bots, key=lambda b: (-b["documentCount"], b["createdAt"]))[0]
 
 
-def _corpus(bot_id: str) -> dict:
+def _corpus(bot_id: int) -> dict:
     """코퍼스 크기. API 가 아니라 DB 에서 직접 센다. 청크 수는 API 가 안 준다."""
     from app.db import cursor
 

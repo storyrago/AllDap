@@ -2,7 +2,7 @@
 
 실행:
     cd ai-service && .venv/bin/python -m loadtest.s1_baseline \
-        --bot-id 628d2785-a128-486c-a1ac-556f19f06de3
+        --bot-id 1
 
 🔴 하루 한도의 94% 를 태운다. 다른 측정이 없는 날에 돌릴 것.
 
