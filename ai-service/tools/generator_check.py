@@ -22,8 +22,10 @@ noanswer_check 판정문구 · 이것 — AGENTS.md 의 "낸 버그" 절) 다음
 """
 from __future__ import annotations
 
+import asyncio
+
 from app import cf, generator
-from app.generator import FALLBACK_TOKEN, GenerationFailed, generate
+from app.generator import FALLBACK_TOKEN, GenerationFailed, agenerate, generate
 from app.schemas import Source
 
 FALLBACK_MSG = "문서에서 답을 찾지 못했어요."
@@ -50,6 +52,13 @@ def _reply(text: str, reason: str | None = "stop") -> dict:
 def _run(result: dict):
     """cf.run 을 대신할 가짜. 무엇을 물어보든 정해진 응답을 돌려준다."""
     return lambda model, payload: result
+
+
+def _arun(result: dict):
+    """cf.arun 을 대신할 가짜. `async def` 라서 부르는 쪽이 await 할 수 있다."""
+    async def fake(model, payload):
+        return result
+    return fake
 
 
 def _check_bot_prompt() -> None:
@@ -84,26 +93,45 @@ def main() -> None:
     # `from app.retriever import fetch_contents` 로 <generator 의 이름공간에> 묶여 있으므로
     # retriever 가 아니라 generator 쪽을 갈아끼워야 한다. DB 를 안 부르게 하는 것이 목적이다.
     generator.fetch_contents = lambda ids: {}
+
+    # async 판도 같은 이유로 갈아 끼운다. agenerate 가 await 하므로 가짜도 async def 여야 한다.
+    async def _no_contents(ids):
+        return {}
+
+    generator.afetch_contents = _no_contents
     real_run = cf.run
+    real_arun = cf.arun
     ok = 0
 
     def case(name: str, result: dict | None, expect_fallback: bool | None,
              *, sources: list[Source] | None = None) -> None:
-        """expect_fallback: True=fallback / False=정상답변 / None=GenerationFailed"""
+        """expect_fallback: True=fallback / False=정상답변 / None=GenerationFailed
+
+        🔴 같은 응답을 동기 generate 와 async agenerate 에 <둘 다> 넣는다. 판정 함수
+           (_interpret_reply)를 공유하므로 둘이 갈리면 그건 공유가 깨졌다는 뜻이다.
+        """
         nonlocal ok
         cf.run = _run(result) if result is not None else real_run
+        cf.arun = _arun(result) if result is not None else real_arun
         srcs = _sources() if sources is None else sources
-        try:
-            answer, is_fallback = generate("노트북 교체 주기는?", srcs,
-                                           fallback_message=FALLBACK_MSG)
-        except GenerationFailed as e:
-            got = f"실패({str(e)[:40]}…)"
-            passed = expect_fallback is None
-        else:
-            got = f"fallback={is_fallback} answer={answer[:24]!r}"
-            passed = expect_fallback is not None and is_fallback is expect_fallback
-        ok += passed
-        print(f"  {'✅' if passed else '❌'} {name}\n       → {got}")
+        # lambda 로 감싸 <아직 부르지 않은> 호출 둘을 만든다. 아래 루프가 하나씩 부르고
+        # 같은 try/except 로 판정한다. async 쪽은 asyncio.run 이 코루틴을 끝까지 돌린다.
+        calls = (
+            ("동기", lambda: generate("노트북 교체 주기는?", srcs, fallback_message=FALLBACK_MSG)),
+            ("async", lambda: asyncio.run(
+                agenerate("노트북 교체 주기는?", srcs, fallback_message=FALLBACK_MSG))),
+        )
+        for label, call in calls:
+            try:
+                answer, is_fallback = call()
+            except GenerationFailed as e:
+                got = f"실패({str(e)[:40]}…)"
+                passed = expect_fallback is None
+            else:
+                got = f"fallback={is_fallback} answer={answer[:24]!r}"
+                passed = expect_fallback is not None and is_fallback is expect_fallback
+            ok += passed
+            print(f"  {'✅' if passed else '❌'} [{label}] {name}\n       → {got}")
 
     print("generator.generate 판정 검사\n")
 
@@ -131,13 +159,14 @@ def main() -> None:
          _reply("노트북 교체 주기는 3년입니다.", None), False)
 
     cf.run = real_run
+    cf.arun = real_arun
 
     # 봇별 지침 결합 — LLM 을 안 부르는 순수 검사라 여기 붙인다.
     _check_bot_prompt()
     print("  ✅ 봇별 지침을 붙여도 기본 규칙과 NO_ANSWER 가 살아남는다 (4가지)")
 
-    print(f"\n{ok}/8 통과")
-    if ok != 8:
+    print(f"\n{ok}/16 통과")
+    if ok != 16:
         raise SystemExit(1)
 
 
