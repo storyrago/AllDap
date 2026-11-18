@@ -33,8 +33,11 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from app.config import get_settings
 
-# 평가에 쓰는 봇(코퍼스 50문서 · 306청크). fallback_e2e_check 와 같은 값이다.
-BOT_ID = "628d2785-a128-486c-a1ac-556f19f06de3"
+# 평가에 쓰는 봇. fallback_e2e_check 의 EVAL_BOT_ID 와 같은 값이다.
+# 🔴 2026-09-13 BIGINT 전환(V9)으로 옛 UUID 봇은 사라졌다. 지금은 데모 봇 1 이 코퍼스를 가진다
+#    (2026-11-18 기준 56문서 · 360청크. 9월 측정의 50문서 · 306청크와 <다른 코퍼스>라
+#    9월 수치와 이어 붙이지 않는다).
+BOT_ID = 1
 
 # S1 실측값이다(2026-09-10, loadtest/results/S1-2026-09-10.json · 표본 327건).
 # per_model[*].p50 을 반올림했다: 234.986 · 413.973 · 936.853.
