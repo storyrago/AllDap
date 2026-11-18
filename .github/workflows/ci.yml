@@ -269,6 +269,7 @@ jobs:
           python -m tools.evalrun_check
           python -m tools.evaluator_check
           python -m tools.generator_check
+          python -m tools.cf_check
           python -m tools.conflicts_check
           python -m tools.metrics_check
           python -m tools.openapi_check
