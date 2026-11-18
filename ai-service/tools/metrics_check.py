@@ -103,6 +103,7 @@ def main() -> int:
             "alldap_db_apool_available",
             "alldap_db_apool_requests_waiting",
             "alldap_db_apool_open",
+            "alldap_event_loop_lag_seconds",
         ):
             check(f"본문에 {name}", name in body)
 
@@ -176,6 +177,29 @@ def main() -> int:
     for name in ("open", "size", "max", "available", "requests_waiting"):
         got = _value(f"alldap_db_apool_{name}")
         check(f"async 풀이 없어지면 {name} == 0", got == 0.0, f"(={got})")
+
+    # ⑩ 루프 지연 지표가 <막힘을 실제로 잡는가>. 0.3초짜리 동기 sleep 으로 루프를 일부러 막는다.
+    #    값이 굳어 있으면 "숨은 동기 호출이 없다" 와 "계측이 고장 났다" 가 같은 그림이 된다.
+    import asyncio
+
+    async def _lag_scenario() -> float:
+        task = asyncio.create_task(metrics.watch_event_loop_lag(0.05))
+        await asyncio.sleep(0.2)
+        time.sleep(0.3)          # 🔴 일부러 루프를 막는다(await 없는 sleep)
+        await asyncio.sleep(0.2)
+        task.cancel()
+        metrics.sample_event_loop_lag()
+        return _value("alldap_event_loop_lag_seconds")
+
+    lag = asyncio.run(_lag_scenario())
+    check("루프를 0.3초 막으면 지연 지표 >= 0.2", lag >= 0.2, f"(={lag:.3f})")
+
+    # ⑪ 채팅 라우트가 코루틴인가. 🔴 def 로 되돌아가도 응답은 멀쩡해서 눈으로는 못 잡는다.
+    #    inspect.iscoroutinefunction 은 "async def 로 정의됐는가" 를 True/False 로 알려준다.
+    import inspect
+
+    from app import main as app_main  # noqa: PLC0415
+    check("chat 은 async def", inspect.iscoroutinefunction(app_main.chat))
 
     print(f"\n{'실패 ' + ', '.join(_failures) if _failures else '전부 통과'}")
     return 1 if _failures else 0
