@@ -20,6 +20,10 @@ prometheus_client 의 기본 레지스트리는 <프로세스 안의> 카운터�
 """
 from __future__ import annotations
 
+import asyncio
+import time
+from collections import deque
+
 import anyio.to_thread
 from prometheus_client import CONTENT_TYPE_LATEST, Gauge, Histogram, generate_latest
 
@@ -31,6 +35,7 @@ from . import db
 # anyio 의 <기본 스레드풀>에서 처리한다. 그 풀의 상한이 40 이고, 한 요청이
 # 최소 1.586초(embed 235 + rerank 414 + generate 937) 걸린다.
 # 즉 동시 40건을 넘기는 순간 41번째부터는 <일을 시작조차 못 하고> 큐에서 기다린다.
+# ⚠️ 2026-11-18 채팅은 async def 로 바뀌었다. 이 지표는 이제 <채팅이 아닌> def 라우트·평가·로컬 리랭커의 스레드 사용만 보인다.
 ANYIO_THREADS_BORROWED = Gauge(
     "alldap_anyio_threads_borrowed",
     "anyio 기본 스레드풀에서 지금 쓰이고 있는 스레드 수",
@@ -81,6 +86,12 @@ CHAT_DURATION = Histogram(
 #
 # ⚠️ 뺄셈 식은 Spring 이 Python 을 <동기로 1:1 호출한다>는 전제 위에 선다. 그 전제가
 #    깨지면(비동기 큐 도입 등) 이 식도 함께 무효다.
+#
+# 🔴 2026-11-18 채팅이 async def 가 됐다. inc() 가 이제 <스레드를 얻은 뒤>가 아니라
+#    요청이 루프에 들어오자마자 불리므로, inflight 는 Python 안에서 기다리는 요청까지 센다.
+#    borrowed 는 채팅 부하에서 0 근처에 머물고, 위 뺄셈 식(대기 큐)은 async 채팅에는 무효다.
+#    async 이후의 대기는 alldap_db_apool_requests_waiting 과 루프 지연으로 읽는다.
+#    9월 수치와 inflight 를 이어 붙이지 말 것 — 같은 이름이 다른 것을 센다.
 CHAT_INFLIGHT = Gauge(
     "alldap_chat_inflight",
     "지금 /internal/chat 을 실제로 처리 중인 요청 수 (대기 큐 아님. 큐는 "
@@ -226,9 +237,59 @@ def sample_db_apool() -> None:
                       DB_APOOL_AVAILABLE, DB_APOOL_WAITING)
 
 
+# ── async 채팅의 숨은 벽: 이벤트 루프를 막는 동기 호출 ──────────────────
+#
+# 채팅이 async 가 되면 <루프 하나>가 모든 채팅을 돌린다. 그 안에서 누가 await 없이
+# 오래 걸리는 일(동기 DB 호출, CPU 계산)을 하면 그동안 다른 채팅이 전부 멈춘다.
+# 처리량이 기대보다 낮을 때 "숨은 동기 호출" 과 "DB 풀 부족" 을 가르는 장치다
+# (풀 부족은 alldap_db_apool_requests_waiting 이 말한다).
+#
+# 재는 법: 작은 작업이 interval 마다 "깨워 달라" 하고, 실제로 늦게 깨어난 만큼을 적는다.
+#
+# 🔴 게이지에는 <최근 15초 동안의 최댓값>을 낸다. 마지막 값만 내면 15초 스크레이프 사이의
+#    순간 막힘을 거의 다 놓친다. 그렇다고 스크레이프할 때 0 으로 되돌리면 안 된다 —
+#    Prometheus 와 s2_probe 가 <둘 다> 긁으므로 한쪽이 지운 값을 다른 쪽이 못 본다.
+#    그래서 지우지 않고 창(deque)으로 들고 있다.
+#    deque(maxlen=2000) 은 꽉 차면 가장 오래된 것부터 저절로 버린다. 0.1초 간격이면
+#    200초 분량이라 15초 창을 넉넉히 덮는다.
+_LAG_WINDOW_S = 15.0
+_lags: deque[tuple[float, float]] = deque(maxlen=2000)
+
+EVENT_LOOP_LAG = Gauge(
+    "alldap_event_loop_lag_seconds",
+    "최근 15초 동안 이벤트 루프가 늦게 깨어난 최대 시간(초). 튀면 루프를 막는 동기 호출이 있다",
+)
+
+
+def record_loop_lag(seconds: float) -> None:
+    _lags.append((time.monotonic(), seconds))
+
+
+async def watch_event_loop_lag(interval: float = 0.1) -> None:
+    """lifespan 이 띄우고 종료 때 cancel 한다. 끝나지 않는 루프다."""
+    loop = asyncio.get_running_loop()
+    while True:
+        started = loop.time()
+        await asyncio.sleep(interval)
+        # 정확히 interval 뒤에 깨어나야 정상이다. 넘친 만큼이 지연이다.
+        record_loop_lag(max(0.0, loop.time() - started - interval))
+
+
+def sample_event_loop_lag() -> None:
+    cutoff = time.monotonic() - _LAG_WINDOW_S
+    recent = [lag for t, lag in _lags if t >= cutoff]
+    # 🔴 창이 비면 0 이 아니라 NaN 이다. 감시 작업은 0.1초마다 기록하므로 15초 창이 비었다는
+    #    것은 <감시가 죽었거나 아직 안 돌았다>는 뜻이다. 0 을 내면 "루프가 전혀 안 막혔다" 와
+    #    같은 값이 되어, 감시가 예외로 죽어도 계기판은 건강하다고 말한다.
+    #    NaN 은 Prometheus 노출에 "NaN" 으로 나가고, loadtest.promtext 는 그것을 MetricUnreadable
+    #    로 읽는다(= 0 으로도 <없음>으로도 읽지 않는다).
+    EVENT_LOOP_LAG.set(max(recent) if recent else float("nan"))
+
+
 def render() -> tuple[bytes, str]:
     """스크레이프 응답 본문과 Content-Type. 이벤트 루프에서만 부를 것."""
     sample_anyio_threads()
     sample_db_pool()
     sample_db_apool()
+    sample_event_loop_lag()
     return generate_latest(), CONTENT_TYPE_LATEST

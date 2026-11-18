@@ -3,6 +3,7 @@
 실행:
     cd ai-service && .venv/bin/python -m tools.fallback_e2e_check
     cd ai-service && .venv/bin/python -m tools.fallback_e2e_check --guard-only   # LLM 호출 없이 질문만 점검
+    cd ai-service && EVAL_BOT_ID=1 .venv/bin/python -m tools.fallback_e2e_check --route   # 실제 async 채팅 라우트로
 
 `noanswer_check` 와 무엇이 다른가 (헷갈리기 쉬우니 반드시 구분할 것)
 ─────────────────────────────────────────────────────────────────────────────
@@ -251,26 +252,52 @@ def main() -> None:
     system_prompt = build_system_prompt(bot_prompt)
     print(f"봇 지침: {'있음 (프로덕션과 동일하게 결합해 태운다)' if bot_prompt else '없음 (기본 규칙만)'}\n")
 
+    route = "--route" in sys.argv
+    client = None
+    if route:
+        # 🔴 실제 FastAPI 라우트(async chat)를 탄다. TestClient 를 with 로 열어야
+        #    lifespan 이 돌아 async 풀이 열린다. 여기서는 with 블록 대신 __enter__ 를 직접
+        #    불러 열고 끝에서 __exit__ 로 닫는다(아래 세 루프를 들여쓰지 않으려는 것이다).
+        #    라우트는 봇 지침을 <스스로> 읽으므로 위 system_prompt 는 이 갈래에서 쓰지 않는다
+        #    (같은 build_system_prompt 로 결합한다).
+        from fastapi.testclient import TestClient
+
+        from app.main import app
+        client = TestClient(app)
+        client.__enter__()
+        print("경로: POST /internal/chat (async 라우트)\n")
+
+    def ask(question: str) -> tuple[str, bool, int]:
+        """(답변, is_fallback, 근거 수). 갈래와 무관하게 같은 모양을 돌려준다."""
+        if client is None:
+            sources = search(bot_id, question)
+            answer, is_fallback = generate(question, sources, system_prompt=system_prompt)
+            return answer, is_fallback, len(sources)
+        resp = client.post("/internal/chat", json={"bot_id": bot_id, "message": question})
+        # 503(GENERATION_INCOMPLETE) 등은 여기서 예외로 멈춘다. fallback 으로 세면 안 되는
+        # "답을 못 받았다" 이기 때문이다(generate 의 GenerationFailed 와 같은 취급).
+        resp.raise_for_status()
+        body = resp.json()
+        return body["answer"], body["is_fallback"], len(body["sources"])
+
     print("── 근거 없는 질문 (fallback 이 나와야 한다) ──")
     fallbacks = 0
     cut_by_search = 0
     for question, _ in UNGROUNDED:
-        sources = search(bot_id, question)
-        answer, is_fallback = generate(question, sources, system_prompt=system_prompt)
+        answer, is_fallback, n_sources = ask(question)
         fallbacks += is_fallback
         # 근거가 0건이면 1차 방어선(max_distance)이 잡은 것 = LLM 을 아예 안 불렀다.
         line = "✅" if is_fallback else "❌"
-        where = "검색컷" if not sources else "생성"
-        cut_by_search += not sources
-        print(f"  {line} [{where}] {question[:30]:32s} 근거 {len(sources)}건")
+        where = "검색컷" if n_sources == 0 else "생성"
+        cut_by_search += n_sources == 0
+        print(f"  {line} [{where}] {question[:30]:32s} 근거 {n_sources}건")
         if not is_fallback:
             print(f"      🔴 답해버렸습니다: {answer[:70]}")
 
     print("\n── 대조군 (답해야 한다) ──")
     answered = 0
     for question, expect in GROUNDED:
-        sources = search(bot_id, question)
-        answer, is_fallback = generate(question, sources, system_prompt=system_prompt)
+        answer, is_fallback, n_sources = ask(question)
         hit = (not is_fallback) and (expect in answer)
         answered += hit
         print(f"  {'✅' if hit else '❌'} {question[:30]:32s} → {answer[:44]}")
@@ -279,8 +306,7 @@ def main() -> None:
     print("\n── 알려진 검색 한계 (기본 설정이 못 찾는다 · 실패로 세지 않음) ──")
     recovered = 0
     for question, expect in KNOWN_RETRIEVAL_GAP:
-        sources = search(bot_id, question)
-        answer, is_fallback = generate(question, sources, system_prompt=system_prompt)
+        answer, is_fallback, n_sources = ask(question)
         hit = (not is_fallback) and (expect in answer)
         recovered += hit
         mark = "🎉 이제 답한다 — 목록에서 빼고 GROUNDED 로 옮길 것" if hit else "예상대로 못 찾음"
@@ -289,6 +315,8 @@ def main() -> None:
     print(f"\nfallback {fallbacks}/{len(UNGROUNDED)} (기준 {PASS_THRESHOLD}) "
           f"· 그중 검색컷 {cut_by_search}건 · 대조군 {answered}/{len(GROUNDED)}"
           f" · 알려진 한계 {recovered}/{len(KNOWN_RETRIEVAL_GAP)} 회복")
+    if client is not None:
+        client.__exit__(None, None, None)
     if fallbacks < PASS_THRESHOLD or answered < len(GROUNDED):
         sys.exit(1)
 

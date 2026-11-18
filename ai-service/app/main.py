@@ -7,6 +7,8 @@ AI 관련 작업만 이 서비스로 위임(REST)한다.
 """
 from __future__ import annotations
 
+import asyncio
+import contextlib
 import logging
 import time
 from contextlib import asynccontextmanager
@@ -18,7 +20,7 @@ from kombu.exceptions import OperationalError as BrokerUnavailable
 from . import cf, conflicts, evaluator, evalrun, metrics, retriever, storage
 from .config import get_settings
 from .db import close_async_pool, close_pool, cursor, open_async_pool
-from .generator import GenerationFailed, build_system_prompt, fetch_bot_prompt, generate
+from .generator import GenerationFailed, afetch_bot_prompt, agenerate, build_system_prompt
 from .parsers import ParseError
 from .schemas import (
     ChatRequest,
@@ -92,13 +94,18 @@ async def lifespan(app: FastAPI):
     # lifespan 이 `async def` 라서 여기서 바로 `await` 할 수 있다 — 이벤트 루프 위에서 도는
     # 자리라 async 풀을 만들기에 맞다(async 풀은 만든 루프에 묶인다).
     await open_async_pool()
+    # 루프 지연 감시. create_task 는 "기다리지 않고 옆에서 돌게" 띄운다.
+    lag_task = asyncio.create_task(metrics.watch_event_loop_lag())
     yield
+    lag_task.cancel()
+    # cancel() 은 <요청>일 뿐이라 실제로 끝날 때까지 await 한다. 그때 나오는
+    # CancelledError 는 우리가 부른 취소의 정상 결과라 삼킨다.
+    with contextlib.suppress(asyncio.CancelledError):
+        await lag_task
     # 🔴 닫는 순서: async 풀 → async HTTP → 동기 풀. 만든 쪽의 역순이다.
     #    kill -9 처럼 이 줄까지 오지 못하는 종료에서는 DB 가 끊긴 연결을 나중에 정리한다.
     await close_async_pool()
-    # TODO(async-chat): 여기, async 풀 닫기 <다음>·동기 풀 닫기 <앞>에 `await cf.aclose()` 를 넣는다.
-    #   cf.aclose(async HTTP 클라이언트 닫기)는 다른 PR(cf.arun)에서 생겨 아직 main 에 없다.
-    #   채팅 라우트를 `async def` 로 바꾸는 PR 에서 함께 넣을 것.
+    await cf.aclose()
     close_pool()
 
 
@@ -519,7 +526,7 @@ def delete_document(bot_id: Id, doc_id: Id) -> None:
     summary="질문에 답한다 (검색 + 생성)",
     description=_NO_DESCRIPTION,
 )
-def chat(req: ChatRequest) -> ChatResponse:
+async def chat(req: ChatRequest) -> ChatResponse:
     """
     질문 하나를 받아 문서에서 근거를 찾고 답변을 만든다. 이 제품의 핵심 경로다.
 
@@ -527,9 +534,9 @@ def chat(req: ChatRequest) -> ChatResponse:
 
     🔴 <b>환각 억제가 두 겹이다. 성능·편의를 이유로 완화하지 말 것.</b>
 
-    1. <b>검색 단계</b> (`retriever.search`). 벡터 최근접 거리가
+    1. <b>검색 단계</b> (`retriever.asearch`, 동기 `search` 와 판정 함수를 공유한다). 벡터 최근접 거리가
        `answerable_max_distance` 보다 멀면 근거를 <통째로 버린다>. 그러면
-       `generator.generate` 가 <b>LLM 을 아예 부르지 않고</b> 곧바로 fallback 한다
+       `generator.agenerate` 가 <b>LLM 을 아예 부르지 않고</b> 곧바로 fallback 한다
        (비용도 지연도 들지 않는다). 남은 청크에는 별도로 `max_distance` 컷이 걸린다.
        판정과 컷을 다른 값으로 나눠 둔 이유는 `retriever.search` 주석에 있다.
     2. <b>생성 단계</b>. 시스템 프롬프트가 "근거에 없으면 `NO_ANSWER` 만 답하라" 를
@@ -550,23 +557,23 @@ def chat(req: ChatRequest) -> ChatResponse:
     # 🔴 계측을 try/finally 로 감싼다. 아래 503(GenerationFailed) 경로도 <히스토그램에 들어가야>
     #    한다 — 30초 걸려 실패한 요청은 지연 통계에서 빠질 것이 아니라 거기 있어야 하는 사실이다.
     #    (cf._record_latency 가 raise_for_status 앞에 있는 것과 같은 이유)
-    # ⚠️ 여기는 워커 스레드다. anyio limiter 를 건드리면 NoEventLoopError 로 죽는다.
-    #    스레드풀 지표는 /internal/metrics(async) 가 스크레이프 시점에 읽는다.
-    #
-    # 🔴 여기가 워커 스레드라는 사실이 CHAT_INFLIGHT 의 의미도 정한다: 스레드를 못 받고
-    #    <기다리는> 요청은 이 줄까지 오지 못하므로 inflight 는 대기 큐를 세지 않는다.
-    #    대기 큐는 tomcat_threads_busy_threads - alldap_anyio_threads_borrowed 로 읽는다.
-    #    자세한 근거는 metrics.CHAT_INFLIGHT 주석 참고.
+    # 🔴 2026-11-18 부터 여기는 <이벤트 루프>다(async def). 스레드풀을 거치지 않으므로
+    #    CHAT_INFLIGHT 는 이제 "Python 에 들어와 처리 중인 모든 채팅" 이다 — DB 풀이나
+    #    Cloudflare 를 기다리는 요청도 센다. 예전의 "대기 큐 = tomcat_busy - borrowed"
+    #    뺄셈은 async 채팅에서는 성립하지 않는다(borrowed 가 0 근처에 머문다).
+    #    자세한 것은 metrics.CHAT_INFLIGHT 주석.
+    # 🔴 이 함수 안에서 await 없는 느린 호출(동기 cursor(), cf.run, CPU 계산)을 하지 말 것.
+    #    그동안 <모든> 채팅이 멈춘다. alldap_event_loop_lag_seconds 가 그것을 잡는다.
     metrics.CHAT_INFLIGHT.inc()
     try:
-        sources = retriever.search(req.bot_id, req.message)
+        sources = await retriever.asearch(req.bot_id, req.message)
         try:
             # 봇별 지침(PRD F-06). 없으면 기본 규칙만 쓴다.
             # ⚠️ 대체가 아니라 <덧붙임>이다 — build_system_prompt 주석 참고.
-            answer, is_fallback = generate(
+            answer, is_fallback = await agenerate(
                 req.message,
                 sources,
-                system_prompt=build_system_prompt(fetch_bot_prompt(req.bot_id)),
+                system_prompt=build_system_prompt(await afetch_bot_prompt(req.bot_id)),
             )
         except GenerationFailed as e:
             # 🔴 fallback 으로 뭉개지 않는다. 근거는 찾았는데 <답변을 못 받은> 것이라
@@ -897,8 +904,9 @@ def scan_conflicts(bot_id: Id) -> ConflictScanOut:
        판정 결과를 'clear' 로도 저장하므로 다시 부르면 남은 것부터 이어서 한다.
        응답의 candidates 가 상한과 같으면 "아직 남았을 수 있다"는 신호다.
 
-    def 이지 async def 가 아닌 이유는 /internal/chat 과 같다 —
-    LLM 호출이 블로킹이라 async 에 두면 이벤트 루프를 통째로 막는다.
+    def 이지 async def 가 아닌 이유: 판정 LLM 호출이 블로킹(동기 cf.run)이라
+    async 에 두면 이벤트 루프를 통째로 막는다. /internal/chat 은 2026-11-18 에
+    async 판(asearch·agenerate)을 따로 만들어 옮겼지만, 이 경로는 아직 그 판이 없다.
     """
     return ConflictScanOut(**conflicts.scan(bot_id).model_dump())
 
