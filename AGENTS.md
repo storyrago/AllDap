@@ -395,7 +395,7 @@ Flyway 규칙 5번이 말하는 "진행 상황 표의 요금제 선택 (2026-09-
 | W2 Spring API · Next.js 화면 · 위젯 | ✅ 세부 항목 전부 완료. 코드에 `TODO(W2)` 주석이 남아 있다. 위젯은 브랜드 색상(`themeColor` 가 항상 null)만 미완 |
 | W3 품질 대시보드 | ✅ 완료 |
 | W4 검색 품질 개선 | ✅ 전체 충실성 0.781 → 0.875, 회당 오답 1.75 → 0. 리랭커 + 하이브리드가 기본값 |
-| 배포 | ✅ 2026-09-07 (EC2 + RDS + Vercel). 백엔드 자동 배포는 2026-09-09 부터. 롤백 경로는 없다 (`docs/DEPLOY.md` §9) |
+| 배포 | ✅ 2026-09-07 (EC2 + RDS + Vercel). 백엔드 자동 배포는 2026-09-09 부터였고, **EC2 를 지운 뒤 2026-11-18 에 껐다**(`Publish images` · `Deploy to EC2` 워크플로 disable, CI 는 그대로). 롤백 경로는 없다 (`docs/DEPLOY.md` §9) |
 | 요금제 연동 | 🚧 4조각 중 1·2·3번 완료 (사용량 계량, 요금제 선택, 결제 수단). 실제 청구는 없다 (4번 조각) |
 
 그 뒤의 실험(리랭커 로컬 추론과 양자화, 평가셋 정비, 난이도 확보, 채점자와 사람 라벨 대조, 무관한 청크 주입 탐침)은
@@ -624,6 +624,7 @@ RERANKER_PROVIDER=local_int8 .venv/bin/uvicorn app.main:app --port 8001
 
 - 봇별 `system_prompt` 는 전달되지만(Python 이 `bots` 를 직접 읽는다) 봇 지침 한 줄로 `NO_ANSWER` 가 뚫린다. 막지 못하고 잰다: 지침을 바꾼 뒤 `tools/bot_prompt_check.py`.
 - 문서 처리는 Celery 워커(2026-11-06. 운영 compose 에는 2026-11-13 에 올렸지만 EC2 를 지운 뒤라 운영에서는 재보지 못했다)지만 `acks_late` 를 꺼서 처리 중 워커가 죽으면 문서가 `processing` 에 멈춘다. 평가 실행은 여전히 `BackgroundTasks` 다. 스펙 `docs/superpowers/specs/2026-11-06-celery-document-worker-design.md` 7절.
+- 채팅(`/internal/chat`)은 `async def` 다(2026-11-18). 문서 목록·삭제와 평가 라우트들은 여전히 `def` 라 anyio 스레드풀(상한 `ANYIO_MAX_THREADS`)에서 돈다. 채팅의 천장은 이제 스레드 수와 무관하다(부하테스트-리포트 6 절). 다음 벽은 확정하지 못했다.
 - 구버전 `.hwp` 미지원 (바이너리 포맷).
 - pgvector 는 수백만 벡터 규모에서 전용 벡터DB보다 불리하다. 현재 규모에선 문제없다.
 - 임베딩·답변 생성·채점은 외부 API(Cloudflare)다. 직접 돌리는 것은 리랭커 추론과 실험용 채점 모델의 추론과 학습뿐이다(작업 규칙 7번).

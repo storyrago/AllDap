@@ -67,7 +67,12 @@ def _apply_thread_limit() -> None:
     처리량 천장(24.0 req/s = 40 ÷ 1.68초)을 정하는 <병목 그 자체>로 확정됐다.
     근거와 80 을 고른 이유는 config.Settings.anyio_max_threads 주석에 있다.
 
-    ⚠️ 올린 <효과는 이 PR 에서 재지 않았다>. 재측정(S2 재실행)은 별도다.
+    효과는 두 번 쟀다(docs/부하테스트-리포트.md).
+    - 2026-09-12: 채팅이 `def` 일 때 40 → 80 으로 올리자 천장이 23.9 → 47.3 req/s (0 절).
+    - 2026-11-18: 채팅이 `async def` 가 된 뒤에는 40 이든 80 이든 천장이 같다
+      (58.7 · 59.2, 6 절). 채팅은 이 상한을 더 쓰지 않는다. 그래도 값을 남기는 이유는
+      문서 목록·삭제, 평가 질문 생성·평가 실행 시작 같은 `def` 라우트가 여전히
+      이 스레드풀에서 돌기 때문이다.
     """
     s = get_settings()
     limiter = anyio.to_thread.current_default_thread_limiter()

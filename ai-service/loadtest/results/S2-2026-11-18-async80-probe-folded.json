@@ -1,0 +1,1572 @@
+{
+  "run_id": "2026-11-18-async80",
+  "header": {
+    "kind": "header",
+    "run_id": "2026-11-18-async80",
+    "started_at": "2026-11-18T21:50:58",
+    "started_monotonic_epoch": 1795006258.855734,
+    "interval_s": 5.0,
+    "duration_s": 930,
+    "k6_pid": 67396,
+    "stages": [
+      1,
+      5,
+      10,
+      20,
+      40,
+      80,
+      160
+    ],
+    "hold_seconds": 120,
+    "warmup_discard_seconds": 20,
+    "k6_start_epoch": null,
+    "stage_offset_s": null,
+    "ai_metrics": "http://localhost:8001/internal/metrics",
+    "spring_metrics": "http://localhost:8081/actuator/prometheus"
+  },
+  "folded_at": "2026-11-18T22:05:05",
+  "total_samples": 170,
+  "scrape_errors": {
+    "py": 0,
+    "spring": 0
+  },
+  "spring_process_start_times": [
+    1794980700.753
+  ],
+  "spring_restarted": false,
+  "by_stage": {
+    "1": {
+      "samples": 20,
+      "alldap_anyio_threads_borrowed": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 0.0,
+        "max": 0.0,
+        "last": 0.0,
+        "mean": 0.0
+      },
+      "alldap_anyio_threads_total": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 80.0,
+        "max": 80.0,
+        "last": 80.0,
+        "mean": 80.0
+      },
+      "alldap_chat_inflight": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 1.0,
+        "max": 1.0,
+        "last": 1.0,
+        "mean": 1.0
+      },
+      "alldap_db_pool_size": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 2.0,
+        "max": 2.0,
+        "last": 2.0,
+        "mean": 2.0
+      },
+      "alldap_db_pool_max": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 10.0,
+        "max": 10.0,
+        "last": 10.0,
+        "mean": 10.0
+      },
+      "alldap_db_pool_available": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 2.0,
+        "max": 2.0,
+        "last": 2.0,
+        "mean": 2.0
+      },
+      "alldap_db_pool_requests_waiting": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 0.0,
+        "max": 0.0,
+        "last": 0.0,
+        "mean": 0.0
+      },
+      "alldap_db_pool_open": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 1.0,
+        "max": 1.0,
+        "last": 1.0,
+        "mean": 1.0
+      },
+      "alldap_db_apool_size": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 1.0,
+        "max": 1.0,
+        "last": 1.0,
+        "mean": 1.0
+      },
+      "alldap_db_apool_max": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 10.0,
+        "max": 10.0,
+        "last": 10.0,
+        "mean": 10.0
+      },
+      "alldap_db_apool_available": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 0.0,
+        "max": 1.0,
+        "last": 1.0,
+        "mean": 0.95
+      },
+      "alldap_db_apool_requests_waiting": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 0.0,
+        "max": 0.0,
+        "last": 0.0,
+        "mean": 0.0
+      },
+      "alldap_db_apool_open": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 1.0,
+        "max": 1.0,
+        "last": 1.0,
+        "mean": 1.0
+      },
+      "alldap_event_loop_lag_seconds": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 0.002000000006228214,
+        "max": 0.003000000002793962,
+        "last": 0.003000000002793962,
+        "mean": 0.003
+      },
+      "alldap_ai_circuit_state": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 0.0,
+        "max": 0.0,
+        "last": 0.0,
+        "mean": 0.0
+      },
+      "tomcat_threads_busy_threads": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 1.0,
+        "max": 1.0,
+        "last": 1.0,
+        "mean": 1.0
+      },
+      "tomcat_threads_config_max_threads": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 200.0,
+        "max": 200.0,
+        "last": 200.0,
+        "mean": 200.0
+      },
+      "hikaricp_connections_pending": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 0.0,
+        "max": 0.0,
+        "last": 0.0,
+        "mean": 0.0
+      },
+      "hikaricp_connections_active": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 0.0,
+        "max": 0.0,
+        "last": 0.0,
+        "mean": 0.0
+      },
+      "process_start_time_seconds": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 1794980700.753,
+        "max": 1794980700.753,
+        "last": 1794980700.753,
+        "mean": 1794980700.753
+      },
+      "jvm_memory_used_bytes": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 83758656.0,
+        "max": 83758656.0,
+        "last": 83758656.0,
+        "mean": 83758656.0
+      },
+      "jvm_gc_pause_seconds_sum": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 1.167,
+        "max": 1.167,
+        "last": 1.167,
+        "mean": 1.167
+      },
+      "jvm_gc_pause_seconds_count": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 643.0,
+        "max": 643.0,
+        "last": 643.0,
+        "mean": 643.0
+      },
+      "k6_cpu_percent": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 0.0,
+        "max": 0.3,
+        "last": 0.1,
+        "mean": 0.145
+      }
+    },
+    "5": {
+      "samples": 20,
+      "alldap_anyio_threads_borrowed": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 0.0,
+        "max": 0.0,
+        "last": 0.0,
+        "mean": 0.0
+      },
+      "alldap_anyio_threads_total": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 80.0,
+        "max": 80.0,
+        "last": 80.0,
+        "mean": 80.0
+      },
+      "alldap_chat_inflight": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 0.0,
+        "max": 5.0,
+        "last": 5.0,
+        "mean": 4.3
+      },
+      "alldap_db_pool_size": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 2.0,
+        "max": 2.0,
+        "last": 2.0,
+        "mean": 2.0
+      },
+      "alldap_db_pool_max": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 10.0,
+        "max": 10.0,
+        "last": 10.0,
+        "mean": 10.0
+      },
+      "alldap_db_pool_available": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 2.0,
+        "max": 2.0,
+        "last": 2.0,
+        "mean": 2.0
+      },
+      "alldap_db_pool_requests_waiting": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 0.0,
+        "max": 0.0,
+        "last": 0.0,
+        "mean": 0.0
+      },
+      "alldap_db_pool_open": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 1.0,
+        "max": 1.0,
+        "last": 1.0,
+        "mean": 1.0
+      },
+      "alldap_db_apool_size": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 5.0,
+        "max": 5.0,
+        "last": 5.0,
+        "mean": 5.0
+      },
+      "alldap_db_apool_max": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 10.0,
+        "max": 10.0,
+        "last": 10.0,
+        "mean": 10.0
+      },
+      "alldap_db_apool_available": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 5.0,
+        "max": 5.0,
+        "last": 5.0,
+        "mean": 5.0
+      },
+      "alldap_db_apool_requests_waiting": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 0.0,
+        "max": 0.0,
+        "last": 0.0,
+        "mean": 0.0
+      },
+      "alldap_db_apool_open": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 1.0,
+        "max": 1.0,
+        "last": 1.0,
+        "mean": 1.0
+      },
+      "alldap_event_loop_lag_seconds": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 0.003000000002793962,
+        "max": 0.005000000003201416,
+        "last": 0.003000000002793962,
+        "mean": 0.004
+      },
+      "alldap_ai_circuit_state": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 0.0,
+        "max": 0.0,
+        "last": 0.0,
+        "mean": 0.0
+      },
+      "tomcat_threads_busy_threads": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 5.0,
+        "max": 5.0,
+        "last": 5.0,
+        "mean": 5.0
+      },
+      "tomcat_threads_config_max_threads": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 200.0,
+        "max": 200.0,
+        "last": 200.0,
+        "mean": 200.0
+      },
+      "hikaricp_connections_pending": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 0.0,
+        "max": 0.0,
+        "last": 0.0,
+        "mean": 0.0
+      },
+      "hikaricp_connections_active": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 0.0,
+        "max": 5.0,
+        "last": 0.0,
+        "mean": 0.45
+      },
+      "process_start_time_seconds": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 1794980700.753,
+        "max": 1794980700.753,
+        "last": 1794980700.753,
+        "mean": 1794980700.753
+      },
+      "jvm_memory_used_bytes": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 83764848.0,
+        "max": 83764848.0,
+        "last": 83764848.0,
+        "mean": 83764848.0
+      },
+      "jvm_gc_pause_seconds_sum": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 1.168,
+        "max": 1.168,
+        "last": 1.168,
+        "mean": 1.168
+      },
+      "jvm_gc_pause_seconds_count": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 644.0,
+        "max": 644.0,
+        "last": 644.0,
+        "mean": 644.0
+      },
+      "k6_cpu_percent": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 0.0,
+        "max": 0.2,
+        "last": 0.0,
+        "mean": 0.06
+      }
+    },
+    "10": {
+      "samples": 20,
+      "alldap_anyio_threads_borrowed": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 0.0,
+        "max": 0.0,
+        "last": 0.0,
+        "mean": 0.0
+      },
+      "alldap_anyio_threads_total": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 80.0,
+        "max": 80.0,
+        "last": 80.0,
+        "mean": 80.0
+      },
+      "alldap_chat_inflight": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 10.0,
+        "max": 10.0,
+        "last": 10.0,
+        "mean": 10.0
+      },
+      "alldap_db_pool_size": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 2.0,
+        "max": 2.0,
+        "last": 2.0,
+        "mean": 2.0
+      },
+      "alldap_db_pool_max": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 10.0,
+        "max": 10.0,
+        "last": 10.0,
+        "mean": 10.0
+      },
+      "alldap_db_pool_available": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 2.0,
+        "max": 2.0,
+        "last": 2.0,
+        "mean": 2.0
+      },
+      "alldap_db_pool_requests_waiting": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 0.0,
+        "max": 0.0,
+        "last": 0.0,
+        "mean": 0.0
+      },
+      "alldap_db_pool_open": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 1.0,
+        "max": 1.0,
+        "last": 1.0,
+        "mean": 1.0
+      },
+      "alldap_db_apool_size": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 10.0,
+        "max": 10.0,
+        "last": 10.0,
+        "mean": 10.0
+      },
+      "alldap_db_apool_max": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 10.0,
+        "max": 10.0,
+        "last": 10.0,
+        "mean": 10.0
+      },
+      "alldap_db_apool_available": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 0.0,
+        "max": 10.0,
+        "last": 10.0,
+        "mean": 9.5
+      },
+      "alldap_db_apool_requests_waiting": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 0.0,
+        "max": 0.0,
+        "last": 0.0,
+        "mean": 0.0
+      },
+      "alldap_db_apool_open": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 1.0,
+        "max": 1.0,
+        "last": 1.0,
+        "mean": 1.0
+      },
+      "alldap_event_loop_lag_seconds": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 0.00399999999935971,
+        "max": 0.012000000000989525,
+        "last": 0.005000000003201416,
+        "mean": 0.007
+      },
+      "alldap_ai_circuit_state": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 0.0,
+        "max": 0.0,
+        "last": 0.0,
+        "mean": 0.0
+      },
+      "tomcat_threads_busy_threads": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 10.0,
+        "max": 10.0,
+        "last": 10.0,
+        "mean": 10.0
+      },
+      "tomcat_threads_config_max_threads": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 200.0,
+        "max": 200.0,
+        "last": 200.0,
+        "mean": 200.0
+      },
+      "hikaricp_connections_pending": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 0.0,
+        "max": 0.0,
+        "last": 0.0,
+        "mean": 0.0
+      },
+      "hikaricp_connections_active": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 0.0,
+        "max": 0.0,
+        "last": 0.0,
+        "mean": 0.0
+      },
+      "process_start_time_seconds": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 1794980700.753,
+        "max": 1794980700.753,
+        "last": 1794980700.753,
+        "mean": 1794980700.753
+      },
+      "jvm_memory_used_bytes": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 80787328.0,
+        "max": 83777232.0,
+        "last": 80787328.0,
+        "mean": 82132784.8
+      },
+      "jvm_gc_pause_seconds_sum": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 1.171,
+        "max": 1.172,
+        "last": 1.172,
+        "mean": 1.172
+      },
+      "jvm_gc_pause_seconds_count": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 645.0,
+        "max": 646.0,
+        "last": 646.0,
+        "mean": 645.55
+      },
+      "k6_cpu_percent": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 0.0,
+        "max": 1.7,
+        "last": 1.7,
+        "mean": 0.26
+      }
+    },
+    "20": {
+      "samples": 20,
+      "alldap_anyio_threads_borrowed": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 0.0,
+        "max": 0.0,
+        "last": 0.0,
+        "mean": 0.0
+      },
+      "alldap_anyio_threads_total": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 80.0,
+        "max": 80.0,
+        "last": 80.0,
+        "mean": 80.0
+      },
+      "alldap_chat_inflight": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 20.0,
+        "max": 20.0,
+        "last": 20.0,
+        "mean": 20.0
+      },
+      "alldap_db_pool_size": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 2.0,
+        "max": 2.0,
+        "last": 2.0,
+        "mean": 2.0
+      },
+      "alldap_db_pool_max": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 10.0,
+        "max": 10.0,
+        "last": 10.0,
+        "mean": 10.0
+      },
+      "alldap_db_pool_available": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 2.0,
+        "max": 2.0,
+        "last": 2.0,
+        "mean": 2.0
+      },
+      "alldap_db_pool_requests_waiting": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 0.0,
+        "max": 0.0,
+        "last": 0.0,
+        "mean": 0.0
+      },
+      "alldap_db_pool_open": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 1.0,
+        "max": 1.0,
+        "last": 1.0,
+        "mean": 1.0
+      },
+      "alldap_db_apool_size": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 10.0,
+        "max": 10.0,
+        "last": 10.0,
+        "mean": 10.0
+      },
+      "alldap_db_apool_max": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 10.0,
+        "max": 10.0,
+        "last": 10.0,
+        "mean": 10.0
+      },
+      "alldap_db_apool_available": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 9.0,
+        "max": 10.0,
+        "last": 10.0,
+        "mean": 9.95
+      },
+      "alldap_db_apool_requests_waiting": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 0.0,
+        "max": 0.0,
+        "last": 0.0,
+        "mean": 0.0
+      },
+      "alldap_db_apool_open": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 1.0,
+        "max": 1.0,
+        "last": 1.0,
+        "mean": 1.0
+      },
+      "alldap_event_loop_lag_seconds": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 0.00399999999935971,
+        "max": 0.010000000000582071,
+        "last": 0.008000000000174617,
+        "mean": 0.006
+      },
+      "alldap_ai_circuit_state": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 0.0,
+        "max": 0.0,
+        "last": 0.0,
+        "mean": 0.0
+      },
+      "tomcat_threads_busy_threads": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 20.0,
+        "max": 20.0,
+        "last": 20.0,
+        "mean": 20.0
+      },
+      "tomcat_threads_config_max_threads": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 200.0,
+        "max": 200.0,
+        "last": 200.0,
+        "mean": 200.0
+      },
+      "hikaricp_connections_pending": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 0.0,
+        "max": 0.0,
+        "last": 0.0,
+        "mean": 0.0
+      },
+      "hikaricp_connections_active": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 0.0,
+        "max": 4.0,
+        "last": 0.0,
+        "mean": 0.25
+      },
+      "process_start_time_seconds": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 1794980700.753,
+        "max": 1794980700.753,
+        "last": 1794980700.753,
+        "mean": 1794980700.753
+      },
+      "jvm_memory_used_bytes": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 78281968.0,
+        "max": 80791456.0,
+        "last": 78281968.0,
+        "mean": 79661360.8
+      },
+      "jvm_gc_pause_seconds_sum": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 1.174,
+        "max": 1.179,
+        "last": 1.179,
+        "mean": 1.176
+      },
+      "jvm_gc_pause_seconds_count": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 647.0,
+        "max": 650.0,
+        "last": 650.0,
+        "mean": 648.4
+      },
+      "k6_cpu_percent": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 0.0,
+        "max": 0.6,
+        "last": 0.2,
+        "mean": 0.145
+      }
+    },
+    "40": {
+      "samples": 20,
+      "alldap_anyio_threads_borrowed": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 0.0,
+        "max": 0.0,
+        "last": 0.0,
+        "mean": 0.0
+      },
+      "alldap_anyio_threads_total": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 80.0,
+        "max": 80.0,
+        "last": 80.0,
+        "mean": 80.0
+      },
+      "alldap_chat_inflight": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 40.0,
+        "max": 40.0,
+        "last": 40.0,
+        "mean": 40.0
+      },
+      "alldap_db_pool_size": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 1.0,
+        "max": 2.0,
+        "last": 1.0,
+        "mean": 1.8
+      },
+      "alldap_db_pool_max": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 10.0,
+        "max": 10.0,
+        "last": 10.0,
+        "mean": 10.0
+      },
+      "alldap_db_pool_available": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 1.0,
+        "max": 2.0,
+        "last": 1.0,
+        "mean": 1.8
+      },
+      "alldap_db_pool_requests_waiting": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 0.0,
+        "max": 0.0,
+        "last": 0.0,
+        "mean": 0.0
+      },
+      "alldap_db_pool_open": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 1.0,
+        "max": 1.0,
+        "last": 1.0,
+        "mean": 1.0
+      },
+      "alldap_db_apool_size": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 10.0,
+        "max": 10.0,
+        "last": 10.0,
+        "mean": 10.0
+      },
+      "alldap_db_apool_max": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 10.0,
+        "max": 10.0,
+        "last": 10.0,
+        "mean": 10.0
+      },
+      "alldap_db_apool_available": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 5.0,
+        "max": 10.0,
+        "last": 10.0,
+        "mean": 9.2
+      },
+      "alldap_db_apool_requests_waiting": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 0.0,
+        "max": 0.0,
+        "last": 0.0,
+        "mean": 0.0
+      },
+      "alldap_db_apool_open": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 1.0,
+        "max": 1.0,
+        "last": 1.0,
+        "mean": 1.0
+      },
+      "alldap_event_loop_lag_seconds": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 0.00399999999935971,
+        "max": 0.031000000001222355,
+        "last": 0.031000000001222355,
+        "mean": 0.014
+      },
+      "alldap_ai_circuit_state": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 0.0,
+        "max": 0.0,
+        "last": 0.0,
+        "mean": 0.0
+      },
+      "tomcat_threads_busy_threads": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 40.0,
+        "max": 40.0,
+        "last": 40.0,
+        "mean": 40.0
+      },
+      "tomcat_threads_config_max_threads": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 200.0,
+        "max": 200.0,
+        "last": 200.0,
+        "mean": 200.0
+      },
+      "hikaricp_connections_pending": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 0.0,
+        "max": 0.0,
+        "last": 0.0,
+        "mean": 0.0
+      },
+      "hikaricp_connections_active": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 0.0,
+        "max": 1.0,
+        "last": 0.0,
+        "mean": 0.05
+      },
+      "process_start_time_seconds": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 1794980700.753,
+        "max": 1794980700.753,
+        "last": 1794980700.753,
+        "mean": 1794980700.753
+      },
+      "jvm_memory_used_bytes": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 76603728.0,
+        "max": 79186576.0,
+        "last": 78116016.0,
+        "mean": 78097282.4
+      },
+      "jvm_gc_pause_seconds_sum": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 1.181,
+        "max": 1.193,
+        "last": 1.193,
+        "mean": 1.187
+      },
+      "jvm_gc_pause_seconds_count": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 651.0,
+        "max": 657.0,
+        "last": 657.0,
+        "mean": 653.85
+      },
+      "k6_cpu_percent": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 0.1,
+        "max": 2.6,
+        "last": 1.8,
+        "mean": 1.135
+      }
+    },
+    "80": {
+      "samples": 20,
+      "alldap_anyio_threads_borrowed": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 0.0,
+        "max": 0.0,
+        "last": 0.0,
+        "mean": 0.0
+      },
+      "alldap_anyio_threads_total": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 80.0,
+        "max": 80.0,
+        "last": 80.0,
+        "mean": 80.0
+      },
+      "alldap_chat_inflight": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 80.0,
+        "max": 80.0,
+        "last": 80.0,
+        "mean": 80.0
+      },
+      "alldap_db_pool_size": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 1.0,
+        "max": 1.0,
+        "last": 1.0,
+        "mean": 1.0
+      },
+      "alldap_db_pool_max": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 10.0,
+        "max": 10.0,
+        "last": 10.0,
+        "mean": 10.0
+      },
+      "alldap_db_pool_available": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 1.0,
+        "max": 1.0,
+        "last": 1.0,
+        "mean": 1.0
+      },
+      "alldap_db_pool_requests_waiting": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 0.0,
+        "max": 0.0,
+        "last": 0.0,
+        "mean": 0.0
+      },
+      "alldap_db_pool_open": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 1.0,
+        "max": 1.0,
+        "last": 1.0,
+        "mean": 1.0
+      },
+      "alldap_db_apool_size": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 10.0,
+        "max": 10.0,
+        "last": 10.0,
+        "mean": 10.0
+      },
+      "alldap_db_apool_max": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 10.0,
+        "max": 10.0,
+        "last": 10.0,
+        "mean": 10.0
+      },
+      "alldap_db_apool_available": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 0.0,
+        "max": 10.0,
+        "last": 10.0,
+        "mean": 8.75
+      },
+      "alldap_db_apool_requests_waiting": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 0.0,
+        "max": 15.0,
+        "last": 0.0,
+        "mean": 1.1
+      },
+      "alldap_db_apool_open": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 1.0,
+        "max": 1.0,
+        "last": 1.0,
+        "mean": 1.0
+      },
+      "alldap_event_loop_lag_seconds": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 0.004999999995925458,
+        "max": 0.13500000000058207,
+        "last": 0.010999999997147819,
+        "mean": 0.034
+      },
+      "alldap_ai_circuit_state": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 0.0,
+        "max": 0.0,
+        "last": 0.0,
+        "mean": 0.0
+      },
+      "tomcat_threads_busy_threads": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 80.0,
+        "max": 80.0,
+        "last": 80.0,
+        "mean": 80.0
+      },
+      "tomcat_threads_config_max_threads": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 200.0,
+        "max": 200.0,
+        "last": 200.0,
+        "mean": 200.0
+      },
+      "hikaricp_connections_pending": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 0.0,
+        "max": 0.0,
+        "last": 0.0,
+        "mean": 0.0
+      },
+      "hikaricp_connections_active": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 0.0,
+        "max": 1.0,
+        "last": 0.0,
+        "mean": 0.1
+      },
+      "process_start_time_seconds": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 1794980700.753,
+        "max": 1794980700.753,
+        "last": 1794980700.753,
+        "mean": 1794980700.753
+      },
+      "jvm_memory_used_bytes": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 76797520.0,
+        "max": 79875536.0,
+        "last": 76820208.0,
+        "mean": 77572168.0
+      },
+      "jvm_gc_pause_seconds_sum": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 1.198,
+        "max": 1.215,
+        "last": 1.215,
+        "mean": 1.207
+      },
+      "jvm_gc_pause_seconds_count": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 659.0,
+        "max": 669.0,
+        "last": 669.0,
+        "mean": 664.3
+      },
+      "k6_cpu_percent": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 0.1,
+        "max": 4.1,
+        "last": 0.1,
+        "mean": 1.04
+      }
+    },
+    "160": {
+      "samples": 20,
+      "alldap_anyio_threads_borrowed": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 0.0,
+        "max": 0.0,
+        "last": 0.0,
+        "mean": 0.0
+      },
+      "alldap_anyio_threads_total": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 80.0,
+        "max": 80.0,
+        "last": 80.0,
+        "mean": 80.0
+      },
+      "alldap_chat_inflight": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 154.0,
+        "max": 160.0,
+        "last": 160.0,
+        "mean": 159.55
+      },
+      "alldap_db_pool_size": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 1.0,
+        "max": 1.0,
+        "last": 1.0,
+        "mean": 1.0
+      },
+      "alldap_db_pool_max": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 10.0,
+        "max": 10.0,
+        "last": 10.0,
+        "mean": 10.0
+      },
+      "alldap_db_pool_available": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 1.0,
+        "max": 1.0,
+        "last": 1.0,
+        "mean": 1.0
+      },
+      "alldap_db_pool_requests_waiting": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 0.0,
+        "max": 0.0,
+        "last": 0.0,
+        "mean": 0.0
+      },
+      "alldap_db_pool_open": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 1.0,
+        "max": 1.0,
+        "last": 1.0,
+        "mean": 1.0
+      },
+      "alldap_db_apool_size": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 10.0,
+        "max": 10.0,
+        "last": 10.0,
+        "mean": 10.0
+      },
+      "alldap_db_apool_max": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 10.0,
+        "max": 10.0,
+        "last": 10.0,
+        "mean": 10.0
+      },
+      "alldap_db_apool_available": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 0.0,
+        "max": 10.0,
+        "last": 3.0,
+        "mean": 5.3
+      },
+      "alldap_db_apool_requests_waiting": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 0.0,
+        "max": 14.0,
+        "last": 0.0,
+        "mean": 1.5
+      },
+      "alldap_db_apool_open": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 1.0,
+        "max": 1.0,
+        "last": 1.0,
+        "mean": 1.0
+      },
+      "alldap_event_loop_lag_seconds": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 0.014999999997962726,
+        "max": 0.037000000002444716,
+        "last": 0.018000000002211886,
+        "mean": 0.026
+      },
+      "alldap_ai_circuit_state": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 0.0,
+        "max": 0.0,
+        "last": 0.0,
+        "mean": 0.0
+      },
+      "tomcat_threads_busy_threads": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 160.0,
+        "max": 160.0,
+        "last": 160.0,
+        "mean": 160.0
+      },
+      "tomcat_threads_config_max_threads": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 200.0,
+        "max": 200.0,
+        "last": 200.0,
+        "mean": 200.0
+      },
+      "hikaricp_connections_pending": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 0.0,
+        "max": 0.0,
+        "last": 0.0,
+        "mean": 0.0
+      },
+      "hikaricp_connections_active": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 0.0,
+        "max": 1.0,
+        "last": 1.0,
+        "mean": 0.1
+      },
+      "process_start_time_seconds": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 1794980700.753,
+        "max": 1794980700.753,
+        "last": 1794980700.753,
+        "mean": 1794980700.753
+      },
+      "jvm_memory_used_bytes": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 82502704.0,
+        "max": 87336944.0,
+        "last": 82502704.0,
+        "mean": 84625054.4
+      },
+      "jvm_gc_pause_seconds_sum": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 1.224,
+        "max": 1.247,
+        "last": 1.247,
+        "mean": 1.234
+      },
+      "jvm_gc_pause_seconds_count": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 673.0,
+        "max": 685.0,
+        "last": 685.0,
+        "mean": 678.8
+      },
+      "k6_cpu_percent": {
+        "n": 20,
+        "n_null": 0,
+        "n_nan": 0,
+        "min": 0.3,
+        "max": 2.4,
+        "last": 1.8,
+        "mean": 1.37
+      }
+    }
+  }
+}
