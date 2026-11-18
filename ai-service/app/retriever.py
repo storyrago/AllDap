@@ -10,13 +10,16 @@ W4에서 여기에 키워드(BM25) 검색과 리랭커를 추가하고,
 """
 from __future__ import annotations
 
+import functools
 import logging
 import re
 from dataclasses import dataclass
 
+import anyio.to_thread
+
 from . import cf
 from .config import get_settings
-from .db import cursor
+from .db import acursor, cursor
 from .schemas import Id, Source
 
 _log = logging.getLogger(__name__)
@@ -458,3 +461,114 @@ def fetch_contents(chunk_ids: list[Id]) -> dict[Id, str]:
     with cursor() as cur:
         cur.execute("SELECT id, content FROM chunks WHERE id = ANY(%s)", (chunk_ids,))
         return {row[0]: row[1] for row in cur.fetchall()}
+
+
+# ── async 판 (채팅 전용, 2026-11-18) ───────────────────────────────────
+#
+# 🔴 위 동기 함수들과 <기다리는 줄만> 다르다. 판정·컷·RRF·융합은 위의 공유 함수를 그대로
+#    부른다. 여기에 판단 로직을 새로 쓰지 말 것 — 쓰는 순간 채팅과 평가의 fallback
+#    기준이 갈릴 수 있다. tools/async_parity_check.py 가 두 판의 결과가 같은지 잰다.
+#
+# `async def` 함수는 부르면 바로 실행되지 않고 "코루틴" 을 돌려준다. `await` 를 붙여야
+# 실행되고, 그 안의 `await` 지점(Cloudflare·DB 응답 대기)에서 멈춘 사이 이벤트 루프가
+# 다른 요청을 처리한다.
+
+async def aembed(texts: list[str]) -> list[list[float]]:
+    """embed 의 async 판. task_type 은 받지 않는다(지금 모델에서 효과가 없다 — embed 참고)."""
+    if not texts:
+        return []
+    s = get_settings()
+    out: list[list[float]] = []
+    for i in range(0, len(texts), s.embedding_batch_size):
+        batch = texts[i : i + s.embedding_batch_size]
+        out.extend((await cf.arun(s.embedding_model, {"text": batch}))["data"])
+    _check_embeddings(texts, out)
+    return out
+
+
+async def aembed_one(text: str) -> list[float]:
+    return (await aembed([text]))[0]
+
+
+async def asearch(
+    bot_id: Id,
+    query: str,
+    *,
+    top_k: int | None = None,
+    max_distance: float | None = None,
+    reranker: bool | None = None,
+    hybrid: bool | None = None,
+) -> list[Source]:
+    """search 의 async 판. 순서·판정·컷이 search 와 같다(docstring 은 search 참고)."""
+    s = get_settings()
+    plan = _plan(top_k, max_distance, reranker, hybrid)
+
+    qvec = await aembed_one(query)
+    async with acursor() as cur:
+        await cur.execute(_VECTOR_SQL, (qvec, bot_id, plan.limit))
+        rows = list(await cur.fetchall())
+
+    if not _answerable(rows):
+        return []
+
+    if plan.hybrid:
+        kw_rows = await _akeyword_rows(bot_id, query, qvec, s.hybrid_candidates)
+        rows = _merge_keyword_rows(rows, kw_rows, s.hybrid_rrf_k)
+
+    sources = _to_sources(rows, plan.max_distance)
+    if plan.reranker and len(sources) > 1:
+        sources = await _arerank(query, sources)
+    return sources[:plan.top_k]
+
+
+async def _akeyword_rows(bot_id: Id, query: str, qvec: list[float], limit: int) -> list[tuple]:
+    """_keyword_rows 의 async 판. 실패하면 빈 목록(같은 원칙)."""
+    keys = _keywords(query)
+    if not keys:
+        return []
+    try:
+        async with acursor() as cur:
+            await cur.execute(_KEYWORD_SQL, (qvec, keys, bot_id, limit))
+            return list(await cur.fetchall())
+    except Exception as e:  # noqa: BLE001 - 후보 확장 실패가 검색 실패가 되면 안 된다
+        _log_keyword_failure(e)
+        return []
+
+
+async def _arerank(query: str, sources: list[Source]) -> list[Source]:
+    """_rerank 의 async 판. 실패하면 원래 순서(같은 원칙)."""
+    s = get_settings()
+    texts = _rerank_texts(sources, await afetch_contents([src.chunk_id for src in sources]))
+    try:
+        order = await _arerank_order(query, texts)
+    except Exception as e:  # noqa: BLE001 - 순서 개선 실패가 검색 실패가 되면 안 된다
+        _log_rerank_failure(e)
+        return sources
+    return _fuse(sources, order, fusion=s.rerank_fusion, k=s.rerank_fusion_k)
+
+
+async def _arerank_order(query: str, texts: list[str]) -> list[int]:
+    s = get_settings()
+    if s.reranker_provider == "cloudflare":
+        result = await cf.arun(s.reranker_model, _rerank_payload(query, texts))
+    else:
+        from . import local_reranker
+        # 🔴 로컬 리랭커는 <기다리는> 일이 아니라 <계산하는> 일이라 await 할 상대가 없다.
+        #    루프 스레드에서 그냥 부르면 계산하는 동안 다른 채팅이 전부 멈춘다.
+        #    그래서 스레드풀로 넘긴다(run_sync). 그 결과 이 설정의 처리량은 다시 스레드
+        #    상한의 영향을 받는다(스펙 7절 한계).
+        # functools.partial 은 "인자를 미리 채워 둔 함수" 를 만든다. run_sync 가 키워드
+        # 인자(variant=)를 직접 받지 않아서 이렇게 넘긴다.
+        result = await anyio.to_thread.run_sync(
+            functools.partial(local_reranker.rerank, query, texts, variant=s.reranker_provider)
+        )
+    return _order_of(result)
+
+
+async def afetch_contents(chunk_ids: list[Id]) -> dict[Id, str]:
+    """fetch_contents 의 async 판. 리랭크 본문과 생성 근거 본문 둘 다 여기서 읽는다."""
+    if not chunk_ids:
+        return {}
+    async with acursor() as cur:
+        await cur.execute("SELECT id, content FROM chunks WHERE id = ANY(%s)", (chunk_ids,))
+        return {row[0]: row[1] for row in await cur.fetchall()}

@@ -6,6 +6,9 @@ DB 도 외부 API 도 부르지 않는다 — 순수 함수(_keywords, _rrf_reor
 """
 from __future__ import annotations
 
+import asyncio
+import threading
+
 from app import retriever
 from app.config import get_settings
 from app.retriever import _keywords, _rrf_reorder
@@ -124,6 +127,48 @@ def _check_rerank_survives_provider_failure() -> None:
     assert [s.chunk_id for s in out] == [1, 2, 3], [s.chunk_id for s in out]
 
 
+def _check_arerank_survives_provider_failure() -> None:
+    """async 판도 리랭커가 죽으면 원래 순서를 돌려준다(동기 판과 같은 성질)."""
+    async def boom(query: str, texts: list[str]) -> list[int]:
+        raise RuntimeError("모델 파일이 없다")
+
+    async def no_contents(ids):
+        return {}
+
+    original = retriever._arerank_order, retriever.afetch_contents
+    retriever._arerank_order, retriever.afetch_contents = boom, no_contents
+    try:
+        # asyncio.run 은 이벤트 루프를 새로 만들어 코루틴 하나를 끝까지 돌리고 닫는다.
+        # 점검 스크립트는 동기 main() 이라 async 함수를 이렇게 불러야 한다.
+        out = asyncio.run(retriever._arerank("질문", _sources(1, 2, 3)))
+    finally:
+        retriever._arerank_order, retriever.afetch_contents = original
+    assert [s.chunk_id for s in out] == [1, 2, 3], [s.chunk_id for s in out]
+
+
+def _check_local_reranker_runs_off_loop() -> None:
+    """🔴 로컬 리랭커는 우리 CPU 가 계산한다. 이벤트 루프 스레드에서 돌면 그동안
+    <모든 채팅이 멈춘다>. 그래서 async 판은 스레드로 넘겨야 한다(스펙 2-4).
+    """
+    from app import local_reranker
+
+    seen: list[bool] = []
+
+    def fake_rerank(query, texts, *, variant):
+        seen.append(threading.current_thread() is threading.main_thread())
+        return {"response": [{"id": 1, "score": 0.9}, {"id": 0, "score": 0.1}]}
+
+    s = get_settings()
+    original = s.reranker_provider, local_reranker.rerank
+    s.reranker_provider, local_reranker.rerank = "local_int8", fake_rerank
+    try:
+        order = asyncio.run(retriever._arerank_order("질문", ["a", "b"]))
+    finally:
+        s.reranker_provider, local_reranker.rerank = original
+    assert order == [1, 0], order
+    assert seen == [False], "로컬 리랭커가 이벤트 루프 스레드에서 돌았다"
+
+
 def _check_apply_order_keeps_missing_indexes() -> None:
     """응답에 빠진 인덱스가 있어도 청크를 잃지 않는다(기존 성질).
 
@@ -185,7 +230,9 @@ def main() -> None:
     _check_rerank_survives_provider_failure()
     _check_apply_order_keeps_missing_indexes()
     _check_shared_judgement()
-    print("OK — 낱말 추출 8가지 · RRF 4가지 · 리랭커 융합 3가지 · 제공자 실패 2가지 · 공유 판단 5가지 통과")
+    _check_arerank_survives_provider_failure()
+    _check_local_reranker_runs_off_loop()
+    print("OK — 낱말 추출 8가지 · RRF 4가지 · 리랭커 융합 3가지 · 제공자 실패 2가지 · 공유 판단 5가지 · async 리랭크 2가지 통과")
 
 
 if __name__ == "__main__":
