@@ -25,6 +25,21 @@ import httpx
 from .config import get_settings
 
 _http: httpx.Client | None = None
+_ahttp: httpx.AsyncClient | None = None
+
+
+def _headers() -> dict[str, str]:
+    """인증 헤더. 키가 없으면 <첫 호출에서> 한국어로 죽는다.
+
+    동기 클라이언트(_client)와 async 클라이언트(_aclient)가 함께 쓴다.
+    키 검사를 한 곳에 두지 않으면 한쪽만 검사가 빠진다.
+    """
+    s = get_settings()
+    if not s.cf_account_id or not s.cf_api_token:
+        raise RuntimeError(
+            "CF_ACCOUNT_ID / CF_API_TOKEN 이 설정되지 않았습니다 (ai-service/.env 확인)"
+        )
+    return {"Authorization": f"Bearer {s.cf_api_token}"}
 
 
 def _client() -> httpx.Client:
@@ -35,14 +50,10 @@ def _client() -> httpx.Client:
     _http 를 함수 안의 새 지역 변수로 만들어버려 캐시가 전혀 동작하지 않는다.
     """
     global _http
-    s = get_settings()
-    if not s.cf_account_id or not s.cf_api_token:
-        raise RuntimeError(
-            "CF_ACCOUNT_ID / CF_API_TOKEN 이 설정되지 않았습니다 (ai-service/.env 확인)"
-        )
+    headers = _headers()
     if _http is None:
         _http = httpx.Client(
-            headers={"Authorization": f"Bearer {s.cf_api_token}"},
+            headers=headers,
             # 임베딩 배치 100개가 0.7초, 생성이 1~3초쯤 걸린다(실측).
             # 네트워크가 느릴 때를 감안해 넉넉히 준다.
             timeout=120.0,
@@ -50,17 +61,23 @@ def _client() -> httpx.Client:
     return _http
 
 
-def run(model: str, payload: dict) -> dict:
-    """모델 하나를 호출하고 `result` 를 돌려준다. 실패하면 예외.
+def _url(model: str) -> str:
+    s = get_settings()
+    return f"{s.cf_base_url}/accounts/{s.cf_account_id}/ai/run/{model}"
+
+
+def _finish(model: str, resp: httpx.Response, started: float) -> dict:
+    """받은 응답을 판정하고 `result` 를 돌려준다. 실패하면 예외.
+
+    🔴 run(동기)과 arun(async)이 <둘 다> 이 함수를 부른다. 기다리는 부분(post)만
+       둘로 나뉘고, 받은 뒤의 판정은 여기 하나다. 판정을 복사하면 언젠가 한쪽만 고쳐져
+       채팅(async)과 평가(동기)의 비용 기록이 갈린다.
+    이 함수에는 `await` 가 없다. 숫자를 적고 값을 검사할 뿐이라 이벤트 루프를 막지 않고,
+    그래서 async 함수 안에서도 그냥 부를 수 있다.
 
     ⚠️ Cloudflare 는 <HTTP 200 을 주고도> 본문의 `success: false` 로 실패를 알린다.
        상태 코드만 보면 실패를 성공으로 착각한다. 그래서 둘 다 확인한다.
     """
-    s = get_settings()
-    url = f"{s.cf_base_url}/accounts/{s.cf_account_id}/ai/run/{model}"
-
-    started = time.perf_counter()
-    resp = _client().post(url, json=payload)
     _record_latency(model, (time.perf_counter() - started) * 1000)
     resp.raise_for_status()          # 4xx·5xx 는 여기서 예외
     body = resp.json()
@@ -69,6 +86,50 @@ def run(model: str, payload: dict) -> dict:
     result = body.get("result") or {}
     _record_neurons(model, result, resp)
     return result
+
+
+def run(model: str, payload: dict) -> dict:
+    """모델 하나를 호출하고 `result` 를 돌려준다. 실패하면 예외(판정은 _finish)."""
+    url = _url(model)
+    started = time.perf_counter()
+    resp = _client().post(url, json=payload)
+    return _finish(model, resp, started)
+
+
+def _aclient() -> httpx.AsyncClient:
+    """async 판 클라이언트. <처음 부를 때> 만든다.
+
+    왜 lifespan 에서 미리 만들지 않나: 만드는 데 `await` 가 없어서 동시에 처음 들어온
+    요청끼리 경쟁할 틈이 없다(async 풀과 다른 점). 그리고 시작할 때 만들면 키가 없는
+    환경에서 서버가 아예 안 뜬다. 지금은 키가 없어도 뜨고 첫 호출에서 오류가 난다 —
+    그 동작을 유지한다.
+    """
+    global _ahttp
+    headers = _headers()
+    if _ahttp is None:
+        _ahttp = httpx.AsyncClient(headers=headers, timeout=120.0)  # 동기 판과 같은 값
+    return _ahttp
+
+
+async def arun(model: str, payload: dict) -> dict:
+    """run 의 async 판. 기다리는 줄(post)만 `await` 이고, 판정은 같은 _finish 다.
+
+    `await` 에서 이 함수는 멈추고, 그동안 이벤트 루프는 <다른 요청의 코드>를 돌린다.
+    스레드를 붙잡고 기다리던 동기 판과의 차이가 이 한 줄이다.
+    예외 종류(httpx.HTTPStatusError, httpx.TimeoutException …)는 동기 판과 같다.
+    """
+    url = _url(model)
+    started = time.perf_counter()
+    resp = await _aclient().post(url, json=payload)
+    return _finish(model, resp, started)
+
+
+async def aclose() -> None:
+    """lifespan 종료에서 부른다. 열린 연결을 정리한다."""
+    global _ahttp
+    if _ahttp is not None:
+        await _ahttp.aclose()
+        _ahttp = None
 
 
 # ── 뉴런(비용) 집계 ────────────────────────────────────────────────────
