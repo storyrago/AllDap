@@ -98,6 +98,11 @@ def main() -> int:
             "alldap_db_pool_available",
             "alldap_db_pool_requests_waiting",
             "alldap_db_pool_open",
+            "alldap_db_apool_size",
+            "alldap_db_apool_max",
+            "alldap_db_apool_available",
+            "alldap_db_apool_requests_waiting",
+            "alldap_db_apool_open",
         ):
             check(f"본문에 {name}", name in body)
 
@@ -114,6 +119,14 @@ def main() -> int:
         check("DB 풀 미사용 시 open == 0", _value("alldap_db_pool_open") == 0.0,
               f"(={_value('alldap_db_pool_open')})")
         check("지표 수집이 풀을 만들지 않는다", db._pool is None)
+
+        # ⑥-2 async 풀은 lifespan 이 <연다>. 동기 풀(open==0)과 반대라는 것이 요점이다.
+        #     DB 가 없어도 1 이다 — open_async_pool 은 연결을 기다리지 않는다(wait=False).
+        check("lifespan 안에서 async 풀 open == 1", _value("alldap_db_apool_open") == 1.0,
+              f"(={_value('alldap_db_apool_open')})")
+
+    # with 블록을 빠져나오면 lifespan 의 yield 뒤(닫는 쪽)가 돈다.
+    check("lifespan 종료 후 async 풀이 닫혔다", db._apool is None)
 
     # ⑦ 가짜 풀을 끼워 매핑을 확인한다. DB 없이 도는 검사라 CI 에서 돈다.
     #    네 값이 서로 <다른 자리>로 가는지를 본다 — 뒤바뀌어도 그래프는 멀쩡해 보이고,
@@ -145,6 +158,24 @@ def main() -> int:
     for name in ("size", "max", "available", "requests_waiting"):
         got = _value(f"alldap_db_pool_{name}")
         check(f"풀이 없어지면 {name} == 0 (옛 값이 안 남는다)", got == 0.0, f"(={got})")
+
+    # ⑨ 같은 가짜 풀을 async 쪽에 끼운다. 🔴 두 풀의 게이지가 <서로 섞이지 않는지>도 본다.
+    #    _fill_pool_gauges 를 공유하므로, 인자를 잘못 넘기면 async 값이 동기 게이지로 간다.
+    #    ⚠️ ⑧ <뒤에> 둔다. ⑦ 이 동기 waiting 에 5 를 남기므로, ⑧ 이 0 으로 되돌린 다음이어야
+    #       "동기 게이지가 0 그대로다" 가 async 쪽이 안 건드렸다는 증거가 된다.
+    db._apool = _StubPool()
+    try:
+        metrics.sample_db_apool()
+        check("apool open == 1", _value("alldap_db_apool_open") == 1.0)
+        check("apool waiting == 5", _value("alldap_db_apool_requests_waiting") == 5.0)
+        check("apool 이 동기 풀 게이지를 건드리지 않는다",
+              _value("alldap_db_pool_requests_waiting") == 0.0)
+    finally:
+        db._apool = None
+    metrics.sample_db_apool()
+    for name in ("open", "size", "max", "available", "requests_waiting"):
+        got = _value(f"alldap_db_apool_{name}")
+        check(f"async 풀이 없어지면 {name} == 0", got == 0.0, f"(={got})")
 
     print(f"\n{'실패 ' + ', '.join(_failures) if _failures else '전부 통과'}")
     return 1 if _failures else 0

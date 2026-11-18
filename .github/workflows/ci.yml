@@ -250,6 +250,9 @@ jobs:
       #       onnxruntime · transformers · torch 를 import 하지 않고(늦은 import) 모델 파일도
       #       안 읽는다. 🔴 이 둘이 여기서 도는 것 자체가 그 <늦은 import> 의 검사다 -
       #       실수로 모듈 최상단에 올리면 requirements.txt 만 깔린 이 잡이 그 자리에서 죽는다.
+      #    ✅ tools.adb_check 는 async DB 풀을 <실제로 열고 닫지만> 연결을 기다리지 않는다(wait=False).
+      #       그래서 DB 가 없는 이 잡에서도 돈다 — 그게 곧 "DB 없이도 서버가 뜬다" 는 약속의 검사다.
+      #       ⚠️ tools.metrics_check 도 TestClient 로 lifespan 을 돌리므로 같은 이유로 여기서 돈다.
       #    ✅ tools.storage_check 는 업로드 원본의 경로 규칙을 임시 폴더에서만 본다. Redis 도 DB 도 안 쓴다.
       #    ✅ tools.import_boundary_check 는 app 이 tools 를 import 하지 않는지 본다. 운영 이미지는
       #       app/ 만 복사하므로, 어기면 여기서는 초록인데 운영 컨테이너에서만 죽는다.
@@ -272,6 +275,7 @@ jobs:
           python -m tools.conflicts_check
           python -m tools.metrics_check
           python -m tools.openapi_check
+          python -m tools.adb_check
           python -m tools.export_reranker_check
           python -m tools.local_reranker_check
           python -m tools.judge_agreement_check
