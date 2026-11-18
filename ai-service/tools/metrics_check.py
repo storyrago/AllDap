@@ -194,6 +194,22 @@ def main() -> int:
     lag = asyncio.run(_lag_scenario())
     check("루프를 0.3초 막으면 지연 지표 >= 0.2", lag >= 0.2, f"(={lag:.3f})")
 
+    # ⑩-2 🔴 창이 비면 NaN 이어야 한다. 0 이면 "감시가 죽었다" 가 "안 막혔다" 로 둔갑한다.
+    #     NaN 은 자기 자신과도 같지 않아서(nan != nan) 비교로는 못 잡는다. math.isnan 으로 본다.
+    import math
+
+    saved = list(metrics._lags)
+    metrics._lags.clear()
+    try:
+        metrics.sample_event_loop_lag()
+        empty = _value("alldap_event_loop_lag_seconds")
+    finally:
+        # 다음 점검이 오염된 상태를 물려받지 않게 되돌린다.
+        metrics._lags.extend(saved)
+        metrics.sample_event_loop_lag()
+    check("창이 비면 지연 지표는 NaN (0 이 아니다)", math.isnan(empty), f"(={empty})")
+    check("되돌린 뒤 지연 지표는 다시 숫자", not math.isnan(_value("alldap_event_loop_lag_seconds")))
+
     # ⑪ 채팅 라우트가 코루틴인가. 🔴 def 로 되돌아가도 응답은 멀쩡해서 눈으로는 못 잡는다.
     #    inspect.iscoroutinefunction 은 "async def 로 정의됐는가" 를 True/False 로 알려준다.
     import inspect

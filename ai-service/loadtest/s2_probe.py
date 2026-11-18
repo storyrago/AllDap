@@ -44,6 +44,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import subprocess
 import sys
 import time
@@ -262,11 +263,19 @@ def cmd_sample(args) -> int:
 
 
 def _agg(values: list[float | None]) -> dict:
-    """None 을 <섞지 않고> 센다. null 이 몇 번이었는지가 곧 '계측이 있었는가' 다."""
-    present = [v for v in values if v is not None]
+    """None 을 <섞지 않고> 센다. null 이 몇 번이었는지가 곧 '계측이 있었는가' 다.
+
+    🔴 NaN 도 따로 센다(n_nan). sample 은 NaN 을 만나면 MetricUnreadable 로 멈추므로
+       정상 경로로는 여기까지 오지 않는다. 그래도 손으로 고친 파일이나 다른 경로로 섞여 들면
+       파이썬 max()/min() 은 NaN 이 <어디 있느냐에 따라> 다른 답을 낸다(NaN 과의 비교가 늘
+       False 라서다). 그래서 숫자 집계에서 빼고, 표에서는 "읽지 못함" 으로 따로 보인다.
+    """
+    nan = sum(1 for v in values if isinstance(v, float) and math.isnan(v))
+    present = [v for v in values if v is not None and not (isinstance(v, float) and math.isnan(v))]
     return {
         "n": len(values),
-        "n_null": len(values) - len(present),
+        "n_null": len(values) - len(present) - nan,
+        "n_nan": nan,
         "min": min(present) if present else None,
         "max": max(present) if present else None,
         "last": present[-1] if present else None,
@@ -336,7 +345,11 @@ def cmd_fold(args) -> int:
             print(f"{stage:>4}  (표본 없음)")
             continue
         def m(k):
-            v = e.get(k, {}).get("max")
+            # "-" 는 값이 없었다(None), "NaN×n" 은 값을 <읽지 못했다>. 둘은 다른 사실이다.
+            agg = e.get(k, {})
+            if agg.get("n_nan"):
+                return f"NaN×{agg['n_nan']}"
+            v = agg.get("max")
             return "-" if v is None else f"{v:g}"
         print(f"{stage:>4}  {e['samples']:>4}  {m('alldap_ai_circuit_state'):>12}  "
               f"{m('alldap_db_pool_requests_waiting'):>12}  "

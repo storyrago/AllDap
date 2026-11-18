@@ -277,8 +277,13 @@ async def watch_event_loop_lag(interval: float = 0.1) -> None:
 
 def sample_event_loop_lag() -> None:
     cutoff = time.monotonic() - _LAG_WINDOW_S
-    # default=0.0: 창 안에 기록이 하나도 없으면(감시 작업이 아직 한 번도 안 깨어났으면) 0.
-    EVENT_LOOP_LAG.set(max((lag for t, lag in _lags if t >= cutoff), default=0.0))
+    recent = [lag for t, lag in _lags if t >= cutoff]
+    # 🔴 창이 비면 0 이 아니라 NaN 이다. 감시 작업은 0.1초마다 기록하므로 15초 창이 비었다는
+    #    것은 <감시가 죽었거나 아직 안 돌았다>는 뜻이다. 0 을 내면 "루프가 전혀 안 막혔다" 와
+    #    같은 값이 되어, 감시가 예외로 죽어도 계기판은 건강하다고 말한다.
+    #    NaN 은 Prometheus 노출에 "NaN" 으로 나가고, loadtest.promtext 는 그것을 MetricUnreadable
+    #    로 읽는다(= 0 으로도 <없음>으로도 읽지 않는다).
+    EVENT_LOOP_LAG.set(max(recent) if recent else float("nan"))
 
 
 def render() -> tuple[bytes, str]:
