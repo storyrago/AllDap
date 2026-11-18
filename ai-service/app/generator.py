@@ -13,8 +13,8 @@ import logging
 
 from . import cf
 from .config import get_settings
-from .db import cursor
-from .retriever import fetch_contents
+from .db import acursor, cursor
+from .retriever import afetch_contents, fetch_contents
 from .schemas import Id, Source
 
 _log = logging.getLogger(__name__)
@@ -204,4 +204,40 @@ def generate(
 
     s = get_settings()
     result = cf.run(s.chat_model, _chat_payload(question, _build_context(sources), system_prompt))
+    return _interpret_reply(result, fallback_message)
+
+
+# ── async 판 (채팅 전용, 2026-11-18) ───────────────────────────────────
+#
+# 🔴 기다리는 줄(DB·Cloudflare)만 await 이고, 요청 조립과 NO_ANSWER 판정은 위의
+#    _chat_payload · _interpret_reply 를 그대로 부른다. 여기서 판정을 새로 쓰지 말 것.
+
+async def afetch_bot_prompt(bot_id: Id) -> str | None:
+    """fetch_bot_prompt 의 async 판 (왜 Python 이 직접 읽는지는 그쪽 docstring)."""
+    async with acursor() as cur:
+        await cur.execute(_BOT_PROMPT_SQL, (bot_id,))
+        row = await cur.fetchone()
+    return row[0] if row else None
+
+
+async def _abuild_context(sources: list[Source]) -> str:
+    # ⚠️ `afetch_contents` 도 <모듈 전역에서> 찾는다(_build_context 와 같은 이유).
+    #    generator_check 가 `generator.afetch_contents` 를 갈아 끼워 DB 없이 돈다.
+    return _format_context(sources, await afetch_contents([s.chunk_id for s in sources]))
+
+
+async def agenerate(
+    question: str,
+    sources: list[Source],
+    *,
+    system_prompt: str | None = None,
+    fallback_message: str = DEFAULT_FALLBACK,
+) -> tuple[str, bool]:
+    """generate 의 async 판. (답변, is_fallback), 못 받았으면 GenerationFailed."""
+    # 검색 단계에서 이미 걸러졌다면 LLM을 부를 필요도 없다 (비용 절감)
+    if not sources:
+        return fallback_message, True
+    s = get_settings()
+    context = await _abuild_context(sources)
+    result = await cf.arun(s.chat_model, _chat_payload(question, context, system_prompt))
     return _interpret_reply(result, fallback_message)
