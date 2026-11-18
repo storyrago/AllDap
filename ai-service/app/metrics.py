@@ -151,6 +151,55 @@ DB_POOL_OPEN = Gauge(
     "psycopg 풀이 만들어져 있으면 1, 아직 없으면 0 (0 이면 위 풀 지표는 의미가 없다)",
 )
 
+# ── async 풀 (채팅 전용, 2026-11-18) ───────────────────────────────────
+#
+# 🔴 기존 이름에 label(pool="sync"/"async")을 붙이지 않고 <새 이름>을 쓴다.
+#    loadtest/s2_probe.py 와 s2_context.py 가 alldap_db_pool_* 를 이름으로 읽는다.
+#    label 을 붙이면 같은 이름에 시계열이 둘이 되어 읽는 쪽이 둘 중 무엇을 읽는지
+#    모르게 되고, 9월 측정과도 이어 붙일 수 없다.
+# 🔴 부하 중 채팅이 쓰는 풀은 <이쪽>이다(채팅 라우트를 async 로 바꾼 뒤부터). 동기 풀
+#    지표만 보고 "DB 는 병목이 아니다" 라고 읽지 말 것.
+# ⚠️ DB 가 꺼져 있어도 size 는 1 로 보인다. psycopg-pool 은 <연결을 시도 중인> 것도
+#    size 에 센다(2026-11-18 실측: connections_errors 3 인데 pool_size 1).
+#    "연결이 있다" 의 증거는 size 가 아니라 available 이다.
+DB_APOOL_SIZE = Gauge("alldap_db_apool_size", "async psycopg 풀에 지금 만들어져 있는 커넥션 수")
+DB_APOOL_MAX = Gauge("alldap_db_apool_max", "async psycopg 풀의 커넥션 상한")
+DB_APOOL_AVAILABLE = Gauge("alldap_db_apool_available", "async psycopg 풀에서 지금 노는 커넥션 수")
+DB_APOOL_WAITING = Gauge(
+    "alldap_db_apool_requests_waiting",
+    "지금 async 풀 커넥션을 기다리는 요청 수 (async 채팅의 DB 벽 증거)",
+)
+DB_APOOL_OPEN = Gauge(
+    "alldap_db_apool_open",
+    "async 풀이 열려 있으면 1, 아니면 0 (0 이면 위 apool 지표는 의미가 없다)",
+)
+
+
+def _fill_pool_gauges(stats: dict[str, int] | None, open_g, size_g, max_g, avail_g, wait_g) -> None:
+    """풀 지표 다섯 개를 채운다. 동기·async 풀이 <같은 규칙>을 쓰게 하려고 뺐다.
+
+    규칙을 두 군데 적으면 언젠가 한쪽만 고쳐진다. 아래 "open 만 0 으로 내리면 안 된다" 가
+    바로 그렇게 한 번 틀렸던 규칙이라(2026-09-12), async 쪽이 그 실수를 되풀이하지 않게 한다.
+    """
+    if stats is None:
+        # 🔴 open 만 0 으로 내리면 <안 된다>. prometheus_client 게이지는 마지막 값을
+        #    계속 들고 있으므로, 풀이 사라진 뒤에도 waiting 이 옛 값(예: 5)으로 남는다.
+        #    그러면 계기판이 "지금 5건이 커넥션을 기다린다" 와 "옛날에 5건이었다" 를
+        #    같은 값으로 말한다 - 이 저장소가 여덟 번 낸 그 부류다.
+        #    ⚠️ 0 을 내보내도 "상한이 0" 으로 오독되지 않는 이유는 open 이 함께 0 이라서다.
+        #       읽는 규칙은 하나뿐이다: open 이 0 이면 나머지 네 선은 의미가 없다.
+        #       (Grafana 패널 설명과 db.pool_stats 주석이 같은 말을 한다)
+        for g in (open_g, size_g, max_g, avail_g, wait_g):
+            g.set(0)
+        return
+    open_g.set(1)
+    # ⚠️ 누적 카운터(requests_num 등)는 값이 0 이면 키 자체가 없다(psycopg 가
+    #    defaultdict 로 모으기 때문). 순간값 네 개는 항상 오지만 .get 으로 받는다.
+    size_g.set(stats.get("pool_size", 0))
+    max_g.set(stats.get("pool_max", 0))
+    avail_g.set(stats.get("pool_available", 0))
+    wait_g.set(stats.get("requests_waiting", 0))
+
 
 def sample_db_pool() -> None:
     """psycopg 풀 상태를 지금 값으로 갱신한다.
@@ -163,32 +212,23 @@ def sample_db_pool() -> None:
     ⚠️ 스크레이프 시점의 순간값이다. 15초 간격 사이에 찼다 빠지면 못 본다
        (sample_anyio_threads 와 같은 한계, 같은 이유로 S2 는 단계를 2분씩 유지한다).
     """
-    stats = db.pool_stats()
-    if stats is None:
-        # 🔴 open 만 0 으로 내리면 <안 된다>. prometheus_client 게이지는 마지막 값을
-        #    계속 들고 있으므로, 풀이 사라진 뒤에도 waiting 이 옛 값(예: 5)으로 남는다.
-        #    그러면 계기판이 "지금 5건이 커넥션을 기다린다" 와 "옛날에 5건이었다" 를
-        #    같은 값으로 말한다 - 이 저장소가 여덟 번 낸 그 부류다.
-        #    ⚠️ 0 을 내보내도 "상한이 0" 으로 오독되지 않는 이유는 open 이 함께 0 이라서다.
-        #       읽는 규칙은 하나뿐이다: open 이 0 이면 나머지 네 선은 의미가 없다.
-        #       (Grafana 패널 설명과 아래 pool_stats 주석이 같은 말을 한다)
-        DB_POOL_OPEN.set(0)
-        DB_POOL_SIZE.set(0)
-        DB_POOL_MAX.set(0)
-        DB_POOL_AVAILABLE.set(0)
-        DB_POOL_WAITING.set(0)
-        return
-    DB_POOL_OPEN.set(1)
-    # ⚠️ 누적 카운터(requests_num 등)는 값이 0 이면 키 자체가 없다(psycopg 가
-    #    defaultdict 로 모으기 때문). 순간값 네 개는 항상 오지만 .get 으로 받는다.
-    DB_POOL_SIZE.set(stats.get("pool_size", 0))
-    DB_POOL_MAX.set(stats.get("pool_max", 0))
-    DB_POOL_AVAILABLE.set(stats.get("pool_available", 0))
-    DB_POOL_WAITING.set(stats.get("requests_waiting", 0))
+    _fill_pool_gauges(db.pool_stats(), DB_POOL_OPEN, DB_POOL_SIZE, DB_POOL_MAX,
+                      DB_POOL_AVAILABLE, DB_POOL_WAITING)
+
+
+def sample_db_apool() -> None:
+    """async 풀 상태를 갱신한다. db.async_pool_stats 는 풀을 만들지 않는다.
+
+    ⚠️ sample_db_pool 과 같은 두 전제(풀을 만들지 않는다, get_stats 는 잠금이 없다)
+       위에 선다. async 풀은 lifespan 이 열므로 서버가 도는 동안은 open 이 1 이다.
+    """
+    _fill_pool_gauges(db.async_pool_stats(), DB_APOOL_OPEN, DB_APOOL_SIZE, DB_APOOL_MAX,
+                      DB_APOOL_AVAILABLE, DB_APOOL_WAITING)
 
 
 def render() -> tuple[bytes, str]:
     """스크레이프 응답 본문과 Content-Type. 이벤트 루프에서만 부를 것."""
     sample_anyio_threads()
     sample_db_pool()
+    sample_db_apool()
     return generate_latest(), CONTENT_TYPE_LATEST

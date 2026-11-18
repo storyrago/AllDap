@@ -2,10 +2,10 @@
 from __future__ import annotations
 
 import threading
-from contextlib import contextmanager
+from contextlib import asynccontextmanager, contextmanager
 
-from psycopg_pool import ConnectionPool
-from pgvector.psycopg import register_vector
+from psycopg_pool import AsyncConnectionPool, ConnectionPool
+from pgvector.psycopg import register_vector, register_vector_async
 
 from .config import get_settings
 
@@ -75,3 +75,86 @@ def close_pool() -> None:
     if _pool is not None:
         _pool.close()
         _pool = None
+
+
+# ── async 풀 (채팅 전용, 2026-11-18) ───────────────────────────────────
+#
+# 🔴 동기 풀과 <따로> 둔다. 동기 풀은 워커·평가·tools 가 쓰고, 이 풀은 async 채팅만 쓴다.
+#    크기는 같게 둔다(10). 합쳐서 최대 20 연결 — 로컬 Postgres 기본 한도(100) 안이다.
+#
+# 🔴 lifespan 에서 연다(처음 쓸 때가 아니라). 여는 데 `await` 가 들어가서, 처음 쓸 때
+#    만들면 첫 요청이 여는 도중 멈춘 사이 둘째 요청이 "풀이 없다" 고 보고 하나 더 만든다.
+#    동기 풀은 그걸 threading.Lock 으로 막았다(get_pool). 여기서는 요청이 오기 <전에>
+#    만들어 경쟁할 기회 자체를 없앤다. 또 async 풀은 만든 이벤트 루프에 묶이므로,
+#    루프가 확실히 도는 lifespan 이 맞는 자리다.
+_apool: AsyncConnectionPool | None = None
+
+
+async def _aconfigure(conn) -> None:
+    # 🔴 빠뜨리면 벡터가 문자열로 오가 검색이 깨진다(동기 판의 _configure 와 같은 일).
+    #    async 연결에서는 타입 등록도 DB 왕복이라 await 해야 한다. 그래서 _configure 를
+    #    그대로 못 쓰고 register_vector_async 를 부르는 async 판을 따로 둔다.
+    await register_vector_async(conn)
+
+
+async def open_async_pool() -> None:
+    global _apool
+    if _apool is not None:
+        return
+    s = get_settings()
+    pool = AsyncConnectionPool(
+        s.database_url,
+        min_size=1,
+        max_size=10,
+        configure=_aconfigure,
+        # open=False 로 만들고 아래에서 await 로 연다. async 풀을 생성자에서 열면
+        # psycopg-pool 이 경고를 낸다(생성자는 await 할 수 없어서다).
+        open=False,
+    )
+    # wait=False: DB 연결을 <기다리지 않는다>. DB 가 꺼져 있어도 서버는 뜨고,
+    # 첫 채팅이 연결을 기다리다 실패한다. 지금 동기 풀의 동작과 같다.
+    await pool.open(wait=False)
+    _apool = pool
+
+
+async def close_async_pool() -> None:
+    global _apool
+    if _apool is not None:
+        await _apool.close()
+        _apool = None
+
+
+def async_pool_stats() -> dict[str, int] | None:
+    """async 풀의 현재 상태. 안 열렸으면 None (pool_stats 와 같은 약속).
+
+    ⚠️ AsyncConnectionPool.get_stats() 도 잠금 없이 dict 복사와 deque 길이만 읽는다
+       (psycopg-pool 3.3.1: base.get_stats → pool_async._get_measures, 2026-11-18 확인).
+       그래서 이벤트 루프에서 불러도 안전하다. 라이브러리를 올릴 때 다시 확인할 것.
+    """
+    if _apool is None:
+        return None
+    return _apool.get_stats()
+
+
+# @asynccontextmanager 는 @contextmanager(위 cursor) 의 async 판이다.
+# `yield` 앞이 "들어갈 때", 뒤가 "나올 때" 이고, 그 사이에 `async with` 블록 본문이 돈다.
+# 안쪽에서 `async with` 로 연결·커서를 겹쳐 잡으므로, 블록이 어떻게 끝나든
+# (정상·예외·취소) 바깥쪽부터 거꾸로 풀려 연결이 풀로 돌아간다.
+@asynccontextmanager
+async def acursor(commit: bool = False):
+    """cursor() 의 async 판. `async with acursor() as cur:` 로 쓴다.
+
+    `async with` 블록을 빠져나가는 순간 연결이 풀로 돌아간다 — 정상 종료·예외·취소 모두.
+    """
+    if _apool is None:
+        # 🔴 여기서 풀을 <만들지 않는다>. 만들면 "lifespan 이 안 돌았다" 는 사실이
+        #    조용히 묻히고, 루프 밖에서 만든 풀이 엉뚱한 루프에 묶일 수 있다.
+        raise RuntimeError(
+            "async DB 풀이 열려 있지 않습니다. app.main 의 lifespan 이 open_async_pool() 을 "
+            "부르는지 확인하세요. 스크립트(tools/)에서는 동기 cursor() 를 쓰세요."
+        )
+    async with _apool.connection() as conn:
+        async with conn.cursor() as cur:
+            yield cur
+        if commit:
+            await conn.commit()

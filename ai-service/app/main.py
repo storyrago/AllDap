@@ -17,7 +17,7 @@ from kombu.exceptions import OperationalError as BrokerUnavailable
 
 from . import cf, conflicts, evaluator, evalrun, metrics, retriever, storage
 from .config import get_settings
-from .db import close_pool, cursor
+from .db import close_async_pool, close_pool, cursor, open_async_pool
 from .generator import GenerationFailed, build_system_prompt, fetch_bot_prompt, generate
 from .parsers import ParseError
 from .schemas import (
@@ -87,7 +87,18 @@ async def lifespan(app: FastAPI):
     _apply_thread_limit()
     # 업로드 폴더를 못 쓰면 여기서 기동을 막는다. 업로드를 받고 나서 실패하는 것보다 낫다(스펙 5-4).
     storage.ensure_upload_dir()
+    # async 채팅용 DB 풀. 요청이 오기 전에 열어 "처음 쓸 때 둘이 동시에 만드는" 경쟁을 없앤다.
+    # DB 연결은 기다리지 않는다(db.open_async_pool 주석). 그래서 DB 가 꺼져 있어도 서버는 뜬다.
+    # lifespan 이 `async def` 라서 여기서 바로 `await` 할 수 있다 — 이벤트 루프 위에서 도는
+    # 자리라 async 풀을 만들기에 맞다(async 풀은 만든 루프에 묶인다).
+    await open_async_pool()
     yield
+    # 🔴 닫는 순서: async 풀 → async HTTP → 동기 풀. 만든 쪽의 역순이다.
+    #    kill -9 처럼 이 줄까지 오지 못하는 종료에서는 DB 가 끊긴 연결을 나중에 정리한다.
+    await close_async_pool()
+    # TODO(async-chat): 여기, async 풀 닫기 <다음>·동기 풀 닫기 <앞>에 `await cf.aclose()` 를 넣는다.
+    #   cf.aclose(async HTTP 클라이언트 닫기)는 다른 PR(cf.arun)에서 생겨 아직 main 에 없다.
+    #   채팅 라우트를 `async def` 로 바꾸는 PR 에서 함께 넣을 것.
     close_pool()
 
 
